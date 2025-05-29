@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Audio Stem Separator</title>
+    <title>Audio Stem Separator (Demucs)</title>
     <style>
         :root {
             --primary-bg: #1e1e2f;
@@ -41,11 +41,11 @@
         <h1 class="title">Audio Stem Separator</h1>
         <div class="upload-group">
             <label for="audioFile" class="file-input-label">Choose Audio File (e.g., MP3, WAV)</label>
-            <input type="file" id="audioFile" name="audioFile" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac">
+            <input type="file" id="audioFile" name="audioFile" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac"> <!-- Specific accept attributes -->
             <p id="fileNameDisplay">No file selected</p>
         </div>
         <button id="processBtn" class="action-button" disabled>Separate Stems</button>
-        <div id="spinner" class="spinner"></div>
+        <div id="spinner" class="spinner"></div> <!-- Original spinner -->
         <p id="statusMessage" class="status-message"></p>
     </div>
 
@@ -53,11 +53,12 @@
         const audioFileInput = document.getElementById('audioFile');
         const processBtn = document.getElementById('processBtn');
         const statusMessage = document.getElementById('statusMessage');
-        const spinner = document.getElementById('spinner'); // Spinner was part of this version
+        const spinner = document.getElementById('spinner'); 
         const fileNameDisplay = document.getElementById('fileNameDisplay');
 
+        // Configuration for Caddy (HTTPS)
         const YOUR_DDNS_HOSTNAME = 'vicsanitymp3.servemp3.com';
-        const SERVER_ENDPOINT_BASE = `https://${YOUR_DDNS_HOSTNAME}`;
+        const SERVER_ENDPOINT_BASE = `https://${YOUR_DDNS_HOSTNAME}`; // HTTPS, no port
         const SERVER_ENDPOINT = `${SERVER_ENDPOINT_BASE}/separate-stems`;
         let selectedFile = null;
 
@@ -85,10 +86,10 @@
                 return;
             }
 
-            setStatus('Uploading and processing... This may take a while, please be patient.', '');
+            setStatus('Uploading and processing... This may take a while, please be patient.', ''); // Original message
             processBtn.disabled = true;
             processBtn.textContent = 'Processing... (Could take several minutes)';
-            spinner.style.display = 'block'; // Using the original spinner
+            spinner.style.display = 'block'; 
 
             const formData = new FormData();
             formData.append('audioFile', selectedFile); 
@@ -127,7 +128,7 @@
                 setStatus(`Error: ${error.message}`, 'error');
             } finally {
                 processBtn.disabled = false; processBtn.textContent = 'Separate Stems';
-                spinner.style.display = 'none'; // Hide original spinner
+                spinner.style.display = 'none'; 
                 audioFileInput.value = null; selectedFile = null;
                 fileNameDisplay.textContent = 'No file selected'; processBtn.disabled = true;
             }
