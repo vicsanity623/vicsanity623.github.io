@@ -1,10 +1,332 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My Awesome Website</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MP3 Downloader</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
+     crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --primary-bg: #1e1e2f;
+            --secondary-bg: #27293d;
+            --accent-color: #ff79c6;
+            --text-color: #f8f8f2;
+            --input-bg: #44475a;
+            --success-color: #50fa7b;
+            --error-color: #ff5555;
+            --border-radius: 8px;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: var(--font-family);
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            overscroll-behavior-y: contain;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .title {
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            color: var(--accent-color);
+            font-weight: 300;
+        }
+
+        .input-group {
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 25px;
+        }
+
+        .url-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1em;
+            border: 1px solid var(--input-bg);
+            border-radius: var(--border-radius);
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .url-input::placeholder {
+            color: #bd93f9;
+        }
+
+        .url-input:focus {
+            border-color: var(--accent-color);
+        }
+
+        .download-button {
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--text-color);
+            background-color: var(--accent-color);
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            outline: none;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .download-button:hover {
+            background-color: #ff92d4;
+        }
+
+        .download-button:active {
+            transform: scale(0.98);
+        }
+
+        .download-button:disabled {
+            background-color: #6272a4;
+            cursor: not-allowed;
+        }
+
+        .status-message {
+            margin-top: 20px;
+            font-size: 0.9em;
+            min-height: 1.2em;
+            color: var(--text-color);
+        }
+
+        .status-message.success {
+            color: var(--success-color);
+        }
+
+        .status-message.error {
+            color: var(--error-color);
+        }
+
+        .spinner {
+            display: none;
+            border: 4px solid rgba(248, 248, 242, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid var(--accent-color);
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto 0;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .ad-container {
+            display: none;
+            width: 100%;
+            max-width: 500px;
+            margin: 25px auto;
+            border: 2px dashed red;
+            min-height: 50px;
+            background-color: rgba(255,0,0,0.1);
+        }
+    </style>
 </head>
 <body>
-    <h1>Hello World!</h1>
-    <p>Welcome to my website hosted on GitHub Pages.</p>
+    <div class="app-container">
+        <h1 class="title">MP3 Downloader</h1>
+
+        <div class="input-group">
+            <input type="url" id="videoUrl" class="url-input" placeholder="Paste video URL here">
+        </div>
+
+        <button id="downloadBtn" class="download-button">Download MP3</button>
+
+        <div id="adContainer1" class="ad-container">
+        </div>
+
+        <div id="spinner" class="spinner"></div>
+        <p id="statusMessage" class="status-message"></p>
+
+        <div id="adContainer2" class="ad-container">
+        </div>
+    </div>
+
+    <script>
+        const videoUrlInput = document.getElementById('videoUrl');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const spinner = document.getElementById('spinner');
+        const adContainer1 = document.getElementById('adContainer1');
+        const adContainer2 = document.getElementById('adContainer2');
+
+        const SERVER_ENDPOINT = '/download-mp3';
+
+        const adSlot1HTML = `
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-5972331036113330"
+                 data-ad-slot="7200779658"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+        `;
+
+        const adSlot2HTML = `
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-5972331036113330"
+                 data-ad-slot="4287691766"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+        `;
+
+        function showAd(adContainerElement, adSlotHTML) {
+            if (adContainerElement) {
+                adContainerElement.innerHTML = adSlotHTML;
+                adContainerElement.style.display = 'block';
+                try {
+                    (adsbygoogle = window.adsbygoogle || []).push({});
+                    console.log('AdSense push for ad in container:', adContainerElement.id);
+                } catch (e) {
+                    console.error('Error pushing AdSense ad for ' + adContainerElement.id + ':', e);
+                }
+            }
+        }
+
+        function hideAd(adContainerElement) {
+            if (adContainerElement) {
+                adContainerElement.style.display = 'none';
+                adContainerElement.innerHTML = '';
+            }
+        }
+
+        downloadBtn.addEventListener('click', handleDownload);
+
+        async function handleDownload() {
+            const url = videoUrlInput.value.trim();
+            if (!url) {
+                setStatus('Please paste a video URL.', 'error');
+                return;
+            }
+            try {
+                new URL(url);
+            } catch (_) {
+                setStatus('Invalid URL format.', 'error');
+                return;
+            }
+
+            setStatus('Processing...', '');
+            downloadBtn.disabled = true;
+            spinner.style.display = 'block';
+
+            hideAd(adContainer2);
+            showAd(adContainer1, adSlot1HTML);
+
+            try {
+                const response = await fetch(SERVER_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoUrl: url }),
+                });
+
+                if (!response.ok) {
+                    let errorMsg = `Server error: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData && errorData.error) errorMsg = errorData.error;
+                    } catch (e) { /* No additional error info */ }
+                    throw new Error(errorMsg);
+                }
+
+                const blob = await response.blob();
+                const filenameHeader = response.headers.get('Content-Disposition');
+                let filename = 'audio.mp3';
+                if (filenameHeader) {
+                    const parts = filenameHeader.split('filename=');
+                    if (parts.length > 1) {
+                        filename = parts[1].replace(/"/g, '');
+                    }
+                }
+                
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = downloadUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+
+                setStatus(`Download started for ${filename}! Check your device's downloads.`, 'success');
+                videoUrlInput.value = '';
+                
+                setTimeout(() => {
+                    if (downloadUrl) {
+                        window.URL.revokeObjectURL(downloadUrl);
+                        console.log("Object URL revoked after delay.");
+                    }
+                    if (a && a.parentElement) {
+                        a.remove();
+                        console.log("'a' element removed after delay.");
+                    }
+                }, 2000);
+
+                hideAd(adContainer1); 
+                showAd(adContainer2, adSlot2HTML); 
+
+            } catch (error) {
+                console.error('Download error:', error);
+                setStatus(`Error: ${error.message}`, 'error');
+                hideAd(adContainer1);
+                hideAd(adContainer2);
+            } finally {
+                downloadBtn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        }
+
+        function setStatus(message, type = '') {
+            statusMessage.textContent = message;
+            statusMessage.className = 'status-message';
+            if (type) {
+                statusMessage.classList.add(type);
+            }
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    if (statusMessage.textContent === message) {
+                         statusMessage.textContent = '';
+                         statusMessage.className = 'status-message';
+                    }
+                }, 7000);
+            }
+        }
+
+        videoUrlInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                downloadBtn.click();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            hideAd(adContainer1);
+            hideAd(adContainer2);
+        });
+
+    </script>
 </body>
 </html>
