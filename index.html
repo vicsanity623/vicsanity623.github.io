@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Audio Stem Separator (Demucs)</title>
-    <!-- If you intend to use AdSense, keep this, otherwise remove -->
-    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_CLIENT_ID"
-     crossorigin="anonymous"></script> -->
+    <!-- STEP 1: Main AdSense Script - YOUR PUBLISHER ID IS ALREADY HERE -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
+     crossorigin="anonymous"></script>
 
     <style>
         :root {
@@ -25,20 +25,28 @@
         html, body { height: 100%; font-family: var(--font-family); background-color: var(--primary-bg); color: var(--text-color); overscroll-behavior-y: contain; }
 
         .app-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100%; padding: 20px; text-align: center; }
-        .title { font-size: 2.5em; margin-bottom: 30px; color: var(--accent-color); font-weight: 300; }
+        .title { font-size: 2.5em; margin-bottom: 20px; color: var(--accent-color); font-weight: 300; }
+
+        /* CSS for Ad Containers */
+        .ad-container {
+            width: 100%;
+            max-width: 728px; /* Adjust as needed, e.g., 320px for mobile banners, 'auto' for responsive */
+            min-height: 90px;  /* AdSense needs some space to fill */
+            margin: 20px auto; 
+            background-color: var(--secondary-bg); 
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* For responsive ads */
+            /* border: 1px dashed red; /* For debugging ad placement */
+        }
 
         .upload-group { width: 100%; max-width: 500px; margin-bottom: 25px; display: flex; flex-direction: column; align-items: center; }
         .file-input-label {
-            display: inline-block;
-            padding: 12px 20px;
-            font-size: 1em;
-            font-weight: bold;
-            color: var(--text-color);
-            background-color: var(--input-bg);
-            border: 1px dashed var(--accent-color);
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: background-color 0.3s ease, border-color 0.3s ease;
+            display: inline-block; padding: 12px 20px; font-size: 1em; font-weight: bold;
+            color: var(--text-color); background-color: var(--input-bg);
+            border: 1px dashed var(--accent-color); border-radius: var(--border-radius);
+            cursor: pointer; transition: background-color 0.3s ease, border-color 0.3s ease;
             margin-bottom: 15px;
         }
         .file-input-label:hover { background-color: #5a5d74; border-color: #00acc1; }
@@ -55,7 +63,7 @@
         .action-button:active { transform: scale(0.98); }
         .action-button:disabled { background-color: #6272a4; cursor: not-allowed; }
 
-        .status-message { margin-top: 20px; font-size: 0.9em; min-height: 1.2em; color: var(--text-color); white-space: pre-wrap; /* Allow line breaks */ }
+        .status-message { margin-top: 20px; font-size: 0.9em; min-height: 1.2em; color: var(--text-color); white-space: pre-wrap; }
         .status-message.success { color: var(--success-color); }
         .status-message.error { color: var(--error-color); }
 
@@ -65,16 +73,17 @@
             width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto 0;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
     </style>
 </head>
 <body>
     <div class="app-container">
         <h1 class="title">Audio Stem Separator</h1>
 
+        <!-- Ad Slot 1 Placeholder -->
+        <div id="adContainer1" class="ad-container"></div>
+
         <div class="upload-group">
             <label for="audioFile" class="file-input-label">Choose Audio File (e.g., MP3, WAV)</label>
-            <!-- Corrected accept attribute for better iOS compatibility -->
             <input type="file" id="audioFile" name="audioFile" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac">
             <p id="fileNameDisplay">No file selected</p>
         </div>
@@ -83,6 +92,9 @@
 
         <div id="spinner" class="spinner"></div>
         <p id="statusMessage" class="status-message"></p>
+
+        <!-- Ad Slot 2 Placeholder -->
+        <div id="adContainer2" class="ad-container"></div>
     </div>
 
     <script>
@@ -91,25 +103,60 @@
         const statusMessage = document.getElementById('statusMessage');
         const spinner = document.getElementById('spinner');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const adContainer1 = document.getElementById('adContainer1');
+        const adContainer2 = document.getElementById('adContainer2');
 
-        // --- CORRECTED CONFIGURATION FOR CADDY (HTTPS) ---
-        const YOUR_DDNS_HOSTNAME = 'vicsanitymp3.servemp3.com'; // Your DDNS hostname
-
-        // SERVER_ENDPOINT_BASE should now use HTTPS and no explicit port (port 443 is default for HTTPS)
+        // --- SERVER CONFIGURATION ---
+        const YOUR_DDNS_HOSTNAME = 'vicsanitymp3.servemp3.com';
         const SERVER_ENDPOINT_BASE = `https://${YOUR_DDNS_HOSTNAME}`;
         const SERVER_ENDPOINT = `${SERVER_ENDPOINT_BASE}/separate-stems`;
-        // --- END CORRECTED CONFIGURATION ---
-
         let selectedFile = null;
+        
+        // --- AdSense Configuration - REPLACE AD SLOT IDs ---
+        const YOUR_ADSENSE_PUBLISHER_ID = "ca-pub-5972331036113330"; // Your Publisher ID
+        
+        // YOU MUST REPLACE THESE WITH YOUR ACTUAL AD SLOT IDs FROM ADSENSE
+        const YOUR_AD_SLOT_ID_1 = "YOUR_AD_SLOT_ID_1"; // REPLACE: Ad Slot ID for adContainer1
+        const YOUR_AD_SLOT_ID_2 = "YOUR_AD_SLOT_ID_2"; // REPLACE: Ad Slot ID for adContainer2
 
-        // --- File Input Handling ---
+        const adSlot1HTML = `<ins class="adsbygoogle" style="display:block" data-ad-client="${YOUR_ADSENSE_PUBLISHER_ID}" data-ad-slot="${YOUR_AD_SLOT_ID_1}" data-ad-format="auto" data-full-width-responsive="true"></ins>`;
+        const adSlot2HTML = `<ins class="adsbygoogle" style="display:block" data-ad-client="${YOUR_ADSENSE_PUBLISHER_ID}" data-ad-slot="${YOUR_AD_SLOT_ID_2}" data-ad-format="auto" data-full-width-responsive="true"></ins>`;
+        // --- End AdSense Configuration ---
+
+        function showAd(adContainerElement, adSlotHTMLContent) {
+            if (adContainerElement && adSlotHTMLContent) {
+                // Check if the slot IDs are still placeholders
+                if (adSlotHTMLContent.includes("YOUR_AD_SLOT_ID_")) {
+                    console.warn("AdSense: Ad Slot ID is a placeholder for container:", adContainerElement.id, ". Ad will not load correctly.");
+                    // Optionally, you could hide the container or show a message
+                    // adContainerElement.style.display = 'none'; 
+                    // adContainerElement.innerHTML = 'Ad slot not configured.';
+                    return; // Don't try to push if slot ID is placeholder
+                }
+                adContainerElement.innerHTML = adSlotHTMLContent;
+                adContainerElement.style.display = 'flex'; // Use flex as per CSS
+                try {
+                    (adsbygoogle = window.adsbygoogle || []).push({});
+                } catch (e) {
+                    console.error('Error pushing AdSense ad for ' + adContainerElement.id + ':', e);
+                }
+            }
+        }
+
+        function hideAd(adContainerElement) {
+            if (adContainerElement) {
+                adContainerElement.style.display = 'none';
+                adContainerElement.innerHTML = '';
+            }
+        }
+
         audioFileInput.addEventListener('change', (event) => {
             selectedFile = event.target.files[0];
             if (selectedFile) {
                 fileNameDisplay.textContent = selectedFile.name;
                 processBtn.disabled = false;
                 processBtn.textContent = 'Separate Stems';
-                setStatus(''); // Clear previous status
+                setStatus('');
             } else {
                 fileNameDisplay.textContent = 'No file selected';
                 processBtn.disabled = true;
@@ -117,7 +164,6 @@
             }
         });
 
-        // --- Process Button Click ---
         processBtn.addEventListener('click', handleSeparation);
 
         async function handleSeparation() {
@@ -136,12 +182,14 @@
             processBtn.disabled = true;
             processBtn.textContent = 'Processing... (Could take several minutes)';
             spinner.style.display = 'block';
+            // hideAd(adContainer1); // Optionally hide ads during processing
+            // hideAd(adContainer2);
 
             const formData = new FormData();
             formData.append('audioFile', selectedFile); 
 
             try {
-                const response = await fetch(SERVER_ENDPOINT, { // SERVER_ENDPOINT now uses HTTPS
+                const response = await fetch(SERVER_ENDPOINT, {
                     method: 'POST',
                     body: formData,
                 });
@@ -193,15 +241,21 @@
                     if (downloadUrl) window.URL.revokeObjectURL(downloadUrl);
                     if (a && a.parentElement) a.remove();
                 }, 3000);
+
+                // Show ads again after successful processing
+                // You can decide your strategy here, e.g., only show one, or refresh them.
+                showAd(adContainer1, adSlot1HTML); 
+                // showAd(adContainer2, adSlot2HTML);
                 
             } catch (error) {
                 console.error('Separation error:', error);
                 setStatus(`Error: ${error.message}`, 'error');
+                // Optionally show ads on error too
+                // showAd(adContainer1, adSlot1HTML);
             } finally {
                 processBtn.disabled = false;
                 processBtn.textContent = 'Separate Stems';
                 spinner.style.display = 'none';
-
                 audioFileInput.value = null;
                 selectedFile = null;
                 fileNameDisplay.textContent = 'No file selected';
@@ -227,6 +281,9 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             processBtn.disabled = true;
+            // Show ads when the page first loads
+            showAd(adContainer1, adSlot1HTML);
+            showAd(adContainer2, adSlot2HTML);
         });
 
     </script>
