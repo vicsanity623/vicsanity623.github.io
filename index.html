@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Audio Stem Separator</title>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
-     crossorigin="anonymous"></script>
+    <title>Audio Stem Separator (Demucs)</title>
+    <!-- If you intend to use AdSense, keep this, otherwise remove -->
+    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_CLIENT_ID"
+     crossorigin="anonymous"></script> -->
 
     <style>
         :root {
             --primary-bg: #1e1e2f;
             --secondary-bg: #27293d;
-            --accent-color: #00bcd4; /* Changed accent for a new feel */
+            --accent-color: #00bcd4;
             --text-color: #f8f8f2;
             --input-bg: #44475a;
             --success-color: #50fa7b;
@@ -33,7 +34,7 @@
             font-size: 1em;
             font-weight: bold;
             color: var(--text-color);
-            background-color: var(--input-bg); /* Changed from accent to input for better contrast */
+            background-color: var(--input-bg);
             border: 1px dashed var(--accent-color);
             border-radius: var(--border-radius);
             cursor: pointer;
@@ -41,7 +42,7 @@
             margin-bottom: 15px;
         }
         .file-input-label:hover { background-color: #5a5d74; border-color: #00acc1; }
-        #audioFile { display: none; } /* Hide the default file input */
+        #audioFile { display: none; }
         #fileNameDisplay { font-size: 0.9em; color: #bd93f9; min-height: 1.2em; margin-bottom: 15px; word-break: break-all; }
 
         .action-button {
@@ -50,11 +51,11 @@
             cursor: pointer; transition: background-color 0.3s ease, transform 0.1s ease;
             outline: none; width: 100%; max-width: 500px;
         }
-        .action-button:hover { background-color: #00acc1; /* Darker shade of accent */ }
+        .action-button:hover { background-color: #00acc1; }
         .action-button:active { transform: scale(0.98); }
         .action-button:disabled { background-color: #6272a4; cursor: not-allowed; }
 
-        .status-message { margin-top: 20px; font-size: 0.9em; min-height: 1.2em; color: var(--text-color); }
+        .status-message { margin-top: 20px; font-size: 0.9em; min-height: 1.2em; color: var(--text-color); white-space: pre-wrap; /* Allow line breaks */ }
         .status-message.success { color: var(--success-color); }
         .status-message.error { color: var(--error-color); }
 
@@ -65,15 +66,9 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .ad-container {
-            display: none;
-            width: 100%;
-            max-width: 500px;
-            margin: 25px auto;
-            /* border: 1px solid #44475a;  Removed red dashed border */
-            min-height: 50px; /* AdSense responsive ads will try to fill this */
-            background-color: var(--secondary-bg); /* Subtle background for the ad area */
-        }
+        /* Remove ad containers if not using AdSense for this project */
+        /* .ad-container { display: none; ... } */
+
     </style>
 </head>
 <body>
@@ -82,16 +77,14 @@
 
         <div class="upload-group">
             <label for="audioFile" class="file-input-label">Choose Audio File (e.g., MP3, WAV)</label>
-            <input type="file" id="audioFile" accept="audio/*">
+            <input type="file" id="audioFile" name="audioFile" accept="audio/*">
             <p id="fileNameDisplay">No file selected</p>
         </div>
 
         <button id="processBtn" class="action-button" disabled>Separate Stems</button>
 
-        <div id="adContainer1" class="ad-container"></div>
         <div id="spinner" class="spinner"></div>
         <p id="statusMessage" class="status-message"></p>
-        <div id="adContainer2" class="ad-container"></div>
     </div>
 
     <script>
@@ -100,37 +93,16 @@
         const statusMessage = document.getElementById('statusMessage');
         const spinner = document.getElementById('spinner');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
-        const adContainer1 = document.getElementById('adContainer1');
-        const adContainer2 = document.getElementById('adContainer2');
 
-        // IMPORTANT: Update this to your Render service URL!
-        const SERVER_ENDPOINT_BASE = 'https://mp3-downloader-backend.onrender.com'; // Replace with your actual Render app URL
+        // --- CONFIGURATION: UPDATE THIS ---
+        // Your DDNS hostname and the external port you forwarded on your router
+        const YOUR_DDNS_HOSTNAME = 'vicsanitymp3.servemp3.com'; // Replace with your actual DDNS hostname
+        const YOUR_EXTERNAL_PORT = '3001'; // Replace with the external port you forwarded
+        // --- END CONFIGURATION ---
+
+        const SERVER_ENDPOINT_BASE = `http://${YOUR_DDNS_HOSTNAME}:${YOUR_EXTERNAL_PORT}`;
         const SERVER_ENDPOINT = `${SERVER_ENDPOINT_BASE}/separate-stems`;
         let selectedFile = null;
-
-        // --- AdSense ---
-        const adSlot1HTML = `<ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5972331036113330" data-ad-slot="7200779658" data-ad-format="auto" data-full-width-responsive="true"></ins>`;
-        const adSlot2HTML = `<ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5972331036113330" data-ad-slot="4287691766" data-ad-format="auto" data-full-width-responsive="true"></ins>`;
-
-        function showAd(adContainerElement, adSlotHTML) {
-            if (adContainerElement) {
-                adContainerElement.innerHTML = adSlotHTML;
-                adContainerElement.style.display = 'block'; // Make sure it's visible
-                try {
-                    (adsbygoogle = window.adsbygoogle || []).push({});
-                    console.log('AdSense push for ad in container:', adContainerElement.id);
-                } catch (e) {
-                    console.error('Error pushing AdSense ad for ' + adContainerElement.id + ':', e);
-                }
-            }
-        }
-
-        function hideAd(adContainerElement) {
-            if (adContainerElement) {
-                adContainerElement.style.display = 'none';
-                adContainerElement.innerHTML = ''; // Clear content
-            }
-        }
 
         // --- File Input Handling ---
         audioFileInput.addEventListener('change', (event) => {
@@ -143,7 +115,7 @@
             } else {
                 fileNameDisplay.textContent = 'No file selected';
                 processBtn.disabled = true;
-                processBtn.textContent = 'Separate Stems'; // Reset button text
+                processBtn.textContent = 'Separate Stems';
             }
         });
 
@@ -156,42 +128,63 @@
                 return;
             }
 
-            setStatus('Uploading and processing... This may take a while.', '');
+            // Basic file size check (optional, backend also checks)
+            const MAX_FRONTEND_SIZE_MB = 100; // Should match or be less than backend
+            if (selectedFile.size > MAX_FRONTEND_SIZE_MB * 1024 * 1024) {
+                setStatus(`File is too large (max ${MAX_FRONTEND_SIZE_MB}MB).`, 'error');
+                return;
+            }
+
+            setStatus('Uploading and processing... This may take a while, please be patient.', '');
             processBtn.disabled = true;
-            processBtn.textContent = 'Processing...';
+            processBtn.textContent = 'Processing... (Could take several minutes)';
             spinner.style.display = 'block';
-            hideAd(adContainer1); // Hide ads during processing
-            hideAd(adContainer2);
 
             const formData = new FormData();
-            formData.append('audioFile', selectedFile); // 'audioFile' must match backend field name (multer)
+            // 'audioFile' MUST match the .single('audioFile') in your server.js multer config
+            formData.append('audioFile', selectedFile); 
 
             try {
                 const response = await fetch(SERVER_ENDPOINT, {
                     method: 'POST',
                     body: formData,
-                    // No 'Content-Type' header needed for FormData; browser sets it with boundary
                 });
 
                 if (!response.ok) {
-                    let errorMsg = `Server error: ${response.status}`;
+                    let errorMsg = `Server error: ${response.status} ${response.statusText}`;
                     try {
-                        const errorData = await response.json(); // Try to parse JSON error from backend
-                        if (errorData && errorData.error) errorMsg = errorData.error;
+                        const errorData = await response.json();
+                        if (errorData && errorData.error) {
+                            errorMsg = errorData.error;
+                            if (errorData.details) {
+                                errorMsg += `\nDetails: ${errorData.details}`;
+                            }
+                        }
                     } catch (e) {
-                        // If not JSON, try to get text error
                         try {
                             const textError = await response.text();
-                            if(textError) errorMsg = textError.substring(0,200); // Get first 200 chars
-                        } catch (textE) { /* ignore if text parsing also fails */ }
+                            if(textError) errorMsg = textError.substring(0,300);
+                        } catch (textE) { /* ignore */ }
                     }
                     throw new Error(errorMsg);
                 }
 
-                // Assuming the server responds with a ZIP file containing all stems
                 const blob = await response.blob();
-                const originalFilenameBase = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || 'audio_stems';
-                const downloadFilename = `${originalFilenameBase}_stems.zip`;
+                // Try to get filename from Content-Disposition header first
+                let downloadFilename = "stems.zip";
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition && disposition.indexOf('attachment') !== -1) {
+                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                    const matches = filenameRegex.exec(disposition);
+                    if (matches != null && matches[1]) {
+                        downloadFilename = matches[1].replace(/['"]/g, '');
+                    }
+                } else {
+                    // Fallback if header not present (though server.js adds it)
+                    const originalFilenameBase = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || 'audio';
+                    downloadFilename = `${originalFilenameBase}_stems.zip`;
+                }
+
 
                 const downloadUrl = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -206,50 +199,40 @@
                 setTimeout(() => {
                     if (downloadUrl) window.URL.revokeObjectURL(downloadUrl);
                     if (a && a.parentElement) a.remove();
-                    console.log("Object URL revoked and 'a' element removed after delay.");
-                }, 3000); // Increased delay slightly
+                }, 3000);
                 
-                showAd(adContainer1, adSlot1HTML); // Show ad again after success
-
             } catch (error) {
                 console.error('Separation error:', error);
                 setStatus(`Error: ${error.message}`, 'error');
-                // Optionally show a different ad or no ad on error
-                // showAd(adContainer2, adSlot2HTML);
             } finally {
-                processBtn.disabled = false; // Re-enable button
-                processBtn.textContent = 'Separate Stems'; // Reset button text
+                processBtn.disabled = false;
+                processBtn.textContent = 'Separate Stems';
                 spinner.style.display = 'none';
 
-                // Reset file input for next use
-                audioFileInput.value = null; // This clears the selected file from the input element
+                audioFileInput.value = null;
                 selectedFile = null;
                 fileNameDisplay.textContent = 'No file selected';
-                processBtn.disabled = true; // Disable button until a new file is selected
+                processBtn.disabled = true;
             }
         }
 
         function setStatus(message, type = '') {
             statusMessage.textContent = message;
-            statusMessage.className = 'status-message'; // Reset classes
+            statusMessage.className = 'status-message';
             if (type) {
                 statusMessage.classList.add(type);
             }
-            // Auto-clear status message after some time, only for success/error
             if (type === 'success' || type === 'error') {
                 setTimeout(() => {
-                    if (statusMessage.textContent === message) { // Only clear if it's still the same message
+                    if (statusMessage.textContent === message) {
                          statusMessage.textContent = '';
-                         statusMessage.className = 'status-message'; // Reset classes
+                         statusMessage.className = 'status-message';
                     }
-                }, 7000);
+                }, 10000); // Increased time for error/success messages
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            hideAd(adContainer1);
-            hideAd(adContainer2);
-            // Ensure button is disabled initially as no file is selected
             processBtn.disabled = true;
         });
 
