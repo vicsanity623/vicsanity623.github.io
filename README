@@ -5,7 +5,7 @@
 
 A server-based audio processing tool that separates audio tracks into individual stems (vocals, drums, bass, etc.) using the **Demucs** machine learning engine. Ideal for legitimate audio engineering, podcast production, and forensic analysis.
 
-![Audio Separation Interface](https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/screenshot.png)
+![Audio Separation Interface](screenshot.png)
 
 ## Powered by Demucs
 This service utilizes the [**Demucs**](https://github.com/facebookresearch/demucs) audio source separation engine developed by Facebook Research:
