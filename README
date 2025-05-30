@@ -1,11 +1,11 @@
 # Professional Audio Stem Separator
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
-[![Web App](https://img.shields.io/badge/Launch-Web_App-brightgreen)](https://vicsanity623.github.io)
+
 
 A server-based audio processing tool that separates audio tracks into individual stems (vocals, drums, bass, etc.) using the **Demucs** machine learning engine. Ideal for legitimate audio engineering, podcast production, and forensic analysis.
 
-![Audio Separation Interface](screenshot.png) <!-- Replace with actual screenshot file -->
+![Audio Separation Interface](screenshot.png) 
 
 ## Powered by Demucs
 This service utilizes the [**Demucs**](https://github.com/facebookresearch/demucs) audio source separation engine developed by Facebook Research:
