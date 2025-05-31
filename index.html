@@ -5,7 +5,9 @@
      crossorigin="anonymous"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Audio Stem Separator (Demucs)</title>
+    <meta name="description" content="Separate audio files into instrumental stems (vocals, drums, bass, other) using our free online Demucs-powered tool. Upload MP3, WAV, FLAC, and more.">
+    <meta name="keywords" content="audio stem separation, demucs, music separation, isolate vocals, remove drums, instrumental maker, karaoke maker, audio tool, vicsanity">
+    <title>Free Online Audio Stem Separator - Powered by Demucs</title>
     <style>
         :root {
             --primary-bg: #1e1e2f;
@@ -19,9 +21,33 @@
             --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; font-family: var(--font-family); background-color: var(--primary-bg); color: var(--text-color); overscroll-behavior-y: contain; }
-        .app-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100%; padding: 20px; text-align: center; }
-        .title { font-size: 2.5em; margin-bottom: 30px; color: var(--accent-color); font-weight: 300; }
+        html { scroll-behavior: smooth; }
+        body { 
+            font-family: var(--font-family); 
+            background-color: var(--primary-bg); 
+            color: var(--text-color); 
+            overscroll-behavior-y: contain; 
+            line-height: 1.6;
+        }
+        .main-content-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .app-container { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 40px 20px;
+            text-align: center; 
+            background-color: var(--secondary-bg);
+            border-radius: var(--border-radius);
+            margin-bottom: 40px;
+        }
+        .title { font-size: 2.5em; margin-bottom: 10px; color: var(--accent-color); font-weight: 300; }
+        .subtitle { font-size: 1.1em; margin-bottom: 30px; color: #bd93f9; max-width: 600px; margin-left: auto; margin-right: auto;}
+
         .upload-group { width: 100%; max-width: 500px; margin-bottom: 25px; display: flex; flex-direction: column; align-items: center; }
         .file-input-label { display: inline-block; padding: 12px 20px; font-size: 1em; font-weight: bold; color: var(--text-color); background-color: var(--input-bg); border: 1px dashed var(--accent-color); border-radius: var(--border-radius); cursor: pointer; transition: background-color 0.3s ease, border-color 0.3s ease; margin-bottom: 15px; }
         .file-input-label:hover { background-color: #5a5d74; border-color: #00acc1; }
@@ -87,6 +113,72 @@
         .log-console .log-error { color: var(--error-color); }
         .log-console .log-warning { color: #f0c674; }
 
+        .content-section {
+            text-align: left;
+            margin-bottom: 40px;
+            padding: 20px;
+            background-color: var(--secondary-bg);
+            border-radius: var(--border-radius);
+        }
+        .content-section h2 {
+            color: var(--accent-color);
+            margin-bottom: 15px;
+            font-size: 1.8em;
+            font-weight: 400;
+            border-bottom: 1px solid var(--input-bg);
+            padding-bottom: 10px;
+        }
+        .content-section h3 {
+            color: #bd93f9;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.4em;
+            font-weight: 400;
+        }
+        .content-section p, .content-section ul, .content-section ol {
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+        .content-section ul, .content-section ol {
+            list-style-position: outside;
+            padding-left: 20px;
+        }
+        .content-section li {
+            margin-bottom: 8px;
+        }
+        .content-section a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+        .content-section a:hover {
+            text-decoration: underline;
+        }
+        .content-section code {
+            background-color: var(--input-bg);
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 0.9em;
+        }
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+            min-height: 200px;
+            margin: 20px auto;
+            background-color: var(--input-bg);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+        .image-container img {
+            max-width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+            border-radius: calc(var(--border-radius) - 4px);
+        }
+
         footer {
             background-color: var(--secondary-bg);
             padding: 20px;
@@ -120,26 +212,121 @@
     <meta name="google-site-verification" content="mxPAv2VJ1TR5Heht38zsEerPZyIJltVRLFiN1zyfjJY" />
 </head>
 <body>
-    <div class="app-container">
-        <h1 class="title">Audio Stem Separator</h1>
-        <div class="upload-group">
-            <label for="audioFile" class="file-input-label">Choose Audio File (e.g., MP3, WAV, FLAC)</label>
-            <input type="file" id="audioFile" name="audioFile" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac">
-            <p id="fileNameDisplay">No file selected</p>
-        </div>
-        <button id="processBtn" class="action-button" disabled>Separate Stems</button>
+    <div class="main-content-wrapper">
+        <div class="app-container">
+            <h1 class="title">Online Audio Stem Separator</h1>
+            <p class="subtitle">Easily isolate vocals, drums, bass, and other instruments from your audio tracks using the power of Demucs, completely free.</p>
 
-        <div id="progressBarContainer" class="progress-bar-container" style="display: none;">
-            <div id="progressBar" class="progress-bar"></div>
-        </div>
-        <p id="progressPercentage" class="progress-percentage" style="display: none;">0%</p>
+            <div class="upload-group">
+                <label for="audioFile" class="file-input-label">Choose Audio File (MP3, WAV, FLAC, etc.)</label>
+                <input type="file" id="audioFile" name="audioFile" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac">
+                <p id="fileNameDisplay">No file selected</p>
+            </div>
+            <button id="processBtn" class="action-button" disabled>Separate Stems</button>
 
-        <div id="logConsoleContainer" class="log-console-container" style="display: none;">
-            <pre id="logConsole" class="log-console"></pre>
+            <div id="progressBarContainer" class="progress-bar-container" style="display: none;">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <p id="progressPercentage" class="progress-percentage" style="display: none;">0%</p>
+
+            <div id="logConsoleContainer" class="log-console-container" style="display: none;">
+                <pre id="logConsole" class="log-console"></pre>
+            </div>
+
+            <div id="spinner" class="spinner"></div>
+            <p id="statusMessage" class="status-message"></p>
         </div>
 
-        <div id="spinner" class="spinner"></div>
-        <p id="statusMessage" class="status-message"></p>
+        <section class="content-section" id="what-is-stem-separation">
+            <h2>Unlock Your Audio: What is Stem Separation?</h2>
+            <p>Stem separation, also known as music source separation, is the process of isolating individual instrumental and vocal tracks (called "stems") from a mixed audio recording. Imagine having a finished song and being able to extract just the vocals, or only the drum track, or the bassline – that's the magic of stem separation!</p>
+            <p>This technology has revolutionized how musicians, producers, DJs, and audio enthusiasts interact with music, opening up a world of creative possibilities.</p>
+            <div class="image-container">
+                <img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/refs/heads/main/Audio%20MIX%20Source.png" alt="Diagram illustrating audio stem separation from a mixed track into vocals, drums, bass, and other instruments.">
+            </div>
+        </section>
+
+        <section class="content-section" id="about-demucs">
+            <h2>Powered by Demucs: State-of-the-Art AI</h2>
+            <p>This online tool utilizes <strong>Demucs</strong>, a cutting-edge deep learning model for music source separation developed by Meta AI (formerly Facebook Research). Demucs is renowned for its high-quality separation capabilities, leveraging advanced neural network architectures trained on vast amounts of music data.</p>
+            <p>Key features of Demucs include:</p>
+            <ul>
+                <li><strong>High Fidelity:</strong> It excels at producing clean stems with minimal artifacts compared to many older methods.</li>
+                <li><strong>Multiple Models:</strong> Demucs offers various pre-trained models, each with different characteristics. This service typically uses a hybrid transformer model (like <code>htdemucs_ft</code>) known for its excellent balance of quality and computational efficiency.</li>
+                <li><strong>Open Source:</strong> The Demucs project is <a href="https://en.m.wikipedia.org/wiki/Open_source" target="_blank" rel="noopener noreferrer">open-source</a> (learn more about <a href="https://en.m.wikipedia.org/wiki/Open_source" target="_blank" rel="noopener noreferrer">open source software</a>), and the Demucs code itself can be found on <a href="https://github.com/facebookresearch/demucs" target="_blank" rel="noopener noreferrer">GitHub</a>, fostering a community of researchers and developers who contribute to its advancement.</li>
+            </ul>
+            <p>By using Demucs, this tool aims to provide you with professional-grade stem separation results, accessible directly from your browser.</p>
+        </section>
+
+        <section class="content-section" id="how-to-use">
+            <h2>How to Use This Stem Separator</h2>
+            <p>Getting your audio stems is simple:</p>
+            <ol>
+                <li><strong>Choose Your Audio File:</strong> Click the "Choose Audio File" button and select an audio file from your device. We support common formats like MP3, WAV, FLAC, M4A, AAC, and OGG. For best results, use a high-quality source file.</li>
+                <li><strong>Upload & Process:</strong> Once a file is selected, the "Separate Stems" button will activate. Click it to upload your file to our server for processing. You'll see a progress bar and log messages updating you on the status.</li>
+                <li><strong>Be Patient:</strong> Stem separation is a computationally intensive task. Depending on the length of your audio file and current server load, processing can take several minutes. Please keep the browser tab open.</li>
+                <li><strong>Download Your Stems:</strong> When processing is complete, a download will automatically begin for a ZIP file containing your separated stems (typically vocals, drums, bass, and "other" instruments).</li>
+            </ol>
+            <p><strong>Supported Stems:</strong> This service typically separates audio into four main stems:</p>
+            <ul>
+                <li>Vocals</li>
+                <li>Drums</li>
+                <li>Bass</li>
+                <li>Other (includes guitars, keyboards, synths, strings, etc.)</li>
+            </ul>
+            <div class="image-container">
+                <img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/refs/heads/main/Audio%20MIX%20Source.png" alt="Visual guide: Step 1 - Upload audio, Step 2 - Process, Step 3 - Download stems.">
+            </div>
+        </section>
+
+        <section class="content-section" id="use-cases">
+            <h2>Creative Possibilities: What Can You Do With Stems?</h2>
+            <p>Audio stems open up a vast array of creative and practical applications:</p>
+            <ul>
+                <li><strong>Remixing & Mashups:</strong> DJs and producers can easily grab acapellas (vocals) or instrumental parts to create unique remixes and mashups.</li>
+                <li><strong>Karaoke Tracks:</strong> Remove the vocals from a song to create your own karaoke versions.</li>
+                <li><strong>Music Learning & Practice:</strong> Musicians can isolate specific instrument parts to learn them more easily or play along with a backing track minus their instrument.</li>
+                <li><strong>Sampling:</strong> Extract clean instrumental loops or vocal phrases for use in new compositions (always respect copyright!).</li>
+                <li><strong>Audio Post-Production:</strong> Enhance or rebalance elements in a mix if the original multitracks are unavailable.</li>
+                <li><strong>Educational Purposes:</strong> Analyze song structures and arrangements by listening to individual components.</li>
+                <li><strong>Content Creation:</strong> Obtain instrumental backing tracks for videos or podcasts.</li>
+            </ul>
+        </section>
+
+        <section class="content-section" id="tips-for-best-results">
+            <h2>Tips for Optimal Stem Separation</h2>
+            <ul>
+                <li><strong>High-Quality Source Audio:</strong> The better the quality of your original audio file (e.g., WAV, FLAC, or high-bitrate MP3), the better the separation results will generally be. Heavily compressed or noisy audio can lead to more artifacts.</li>
+                <li><strong>Clear Mixes:</strong> Songs with a clear, well-defined mix (where instruments aren't overly blurred together) tend to separate more cleanly.</li>
+                <li><strong>Understand Limitations:</strong> While Demucs is powerful, no current technology can achieve 100% perfect separation in all cases. You may occasionally hear slight "bleeding" of one instrument into another's stem or minor artifacts. This is a characteristic of the current state of source separation technology.</li>
+                <li><strong>File Size Limit:</strong> This service has a file size limit (currently 100MB) to ensure fair usage and manageable processing times. Longer or uncompressed files might exceed this.</li>
+            </ul>
+        </section>
+        
+        <section class="content-section" id="demucs-variants">
+            <h2>Understanding Demucs Models (A Bit More Technical)</h2>
+            <p>The Demucs project has evolved, offering several model architectures. Some notable ones include:</p>
+            <ul>
+                <li><strong>Original Demucs:</strong> Based on a U-Net convolutional architecture.</li>
+                <li><strong>Hybrid Demucs (<code>htdemucs</code>):</strong> Combines convolutional layers with Transformers, often providing improved quality. This is what our service primarily uses, specifically a fine-tuned version (often denoted by <code>_ft</code>). For instance, <code>htdemucs_ft</code> is a popular choice, fine-tuned on the MusDB HQ dataset.</li>
+                <li><strong>MDX Models (e.g., <code>mdx</code>, <code>mdx_extra</code>, <code>mdx_q</code>):</strong> These were earlier models, sometimes trained or fine-tuned by the community, and were part of the broader Demucs ecosystem. While good, newer hybrid transformer models generally offer superior performance for the standard four stems.</li>
+            </ul>
+            <p>The choice of model involves trade-offs between separation quality, speed, and the specific stems it's trained to isolate. We aim to use a model that provides a great balance for general-purpose use.</p>
+            <div class="image-container">
+                 <img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/refs/heads/main/IMG_7308.jpeg" alt="Conceptual flowchart of Demucs audio source separation model.">
+            </div>
+        </section>
+
+        <section class="content-section" id="legal-and-ethical-use">
+            <h2>Important: Legal & Ethical Considerations</h2>
+            <p>While stem separation technology is powerful, it's crucial to use it responsibly:</p>
+            <ul>
+                <li><strong>Copyright:</strong> You should only process audio files for which you own the copyright or have explicit permission from the copyright holders. Uploading and processing copyrighted material without authorization may infringe on intellectual property rights.</li>
+                <li><strong>Fair Use/Dealing:</strong> Some jurisdictions have concepts of "fair use" or "fair dealing" for purposes like education, parody, or criticism, but these are complex and vary by region. Relying on fair use for distributing separated stems from copyrighted works is legally risky.</li>
+                <li><strong>Our Stance:</strong> This service is provided as a tool. The responsibility for ensuring copyright compliance rests entirely with you, the user. By using this service, you affirm that you have the necessary rights to the audio you upload.</li>
+            </ul>
+            <p>Please respect artists and copyright law. Use this tool to enhance your own creativity with material you're authorized to use.</p>
+        </section>
     </div>
 
     <script>
@@ -208,7 +395,8 @@
             }
             progressBarContainer.style.display = 'none';
             progressPercentageText.style.display = 'none';
-            logConsoleContainer.style.display = 'none';
+            logConsoleContainer.style.display = 'none'; 
+            logConsole.innerHTML = ''; 
             updateProgress(0);
             if(progressInterval) clearInterval(progressInterval);
         });
@@ -228,12 +416,12 @@
                 return;
             }
 
-            logConsole.innerHTML = '';
+            logConsole.innerHTML = ''; 
             progressBarContainer.style.display = 'block';
             progressPercentageText.style.display = 'block';
             logConsoleContainer.style.display = 'block';
             updateProgress(0);
-            progressBar.style.backgroundColor = 'var(--accent-color)';
+            progressBar.style.backgroundColor = 'var(--accent-color)'; 
 
             setStatus('Starting process...', '');
             addLog('Process initiated by user.', 'info');
@@ -245,48 +433,48 @@
             formData.append('audioFile', selectedFile);
 
             addLog(`Uploading file "${selectedFile.name}"...`);
-            updateProgress(5);
+            updateProgress(5); 
 
-            let currentProgress = 10;
-            const targetProgress = 90;
-            const estimatedDurationSeconds = 9 * 60;
-            const increments = (targetProgress - currentProgress);
-            const intervalTime = (estimatedDurationSeconds / increments) * 1000;
+            let currentProgress = 10; 
+            const targetProgress = 90; 
+            const simulatedProcessingSeconds = Math.min(Math.max(selectedFile.size / (1024*1024) * 15, 30), 300); 
+            
+            const increments = (targetProgress - currentProgress); 
+            const intervalTime = (simulatedProcessingSeconds / increments) * 1000; 
 
             if (progressInterval) clearInterval(progressInterval);
             progressInterval = setInterval(() => {
                 currentProgress++;
                 if (currentProgress <= targetProgress) {
                     updateProgress(currentProgress);
-                    if (currentProgress % 15 === 0 && currentProgress < targetProgress) {
-                        addLog(`Server processing audio... (process stage ${currentProgress}%)`);
+                    if (currentProgress === 25 || currentProgress === 50 || currentProgress === 75) { 
+                        addLog(`Server processing audio... (stage ${currentProgress}%)`);
                     }
                 } else {
                     clearInterval(progressInterval);
                 }
             }, intervalTime);
-            updateProgress(10);
+            updateProgress(10); 
 
             try {
                 addLog('Waiting for server response...');
                 const response = await fetch(SERVER_ENDPOINT, { method: 'POST', body: formData });
 
-                clearInterval(progressInterval);
-                updateProgress(90);
+                clearInterval(progressInterval); 
+                updateProgress(90); 
 
                 if (!response.ok) {
                     let errorMsg = `Server error: ${response.status} ${response.statusText}`;
                     try {
                         const errorData = await response.json();
                         if (errorData && errorData.error) { errorMsg = errorData.error; if (errorData.details) { errorMsg += `\nDetails: ${errorData.details}`; } }
-                    } catch (e) { try { const textError = await response.text(); if(textError) errorMsg = textError.substring(0,300); } catch (textE) {} }
+                    } catch (e) { try { const textError = await response.text(); if(textError) errorMsg = textError.substring(0,300); } catch (textE) {} } 
                     addLog(`Server responded with error: ${errorMsg}`, 'error');
-                    updateProgress(90);
-                    progressBar.style.backgroundColor = 'var(--error-color)';
+                    progressBar.style.backgroundColor = 'var(--error-color)'; 
                     throw new Error(errorMsg);
                 }
                 addLog('Server processing complete. Receiving file...', 'success');
-                updateProgress(95);
+                updateProgress(95); 
 
                 const blob = await response.blob();
                 let downloadFilename = "stems.zip";
@@ -305,7 +493,7 @@
                 document.body.appendChild(a); a.click();
 
                 addLog(`Download started: ${downloadFilename}`, 'success');
-                updateProgress(100);
+                updateProgress(100); 
                 setStatus(`Stems downloaded as ${downloadFilename}! Check your downloads.`, 'success');
 
                 setTimeout(() => {
@@ -318,9 +506,9 @@
                 setStatus(`Error: ${error.message}`, 'error');
                 addLog(`Operation failed: ${error.message}`, 'error');
                 if (progressInterval) clearInterval(progressInterval);
-                if(progressBar.style.backgroundColor !== 'var(--error-color)') {
-                    updateProgress(90); // Keep progress if error occurred after some server work
+                if (parseInt(progressBar.style.width, 10) < 100) {
                     progressBar.style.backgroundColor = 'var(--error-color)';
+                    if (parseInt(progressBar.style.width, 10) < 90 ) updateProgress(90); 
                 }
             } finally {
                 if (progressInterval) clearInterval(progressInterval);
@@ -330,19 +518,17 @@
                 spinner.style.display = 'none';
 
                 setTimeout(() => {
-                    if (statusMessage.classList.contains('success')) {
+                    if (statusMessage.classList.contains('success')) { 
                          progressBarContainer.style.display = 'none';
                          progressPercentageText.style.display = 'none';
                          updateProgress(0);
                          progressBar.style.backgroundColor = 'var(--accent-color)';
-                    } else {
-                        progressBar.style.backgroundColor = 'var(--accent-color)';
                     }
                     audioFileInput.value = null;
                     selectedFile = null;
                     fileNameDisplay.textContent = 'No file selected';
                     processBtn.disabled = true;
-                }, 5000);
+                }, statusMessage.classList.contains('success') ? 5000 : 15000); 
             }
         }
 
@@ -350,9 +536,9 @@
             statusMessage.textContent = message;
             statusMessage.className = 'status-message';
             if (type) { statusMessage.classList.add(type); }
-            if (type === 'success' || type === 'error') {
+            if (type === 'success' || (type !== 'error' && message !== '')) {
                 setTimeout(() => {
-                    if (statusMessage.textContent === message) {
+                    if (statusMessage.textContent === message) { 
                          statusMessage.textContent = '';
                          statusMessage.className = 'status-message';
                     }
@@ -381,10 +567,10 @@
         </div>
 
         <div class="copyright-text">
-            © 2025 Audio Stem Separator. Uses <a href="https://github.com/facebookresearch/demucs">Demucs</a> under MIT License.
+            © 2025 Audio Stem Separator. This service uses <a href="https://github.com/facebookresearch/demucs" target="_blank" rel="noopener noreferrer">Demucs</a>, an open-source project by Meta AI, under the MIT License.
         </div>
         <div class="disclaimer-text">
-            Do not upload copyrighted material. You must own all processed content.
+            Please do not upload copyrighted material unless you own the rights or have explicit permission. Users are solely responsible for the content they process.
         </div>
     </footer>
 </body>
