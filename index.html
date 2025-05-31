@@ -259,7 +259,7 @@
                 if (currentProgress <= targetProgress) {
                     updateProgress(currentProgress);
                     if (currentProgress % 15 === 0 && currentProgress < targetProgress) {
-                        addLog(`Server processing audio... (simulated stage ${currentProgress}%)`);
+                        addLog(`Server processing audio... (process stage ${currentProgress}%)`);
                     }
                 } else {
                     clearInterval(progressInterval);
