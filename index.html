@@ -120,9 +120,9 @@
                 return;
             }
 
-            setStatus('Uploading and processing... This may take a while, please be patient.', ''); // Original message
+            setStatus('Uploading and processing... This may take up to 10 minutes to complete, please be patient.', ''); // Original message
             processBtn.disabled = true;
-            processBtn.textContent = 'Processing... (Could take several minutes)';
+            processBtn.textContent = 'Processing... (Average time for a 4min audio file usually takes 10 minutes)';
             spinner.style.display = 'block'; 
 
             const formData = new FormData();
