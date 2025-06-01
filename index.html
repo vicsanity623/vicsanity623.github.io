@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="description" content="Separate audio files into instrumental stems (vocals, drums, bass, other) using our free online Demucs-powered tool. Upload MP3, WAV, FLAC, and more.">
     <meta name="keywords" content="audio stem separation, demucs, music separation, isolate vocals, remove drums, instrumental maker, karaoke maker, audio tool, vicsanity">
-    <title>Free Online Audio Stem Separator - Powered by Demucs</title>
+    <title>Free Audio Stem Separator - Powered by Demucs</title>
     <style>
         :root {
             --primary-bg: #1e1e2f;
@@ -228,7 +228,7 @@
                 <label for="audioFile" class="file-input-label">Choose Audio File (MP3, WAV, FLAC, etc.)</label>
                 <input type="file" id="audioFile" name="audioFile" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac">
                 <p id="fileNameDisplay">No file selected</p>
-                <p class="filename-tip"><strong>Tip:</strong> Uses CPU for processing and may take up to 10minutes to complete, Do not close or navigate away from this page during processing. For best results, please use filenames with basic letters (a-z, A-Z), numbers (0-9), spaces, underscores (_), or hyphens (-). Avoid special characters or accents (e.g., use "Version Acustica" instead of "Versión Acústica"). FASTER GPU SERVER COMING SOON!</p>
+                <p class="filename-tip"><strong>Tip:</strong> Uses CPU for processing and may take up to 10 minutes to complete, Do not close or navigate away from this page during processing... FASTER GPU SERVER COMING SOON!</p>
             </div>
             <button id="processBtn" class="action-button" disabled>Separate Stems</button>
 
@@ -273,7 +273,7 @@
                 <li><strong>Choose Your Audio File:</strong> Click the "Choose Audio File" button and select an audio file from your device. We support common formats like MP3, WAV, FLAC, M4A, AAC, and OGG. For best results, use a high-quality source file. 
                 <br><strong>Important Filename Tip:</strong> Please use simple filenames containing only basic letters (a-z, A-Z), numbers (0-9), spaces, underscores (_), or hyphens (-). Avoid special accented characters (like é, ñ, ü) or symbols, as they can sometimes cause issues during processing (e.g., use "My Song Acoustic" instead of "My Sòng Ácoustîc").</li>
                 <li><strong>Upload & Process:</strong> Once a file is selected, the "Separate Stems" button will activate. Click it to upload your file to our server for processing. You'll see a progress bar and log messages updating you on the status.</li>
-                <li><strong>Be Patient:</strong> Stem separation is a computationally intensive task. Depending on the length of your audio file and current server load, processing can take several minutes. Please keep the browser tab open.</li>
+                <li><strong>Be Patient:</strong> Can take up to 10 minutes to complete one 5 minute song. Stem separation is a computationally intensive task. Depending on the length of your audio file and current server load, processing can take several minutes. Please keep the browser tab open.</li>
                 <li><strong>Download Your Stems:</strong> When processing is complete, a download will automatically begin for a ZIP file containing your separated stems (typically vocals, drums, bass, and "other" instruments).</li>
             </ol>
             <p><strong>Supported Stems:</strong> This service typically separates audio into four main stems:</p>
@@ -304,12 +304,26 @@
 
         <section class="content-section" id="tips-for-best-results">
             <h2>Tips for Optimal Stem Separation</h2>
+            <p>To get the best possible quality from our Demucs-powered separator, consider these important tips:</p>
             <ul>
-                <li><strong>High-Quality Source Audio:</strong> The better the quality of your original audio file (e.g., WAV, FLAC, or high-bitrate MP3), the better the separation results will generally be. Heavily compressed or noisy audio can lead to more artifacts.</li>
-                <li><strong>Clear Mixes:</strong> Songs with a clear, well-defined mix (where instruments aren't overly blurred together) tend to separate more cleanly.</li>
-                <li><strong>Understand Limitations:</strong> While Demucs is powerful, no current technology can achieve 100% perfect separation in all cases. You may occasionally hear slight "bleeding" of one instrument into another's stem or minor artifacts. This is a characteristic of the current state of source separation technology.</li>
-                <li><strong>File Size Limit:</strong> This service has a file size limit (currently 100MB) to ensure fair usage and manageable processing times. Longer or uncompressed files might exceed this.</li>
+                <li><strong>Start with High-Quality Source Audio:</strong> This is the most crucial factor.
+                    <ul>
+                        <li>Use lossless formats like WAV or FLAC if available.</li>
+                        <li>If using MP3 or AAC, ensure they are high bitrate (e.g., 256kbps or 320kbps).</li>
+                        <li>Avoid heavily compressed or low-quality audio, as this will significantly increase artifacts (like "warbling" or "swishy" sounds) in the separated stems.</li>
+                    </ul>
+                </li>
+                <li><strong>Choose Songs with Clear Mixes:</strong> Audio where instruments are well-defined and not overly "glued" together by heavy mastering compression or excessive reverb will generally separate more cleanly. Densely packed or "muddy" mixes are more challenging for any AI.</li>
+                <li><strong>Use Simple Filenames:</strong>
+                    <ul>
+                        <li>For maximum compatibility, use filenames containing only basic English letters (a-z, A-Z), numbers (0-9), spaces, underscores (_), or hyphens (-).</li>
+                        <li>Try to avoid special accented characters (like é, ñ, ü) or complex symbols. For example, rename "Mi Canción (Versión Acústica).mp3" to "My Song Version Acoustic.mp3" before uploading.</li>
+                    </ul>
+                </li>
+                <li><strong>Be Mindful of the File Size Limit:</strong> This service currently accepts files up to 100MB. This helps ensure fair usage and manageable processing times for all users. If your lossless file is too large, consider converting it to a high-quality MP3 (320kbps) or processing a shorter segment.</li>
+                <li><strong>Patience During Processing:</strong> Stem separation is complex. Depending on your audio's length and current server demand, it can take several minutes. Please keep the browser tab open and monitor the progress indicators.</li>
             </ul>
+            <p>While these tips can improve results, remember that all AI source separation tools, including Demucs, may still produce minor artifacts or slight "bleeding" between stems, especially on very complex material. This is a characteristic of the current technology.</p>
         </section>
         
         <section class="content-section" id="demucs-variants">
