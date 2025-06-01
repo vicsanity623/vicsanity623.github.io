@@ -3,7 +3,6 @@
 
 A server-based audio processing tool that separates audio tracks into individual stems (vocals, drums, bass, etc.) using the **Demucs** machine learning engine. Ideal for legitimate audio engineering, podcast production, and forensic analysis.
 
-![Audio Separation Interface](screenshot.png)
 
 ## Powered by Demucs
 This service utilizes the [**Demucs**](https://github.com/facebookresearch/demucs) audio source separation engine developed by Facebook Research:
@@ -50,7 +49,8 @@ This tool may only be used with **legally owned audio content**. By using this s
 - Output: ZIP containing WAV stems (Demucs standard format)
 
 ## Technical Architecture
-```mermaid
+This server is using CPU only processing, therefore this is going to be very slow to process audio files. Plans on upgrading server for GPU is in the works.
+
 graph LR
 A[User Browser] --> B[Upload Audio]
 B --> C[Demucs Server]
@@ -98,5 +98,5 @@ Terms of Service
 Privacy Policy
 User Responsibility Notice:
 This service only provides separation technology. Users are solely responsible for copyright compliance and ensuring they have appropriate rights to process uploaded audio content.
-© 2023 Audio Stem Separator | Ethical AI Audio Processing
+© 2025 Audio Stem Separator | Ethical AI Audio Processing
 

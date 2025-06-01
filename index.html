@@ -53,6 +53,13 @@
         .file-input-label:hover { background-color: #5a5d74; border-color: #00acc1; }
         #audioFile { display: none; }
         #fileNameDisplay { font-size: 0.9em; color: #bd93f9; min-height: 1.2em; margin-bottom: 15px; word-break: break-all; }
+        .filename-tip {
+            font-size: 0.8em;
+            color: #bd93f9; 
+            margin-top: 10px;
+            max-width: 480px; 
+            line-height: 1.4;
+        }
         .action-button { padding: 15px 30px; font-size: 1.1em; font-weight: bold; color: var(--text-color); background-color: var(--accent-color); border: none; border-radius: var(--border-radius); cursor: pointer; transition: background-color 0.3s ease, transform 0.1s ease; outline: none; width: 100%; max-width: 500px; }
         .action-button:hover { background-color: #00acc1; }
         .action-button:active { transform: scale(0.98); }
@@ -221,6 +228,7 @@
                 <label for="audioFile" class="file-input-label">Choose Audio File (MP3, WAV, FLAC, etc.)</label>
                 <input type="file" id="audioFile" name="audioFile" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac">
                 <p id="fileNameDisplay">No file selected</p>
+                <p class="filename-tip"><strong>Tip:</strong> Uses CPU for processing and may take up to 10minutes to complete, Do not close or navigate away from this page during processing. For best results, please use filenames with basic letters (a-z, A-Z), numbers (0-9), spaces, underscores (_), or hyphens (-). Avoid special characters or accents (e.g., use "Version Acustica" instead of "Versión Acústica"). FASTER GPU SERVER COMING SOON!</p>
             </div>
             <button id="processBtn" class="action-button" disabled>Separate Stems</button>
 
@@ -262,7 +270,8 @@
             <h2>How to Use This Stem Separator</h2>
             <p>Getting your audio stems is simple:</p>
             <ol>
-                <li><strong>Choose Your Audio File:</strong> Click the "Choose Audio File" button and select an audio file from your device. We support common formats like MP3, WAV, FLAC, M4A, AAC, and OGG. For best results, use a high-quality source file.</li>
+                <li><strong>Choose Your Audio File:</strong> Click the "Choose Audio File" button and select an audio file from your device. We support common formats like MP3, WAV, FLAC, M4A, AAC, and OGG. For best results, use a high-quality source file. 
+                <br><strong>Important Filename Tip:</strong> Please use simple filenames containing only basic letters (a-z, A-Z), numbers (0-9), spaces, underscores (_), or hyphens (-). Avoid special accented characters (like é, ñ, ü) or symbols, as they can sometimes cause issues during processing (e.g., use "My Song Acoustic" instead of "My Sòng Ácoustîc").</li>
                 <li><strong>Upload & Process:</strong> Once a file is selected, the "Separate Stems" button will activate. Click it to upload your file to our server for processing. You'll see a progress bar and log messages updating you on the status.</li>
                 <li><strong>Be Patient:</strong> Stem separation is a computationally intensive task. Depending on the length of your audio file and current server load, processing can take several minutes. Please keep the browser tab open.</li>
                 <li><strong>Download Your Stems:</strong> When processing is complete, a download will automatically begin for a ZIP file containing your separated stems (typically vocals, drums, bass, and "other" instruments).</li>
