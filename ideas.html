@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="A gallery of vocal stems recently separated using our free online Demucs-powered tool.">
+    <title>Ideas Gallery - Separated Vocal Stems</title>
+    <style>
+        :root {
+            --primary-bg: #1e1e2f;
+            --secondary-bg: #27293d;
+            --accent-color: #00bcd4;
+            --text-color: #f8f8f2;
+            --input-bg: #44475a;
+            --border-radius: 8px;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { 
+            font-family: var(--font-family); 
+            background-color: var(--primary-bg); 
+            color: var(--text-color); 
+            line-height: 1.6;
+        }
+        .main-content-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header-section {
+            text-align: center;
+            padding: 40px 20px;
+            background-color: var(--secondary-bg);
+            border-radius: var(--border-radius);
+            margin-bottom: 40px;
+        }
+        .title { font-size: 2.5em; margin-bottom: 10px; color: var(--accent-color); font-weight: 300; }
+        .subtitle { font-size: 1.1em; color: #bd93f9; max-width: 600px; margin-left: auto; margin-right: auto;}
+        
+        #ideas-gallery {
+            display: grid;
+            grid-template-columns: 1fr; /* 1 column on small screens */
+            gap: 25px;
+        }
+        
+        .idea-item {
+            background-color: var(--secondary-bg);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            border-left: 5px solid var(--accent-color);
+        }
+        
+        .idea-item h3 {
+            font-size: 1.2em;
+            color: #bd93f9;
+            margin-bottom: 15px;
+            word-break: break-all;
+            font-weight: 400;
+        }
+        
+        .idea-item audio {
+            width: 100%;
+            border-radius: var(--border-radius);
+            outline: none;
+        }
+
+        #loading-message, #no-ideas-message {
+            text-align: center;
+            font-size: 1.2em;
+            padding: 40px;
+            color: var(--accent-color);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 18px;
+            background-color: var(--accent-color);
+            color: var(--primary-bg);
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .back-link:hover {
+            background-color: #00acc1;
+        }
+
+        footer {
+            background-color: var(--secondary-bg);
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid var(--input-bg);
+            margin-top: 40px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content-wrapper">
+        
+        <header class="header-section">
+            <h1 class="title">Ideas Gallery</h1>
+            <p class="subtitle">Here is a collection of the most recently processed vocal stems. Feel free to listen and get inspired!</p>
+            <a href="index.html" class="back-link">← Back to the Main App</a>
+        </header>
+
+        <main id="ideas-gallery">
+            <p id="loading-message">Loading latest ideas...</p>
+        </main>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const galleryContainer = document.getElementById('ideas-gallery');
+            const loadingMessage = document.getElementById('loading-message');
+            
+            // This endpoint must exist on your server and return an array of file info
+            const DDNS_HOSTNAME = 'https://vicsanitymp3.servemp3.com';
+            const ALL_PREVIEWS_ENDPOINT = `${DDNS_HOSTNAME}/api/all-previews`;
+
+            async function fetchAndDisplayIdeas() {
+                try {
+                    const response = await fetch(ALL_PREVIEWS_ENDPOINT);
+
+                    if (!response.ok) {
+                        throw new Error(`Server responded with status: ${response.status}`);
+                    }
+                    
+                    const ideas = await response.json();
+                    
+                    // Clear the "Loading..." message
+                    galleryContainer.innerHTML = ''; 
+
+                    if (ideas.length === 0) {
+                        galleryContainer.innerHTML = `<p id="no-ideas-message">No ideas have been processed yet. Go to the main page and separate a track!</p>`;
+                        return;
+                    }
+
+                    // Loop through each idea and create an audio player for it
+                    ideas.forEach(idea => {
+                        const ideaElement = document.createElement('div');
+                        ideaElement.className = 'idea-item';
+                        
+                        const title = document.createElement('h3');
+                        // Clean up the name for display. Removes timestamp and "-vocals.mp3/wav"
+                        title.textContent = idea.name.replace('-vocals.mp3', '').replace('-vocals.wav', '').replace(/^[0-9]+-/, '');
+
+                        const audioPlayer = document.createElement('audio');
+                        audioPlayer.controls = true;
+                        // The URL from the server is relative, so we need to prepend the server's domain
+                        audioPlayer.src = `${DDNS_HOSTNAME}${idea.url}`;
+
+                        ideaElement.appendChild(title);
+                        ideaElement.appendChild(audioPlayer);
+                        galleryContainer.appendChild(ideaElement);
+                    });
+
+                } catch (error) {
+                    console.error('Failed to fetch ideas:', error);
+                    galleryContainer.innerHTML = `<p id="no-ideas-message">Error: Could not load the ideas gallery. The server may be offline. Please try again later.</p>`;
+                }
+            }
+
+            // Run the function to populate the gallery
+            fetchAndDisplayIdeas();
+        });
+    </script>
+
+    <footer>
+        <p>© 2025 Audio Stem Separator</p>
+    </footer>
+
+</body>
+</html>
