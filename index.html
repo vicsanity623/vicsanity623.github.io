@@ -119,6 +119,42 @@
         .log-console .log-success { color: var(--success-color); }
         .log-console .log-error { color: var(--error-color); }
         .log-console .log-warning { color: #f0c674; }
+        
+        #preview-section {
+            text-align: center;
+            display: none; /* Hidden by default. JS will show it if a preview is available. */
+        }
+        .preview-player-container {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+        }
+        #previewPlayer {
+            width: 100%;
+            max-width: 600px;
+            border-radius: var(--border-radius);
+            outline: none;
+        }
+        
+        /* --- ADDED: Style for Gallery Link --- */
+        .gallery-link-container {
+            margin-top: 20px;
+        }
+        .gallery-link {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: var(--input-bg);
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .gallery-link:hover {
+            background-color: var(--accent-color);
+            color: var(--primary-bg);
+        }
 
         .content-section {
             text-align: left;
@@ -220,6 +256,21 @@
 </head>
 <body>
     <div class="main-content-wrapper">
+        
+        <section class="content-section" id="preview-section">
+            <h2>Latest Result Preview</h2>
+            <p>Listen to a 30-second preview of the vocal stem from the most recently processed song. This demonstrates the quality of the separation.</p>
+            <div class="preview-player-container">
+                <audio id="previewPlayer" controls src="">
+                    Your browser does not support the audio element.
+                </audio>
+            </div>
+            <!-- ADDED: Link to Ideas Gallery -->
+            <div class="gallery-link-container">
+                <a href="ideas.html" class="gallery-link">Explore the Ideas Gallery →</a>
+            </div>
+        </section>
+
         <div class="app-container">
             <h1 class="title">Online Audio Stem Separator</h1>
             <p class="subtitle">Easily isolate vocals, drums, bass, and other instruments from your audio tracks using the power of Demucs, completely free.</p>
@@ -351,16 +402,19 @@
         const statusMessage = document.getElementById('statusMessage');
         const spinner = document.getElementById('spinner');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
-
         const progressBarContainer = document.getElementById('progressBarContainer');
         const progressBar = document.getElementById('progressBar');
         const progressPercentageText = document.getElementById('progressPercentage');
         const logConsoleContainer = document.getElementById('logConsoleContainer');
         const logConsole = document.getElementById('logConsole');
+        const previewSection = document.getElementById('preview-section');
+        const previewPlayer = document.getElementById('previewPlayer');
 
         const YOUR_DDNS_HOSTNAME = 'vicsanitymp3.servemp3.com';
         const SERVER_ENDPOINT_BASE = `https://${YOUR_DDNS_HOSTNAME}`;
         const SERVER_ENDPOINT = `${SERVER_ENDPOINT_BASE}/separate-stems`;
+        const PREVIEW_ENDPOINT = `${SERVER_ENDPOINT_BASE}/api/latest-preview`; // Use full URL for robustness
+
         let selectedFile = null;
         let progressInterval = null;
 
@@ -394,7 +448,6 @@
             fileNameDisplay.textContent = 'No file selected';
             processBtn.disabled = true;
         }
-
 
         audioFileInput.addEventListener('change', (event) => {
             selectedFile = event.target.files[0];
@@ -563,10 +616,48 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the main application UI elements
             processBtn.disabled = true;
             progressBarContainer.style.display = 'none';
             progressPercentageText.style.display = 'none';
             logConsoleContainer.style.display = 'none';
+
+            // --- Function to fetch and set the preview audio ---
+            async function fetchAndSetPreview() {
+                try {
+                    const response = await fetch(PREVIEW_ENDPOINT);
+                    if (!response.ok) {
+                        throw new Error(`Server responded with status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    if (data.url) {
+                        // The URL from the server is relative, so we need to add the domain
+                        previewPlayer.src = `${SERVER_ENDPOINT_BASE}${data.url}`;
+                        previewSection.style.display = 'block';
+                    } else {
+                        // If no URL is returned, keep the section hidden
+                        console.warn('No preview URL was returned from the server.');
+                        previewSection.style.display = 'none';
+                    }
+                } catch (error) {
+                    // If there's any error fetching, hide the section
+                    console.error('Failed to fetch the latest preview audio:', error);
+                    previewSection.style.display = 'none';
+                }
+            }
+            
+            // --- Call the function to get the latest preview track when the page loads ---
+            fetchAndSetPreview();
+
+            // Add the 30-second stop functionality to the player
+            if (previewPlayer) {
+                previewPlayer.addEventListener('timeupdate', function() {
+                    if (this.currentTime >= 30) {
+                        this.pause(); 
+                        this.currentTime = 30; // Lock the time to 30s
+                    }
+                });
+            }
         });
     </script>
 
@@ -576,12 +667,10 @@
             <a href="/terms-of-service.html">Terms of Service</a> |
             <a href="https://github.com/vicsanity623/vicsanity623.github.io">GitHub Repository</a>
         </div>
-
         <div class="visitor-counter-container">
             <a href="https://www.hitwebcounter.com" target="_blank">
             <img src="https://hitwebcounter.com/counter/counter.php?page=20795911&style=0009&nbdigits=6&type=ip&initCount=109" title="Counter Widget" Alt="Visit counter For Websites"   border="0" /></a>
         </div>
-
         <div class="copyright-text">
             © 2025 Audio Stem Separator. This service uses <a href="https://github.com/facebookresearch/demucs" target="_blank" rel="noopener noreferrer">Demucs</a>, an open-source project by Meta AI, under the MIT License.
         </div>
