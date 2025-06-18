@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
+     crossorigin="anonymous"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="description" content="A gallery of vocal stems recently separated using our free online Demucs-powered tool.">
@@ -117,7 +119,6 @@
             const galleryContainer = document.getElementById('stem-gallery');
             const loadingMessage = document.getElementById('loading-message');
             
-            // This endpoint must exist on your server and return an array of file info
             const DDNS_HOSTNAME = 'https://vicsanitymp3.servemp3.com';
             const ALL_PREVIEWS_ENDPOINT = `${DDNS_HOSTNAME}/api/all-previews`;
 
@@ -131,7 +132,6 @@
                     
                     const stems = await response.json();
                     
-                    // Clear the "Loading..." message
                     galleryContainer.innerHTML = ''; 
 
                     if (stems.length === 0) {
@@ -139,18 +139,15 @@
                         return;
                     }
 
-                    // Loop through each stem and create an audio player for it
                     stems.forEach(stem => {
                         const stemElement = document.createElement('div');
                         stemElement.className = 'stem-item';
                         
                         const title = document.createElement('h3');
-                        // Clean up the name for display. Removes timestamp and "-vocals.mp3/wav"
                         title.textContent = stem.name.replace('-vocals.mp3', '').replace('-vocals.wav', '').replace(/^[0-9]+-/, '');
 
                         const audioPlayer = document.createElement('audio');
                         audioPlayer.controls = true;
-                        // The URL from the server is relative, so we need to prepend the server's domain
                         audioPlayer.src = `${DDNS_HOSTNAME}${stem.url}`;
 
                         stemElement.appendChild(title);
@@ -164,7 +161,6 @@
                 }
             }
 
-            // Run the function to populate the gallery
             fetchAndDisplayStems();
         });
     </script>
