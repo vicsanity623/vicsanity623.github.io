@@ -1,5 +1,6 @@
 # Professional Audio Stem Separator
-Discord community : https://discord.gg/qrt3gd8t
+
+## Discord community : https://discord.gg/qrt3gd8t
 
 A server-based audio processing tool that separates audio tracks into individual stems (vocals, drums, bass, etc.) using the **Demucs** machine learning engine. Ideal for legitimate audio engineering, podcast production, and forensic analysis.
 
