@@ -8,6 +8,12 @@
     <meta name="description" content="Separate audio files into instrumental stems (vocals, drums, bass, other) using our free online Demucs-powered tool. Upload MP3, WAV, FLAC, and more.">
     <meta name="keywords" content="audio stem separation, demucs, music separation, isolate vocals, remove drums, instrumental maker, karaoke maker, audio tool, vicsanity">
     <title>Free Audio Stem Separator - Powered by Demucs</title>
+
+    <!-- NEW: Google Sign-In API Script -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- NEW: Your Google Client ID has been added here -->
+    <meta name="google-client-id" content="50272459426-g5p1du9rh5soq5s9dll3cbtc4v3u4333.apps.googleusercontent.com">
+
     <style>
         :root {
             --primary-bg: #1e1e2f;
@@ -35,6 +41,37 @@
             padding: 20px;
         }
 
+        /* --- NEW: User Status Header --- */
+        .user-status-header {
+            display: none; /* Hidden by default */
+            justify-content: flex-end;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: var(--secondary-bg);
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        .user-status-header span {
+            margin-right: 15px;
+        }
+        .user-status-header a, .user-status-header button {
+            color: var(--accent-color);
+            text-decoration: none;
+            background: none;
+            border: 1px solid var(--accent-color);
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-left: 10px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .user-status-header a:hover, .user-status-header button:hover {
+            background-color: var(--accent-color);
+            color: var(--primary-bg);
+        }
+
         .app-container { 
             display: flex; 
             flex-direction: column; 
@@ -60,6 +97,59 @@
             max-width: 480px; 
             line-height: 1.4;
         }
+
+        /* --- NEW: Auth and Processing Options --- */
+        #auth-options {
+            display: none; /* Hidden by default */
+            width: 100%;
+            max-width: 500px;
+            background-color: var(--input-bg);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        #auth-options h3 {
+            margin-bottom: 15px;
+            color: var(--text-color);
+            font-weight: 400;
+        }
+        .auth-buttons-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #gsi-container {
+            display: flex;
+            justify-content: center;
+        }
+        .guest-option button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--secondary-bg);
+            color: var(--text-color);
+            border: 1px solid #6272a4;
+            cursor: pointer;
+        }
+        .guest-option button:hover {
+            border-color: var(--accent-color);
+        }
+        .option-divider {
+            text-align: center;
+            color: #6272a4;
+            margin: 15px 0;
+            position: relative;
+        }
+        .option-divider::before, .option-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background-color: #6272a4;
+        }
+        .option-divider::before { left: 0; }
+        .option-divider::after { right: 0; }
+
         .action-button { padding: 15px 30px; font-size: 1.1em; font-weight: bold; color: var(--text-color); background-color: var(--accent-color); border: none; border-radius: var(--border-radius); cursor: pointer; transition: background-color 0.3s ease, transform 0.1s ease; outline: none; width: 100%; max-width: 500px; }
         .action-button:hover { background-color: #00acc1; }
         .action-button:active { transform: scale(0.98); }
@@ -257,6 +347,13 @@
 <body>
     <div class="main-content-wrapper">
         
+        <!-- NEW: User Status Header -->
+        <div id="userStatusHeader" class="user-status-header">
+            <span id="welcomeMessage"></span>
+            <a href="account.html" id="myFilesLink">My Files</a>
+            <button id="signOutBtn">Sign Out</button>
+        </div>
+
         <section class="content-section" id="preview-section">
             <h2>Latest Result Preview</h2>
             <p>Listen to a 30-second preview of the vocal stem from the most recently processed song. This demonstrates the quality of the separation.</p>
@@ -279,8 +376,25 @@
                 <label for="audioFile" class="file-input-label">Choose Audio File (MP3, WAV, FLAC, etc.)</label>
                 <input type="file" id="audioFile" name="audioFile" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac">
                 <p id="fileNameDisplay">No file selected</p>
-                <p class="filename-tip"><strong>Tip:</strong> Now powered by a GPU SERVER for faster processing! Separation typically takes only a few minutes, but please keep this page open.</p>
+                <p class="filename-tip"><strong>Tip:</strong> Sign in with Google to save your files to your account. This way, you don't need to keep the page open!</p>
             </div>
+
+            <!-- NEW: Authentication and Processing Options -->
+            <div id="auth-options">
+                <h3>How would you like to proceed?</h3>
+                <div class="auth-buttons-container">
+                    <p style="font-size: 0.9em; margin-bottom: 10px;">Sign in to save results to your account and close this page anytime.</p>
+                    <div id="gsi-container"></div>
+                    <!-- Apple Sign In is more complex, this is a placeholder UI button -->
+                    <!-- <button class="apple-btn">Sign in with Apple</button> -->
+                    <div class="option-divider">or</div>
+                    <div class="guest-option">
+                         <p style="font-size: 0.9em; margin-bottom: 10px;">Process as a guest. You must keep this page open to download your file.</p>
+                        <button id="processGuestBtn" class="action-button">Process as Guest & Download</button>
+                    </div>
+                </div>
+            </div>
+
             <button id="processBtn" class="action-button" disabled>Separate Stems</button>
 
             <div id="progressBarContainer" class="progress-bar-container" style="display: none;">
@@ -397,8 +511,9 @@
     </div>
 
     <script>
+        // --- Existing DOM Elements ---
         const audioFileInput = document.getElementById('audioFile');
-        const processBtn = document.getElementById('processBtn');
+        const processBtn = document.getElementById('processBtn'); // This is now a general-purpose button
         const statusMessage = document.getElementById('statusMessage');
         const spinner = document.getElementById('spinner');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
@@ -410,13 +525,24 @@
         const previewSection = document.getElementById('preview-section');
         const previewPlayer = document.getElementById('previewPlayer');
 
+        // --- NEW DOM Elements for Auth ---
+        const authOptions = document.getElementById('auth-options');
+        const processGuestBtn = document.getElementById('processGuestBtn');
+        const userStatusHeader = document.getElementById('userStatusHeader');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const signOutBtn = document.getElementById('signOutBtn');
+
+        // --- Server & State Variables ---
         const YOUR_DDNS_HOSTNAME = 'vicsanitymp3.servemp3.com';
         const SERVER_ENDPOINT_BASE = `https://${YOUR_DDNS_HOSTNAME}`;
         const SERVER_ENDPOINT = `${SERVER_ENDPOINT_BASE}/separate-stems`;
-        const PREVIEW_ENDPOINT = `${SERVER_ENDPOINT_BASE}/api/latest-preview`; // Use full URL for robustness
+        const PREVIEW_ENDPOINT = `${SERVER_ENDPOINT_BASE}/api/latest-preview`;
 
         let selectedFile = null;
         let progressInterval = null;
+        let currentUser = null; // NEW: Holds user info if logged in
+
+        // --- Core Functions (Existing, but modified where needed) ---
 
         function addLog(message, type = 'info') {
             const timestamp = new Date().toLocaleTimeString();
@@ -432,47 +558,50 @@
             progressBar.style.width = `${percentage}%`;
             progressPercentageText.textContent = `${Math.round(percentage)}%`;
         }
-
-        function resetProcessingUI() {
+        
+        function resetUIState() {
+            processBtn.style.display = 'block'; // Show the main button again
+            processBtn.disabled = true;
+            processBtn.textContent = 'Separate Stems';
+            
+            authOptions.style.display = 'none';
+            spinner.style.display = 'none';
             progressBarContainer.style.display = 'none';
             progressPercentageText.style.display = 'none';
             logConsoleContainer.style.display = 'none';
             logConsole.innerHTML = '';
+            
             updateProgress(0);
             if (progressInterval) clearInterval(progressInterval);
-            processBtn.disabled = false;
-            processBtn.textContent = 'Separate Stems';
-            spinner.style.display = 'none';
+            
             audioFileInput.value = null;
             selectedFile = null;
             fileNameDisplay.textContent = 'No file selected';
-            processBtn.disabled = true;
         }
 
         audioFileInput.addEventListener('change', (event) => {
             selectedFile = event.target.files[0];
+            resetUIState(); // Reset everything first
+
             if (selectedFile) {
                 fileNameDisplay.textContent = selectedFile.name;
-                processBtn.disabled = false;
-                processBtn.textContent = 'Separate Stems';
+                processBtn.style.display = 'none'; // Hide the original button
+                authOptions.style.display = 'block'; // Show the new Guest/Login options
                 setStatus('');
                 addLog(`File selected: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`);
             } else {
                 fileNameDisplay.textContent = 'No file selected';
+                processBtn.style.display = 'block';
                 processBtn.disabled = true;
-                processBtn.textContent = 'Separate Stems';
             }
-            progressBarContainer.style.display = 'none';
-            progressPercentageText.style.display = 'none';
-            logConsoleContainer.style.display = 'none'; 
-            logConsole.innerHTML = ''; 
-            updateProgress(0);
-            if(progressInterval) clearInterval(progressInterval);
         });
 
-        processBtn.addEventListener('click', handleSeparation);
+        // --- NEW: Event listener for guest processing ---
+        processGuestBtn.addEventListener('click', () => {
+             handleSeparation(true); // true for isGuest
+        });
 
-        async function handleSeparation() {
+        async function handleSeparation(isGuest = true) {
             if (!selectedFile) {
                 setStatus('Please select an audio file first.', 'error');
                 addLog('Process attempt failed: No file selected.', 'error');
@@ -485,38 +614,51 @@
                 return;
             }
 
+            // --- UI Setup for Processing ---
+            authOptions.style.display = 'none'; // Hide auth options
             logConsole.innerHTML = ''; 
             progressBarContainer.style.display = 'block';
             progressPercentageText.style.display = 'block';
             logConsoleContainer.style.display = 'block';
             updateProgress(0);
             progressBar.style.backgroundColor = 'var(--accent-color)'; 
-
             setStatus('Starting process...', '');
             addLog('Process initiated by user.', 'info');
-            processBtn.disabled = true;
-            processBtn.textContent = 'Processing...';
             spinner.style.display = 'block';
-
+            
             const formData = new FormData();
             formData.append('audioFile', selectedFile);
 
+            // --- Setup Fetch Request ---
+            const fetchOptions = {
+                method: 'POST',
+                body: formData,
+            };
+
+            if (!isGuest && currentUser && currentUser.token) {
+                // NEW: If logged in, send the auth token
+                fetchOptions.headers = {
+                    'Authorization': `Bearer ${currentUser.token}`
+                };
+                addLog('Processing as signed-in user. File will be saved to your account.', 'info');
+            } else {
+                addLog('Processing as guest. Download will start automatically.', 'info');
+            }
+
+            // --- Fake Progress Bar (as before) ---
             addLog(`Uploading file "${selectedFile.name}"...`);
             updateProgress(5); 
-
             let currentProgress = 10; 
             const targetProgress = 90; 
             const simulatedProcessingSeconds = Math.min(Math.max(selectedFile.size / (1024*1024) * 15, 30), 300); 
-            
             const increments = (targetProgress - currentProgress); 
             const intervalTime = (simulatedProcessingSeconds / increments) * 1000; 
-
             if (progressInterval) clearInterval(progressInterval);
             progressInterval = setInterval(() => {
                 currentProgress++;
                 if (currentProgress <= targetProgress) {
                     updateProgress(currentProgress);
-                    if (currentProgress === 25 || currentProgress === 50 || currentProgress === 75) { 
+                    if (currentProgress % 25 === 0) { 
                         addLog(`Server processing audio... (stage ${currentProgress}%)`);
                     }
                 } else {
@@ -527,77 +669,62 @@
 
             try {
                 addLog('Waiting for server response...');
-                const response = await fetch(SERVER_ENDPOINT, { method: 'POST', body: formData });
+                const response = await fetch(SERVER_ENDPOINT, fetchOptions); // Use the configured options
 
                 clearInterval(progressInterval); 
                 updateProgress(90); 
 
                 if (!response.ok) {
                     let errorMsg = `Server error: ${response.status} ${response.statusText}`;
-                    try {
-                        const errorData = await response.json();
-                        if (errorData && errorData.error) { errorMsg = errorData.error; if (errorData.details) { errorMsg += `\nDetails: ${errorData.details}`; } }
-                    } catch (e) { try { const textError = await response.text(); if(textError) errorMsg = textError.substring(0,300); } catch (textE) {} } 
+                    try { const errorData = await response.json(); if (errorData && errorData.error) { errorMsg = errorData.error; } } catch (e) {} 
                     addLog(`Server responded with error: ${errorMsg}`, 'error');
                     progressBar.style.backgroundColor = 'var(--error-color)'; 
                     throw new Error(errorMsg);
                 }
-                addLog('Server processing complete. Receiving file...', 'success');
-                updateProgress(95); 
 
-                const blob = await response.blob();
-                let downloadFilename = "stems.zip";
-                const disposition = response.headers.get('Content-Disposition');
-                if (disposition && disposition.indexOf('attachment') !== -1) {
-                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                    const matches = filenameRegex.exec(disposition);
-                    if (matches != null && matches[1]) { downloadFilename = matches[1].replace(/['"]/g, ''); }
+                if (isGuest) {
+                    // --- GUEST FLOW: Handle file download ---
+                    addLog('Server processing complete. Receiving file...', 'success');
+                    updateProgress(95); 
+
+                    const blob = await response.blob();
+                    let downloadFilename = "stems.zip";
+                    const disposition = response.headers.get('Content-Disposition');
+                    if (disposition && disposition.includes('attachment')) {
+                        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                        const matches = filenameRegex.exec(disposition);
+                        if (matches?.[1]) { downloadFilename = matches[1].replace(/['"]/g, ''); }
+                    }
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none'; a.href = downloadUrl; a.download = downloadFilename;
+                    document.body.appendChild(a); a.click();
+
+                    addLog(`Download started: ${downloadFilename}`, 'success');
+                    updateProgress(100); 
+                    setStatus(`Stems downloaded as ${downloadFilename}! Check your downloads.`, 'success');
+                    setTimeout(() => { if (downloadUrl) window.URL.revokeObjectURL(downloadUrl); if (a?.parentElement) a.remove(); }, 3000);
                 } else {
-                    const originalFilenameBase = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || 'audio';
-                    downloadFilename = `${originalFilenameBase}_stems.zip`;
+                    // --- LOGGED-IN FLOW: Handle JSON response ---
+                    // BACKEND NOTE: Your server should send a JSON response for logged-in users, not a file blob.
+                    // e.g., { success: true, message: "Your file is processing and will be available in your account." }
+                    const result = await response.json();
+                    addLog('Request received by server. You can now close this page.', 'success');
+                    updateProgress(100);
+                    setStatus(result.message || 'File sent to your account for processing!', 'success');
                 }
-                const downloadUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none'; a.href = downloadUrl; a.download = downloadFilename;
-                document.body.appendChild(a); a.click();
-
-                addLog(`Download started: ${downloadFilename}`, 'success');
-                updateProgress(100); 
-                setStatus(`Stems downloaded as ${downloadFilename}! Check your downloads.`, 'success');
-
-                setTimeout(() => {
-                    if (downloadUrl) window.URL.revokeObjectURL(downloadUrl);
-                    if (a && a.parentElement) a.remove();
-                }, 3000);
 
             } catch (error) {
                 console.error('Separation error:', error);
                 setStatus(`Error: ${error.message}`, 'error');
                 addLog(`Operation failed: ${error.message}`, 'error');
                 if (progressInterval) clearInterval(progressInterval);
-                if (parseInt(progressBar.style.width, 10) < 100) {
-                    progressBar.style.backgroundColor = 'var(--error-color)';
-                    if (parseInt(progressBar.style.width, 10) < 90 ) updateProgress(90); 
-                }
+                progressBar.style.backgroundColor = 'var(--error-color)';
             } finally {
                 if (progressInterval) clearInterval(progressInterval);
-
-                processBtn.disabled = false;
-                processBtn.textContent = 'Separate Stems';
                 spinner.style.display = 'none';
 
-                setTimeout(() => {
-                    if (statusMessage.classList.contains('success')) { 
-                         progressBarContainer.style.display = 'none';
-                         progressPercentageText.style.display = 'none';
-                         updateProgress(0);
-                         progressBar.style.backgroundColor = 'var(--accent-color)';
-                    }
-                    audioFileInput.value = null;
-                    selectedFile = null;
-                    fileNameDisplay.textContent = 'No file selected';
-                    processBtn.disabled = true;
-                }, statusMessage.classList.contains('success') ? 5000 : 15000); 
+                setTimeout(resetUIState, statusMessage.classList.contains('success') ? 5000 : 15000); 
             }
         }
 
@@ -606,57 +733,117 @@
             statusMessage.className = 'status-message';
             if (type) { statusMessage.classList.add(type); }
             if (type === 'success' || (type !== 'error' && message !== '')) {
-                setTimeout(() => {
-                    if (statusMessage.textContent === message) { 
-                         statusMessage.textContent = '';
-                         statusMessage.className = 'status-message';
-                    }
-                }, 10000);
+                setTimeout(() => { if (statusMessage.textContent === message) { statusMessage.textContent = ''; statusMessage.className = 'status-message'; } }, 10000);
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize the main application UI elements
-            processBtn.disabled = true;
-            progressBarContainer.style.display = 'none';
-            progressPercentageText.style.display = 'none';
-            logConsoleContainer.style.display = 'none';
+        // --- NEW: Authentication Functions ---
 
-            // --- Function to fetch and set the preview audio ---
+        function parseJwt(token) {
+            try {
+                return JSON.parse(atob(token.split('.')[1]));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function handleGoogleCredentialResponse(response) {
+            const idToken = response.credential;
+            const payload = parseJwt(idToken);
+            
+            // BACKEND NOTE: This is where you would send the `idToken` to your backend.
+            // Your backend must verify this token with Google's servers.
+            // If valid, create or find the user in your database, create a session/JWT for them,
+            // and return user details to the frontend.
+            // For now, we will simulate a successful login on the frontend.
+            console.log("Received Google ID Token:", idToken);
+            console.log("Decoded Payload:", payload);
+            addLog(`Successfully signed in as ${payload.name}.`, 'success');
+            
+            // Simulate successful login
+            currentUser = {
+                name: payload.name,
+                email: payload.email,
+                picture: payload.picture,
+                token: idToken // In a real app, this would be a token from YOUR backend
+            };
+            
+            updateUIForLoginState();
+            // If a file is already selected, automatically start processing for the logged-in user
+            if (selectedFile) {
+                handleSeparation(false); // false for isGuest
+            }
+        }
+        
+        function handleSignOut() {
+            currentUser = null;
+            // In a real app, you would also call google.accounts.id.disableAutoSelect();
+            // and notify your backend to invalidate the session.
+            google.accounts.id.prompt(); // Allow user to sign in again if they want
+            updateUIForLoginState();
+            addLog("You have been signed out.", "info");
+        }
+
+        function updateUIForLoginState() {
+            if (currentUser) {
+                // Logged In State
+                userStatusHeader.style.display = 'flex';
+                welcomeMessage.textContent = `Welcome, ${currentUser.name}!`;
+                authOptions.style.display = 'none';
+                if(selectedFile) processBtn.style.display = 'block';
+            } else {
+                // Logged Out State
+                userStatusHeader.style.display = 'none';
+                if(selectedFile) {
+                    authOptions.style.display = 'block';
+                }
+            }
+        }
+
+        // --- Page Load Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            resetUIState();
+
+            // --- NEW: Initialize Google Sign-In ---
+            const googleClientId = document.querySelector('meta[name="google-client-id"]').content;
+            if (googleClientId && googleClientId !== "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com") {
+                google.accounts.id.initialize({
+                    client_id: googleClientId,
+                    callback: handleGoogleCredentialResponse
+                });
+                google.accounts.id.renderButton(
+                    document.getElementById('gsi-container'),
+                    { theme: 'outline', size: 'large', type: 'standard', text: 'signin_with', width: '300' } 
+                );
+                google.accounts.id.prompt(); // Show one-tap sign-in prompt
+            } else {
+                console.error("Google Client ID is not set. Please update the meta tag.");
+                addLog("Google Sign-In is not configured.", "warning");
+            }
+            signOutBtn.addEventListener('click', handleSignOut);
+            
+            // --- Fetch Preview Track (Existing) ---
             async function fetchAndSetPreview() {
                 try {
                     const response = await fetch(PREVIEW_ENDPOINT);
-                    if (!response.ok) {
-                        throw new Error(`Server responded with status: ${response.status}`);
-                    }
+                    if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
                     const data = await response.json();
                     if (data.url) {
-                        // The URL from the server is relative, so we need to add the domain
                         previewPlayer.src = `${SERVER_ENDPOINT_BASE}${data.url}`;
                         previewSection.style.display = 'block';
                     } else {
-                        // If no URL is returned, keep the section hidden
-                        console.warn('No preview URL was returned from the server.');
                         previewSection.style.display = 'none';
                     }
                 } catch (error) {
-                    // If there's any error fetching, hide the section
                     console.error('Failed to fetch the latest preview audio:', error);
                     previewSection.style.display = 'none';
                 }
             }
-            
-            // --- Call the function to get the latest preview track when the page loads ---
             fetchAndSetPreview();
 
-            // Add the 30-second stop functionality to the player
+            // Player time limit (Existing)
             if (previewPlayer) {
-                previewPlayer.addEventListener('timeupdate', function() {
-                    if (this.currentTime >= 30) {
-                        this.pause(); 
-                        this.currentTime = 30; // Lock the time to 30s
-                    }
-                });
+                previewPlayer.addEventListener('timeupdate', function() { if (this.currentTime >= 30) { this.pause(); this.currentTime = 30; } });
             }
         });
     </script>
@@ -681,3 +868,4 @@
     </footer>
 </body>
 </html>
+and here is the updated index.html I am about to merge I need confirmation this is correct now:
