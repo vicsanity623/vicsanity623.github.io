@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tap Guardian</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        :root {
+            --primary-bg: #1a1a1a;
+            --secondary-bg: #2a2a2a;
+            --text-color: #e0e0e0;
+            --accent-color: #00ff7f;
+            --health-color: #ff4136;
+            --energy-color: #0074d9;
+            --xp-color: #ffdc00;
+            --frenzy-glow-color: var(--accent-color); 
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            width: 100%; height: 100%; font-family: 'Press Start 2P', cursive;
+            background-color: var(--primary-bg); color: var(--text-color); overflow: hidden;
+        }
+        .screen {
+            display: none; width: 100%; height: 100%; flex-direction: column;
+            align-items: center; justify-content: center; padding: 20px; text-align: center;
+        }
+        .screen.active { display: flex; }
+        h1, h2 { color: var(--accent-color); margin-bottom: 20px; }
+        button {
+            font-family: 'Press Start 2P', cursive; background-color: var(--secondary-bg);
+            color: var(--accent-color); border: 2px solid var(--accent-color);
+            padding: 15px 30px; margin: 10px; font-size: 1em; cursor: pointer; transition: all 0.2s ease;
+        }
+        button.ascend-button { border-color: var(--xp-color); color: var(--xp-color); text-shadow: 0 0 5px var(--xp-color);}
+        button.ascend-button:hover { background-color: var(--xp-color); color: var(--primary-bg); }
+        button:hover { background-color: var(--accent-color); color: var(--primary-bg); }
+        button:disabled { border-color: #555; color: #555; cursor: not-allowed; }
+        button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
+        #game-screen { justify-content: space-between; position: relative; }
+        #character-area {
+            flex-grow: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; position: relative;
+        }
+        #character-sprite {
+            width: 220px; height: 220px; cursor: pointer;
+            transition: transform 0.1s ease, filter 0.5s ease;
+            -webkit-user-drag: none; user-select: none;
+        }
+        #character-sprite.tapped { transform: scale(1.1); }
+        @keyframes frenzy-glow {
+            0% { filter: drop-shadow(0 0 5px var(--frenzy-glow-color)); }
+            50% { filter: drop-shadow(0 0 20px var(--frenzy-glow-color)); }
+            100% { filter: drop-shadow(0 0 5px var(--frenzy-glow-color)); }
+        }
+        #character-sprite.frenzy { animation: frenzy-glow 1s infinite; }
+        .floating-text {
+            position: fixed; font-size: 1.2em; color: var(--xp-color); opacity: 1;
+            transition: all 1s ease-out; pointer-events: none; user-select: none; text-shadow: 1px 1px 2px black;
+            z-index: 110;
+        }
+        .floating-text.frenzy-text { color: var(--frenzy-glow-color); font-size: 1.6em; font-weight: bold; }
+        #stats-area { width: 100%; max-width: 500px; }
+        .stat-bar-container { margin-bottom: 5px; }
+        .stat-bar {
+            width: 100%; height: 20px; background-color: var(--secondary-bg);
+            border: 2px solid var(--text-color); position: relative;
+        }
+        .stat-bar-fill { height: 100%; transition: width 0.5s ease; }
+        .stat-bar-label {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 0.7em; color: #fff; text-shadow: 1px 1px 2px black;
+        }
+        #health-bar .stat-bar-fill { background-color: var(--health-color); }
+        #energy-bar .stat-bar-fill { background-color: var(--energy-color); }
+        #xp-bar .stat-bar-fill { background-color: var(--xp-color); }
+        #core-stats-display {
+            display: flex; justify-content: space-around; width: 100%;
+            margin-top: 15px; font-size: 0.8em;
+        }
+        #world-tier-display {
+             margin-top: 10px; font-size: 1em; color: var(--xp-color);
+             text-shadow: 0 0 5px var(--xp-color);
+        }
+        #gold-display { margin-top: 10px; font-size: 1em; color: var(--xp-color); }
+        #action-buttons { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; }
+        .modal {
+            display: none; position: fixed; z-index: 100; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background-color: var(--secondary-bg); padding: 30px; border: 2px solid var(--accent-color);
+            max-width: 90%; width: 400px; text-align: center;
+        }
+        .inventory-slot {
+            margin: 15px 0; font-size: 0.9em; text-align: left;
+            border-left: 4px solid var(--accent-color); padding-left: 10px;
+        }
+        #expedition-timer-display {
+            display: none; font-size: 2.5em; color: var(--xp-color);
+            text-shadow: 0 0 5px var(--xp-color), 0 0 15px var(--xp-color);
+        }
+        #wind-animation-container {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden; pointer-events: none; z-index: -1;
+        }
+        .wind-streak {
+            position: absolute; background-color: rgba(224, 224, 224, 0.15); height: 2px;
+            animation: wind-blow linear infinite;
+        }
+        @keyframes wind-blow { from { transform: translateX(-200px); } to { transform: translateX(100vw); } }
+        .particle {
+            position: fixed; width: 5px; height: 5px; border-radius: 50%;
+            background-color: var(--frenzy-glow-color); pointer-events: none;
+            z-index: 101; animation: burst 0.8s ease-out forwards;
+        }
+        @keyframes burst {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0) translateY(var(--y-end)) translateX(var(--x-end)); opacity: 0; }
+        }
+        #frenzy-display {
+            position: absolute; left: 20px; top: 50%;
+            transform: translateY(-50%) scale(0); font-size: 2.5em; font-weight: bold;
+            opacity: 0; transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            text-shadow: 0 0 5px black, 0 0 10px var(--frenzy-glow-color); pointer-events: none;
+        }
+        #frenzy-display.active { opacity: 1; transform: translateY(-50%) scale(1); }
+        
+        /* === Battle Screen Overhaul === */
+        #battle-screen {
+            justify-content: space-between;
+            height: 100vh; /* Force it to take the full viewport height */
+        }
+        #battle-screen > h2 {
+            flex-shrink: 0; /* Prevent title from shrinking */
+        }
+        #battle-arena {
+            flex-grow: 1; /* Make the arena fill available space */
+            display: flex;
+            align-items: center;
+            justify-content: space-around; /* Use space-around for better spacing */
+            width: 100%;
+            padding: 10px 0;
+        }
+        .battle-character { display: flex; flex-direction: column; align-items: center; }
+        .battle-character h3 { margin-bottom: 8px; font-size: 0.9em; }
+        .battle-character img { width: 120px; height: 120px; margin-bottom: 8px; }
+        #battle-log {
+            width: 100%;
+            height: 140px; /* Give log a fixed, reasonable height */
+            flex-shrink: 0; /* Prevent it from shrinking */
+            background: var(--secondary-bg); border: 2px solid var(--text-color);
+            overflow-y: scroll; padding: 10px; text-align: left; font-size: 0.8em;
+            line-height: 1.5; /* Add space between lines */
+        }
+        #battle-actions {
+            flex-shrink: 0; /* Prevent buttons from shrinking */
+        }
+        /* Color coded log entries */
+        .log-player { color: var(--accent-color); }
+        .log-enemy { color: var(--health-color); }
+        .log-system { color: var(--xp-color); }
+    </style>
+</head>
+<body>
+    <div id="wind-animation-container"></div>
+    <div id="main-menu-screen" class="screen active"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
+    <div id="game-screen" class="screen">
+        <div id="frenzy-display">x5</div>
+        <div id="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display">Gold: 0</div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" src="player.png" alt="Character"></div><div id="action-buttons"><button id="feed-btn">Feed (10 Gold)</button><button id="battle-btn">Battle</button><button id="expedition-btn">Expedition</button><button id="inventory-btn">Inventory</button><button id="ingame-menu-btn">Menu</button></div></div>
+    <div id="battle-screen" class="screen"><h2>Battle!</h2><div id="battle-arena"><div class="battle-character"><h3 id="battle-player-name">Guardian</h3><img src="player.png"><div id="battle-player-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div><div class="battle-character"><h3 id="battle-npc-name">Goblin</h3><img src="player.png" style="filter: hue-rotate(180deg);"><div id="battle-npc-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div></div><div id="battle-log"></div><div id="battle-actions"><button id="attack-btn">Attack</button><button id="run-btn">Run</button></div></div>
+    <div id="expedition-screen" class="screen"><h2>Send on Expedition</h2><p>Your guardian will be unavailable but will return with rewards.</p><button class="expedition-choice-btn" data-duration="1800">Scout Ahead (30 Mins)</button><button class="expedition-choice-btn" data-duration="3600">Long Patrol (1 Hour)</button><button class="expedition-choice-btn" data-duration="21600">Deep Delve (6 Hours)</button><button id="expedition-cancel-btn">Cancel</button></div>
+    <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
+    <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button><button id="return-to-game-btn">Return to Game</button></div></div>
+    <div id="inventory-modal" class="modal"><div class="modal-content"><h2>Inventory</h2><div id="weapon-slot" class="inventory-slot">Weapon: None</div><div id="armor-slot" class="inventory-slot">Armor: None</div><button id="close-inventory-btn">Close</button></div></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let gameState = {};
+    const defaultState = {
+        level: 1, xp: 0, gold: 0,
+        stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
+        resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
+        equipment: { weapon: null, armor: null },
+        expedition: { active: false, returnTime: 0 },
+        ascension: { tier: 1, points: 0, perks: {} }
+    };
+    const ASCENSION_LEVEL = 50;
+    let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
+    let expeditionInterval = null;
+
+    const screens = document.querySelectorAll('.screen');
+    const loadGameBtn = document.getElementById('load-game-btn');
+    const characterSprite = document.getElementById('character-sprite');
+    const playerNameLevel = document.getElementById('player-name-level');
+    const healthBarFill = document.querySelector('#health-bar .stat-bar-fill');
+    const healthBarLabel = document.querySelector('#health-bar .stat-bar-label');
+    const energyBarFill = document.querySelector('#energy-bar .stat-bar-fill');
+    const energyBarLabel = document.querySelector('#energy-bar .stat-bar-label');
+    const xpBarFill = document.querySelector('#xp-bar .stat-bar-fill');
+    const xpBarLabel = document.querySelector('#xp-bar .stat-bar-label');
+    const coreStatsDisplay = document.getElementById('core-stats-display');
+    const goldDisplay = document.getElementById('gold-display');
+    const worldTierDisplay = document.getElementById('world-tier-display');
+    const startGameBtn = document.getElementById('start-game-btn');
+    const feedBtn = document.getElementById('feed-btn');
+    const battleBtn = document.getElementById('battle-btn');
+    const expeditionBtn = document.getElementById('expedition-btn');
+    const modal = document.getElementById('notification-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalText = document.getElementById('modal-text');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const battleLog = document.getElementById('battle-log');
+    const attackBtn = document.getElementById('attack-btn');
+    const runBtn = document.getElementById('run-btn');
+    const battleNpcName = document.getElementById('battle-npc-name');
+    const expeditionCancelBtn = document.getElementById('expedition-cancel-btn');
+    const ingameMenuBtn = document.getElementById('ingame-menu-btn');
+    const ingameMenuModal = document.getElementById('ingame-menu-modal');
+    const ingameMenuContent = document.getElementById('ingame-menu-content');
+    const saveGameBtn = document.getElementById('save-game-btn');
+    const optionsBtn = document.getElementById('options-btn');
+    const quitToTitleBtn = document.getElementById('quit-to-title-btn');
+    const returnToGameBtn = document.getElementById('return-to-game-btn');
+    const inventoryBtn = document.getElementById('inventory-btn');
+    const inventoryModal = document.getElementById('inventory-modal');
+    const weaponSlot = document.getElementById('weapon-slot');
+    const armorSlot = document.getElementById('armor-slot');
+    const closeInventoryBtn = document.getElementById('close-inventory-btn');
+    const expeditionTimerDisplay = document.getElementById('expedition-timer-display');
+    const windAnimationContainer = document.getElementById('wind-animation-container');
+    const frenzyDisplay = document.getElementById('frenzy-display');
+    
+    function showScreen(screenId) { screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); }
+    function init() { createWindEffect(); showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }
+    function startGame() { gameState = JSON.parse(JSON.stringify(defaultState)); checkExpeditionStatus(); updateUI(); saveGame(); showScreen('game-screen'); }
+    function loadGame() {
+        const savedData = localStorage.getItem('tapGuardianSave');
+        if (savedData) {
+            let loadedState = JSON.parse(savedData);
+            gameState = {...defaultState, ...loadedState};
+            gameState.stats = {...defaultState.stats, ...loadedState.stats};
+            gameState.resources = {...defaultState.resources, ...loadedState.resources};
+            gameState.ascension = {...defaultState.ascension, ...loadedState.ascension};
+            checkExpeditionStatus(); updateUI(); showScreen('game-screen');
+        } else { showNotification("No Save Data Found!", "Starting a new game instead."); startGame(); }
+    }
+    function saveGame() { localStorage.setItem('tapGuardianSave', JSON.stringify(gameState)); loadGameBtn.disabled = false; console.log("Game Saved!"); }
+    function getXpForNextLevel() { return Math.floor(100 * Math.pow(1.5, gameState.level - 1)); }
+
+    function updateExpeditionTimer() {
+        if (!gameState.expedition.active) { if (expeditionInterval) clearInterval(expeditionInterval); expeditionInterval = null; return; }
+        const timeLeft = gameState.expedition.returnTime - Date.now();
+        if (timeLeft <= 0) {
+            expeditionTimerDisplay.textContent = "Returning..."; clearInterval(expeditionInterval); expeditionInterval = null;
+            checkExpeditionStatus(); updateUI();
+        } else {
+            const pad = num => num.toString().padStart(2, '0');
+            const hours = pad(Math.floor(timeLeft / 3600000));
+            const minutes = pad(Math.floor((timeLeft % 3600000) / 60000));
+            const seconds = pad(Math.floor((timeLeft % 60000) / 1000));
+            expeditionTimerDisplay.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+    }
+
+    function updateUI() {
+        playerNameLevel.textContent = `Guardian Lv. ${gameState.level}`;
+        worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
+        const xpForNext = getXpForNextLevel();
+        healthBarFill.style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
+        healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
+        energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
+        energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
+        xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
+        xpBarLabel.textContent = `XP: ${Math.floor(gameState.xp)} / ${xpForNext}`;
+        coreStatsDisplay.innerHTML = `<span>STR: ${getTotalStat('strength')}</span><span>AGI: ${getTotalStat('agility')}</span><span>FOR: ${getTotalStat('fortitude')}</span><span>STA: ${getTotalStat('stamina')}</span>`;
+        goldDisplay.textContent = `Gold: ${gameState.gold}`;
+        const onExpedition = gameState.expedition.active;
+        characterSprite.style.display = onExpedition ? 'none' : 'block';
+        expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
+        windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
+        if (onExpedition) {
+             expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
+             if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
+        } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
+        feedBtn.disabled = onExpedition; battleBtn.disabled = onExpedition; inventoryBtn.disabled = onExpedition;
+    }
+    function addXP(amount) { if (gameState.expedition.active) return;
+        const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
+        gameState.xp += (amount * tierMultiplier);
+        if (gameState.xp >= getXpForNextLevel()) { levelUp(); }
+        updateUI();
+    }
+    function levelUp() {
+        const xpOver = gameState.xp - getXpForNextLevel(); gameState.level++; gameState.xp = xpOver;
+        gameState.stats.strength += 2; gameState.stats.agility += 1; gameState.stats.fortitude += 2; gameState.stats.stamina += 1;
+        gameState.resources.maxHp += 10; gameState.resources.hp = gameState.resources.maxHp;
+        gameState.resources.maxEnergy += 5; gameState.resources.energy = gameState.resources.maxEnergy;
+        showNotification("LEVEL UP!", `You are now Level ${gameState.level}!`); saveGame();
+    }
+    function showNotification(title, text) { modalTitle.textContent = title; modalText.innerHTML = text; modal.style.display = 'flex'; }
+    
+    function updateFrenzyVisuals() {
+        const multiplier = tapCombo.currentMultiplier; const root = document.documentElement;
+        if (multiplier > 1) {
+            let color = 'var(--accent-color)';
+            if (multiplier >= 15) { color = 'var(--health-color)'; } 
+            else if (multiplier >= 10) { color = 'var(--xp-color)'; }
+            root.style.setProperty('--frenzy-glow-color', color);
+            frenzyDisplay.textContent = `x${multiplier}`; frenzyDisplay.style.color = color;
+            frenzyDisplay.classList.add('active'); characterSprite.classList.add('frenzy');
+        } else { frenzyDisplay.classList.remove('active'); characterSprite.classList.remove('frenzy'); }
+    }
+    function activateFrenzy() {
+        if (tapCombo.frenzyTimeout) { clearTimeout(tapCombo.frenzyTimeout); }
+        tapCombo.currentMultiplier = (tapCombo.currentMultiplier === 1) ? 5 : tapCombo.currentMultiplier + 5;
+        updateFrenzyVisuals(); tapCombo.frenzyTimeout = setTimeout(deactivateFrenzy, 7000);
+    }
+    function deactivateFrenzy() { tapCombo.currentMultiplier = 1; tapCombo.frenzyTimeout = null; updateFrenzyVisuals(); }
+    function createParticles(event) {
+        for (let i = 0; i < 8; i++) {
+            const particle = document.createElement('div'); particle.className = 'particle';
+            const x = event.clientX; const y = event.clientY;
+            particle.style.left = `${x}px`; particle.style.top = `${y}px`;
+            const xEnd = (Math.random() - 0.5) * 200; const yEnd = (Math.random() - 0.5) * 200;
+            particle.style.setProperty('--x-end', `${xEnd}px`); particle.style.setProperty('--y-end', `${yEnd}px`);
+            document.body.appendChild(particle); setTimeout(() => { particle.remove(); }, 800);
+        }
+    }
+    function handleTap(event) {
+        if (gameState.expedition.active || gameState.resources.energy <= 0) return;
+        const now = Date.now();
+        if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
+        tapCombo.lastTapTime = now;
+        if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.25) { activateFrenzy(); } }
+        const xpGain = 0.25 * tapCombo.currentMultiplier; addXP(xpGain); gameState.resources.energy -= 0.1;
+        const floatingText = document.createElement('div'); floatingText.className = 'floating-text';
+        if (tapCombo.currentMultiplier > 1) { floatingText.classList.add('frenzy-text'); createParticles(event); }
+        floatingText.textContent = `+${xpGain.toFixed(2)} XP`;
+        let clientX = event.clientX || (event.touches && event.touches[0].clientX);
+        let clientY = event.clientY || (event.touches && event.touches[0].clientY);
+        floatingText.style.left = `${clientX}px`;
+        floatingText.style.top = `${clientY - 30}px`;
+        document.body.appendChild(floatingText);
+        setTimeout(() => { floatingText.style.transform = 'translateY(-50px)'; floatingText.style.opacity = '0'; }, 10);
+        setTimeout(() => { floatingText.remove(); }, 1000);
+        characterSprite.classList.add('tapped');
+        setTimeout(() => characterSprite.classList.remove('tapped'), 100); updateUI();
+    }
+    function feed() {
+        if (gameState.gold >= 10) {
+             gameState.gold -= 10; gameState.resources.energy = gameState.resources.maxEnergy;
+             gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 50);
+             showNotification("Yum!", "Energy restored."); updateUI(); saveGame();
+        } else { showNotification("Not enough gold!", "You need 10 gold to feed your guardian."); }
+    }
+    function startExpedition(durationInSeconds) {
+        gameState.expedition.active = true;
+        gameState.expedition.returnTime = Date.now() + durationInSeconds * 1000;
+        showNotification("Expedition Started!", `Your guardian will return in ${durationInSeconds / 60} minutes.`);
+        saveGame(); updateUI(); showScreen('game-screen');
+    }
+    function checkExpeditionStatus() {
+        if (gameState.expedition.active && Date.now() > gameState.expedition.returnTime) {
+            gameState.expedition.active = false;
+            const tierMultiplier = Math.pow(1.5, gameState.ascension.tier - 1);
+            const xpReward = Math.floor(100 * gameState.level * tierMultiplier);
+            const goldReward = Math.floor(50 * gameState.level * tierMultiplier);
+            let rewardText = `Your guardian has returned from World Tier ${gameState.ascension.tier}!<br><br>+${xpReward} XP<br>+${goldReward} Gold`;
+            if (Math.random() < (0.3 + (gameState.ascension.tier * 0.05))) {
+                const foundItem = { type: Math.random() < 0.5 ? 'weapon' : 'armor', bonus: gameState.level * (Math.floor(Math.random() * 3) + 1) * gameState.ascension.tier };
+                const stat = foundItem.type === 'weapon' ? 'strength' : 'fortitude';
+                if (!gameState.equipment[foundItem.type] || foundItem.bonus > gameState.equipment[foundItem.type].bonus) {
+                    gameState.equipment[foundItem.type] = foundItem;
+                    rewardText += `<br><br>Equipped New Tier ${gameState.ascension.tier} ${foundItem.type}: +${foundItem.bonus} ${stat.substring(0,3).toUpperCase()}`;
+                } else { rewardText += `<br><br>Found a weaker ${foundItem.type}.`; }
+            }
+            addXP(xpReward); gameState.gold += goldReward;
+            showNotification("Expedition Complete!", rewardText); saveGame(); updateUI();
+        }
+    }
+    function getTotalStat(stat) {
+        let total = gameState.stats[stat];
+        if (stat === 'strength' && gameState.equipment.weapon) { total += gameState.equipment.weapon.bonus; }
+        if (stat === 'fortitude' && gameState.equipment.armor) { total += gameState.equipment.armor.bonus; }
+        return total;
+    }
+    function ascend() {
+        if (gameState.level < ASCENSION_LEVEL) { showNotification("Not Ready", `You must reach Level ${ASCENSION_LEVEL} to Ascend.`); return; }
+        if (confirm(`Are you sure you want to Ascend?\n\nYour Level, Stats, and Gold will be reset.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point.`)) {
+            gameState.ascension.tier++; gameState.ascension.points++;
+            gameState.level = 1; gameState.xp = 0; gameState.gold = 0;
+            gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
+            gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
+            saveGame(); updateUI(); ingameMenuModal.style.display = 'none';
+            showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You feel a new power flowing within you.`);
+        }
+    }
+    let currentNpc = {};
+    function addBattleLog(message, type) {
+        battleLog.innerHTML += `<span class="${type}">${message}</span>`;
+        battleLog.scrollTop = battleLog.scrollHeight;
+    }
+    function startBattle() {
+        const tierMultiplier = gameState.ascension.tier;
+        const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
+        currentNpc = {
+            name: `Tier ${tierMultiplier} Shadow Goblin`,
+            hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier), maxHp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier),
+            strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier), agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier),
+            fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier),
+            xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier), goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier)
+        };
+        battleNpcName.textContent = `${currentNpc.name} Lv. ${levelMultiplier}`;
+        updateBattleUI(); battleLog.innerHTML = ""; addBattleLog(`A wild ${currentNpc.name} appears!`, "log-system");
+        attackBtn.disabled = false; showScreen('battle-screen');
+        if (currentNpc.agility > getTotalStat('agility')) {
+            addBattleLog(`${currentNpc.name} is faster and attacks first!`, "log-enemy");
+            attackBtn.disabled = true; setTimeout(npcAttack, 1500);
+        } else { addBattleLog("You are faster! Your turn.", "log-player"); }
+    }
+    function updateBattleUI() {
+        document.querySelector('#battle-player-hp .stat-bar-fill').style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
+        document.querySelector('#battle-player-hp .stat-bar-label').textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
+        document.querySelector('#battle-npc-hp .stat-bar-fill').style.width = `${(currentNpc.hp / currentNpc.maxHp) * 100}%`;
+        document.querySelector('#battle-npc-hp .stat-bar-label').textContent = `HP: ${Math.floor(currentNpc.hp)} / ${currentNpc.maxHp}`;
+    }
+    function playerAttack() {
+        attackBtn.disabled = true; const damage = Math.max(1, getTotalStat('strength') * 2 - currentNpc.fortitude);
+        currentNpc.hp = Math.max(0, currentNpc.hp - damage); addBattleLog(`You attack for ${damage} damage!`, "log-player");
+        updateBattleUI(); if (currentNpc.hp <= 0) { endBattle(true); } else { setTimeout(npcAttack, 1500); }
+    }
+    function npcAttack() {
+        const damage = Math.max(1, currentNpc.strength * 2 - getTotalStat('fortitude'));
+        gameState.resources.hp = Math.max(0, gameState.resources.hp - damage);
+        addBattleLog(`${currentNpc.name} attacks for ${damage} damage!`, "log-enemy");
+        updateBattleUI(); if (gameState.resources.hp <= 0) { endBattle(false); } else { attackBtn.disabled = false; }
+    }
+    function endBattle(playerWon) {
+        attackBtn.disabled = true;
+        if (playerWon) {
+            addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
+            setTimeout(() => { showNotification("Victory!", `You earned ${currentNpc.goldReward} Gold.`); addXP(currentNpc.xpReward); gameState.gold += currentNpc.goldReward; showScreen('game-screen'); saveGame(); }, 2000);
+        } else {
+            addBattleLog("You have been defeated...", "log-system");
+            setTimeout(() => { showNotification("Defeat", "You black out and wake up back home. You lost half your gold."); gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1; showScreen('game-screen'); saveGame(); }, 2000);
+        }
+    }
+    function updateInventoryUI() {
+        if (gameState.equipment.weapon) { weaponSlot.innerHTML = `Weapon: <span style="color:var(--accent-color)">Guardian Sword (+${gameState.equipment.weapon.bonus} STR)</span>`; } else { weaponSlot.textContent = 'Weapon: None'; }
+        if (gameState.equipment.armor) { armorSlot.innerHTML = `Armor: <span style="color:var(--accent-color)">Guardian Plate (+${gameState.equipment.armor.bonus} FOR)</span>`; } else { armorSlot.textContent = 'Armor: None'; }
+    }
+    function createWindEffect() {
+        for(let i=0; i<20; i++) {
+            const streak = document.createElement('div'); streak.className = 'wind-streak';
+            streak.style.top = `${Math.random() * 100}%`; streak.style.width = `${Math.random() * 150 + 50}px`;
+            streak.style.animationDuration = `${Math.random() * 3 + 2}s`; streak.style.animationDelay = `${Math.random() * 5}s`;
+            windAnimationContainer.appendChild(streak);
+        }
+    }
+    startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
+    characterSprite.addEventListener('click', handleTap);
+    characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
+    modalCloseBtn.addEventListener('click', () => modal.style.display = 'none');
+    feedBtn.addEventListener('click', feed); battleBtn.addEventListener('click', startBattle);
+    expeditionBtn.addEventListener('click', () => showScreen('expedition-screen'));
+    attackBtn.addEventListener('click', playerAttack);
+    runBtn.addEventListener('click', () => {
+        if (Math.random() < 0.5) { addBattleLog("You successfully ran away.", "log-player"); setTimeout(()=>showScreen('game-screen'), 1000); } 
+        else {
+            addBattleLog("You failed to run away!", "log-enemy");
+            attackBtn.disabled = true; setTimeout(npcAttack, 1500);
+        }
+    });
+    expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
+    ingameMenuBtn.addEventListener('click', () => {
+        let ascendBtn = document.getElementById('ascend-btn');
+        if (gameState.level >= ASCENSION_LEVEL && !ascendBtn) {
+            ascendBtn = document.createElement('button'); ascendBtn.id = 'ascend-btn';
+            ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
+            ascendBtn.onclick = ascend; ingameMenuContent.insertBefore(ascendBtn, returnToGameBtn);
+        } else if (gameState.level < ASCENSION_LEVEL && ascendBtn) { ascendBtn.remove(); }
+        ingameMenuModal.style.display = 'flex';
+    });
+    returnToGameBtn.addEventListener('click', () => { ingameMenuModal.style.display = 'none'; });
+    saveGameBtn.addEventListener('click', () => { saveGame(); showNotification("Game Saved", "Your progress is safe."); });
+    optionsBtn.addEventListener('click', () => { alert('Options not yet implemented! (Ascension Perks coming soon!)'); });
+    quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.style.display = 'none'; showScreen('main-menu-screen'); });
+    inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.style.display = 'flex'; });
+    closeInventoryBtn.addEventListener('click', () => { inventoryModal.style.display = 'none'; });
+    document.querySelectorAll('.expedition-choice-btn').forEach(btn => { btn.addEventListener('click', (e) => startExpedition(parseInt(e.target.dataset.duration))); });
+    init();
+});
+</script>
+</body>
+</html>
