@@ -8,6 +8,9 @@
     <meta name="description" content="Separate audio files into instrumental stems (vocals, drums, bass, other) using our free online Demucs-powered tool. Upload MP3, WAV, FLAC, and more.">
     <meta name="keywords" content="audio stem separation, demucs, music separation, isolate vocals, remove drums, instrumental maker, karaoke maker, audio tool, vicsanity">
     <title>Free Audio Stem Separator - Powered by Demucs</title>
+    <!-- ADDED: Firebase SDK Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <style>
         :root {
             --primary-bg: #1e1e2f;
@@ -29,37 +32,113 @@
             overscroll-behavior-y: contain; 
             line-height: 1.6;
         }
-        .main-content-wrapper {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
+        
+        /* ADDED: Styles for Header and Auth Modal */
+        .app-header {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 10px 0;
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+        .header-link, .auth-button {
+            color: var(--accent-color);
+            text-decoration: none;
+            padding: 8px 15px;
+            border: 1px solid var(--accent-color);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            background-color: transparent;
+            font-size: 0.9em;
+            font-family: inherit;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .header-link:hover, .auth-button:hover {
+            background-color: var(--accent-color);
+            color: var(--primary-bg);
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: var(--secondary-bg);
+            padding: 30px 40px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+        .modal-title {
+            font-size: 1.5em;
+            color: var(--text-color);
+            margin-bottom: 15px;
+        }
+        .modal-text {
+            color: #bd93f9;
+            margin-bottom: 30px;
+        }
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .modal-button {
+            padding: 12px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .modal-button.primary {
+            background-color: var(--accent-color);
+            color: var(--text-color);
+        }
+        .modal-button.primary:hover {
+            background-color: #00acc1;
+        }
+        .modal-button.secondary {
+            background-color: var(--input-bg);
+            color: var(--text-color);
+        }
+        .modal-button.secondary:hover {
+            background-color: #5a5d74;
         }
 
-        .app-container { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding: 40px 20px;
-            text-align: center; 
-            background-color: var(--secondary-bg);
-            border-radius: var(--border-radius);
-            margin-bottom: 40px;
-        }
+        /* Original Styles (Unchanged) */
+        .main-content-wrapper { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .app-container { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; text-align: center; background-color: var(--secondary-bg); border-radius: var(--border-radius); margin-bottom: 40px; }
         .title { font-size: 2.5em; margin-bottom: 10px; color: var(--accent-color); font-weight: 300; }
         .subtitle { font-size: 1.1em; margin-bottom: 30px; color: #bd93f9; max-width: 600px; margin-left: auto; margin-right: auto;}
-
         .upload-group { width: 100%; max-width: 500px; margin-bottom: 25px; display: flex; flex-direction: column; align-items: center; }
         .file-input-label { display: inline-block; padding: 12px 20px; font-size: 1em; font-weight: bold; color: var(--text-color); background-color: var(--input-bg); border: 1px dashed var(--accent-color); border-radius: var(--border-radius); cursor: pointer; transition: background-color 0.3s ease, border-color 0.3s ease; margin-bottom: 15px; }
         .file-input-label:hover { background-color: #5a5d74; border-color: #00acc1; }
         #audioFile { display: none; }
         #fileNameDisplay { font-size: 0.9em; color: #bd93f9; min-height: 1.2em; margin-bottom: 15px; word-break: break-all; }
-        .filename-tip {
-            font-size: 0.8em;
-            color: #bd93f9; 
-            margin-top: 10px;
-            max-width: 480px; 
-            line-height: 1.4;
-        }
+        .filename-tip { font-size: 0.8em; color: #bd93f9; margin-top: 10px; max-width: 480px; line-height: 1.4; }
         .action-button { padding: 15px 30px; font-size: 1.1em; font-weight: bold; color: var(--text-color); background-color: var(--accent-color); border: none; border-radius: var(--border-radius); cursor: pointer; transition: background-color 0.3s ease, transform 0.1s ease; outline: none; width: 100%; max-width: 500px; }
         .action-button:hover { background-color: #00acc1; }
         .action-button:active { transform: scale(0.98); }
@@ -69,194 +148,64 @@
         .status-message.error { color: var(--error-color); }
         .spinner { display: none; border: 4px solid rgba(248, 248, 242, 0.3); border-radius: 50%; border-top: 4px solid var(--accent-color); width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto 0; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        .progress-bar-container {
-            width: 100%;
-            max-width: 500px;
-            background-color: var(--input-bg);
-            border-radius: var(--border-radius);
-            margin-top: 20px;
-            height: 20px;
-            overflow: hidden;
-        }
-        .progress-bar {
-            width: 0%;
-            height: 100%;
-            background-color: var(--accent-color);
-            border-radius: var(--border-radius);
-            transition: width 0.5s ease-out;
-            text-align: center;
-            line-height: 20px;
-            color: var(--primary-bg);
-            font-weight: bold;
-        }
-        .progress-percentage {
-            font-size: 0.9em;
-            color: var(--text-color);
-            margin-top: 5px;
-        }
-
-        .log-console-container {
-            width: 100%;
-            max-width: 500px;
-            margin-top: 20px;
-            background-color: var(--secondary-bg);
-            border: 1px solid var(--input-bg);
-            border-radius: var(--border-radius);
-            padding: 10px;
-            text-align: left;
-        }
-        .log-console {
-            height: 150px;
-            overflow-y: auto;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-            font-size: 0.85em;
-            color: #c5c8c6;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
+        .progress-bar-container { width: 100%; max-width: 500px; background-color: var(--input-bg); border-radius: var(--border-radius); margin-top: 20px; height: 20px; overflow: hidden; }
+        .progress-bar { width: 0%; height: 100%; background-color: var(--accent-color); border-radius: var(--border-radius); transition: width 0.5s ease-out; text-align: center; line-height: 20px; color: var(--primary-bg); font-weight: bold; }
+        .progress-percentage { font-size: 0.9em; color: var(--text-color); margin-top: 5px; }
+        .log-console-container { width: 100%; max-width: 500px; margin-top: 20px; background-color: var(--secondary-bg); border: 1px solid var(--input-bg); border-radius: var(--border-radius); padding: 10px; text-align: left; }
+        .log-console { height: 150px; overflow-y: auto; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 0.85em; color: #c5c8c6; white-space: pre-wrap; word-break: break-all; }
         .log-console .log-info { color: #81a2be; }
         .log-console .log-success { color: var(--success-color); }
         .log-console .log-error { color: var(--error-color); }
         .log-console .log-warning { color: #f0c674; }
-        
-        #preview-section {
-            text-align: center;
-            display: none; /* Hidden by default. JS will show it if a preview is available. */
-        }
-        .preview-player-container {
-            margin-top: 15px;
-            display: flex;
-            justify-content: center;
-        }
-        #previewPlayer {
-            width: 100%;
-            max-width: 600px;
-            border-radius: var(--border-radius);
-            outline: none;
-        }
-        
-        /* --- ADDED: Style for Gallery Link --- */
-        .gallery-link-container {
-            margin-top: 20px;
-        }
-        .gallery-link {
-            display: inline-block;
-            padding: 8px 16px;
-            background-color: var(--input-bg);
-            color: var(--accent-color);
-            border: 1px solid var(--accent-color);
-            border-radius: var(--border-radius);
-            text-decoration: none;
-            font-weight: bold;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-        .gallery-link:hover {
-            background-color: var(--accent-color);
-            color: var(--primary-bg);
-        }
-
-        .content-section {
-            text-align: left;
-            margin-bottom: 40px;
-            padding: 20px;
-            background-color: var(--secondary-bg);
-            border-radius: var(--border-radius);
-        }
-        .content-section h2 {
-            color: var(--accent-color);
-            margin-bottom: 15px;
-            font-size: 1.8em;
-            font-weight: 400;
-            border-bottom: 1px solid var(--input-bg);
-            padding-bottom: 10px;
-        }
-        .content-section h3 {
-            color: #bd93f9;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            font-size: 1.4em;
-            font-weight: 400;
-        }
-        .content-section p, .content-section ul, .content-section ol {
-            margin-bottom: 15px;
-            color: var(--text-color);
-        }
-        .content-section ul, .content-section ol {
-            list-style-position: outside;
-            padding-left: 20px;
-        }
-        .content-section li {
-            margin-bottom: 8px;
-        }
-        .content-section a {
-            color: var(--accent-color);
-            text-decoration: none;
-        }
-        .content-section a:hover {
-            text-decoration: underline;
-        }
-        .content-section code {
-            background-color: var(--input-bg);
-            padding: 2px 5px;
-            border-radius: 4px;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-            font-size: 0.9em;
-        }
-        .image-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            max-width: 500px;
-            min-height: 200px;
-            margin: 20px auto;
-            background-color: var(--input-bg);
-            border-radius: var(--border-radius);
-            overflow: hidden;
-        }
-        .image-container img {
-            max-width: 100%;
-            max-height: 300px;
-            object-fit: contain;
-            border-radius: calc(var(--border-radius) - 4px);
-        }
-
-        footer {
-            background-color: var(--secondary-bg);
-            padding: 20px;
-            text-align: center;
-            border-top: 1px solid var(--input-bg);
-            margin-top: 40px;
-            font-size: 14px;
-            color: var(--text-color);
-        }
-        footer a {
-            color: var(--accent-color);
-            text-decoration: none;
-            margin: 0 10px;
-        }
-        footer a:hover {
-            text-decoration: underline;
-        }
-        footer div {
-            margin-top: 10px;
-        }
-        footer .copyright-text, footer .disclaimer-text {
-            color: #bd93f9;
-        }
-        footer .disclaimer-text {
-            font-size: 12px;
-        }
-        .visitor-counter-container {
-            margin-bottom: 15px;
-        }
+        #preview-section { text-align: center; display: none; }
+        .preview-player-container { margin-top: 15px; display: flex; justify-content: center; }
+        #previewPlayer { width: 100%; max-width: 600px; border-radius: var(--border-radius); outline: none; }
+        .gallery-link-container { margin-top: 20px; }
+        .gallery-link { display: inline-block; padding: 8px 16px; background-color: var(--input-bg); color: var(--accent-color); border: 1px solid var(--accent-color); border-radius: var(--border-radius); text-decoration: none; font-weight: bold; transition: background-color 0.3s ease, color 0.3s ease; }
+        .gallery-link:hover { background-color: var(--accent-color); color: var(--primary-bg); }
+        .content-section { text-align: left; margin-bottom: 40px; padding: 20px; background-color: var(--secondary-bg); border-radius: var(--border-radius); }
+        .content-section h2 { color: var(--accent-color); margin-bottom: 15px; font-size: 1.8em; font-weight: 400; border-bottom: 1px solid var(--input-bg); padding-bottom: 10px; }
+        .content-section h3 { color: #bd93f9; margin-top: 20px; margin-bottom: 10px; font-size: 1.4em; font-weight: 400; }
+        .content-section p, .content-section ul, .content-section ol { margin-bottom: 15px; color: var(--text-color); }
+        .content-section ul, .content-section ol { list-style-position: outside; padding-left: 20px; }
+        .content-section li { margin-bottom: 8px; }
+        .content-section a { color: var(--accent-color); text-decoration: none; }
+        .content-section a:hover { text-decoration: underline; }
+        .content-section code { background-color: var(--input-bg); padding: 2px 5px; border-radius: 4px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 0.9em; }
+        .image-container { display: flex; justify-content: center; align-items: center; width: 100%; max-width: 500px; min-height: 200px; margin: 20px auto; background-color: var(--input-bg); border-radius: var(--border-radius); overflow: hidden; }
+        .image-container img { max-width: 100%; max-height: 300px; object-fit: contain; border-radius: calc(var(--border-radius) - 4px); }
+        footer { background-color: var(--secondary-bg); padding: 20px; text-align: center; border-top: 1px solid var(--input-bg); margin-top: 40px; font-size: 14px; color: var(--text-color); }
+        footer a { color: var(--accent-color); text-decoration: none; margin: 0 10px; }
+        footer a:hover { text-decoration: underline; }
+        footer div { margin-top: 10px; }
+        footer .copyright-text, footer .disclaimer-text { color: #bd93f9; }
+        footer .disclaimer-text { font-size: 12px; }
+        .visitor-counter-container { margin-bottom: 15px; }
     </style>
     <meta name="google-site-verification" content="mxPAv2VJ1TR5Heht38zsEerPZyIJltVRLFiN1zyfjJY" />
 </head>
 <body>
+    <!-- ADDED: Auth Modal HTML -->
+    <div id="authModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="modal-title">Save Your Files</h2>
+            <p class="modal-text">Sign in with Google to save your processed files to your account. As a guest, your file will download directly and will not be saved.</p>
+            <div class="modal-actions">
+                <button id="signInBtn" class="modal-button primary">Sign in with Google</button>
+                <button id="guestBtn" class="modal-button secondary">Continue as Guest</button>
+            </div>
+        </div>
+    </div>
+
     <div class="main-content-wrapper">
         
+        <!-- CORRECTED ORDER: Header is now first, as requested. -->
+        <header class="app-header">
+            <a href="account.html" id="myFilesLink" class="header-link" style="display: none;">My Files</a>
+            <button id="authBtn" class="auth-button">Sign In</button>
+        </header>
+        
+        <!-- CORRECTED ORDER: Preview section is second, as per original layout. -->
         <section class="content-section" id="preview-section">
             <h2>Latest Result Preview</h2>
             <p>Listen to a 30-second preview of the vocal stem from the most recently processed song. This demonstrates the quality of the separation.</p>
@@ -265,7 +214,6 @@
                     Your browser does not support the audio element.
                 </audio>
             </div>
-            <!-- ADDED: Link to Ideas Gallery -->
             <div class="gallery-link-container">
                 <a href="ideas.html" class="gallery-link">Explore the Ideas Gallery →</a>
             </div>
@@ -295,7 +243,8 @@
             <div id="spinner" class="spinner"></div>
             <p id="statusMessage" class="status-message"></p>
         </div>
-
+        
+        <!-- All original informational sections below are unchanged -->
         <section class="content-section" id="what-is-stem-separation">
             <h2>Unlock Your Audio: What is Stem Separation?</h2>
             <p>Stem separation, also known as music source separation, is the process of isolating individual instrumental and vocal tracks (called "stems") from a mixed audio recording. Imagine having a finished song and being able to extract just the vocals, or only the drum track, or the bassline – that's the magic of stem separation!</p>
@@ -322,7 +271,7 @@
             <p>Getting your audio stems is simple:</p>
             <ol>
                 <li><strong>Choose Your Audio File:</strong> Click the "Choose Audio File" button and select an audio file from your device. We support common formats like MP3, WAV, FLAC, M4A, AAC, and OGG. For best results, use a high-quality source file. 
-                <li><strong>Upload & Process:</strong> Once a file is selected, the "Separate Stems" button will activate. Click it to upload your file to our server for processing. You'll see a progress bar and log messages updating you on the status.</li>
+                </li><li><strong>Upload & Process:</strong> Once a file is selected, the "Separate Stems" button will activate. Click it to upload your file to our server for processing. You'll see a progress bar and log messages updating you on the status.</li>
                 <li><strong>Be Patient:</strong> Can take up to 10 minutes to complete one 5 minute song. Stem separation is a computationally intensive task. Depending on the length of your audio file and current server load, processing can take several minutes. Please keep the browser tab open.</li>
                 <li><strong>Download Your Stems:</strong> When processing is complete, a download will automatically begin for a ZIP file containing your separated stems (typically vocals, drums, bass, and "other" instruments).</li>
             </ol>
@@ -397,6 +346,23 @@
     </div>
 
     <script>
+        // Your specific Firebase configuration has been added here:
+        const firebaseConfig = {
+            apiKey: "AIzaSyDyZ_a0oNuMNXC9QBE52KfJKzUyHjbagqk",
+            authDomain: "tap-guardian-rpg.firebaseapp.com",
+            projectId: "tap-guardian-rpg",
+            storageBucket: "tap-guardian-rpg.firebasestorage.app",
+            messagingSenderId: "50272459426",
+            appId: "1:50272459426:web:7ae4beb76ed67d4a3a15fb",
+            measurementId: "G-46861XHCHN"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+        // Original UI element constants
         const audioFileInput = document.getElementById('audioFile');
         const processBtn = document.getElementById('processBtn');
         const statusMessage = document.getElementById('statusMessage');
@@ -409,46 +375,78 @@
         const logConsole = document.getElementById('logConsole');
         const previewSection = document.getElementById('preview-section');
         const previewPlayer = document.getElementById('previewPlayer');
+        
+        // Auth UI element constants
+        const authModal = document.getElementById('authModal');
+        const authBtn = document.getElementById('authBtn');
+        const myFilesLink = document.getElementById('myFilesLink');
+        const signInBtn = document.getElementById('signInBtn');
+        const guestBtn = document.getElementById('guestBtn');
 
         const YOUR_DDNS_HOSTNAME = 'vicsanitymp3.servemp3.com';
         const SERVER_ENDPOINT_BASE = `https://${YOUR_DDNS_HOSTNAME}`;
         const SERVER_ENDPOINT = `${SERVER_ENDPOINT_BASE}/separate-stems`;
-        const PREVIEW_ENDPOINT = `${SERVER_ENDPOINT_BASE}/api/latest-preview`; // Use full URL for robustness
+        const PREVIEW_ENDPOINT = `${SERVER_ENDPOINT_BASE}/api/latest-preview`;
 
+        // Global variables
         let selectedFile = null;
         let progressInterval = null;
+        let currentUser = null;
 
-        function addLog(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const logEntry = document.createElement('div');
-            logEntry.classList.add(`log-${type}`);
-            logEntry.textContent = `[${timestamp}] ${message}`;
-            logConsole.appendChild(logEntry);
-            logConsole.scrollTop = logConsole.scrollHeight;
+        // Auth state listener
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                authBtn.textContent = 'Sign Out';
+                myFilesLink.style.display = 'inline-block';
+            } else {
+                currentUser = null;
+                authBtn.textContent = 'Sign In';
+                myFilesLink.style.display = 'none';
+            }
+        });
+
+        // Auth functions
+        function signInWithGoogle() {
+            auth.signInWithPopup(googleProvider).then(result => {
+                console.log('Signed in successfully', result.user);
+                authModal.classList.remove('visible');
+                handleSeparation(); // Proceed with separation after sign-in
+            }).catch(error => {
+                console.error('Sign in error', error);
+                // Handle specific auth errors if needed
+                if (error.code === 'auth/popup-closed-by-user') {
+                    setStatus('Sign-in cancelled.', 'error');
+                } else {
+                    setStatus(`Google Sign-In failed: ${error.message}`, 'error');
+                }
+                authModal.classList.remove('visible');
+            });
         }
 
-        function updateProgress(percentage) {
-            percentage = Math.min(100, Math.max(0, percentage));
-            progressBar.style.width = `${percentage}%`;
-            progressPercentageText.textContent = `${Math.round(percentage)}%`;
+        function signOut() {
+            auth.signOut().then(() => {
+                console.log('Signed out');
+            }).catch(error => {
+                console.error('Sign out error', error);
+            });
+        }
+        
+        // Modal show/hide functions
+        function showAuthModal() {
+            authModal.classList.add('visible');
+        }
+        function hideAuthModal() {
+            authModal.classList.remove('visible');
         }
 
-        function resetProcessingUI() {
-            progressBarContainer.style.display = 'none';
-            progressPercentageText.style.display = 'none';
-            logConsoleContainer.style.display = 'none';
-            logConsole.innerHTML = '';
-            updateProgress(0);
-            if (progressInterval) clearInterval(progressInterval);
-            processBtn.disabled = false;
-            processBtn.textContent = 'Separate Stems';
-            spinner.style.display = 'none';
-            audioFileInput.value = null;
-            selectedFile = null;
-            fileNameDisplay.textContent = 'No file selected';
-            processBtn.disabled = true;
-        }
+        // Core helper functions
+        function addLog(message, type = 'info') { const timestamp = new Date().toLocaleTimeString(); const logEntry = document.createElement('div'); logEntry.classList.add(`log-${type}`); logEntry.textContent = `[${timestamp}] ${message}`; logConsole.appendChild(logEntry); logConsole.scrollTop = logConsole.scrollHeight; }
+        function updateProgress(percentage) { percentage = Math.min(100, Math.max(0, percentage)); progressBar.style.width = `${percentage}%`; progressPercentageText.textContent = `${Math.round(percentage)}%`; }
+        function resetProcessingUI() { progressBarContainer.style.display = 'none'; progressPercentageText.style.display = 'none'; logConsoleContainer.style.display = 'none'; logConsole.innerHTML = ''; updateProgress(0); if (progressInterval) clearInterval(progressInterval); processBtn.disabled = false; processBtn.textContent = 'Separate Stems'; spinner.style.display = 'none'; audioFileInput.value = null; selectedFile = null; fileNameDisplay.textContent = 'No file selected'; processBtn.disabled = true; }
+        function setStatus(message, type = '') { statusMessage.textContent = message; statusMessage.className = 'status-message'; if (type) { statusMessage.classList.add(type); } if (type === 'success' || (type !== 'error' && message !== '')) { setTimeout(() => { if (statusMessage.textContent === message) { statusMessage.textContent = ''; statusMessage.className = 'status-message'; } }, 10000); } }
 
+        // File input listener
         audioFileInput.addEventListener('change', (event) => {
             selectedFile = event.target.files[0];
             if (selectedFile) {
@@ -470,20 +468,23 @@
             if(progressInterval) clearInterval(progressInterval);
         });
 
-        processBtn.addEventListener('click', handleSeparation);
+        // Event listeners for new buttons
+        processBtn.addEventListener('click', showAuthModal);
+        authBtn.addEventListener('click', () => { currentUser ? signOut() : signInWithGoogle(); });
+        signInBtn.addEventListener('click', signInWithGoogle);
+        guestBtn.addEventListener('click', () => {
+            hideAuthModal();
+            handleSeparation();
+        });
+        authModal.addEventListener('click', (e) => {
+            if (e.target === authModal) hideAuthModal();
+        });
 
+        // Main processing function
         async function handleSeparation() {
-            if (!selectedFile) {
-                setStatus('Please select an audio file first.', 'error');
-                addLog('Process attempt failed: No file selected.', 'error');
-                return;
-            }
+            if (!selectedFile) { setStatus('Please select an audio file first.', 'error'); addLog('Process attempt failed: No file selected.', 'error'); return; }
             const MAX_FRONTEND_SIZE_MB = 100;
-            if (selectedFile.size > MAX_FRONTEND_SIZE_MB * 1024 * 1024) {
-                setStatus(`File is too large (max ${MAX_FRONTEND_SIZE_MB}MB).`, 'error');
-                addLog(`File too large: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB. Max is ${MAX_FRONTEND_SIZE_MB}MB.`, 'error');
-                return;
-            }
+            if (selectedFile.size > MAX_FRONTEND_SIZE_MB * 1024 * 1024) { setStatus(`File is too large (max ${MAX_FRONTEND_SIZE_MB}MB).`, 'error'); addLog(`File too large: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB. Max is ${MAX_FRONTEND_SIZE_MB}MB.`, 'error'); return; }
 
             logConsole.innerHTML = ''; 
             progressBarContainer.style.display = 'block';
@@ -492,8 +493,9 @@
             updateProgress(0);
             progressBar.style.backgroundColor = 'var(--accent-color)'; 
 
-            setStatus('Starting process...', '');
-            addLog('Process initiated by user.', 'info');
+            const userType = currentUser ? `user ${currentUser.displayName}` : 'guest';
+            setStatus(`Starting process as ${userType}...`, '');
+            addLog(`Process initiated by ${userType}.`, 'info');
             processBtn.disabled = true;
             processBtn.textContent = 'Processing...';
             spinner.style.display = 'block';
@@ -507,7 +509,6 @@
             let currentProgress = 10; 
             const targetProgress = 90; 
             const simulatedProcessingSeconds = Math.min(Math.max(selectedFile.size / (1024*1024) * 15, 30), 300); 
-            
             const increments = (targetProgress - currentProgress); 
             const intervalTime = (simulatedProcessingSeconds / increments) * 1000; 
 
@@ -516,76 +517,79 @@
                 currentProgress++;
                 if (currentProgress <= targetProgress) {
                     updateProgress(currentProgress);
-                    if (currentProgress === 25 || currentProgress === 50 || currentProgress === 75) { 
-                        addLog(`Server processing audio... (stage ${currentProgress}%)`);
-                    }
-                } else {
-                    clearInterval(progressInterval);
-                }
+                    if (currentProgress === 25 || currentProgress === 50 || currentProgress === 75) { addLog(`Server processing audio... (stage ${currentProgress}%)`); }
+                } else { clearInterval(progressInterval); }
             }, intervalTime);
             updateProgress(10); 
 
             try {
+                const fetchOptions = { method: 'POST', body: formData, headers: {} };
+                if (currentUser) {
+                    const token = await currentUser.getIdToken(true);
+                    fetchOptions.headers['Authorization'] = `Bearer ${token}`;
+                    addLog('Authenticated request.', 'info');
+                }
+
                 addLog('Waiting for server response...');
-                const response = await fetch(SERVER_ENDPOINT, { method: 'POST', body: formData });
+                const response = await fetch(SERVER_ENDPOINT, fetchOptions);
 
                 clearInterval(progressInterval); 
                 updateProgress(90); 
 
                 if (!response.ok) {
                     let errorMsg = `Server error: ${response.status} ${response.statusText}`;
-                    try {
-                        const errorData = await response.json();
-                        if (errorData && errorData.error) { errorMsg = errorData.error; if (errorData.details) { errorMsg += `\nDetails: ${errorData.details}`; } }
-                    } catch (e) { try { const textError = await response.text(); if(textError) errorMsg = textError.substring(0,300); } catch (textE) {} } 
+                    try { const errorData = await response.json(); if (errorData && errorData.error) { errorMsg = errorData.error; if (errorData.details) { errorMsg += `\nDetails: ${errorData.details}`; } } } catch (e) { try { const textError = await response.text(); if(textError) errorMsg = textError.substring(0,300); } catch (textE) {} } 
                     addLog(`Server responded with error: ${errorMsg}`, 'error');
                     progressBar.style.backgroundColor = 'var(--error-color)'; 
                     throw new Error(errorMsg);
                 }
-                addLog('Server processing complete. Receiving file...', 'success');
-                updateProgress(95); 
-
-                const blob = await response.blob();
-                let downloadFilename = "stems.zip";
-                const disposition = response.headers.get('Content-Disposition');
-                if (disposition && disposition.indexOf('attachment') !== -1) {
-                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                    const matches = filenameRegex.exec(disposition);
-                    if (matches != null && matches[1]) { downloadFilename = matches[1].replace(/['"]/g, ''); }
+                addLog('Server processing complete.', 'success');
+                
+                if (currentUser) {
+                    const result = await response.json();
+                    if (result.success) {
+                        setStatus("Processing started! Your file will appear in 'My Files' shortly.", 'success');
+                        addLog("File is being processed in the background.", 'success');
+                        updateProgress(100);
+                    } else { throw new Error(result.message || "An unknown error occurred."); }
                 } else {
-                    const originalFilenameBase = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || 'audio';
-                    downloadFilename = `${originalFilenameBase}_stems.zip`;
+                    addLog('Receiving file...', 'success');
+                    updateProgress(95); 
+
+                    const blob = await response.blob();
+                    let downloadFilename = "stems.zip";
+                    const disposition = response.headers.get('Content-Disposition');
+                    if (disposition && disposition.indexOf('attachment') !== -1) {
+                        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                        const matches = filenameRegex.exec(disposition);
+                        if (matches != null && matches[1]) { downloadFilename = matches[1].replace(/['"]/g, ''); }
+                    } else {
+                        const originalFilenameBase = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || 'audio';
+                        downloadFilename = `${originalFilenameBase}_stems.zip`;
+                    }
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none'; a.href = downloadUrl; a.download = downloadFilename;
+                    document.body.appendChild(a); a.click();
+
+                    addLog(`Download started: ${downloadFilename}`, 'success');
+                    updateProgress(100); 
+                    setStatus(`Stems downloaded as ${downloadFilename}! Check your downloads.`, 'success');
+
+                    setTimeout(() => { if (downloadUrl) window.URL.revokeObjectURL(downloadUrl); if (a && a.parentElement) a.remove(); }, 3000);
                 }
-                const downloadUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none'; a.href = downloadUrl; a.download = downloadFilename;
-                document.body.appendChild(a); a.click();
-
-                addLog(`Download started: ${downloadFilename}`, 'success');
-                updateProgress(100); 
-                setStatus(`Stems downloaded as ${downloadFilename}! Check your downloads.`, 'success');
-
-                setTimeout(() => {
-                    if (downloadUrl) window.URL.revokeObjectURL(downloadUrl);
-                    if (a && a.parentElement) a.remove();
-                }, 3000);
 
             } catch (error) {
                 console.error('Separation error:', error);
                 setStatus(`Error: ${error.message}`, 'error');
                 addLog(`Operation failed: ${error.message}`, 'error');
                 if (progressInterval) clearInterval(progressInterval);
-                if (parseInt(progressBar.style.width, 10) < 100) {
-                    progressBar.style.backgroundColor = 'var(--error-color)';
-                    if (parseInt(progressBar.style.width, 10) < 90 ) updateProgress(90); 
-                }
+                if (parseInt(progressBar.style.width, 10) < 100) { progressBar.style.backgroundColor = 'var(--error-color)'; if (parseInt(progressBar.style.width, 10) < 90 ) updateProgress(90); }
             } finally {
                 if (progressInterval) clearInterval(progressInterval);
-
                 processBtn.disabled = false;
                 processBtn.textContent = 'Separate Stems';
                 spinner.style.display = 'none';
-
                 setTimeout(() => {
                     if (statusMessage.classList.contains('success')) { 
                          progressBarContainer.style.display = 'none';
@@ -601,66 +605,46 @@
             }
         }
 
-        function setStatus(message, type = '') {
-            statusMessage.textContent = message;
-            statusMessage.className = 'status-message';
-            if (type) { statusMessage.classList.add(type); }
-            if (type === 'success' || (type !== 'error' && message !== '')) {
-                setTimeout(() => {
-                    if (statusMessage.textContent === message) { 
-                         statusMessage.textContent = '';
-                         statusMessage.className = 'status-message';
-                    }
-                }, 10000);
-            }
-        }
-
+        // Page load functionality
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize the main application UI elements
             processBtn.disabled = true;
             progressBarContainer.style.display = 'none';
             progressPercentageText.style.display = 'none';
             logConsoleContainer.style.display = 'none';
 
-            // --- Function to fetch and set the preview audio ---
             async function fetchAndSetPreview() {
                 try {
                     const response = await fetch(PREVIEW_ENDPOINT);
                     if (!response.ok) {
+                        previewSection.style.display = 'none';
                         throw new Error(`Server responded with status: ${response.status}`);
                     }
                     const data = await response.json();
                     if (data.url) {
-                        // The URL from the server is relative, so we need to add the domain
                         previewPlayer.src = `${SERVER_ENDPOINT_BASE}${data.url}`;
-                        previewSection.style.display = 'block';
+                        previewSection.style.display = 'block'; // Use 'block' as per your CSS for content-section
                     } else {
-                        // If no URL is returned, keep the section hidden
                         console.warn('No preview URL was returned from the server.');
                         previewSection.style.display = 'none';
                     }
                 } catch (error) {
-                    // If there's any error fetching, hide the section
                     console.error('Failed to fetch the latest preview audio:', error);
                     previewSection.style.display = 'none';
                 }
             }
-            
-            // --- Call the function to get the latest preview track when the page loads ---
             fetchAndSetPreview();
 
-            // Add the 30-second stop functionality to the player
             if (previewPlayer) {
                 previewPlayer.addEventListener('timeupdate', function() {
                     if (this.currentTime >= 30) {
                         this.pause(); 
-                        this.currentTime = 30; // Lock the time to 30s
+                        this.currentTime = 30;
                     }
                 });
             }
         });
     </script>
-
+    
     <footer>
         <div>
             <a href="/privacy-policy.html">Privacy Policy</a> |
