@@ -785,14 +785,14 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 
             setTimeout(() => { 
                 characterSprite.classList.remove('tapped');
-                let newAnimation = 'idle-breathe 4s ease-in-out infinite';
+                let newAnimation = 'idle-breathe 2s ease-in-out infinite';
                 // --- ADDED to re-apply aura animation after tap ---
                 if (characterSprite.classList.contains('aura-level-30')) {
-                    newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-30-anim 1s ease-in-out infinite';
+                    newAnimation = 'idle-breathe 3s ease-in-out infinite, aura-level-30-anim 1s ease-in-out infinite';
                 } else if (characterSprite.classList.contains('aura-level-20')) {
-                    newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-20-anim 1.5s ease-in-out infinite';
+                    newAnimation = 'idle-breathe 3s ease-in-out infinite, aura-level-20-anim 1.5s ease-in-out infinite';
                 } else if (characterSprite.classList.contains('aura-level-10')) {
-                    newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite';
+                    newAnimation = 'idle-breathe 3s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite';
                 }
                 if(characterSprite.classList.contains('frenzy')){
                     newAnimation += ', frenzy-glow 1s infinite';
@@ -802,10 +802,10 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             updateUI();
         }
         function feed() {
-            if (gameState.gold >= 10) {
-                gameState.gold -= 10; 
-                gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 50); // --- MODIFIED for partial energy refill ---
-                gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 50);
+            if (gameState.gold >= 50) {
+                gameState.gold -= 50; 
+                gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 20); // --- MODIFIED for partial energy refill ---
+                gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 10);
                 playSound('feed', 1, 'sine', 200, 600, 0.2);
                 showNotification("Yum!", "Energy and HP restored slightly."); updateUI(); saveGame(); // --- MODIFIED text for clarity ---
             } else { showNotification("Not enough gold!", "You need 10 gold to feed your guardian."); }
