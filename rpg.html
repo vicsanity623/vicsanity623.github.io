@@ -316,6 +316,22 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     #core-stats-display { font-size: 0.7em; }
     .battle-character { transform: scale(0.7); margin: 0 -20px; }
 }
+/* --- ADDED for visual aura effects --- */
+@keyframes aura-level-10-anim {
+    0%, 100% { filter: drop-shadow(0 0 6px gold) drop-shadow(0 0 12px orangered); }
+    50% { filter: drop-shadow(0 0 10px gold) drop-shadow(0 0 20px orangered) drop-shadow(0 0 2px yellow); }
+}
+@keyframes aura-level-20-anim {
+    0%, 100% { filter: drop-shadow(0 0 10px gold) drop-shadow(0 0 20px orangered) drop-shadow(0 0 3px yellow); }
+    50% { filter: drop-shadow(0 0 16px gold) drop-shadow(0 0 30px orangered) drop-shadow(0 0 6px yellow); }
+}
+@keyframes aura-level-30-anim {
+    0%, 100% { filter: drop-shadow(0 0 15px gold) drop-shadow(0 0 25px orangered) drop-shadow(0 0 8px yellow); }
+    50% { filter: drop-shadow(0 0 25px gold) drop-shadow(0 0 45px orangered) drop-shadow(0 0 12px yellow); }
+}
+.aura-level-10 { animation: idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite; }
+.aura-level-20 { animation: idle-breathe 4s ease-in-out infinite, aura-level-20-anim 1.5s ease-in-out infinite; }
+.aura-level-30 { animation: idle-breathe 4s ease-in-out infinite, aura-level-30-anim 1s ease-in-out infinite; }
 </style>
 </head>
 <body>
@@ -539,6 +555,15 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             } else {
                 tutorialOverlay.classList.add('visible');
             }
+            // --- ADDED to manage visual auras ---
+            characterSprite.classList.remove('aura-level-10', 'aura-level-20', 'aura-level-30');
+            if (gameState.level >= 30) {
+                characterSprite.classList.add('aura-level-30');
+            } else if (gameState.level >= 20) {
+                characterSprite.classList.add('aura-level-20');
+            } else if (gameState.level >= 10) {
+                characterSprite.classList.add('aura-level-10');
+            }
         }
         function addXP(amount) { if (gameState.expedition.active) return;
             const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
@@ -635,7 +660,14 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             
             if (Math.random() < 0.1) { triggerScreenShake(150); }
 
-            const xpGain = 0.25 * tapCombo.currentMultiplier;
+            let xpGain = 0.25 * tapCombo.currentMultiplier; // --- MODIFIED for dynamic XP gain ---
+            // --- ADDED for level-based XP bonus ---
+            if (gameState.level >= 30) {
+                xpGain = 1.0 * tapCombo.currentMultiplier;
+            } else if (gameState.level >= 10) {
+                xpGain = 0.75 * tapCombo.currentMultiplier;
+            }
+            
             createXpOrb(event, xpGain);
             
             gameState.resources.energy -= 0.1;
@@ -649,6 +681,14 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             setTimeout(() => { 
                 characterSprite.classList.remove('tapped');
                 let newAnimation = 'idle-breathe 4s ease-in-out infinite';
+                // --- ADDED to re-apply aura animation after tap ---
+                if (characterSprite.classList.contains('aura-level-30')) {
+                    newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-30-anim 1s ease-in-out infinite';
+                } else if (characterSprite.classList.contains('aura-level-20')) {
+                    newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-20-anim 1.5s ease-in-out infinite';
+                } else if (characterSprite.classList.contains('aura-level-10')) {
+                    newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite';
+                }
                 if(characterSprite.classList.contains('frenzy')){
                     newAnimation += ', frenzy-glow 1s infinite';
                 }
@@ -658,10 +698,11 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         }
         function feed() {
             if (gameState.gold >= 10) {
-                gameState.gold -= 10; gameState.resources.energy = gameState.resources.maxEnergy;
+                gameState.gold -= 10; 
+                gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 50); // --- MODIFIED for partial energy refill ---
                 gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 50);
                 playSound('feed', 1, 'sine', 200, 600, 0.2);
-                showNotification("Yum!", "Energy restored."); updateUI(); saveGame();
+                showNotification("Yum!", "Energy and HP restored slightly."); updateUI(); saveGame(); // --- MODIFIED text for clarity ---
             } else { showNotification("Not enough gold!", "You need 10 gold to feed your guardian."); }
         }
         function startExpedition(durationInSeconds) {
@@ -954,9 +995,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         characterSprite.addEventListener('click', handleVisualTap);
         characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
         
-        // --- CORRECTED FIX FOR IMAGE LOADING AND CACHING ---
-        // This targets all player images and appends a unique timestamp to the URL.
-        // This forces the browser to bypass any cache and download the latest version of the image.
         const fixAndBustPlayerImageCache = () => {
             const imageUrl = "https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG";
             const images = document.querySelectorAll(`img[src="${imageUrl}"]`);
@@ -966,6 +1004,15 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             });
         };
         fixAndBustPlayerImageCache();
+        
+        // --- ADDED for passive energy regeneration ---
+        setInterval(() => {
+            if (gameState.resources && gameState.resources.energy < gameState.resources.maxEnergy && !gameState.expedition.active) {
+                // Regenerate 0.5 energy per second
+                gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.5);
+                updateUI();
+            }
+        }, 1000);
 
         init();
     });
