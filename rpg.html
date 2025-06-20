@@ -321,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const now = Date.now();
         if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
         tapCombo.lastTapTime = now;
-        if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.25) { activateFrenzy(); } }
+        if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.17) { activateFrenzy(); } }
         const xpGain = 0.25 * tapCombo.currentMultiplier; addXP(xpGain); gameState.resources.energy -= 0.1;
         const floatingText = document.createElement('div'); floatingText.className = 'floating-text';
         if (tapCombo.currentMultiplier > 1) { floatingText.classList.add('frenzy-text'); createParticles(event); }
