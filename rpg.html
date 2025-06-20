@@ -350,7 +350,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     <div id="wind-animation-container"></div>
     <div id="toast-container"></div>
     <div id="loading-screen" class="screen active"><h1 id="loading-text">Loading...</h1></div>
-    <div id="main-menu-screen" class="screen"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
+    <div id="main-menu-screen" class="screen"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button><button id="test-music-btn" style="border-color: yellow; color: yellow;">Test Music</button></div>
     <div id="game-screen" class="screen">
         <div id="frenzy-display">x5</div>
         <div id="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display">Gold: 0</div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" src="player.PNG" alt="Character"><div id="tutorial-overlay"><div id="tutorial-text">Tap to grow stronger!</div><div id="tutorial-finger">👆</div></div></div><div id="action-buttons"><button id="feed-btn">Feed (10 Gold)</button><button id="battle-btn">Battle</button><button id="expedition-btn">Expedition</button><button id="inventory-btn">Inventory</button><button id="ingame-menu-btn">Menu</button></div></div>
@@ -399,11 +399,20 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         function initMusic() {
             if (musicManager.isInitialized) return;
             console.log("Initializing music...");
-            for (const key in musicManager.audio) {
-                console.log('Audio track ready:', key); // Pre-warming via play/pause is disabled for better mobile compatibility.
-            }
+
+            // We are NOT going to autoplay music here anymore.
+            // We will let the user click the test button first.
             musicManager.isInitialized = true;
-            playMusic('main');
+            
+            // Add a listener for our new test button
+            document.getElementById('test-music-btn').addEventListener('click', () => {
+                const mainMusic = musicManager.audio['main'];
+                if (mainMusic) {
+                    console.log("Test button clicked, attempting to play main.mp3");
+                    mainMusic.volume = 0.5; // Set volume directly
+                    mainMusic.play().catch(e => console.error("Test play failed:", e));
+                }
+            });
         }
 
         function fadeOut(audio, onComplete) {
