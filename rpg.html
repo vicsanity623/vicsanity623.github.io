@@ -244,6 +244,11 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         opacity: 0;
     }
 }
+#loading-text { animation: pulse-text 1.5s ease-in-out infinite; }
+@keyframes pulse-text { 
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
 /* --- ADDED FOR RESPONSIVE LAYOUT --- */
 @media (max-width: 600px) {
     html {
@@ -254,10 +259,13 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         justify-content: flex-start;
         overflow-y: auto; /* Allow scrolling if content overflows vertically */
     }
-    #game-screen, #battle-screen {
-        justify-content: flex-start; /* MODIFIED: Align items to the top instead of spreading them out */
+    #game-screen {
+        justify-content: space-between;
         padding-top: 15px;
         padding-bottom: 15px;
+    }
+    #battle-screen {
+        justify-content: space-between; /* MODIFIED: Arrange items vertically */
     }
     h1 { font-size: 2em; }
     h2 { font-size: 1.5em; margin-bottom: 10px; }
@@ -285,13 +293,13 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         flex-shrink: 0;
     }
     #battle-arena {
-        align-items: center;
-        flex-grow: 0; 
-        justify-content: center; 
-        gap: 10px; 
+        flex-direction: column-reverse; /* MODIFIED: Player on bottom, enemy on top */
+        justify-content: space-between;   /* MODIFIED: Pushes them to the vertical ends */
+        flex-grow: 1;                     /* MODIFIED: Takes up all available middle space */
+        padding: 10px 0;
     }
     .battle-character {
-        transform: scale(0.8);
+        transform: scale(0.9);
         margin: 0; 
     }
     .battle-character h3 {
@@ -341,7 +349,8 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     <div id="background-stars"></div>
     <div id="wind-animation-container"></div>
     <div id="toast-container"></div>
-    <div id="main-menu-screen" class="screen active"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
+    <div id="loading-screen" class="screen active"><h1 id="loading-text">Loading...</h1></div>
+    <div id="main-menu-screen" class="screen"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
     <div id="game-screen" class="screen">
         <div id="frenzy-display">x5</div>
         <div id="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display">Gold: 0</div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG" alt="Character"><div id="tutorial-overlay"><div id="tutorial-text">Tap to grow stronger!</div><div id="tutorial-finger">👆</div></div></div><div id="action-buttons"><button id="feed-btn">Feed (10 Gold)</button><button id="battle-btn">Battle</button><button id="expedition-btn">Expedition</button><button id="inventory-btn">Inventory</button><button id="ingame-menu-btn">Menu</button></div></div>
@@ -390,13 +399,9 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         function initMusic() {
             if (musicManager.isInitialized) return;
             console.log("Initializing music...");
-            for (const key in musicFileUrls) {
-                if (musicFileUrls[key]) {
-                    const audio = new Audio(musicFileUrls[key]);
-                    audio.loop = true;
-                    audio.volume = 0;
-                    musicManager.audio[key] = audio;
-                }
+            for (const key in musicManager.audio) {
+                 // Try to play and immediately pause to allow future un-prompted play
+                musicManager.audio[key].play().then(() => musicManager.audio[key].pause()).catch(()=>{});
             }
             musicManager.isInitialized = true;
             playMusic('main');
@@ -419,7 +424,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 } else {
                     audio.volume = vol;
                 }
-            }, 100);
+            }, 50);
         }
 
         function fadeIn(audio) {
@@ -435,7 +440,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 } else {
                     audio.volume = vol;
                 }
-            }, 100);
+            }, 50);
         }
 
         function playMusic(trackName) {
@@ -452,6 +457,21 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             } else {
                 fadeIn(newTrack);
             }
+        }
+
+        function preloadAssets() {
+            const promises = [];
+            for (const key in musicFileUrls) {
+                if (musicFileUrls[key]) {
+                    const audio = new Audio(musicFileUrls[key]);
+                    audio.loop = true;
+                    musicManager.audio[key] = audio;
+                    promises.push(new Promise((resolve) => {
+                        audio.addEventListener('canplaythrough', resolve, { once: true });
+                    }));
+                }
+            }
+            return Promise.all(promises);
         }
         // --- End of Music Management System ---
         const achievements = {
@@ -546,7 +566,16 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 }
             }
         }
-        function init() { createWindEffect(); createStarfield(); showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }
+        function init() { 
+            createWindEffect(); 
+            createStarfield(); 
+            preloadAssets().then(() => {
+                showScreen('main-menu-screen');
+                if (!localStorage.getItem('tapGuardianSave')) { 
+                    loadGameBtn.disabled = true; 
+                }
+            });
+        }
         
         async function startGame() {
             initAudio(); // --- ADDED to initialize audio on first user click ---
