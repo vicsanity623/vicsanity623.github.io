@@ -1123,15 +1123,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         characterSprite.addEventListener('click', handleVisualTap);
         characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
         
-        const fixAndBustPlayerImageCache = () => {
-            const imageUrl = "https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG";
-            const images = document.querySelectorAll(`img[src="${imageUrl}"]`);
-            const cacheBuster = `?v=${new Date().getTime()}`;
-            images.forEach(img => {
-                img.src = imageUrl + cacheBuster;
-            });
-        };
-        fixAndBustPlayerImageCache();
         
         // --- ADDED for passive energy regeneration ---
         setInterval(() => {
