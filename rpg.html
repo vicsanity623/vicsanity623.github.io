@@ -400,7 +400,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             if (musicManager.isInitialized) return;
             console.log("Initializing music...");
             for (const key in musicManager.audio) {
-                 // Try to play and immediately pause to allow future un-prompted play
                 musicManager.audio[key].play().then(() => musicManager.audio[key].pause()).catch(()=>{});
             }
             musicManager.isInitialized = true;
@@ -459,19 +458,15 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             }
         }
 
-        function preloadAssets() {
-            const promises = [];
+        function startBackgroundAssetLoading() {
             for (const key in musicFileUrls) {
                 if (musicFileUrls[key]) {
                     const audio = new Audio(musicFileUrls[key]);
                     audio.loop = true;
+                    audio.preload = 'auto';
                     musicManager.audio[key] = audio;
-                    promises.push(new Promise((resolve) => {
-                        audio.addEventListener('canplaythrough', resolve, { once: true });
-                    }));
                 }
             }
-            return Promise.all(promises);
         }
         // --- End of Music Management System ---
         const achievements = {
@@ -569,12 +564,13 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         function init() { 
             createWindEffect(); 
             createStarfield(); 
-            preloadAssets().then(() => {
+            startBackgroundAssetLoading();
+            setTimeout(() => {
                 showScreen('main-menu-screen');
                 if (!localStorage.getItem('tapGuardianSave')) { 
                     loadGameBtn.disabled = true; 
                 }
-            });
+            }, 1500); // Show loading for 1.5 seconds
         }
         
         async function startGame() {
