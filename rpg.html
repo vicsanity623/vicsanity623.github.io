@@ -248,7 +248,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
     <!-- Firebase SDK Scripts -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
+    
     <div id="wind-animation-container"></div>
     <div id="toast-container"></div>
     <div id="main-menu-screen" class="screen active"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
@@ -368,7 +368,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
             let isNameValid = false;
             while (!isNameValid) {
                 const inputName = prompt("Enter your Guardian's name (3-15 chars):", "");
-                if (inputName === null) { return; } 
+                if (inputName === null) { return; } // User clicked cancel
 
                 if (inputName.length < 3 || inputName.length > 15) {
                     alert("Name must be between 3 and 15 characters.");
