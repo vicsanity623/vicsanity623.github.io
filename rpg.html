@@ -16,7 +16,7 @@
             --health-color: #ff4136;
             --energy-color: #0074d9;
             --xp-color: #ffdc00;
-            --frenzy-glow-color: var(--accent-color); 
+            --frenzy-glow-color: var(--accent-color);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body {
@@ -81,8 +81,8 @@
             margin-top: 15px; font-size: 0.8em;
         }
         #world-tier-display {
-             margin-top: 10px; font-size: 1em; color: var(--xp-color);
-             text-shadow: 0 0 5px var(--xp-color);
+            margin-top: 10px; font-size: 1em; color: var(--xp-color);
+            text-shadow: 0 0 5px var(--xp-color);
         }
         #gold-display { margin-top: 10px; font-size: 1em; color: var(--xp-color); }
         #action-buttons { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; }
@@ -128,13 +128,13 @@
             text-shadow: 0 0 5px black, 0 0 10px var(--frenzy-glow-color); pointer-events: none;
         }
         #frenzy-display.active { opacity: 1; transform: translateY(-50%) scale(1); }
-        
         #battle-screen { justify-content: space-between; height: 100vh; }
         #battle-screen > h2 { flex-shrink: 0; }
         #battle-arena {
             flex-grow: 1; display: flex;
             align-items: center; justify-content: space-around;
             width: 100%; padding: 10px 0;
+            position: relative;
         }
         .battle-character { display: flex; flex-direction: column; align-items: center; }
         .battle-character h3 { margin-bottom: 8px; font-size: 0.9em; }
@@ -154,6 +154,94 @@
         #leaderboard-list li:nth-child(odd) { background-color: #33364a; }
         #leaderboard-list .rank-name { text-align: left; }
         #leaderboard-list .rank-level { text-align: right; color: var(--xp-color); }
+        .screen-shake {
+            animation: screen-shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes screen-shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .damage-text {
+            position: absolute;
+            font-size: 1.5em;
+            opacity: 1;
+            transition: all 0.8s ease-out;
+            pointer-events: none;
+            user-select: none;
+            text-shadow: 2px 2px 3px black;
+            transform: translateY(0);
+        }
+        .damage-text.player-damage { color: #ffdd57; right: 25%; }
+        .damage-text.enemy-damage { color: #ff4136; left: 25%; }
+        .damage-text.crit {
+            font-size: 2.2em;
+            color: var(--xp-color);
+            font-weight: bold;
+            transform: scale(1.2);
+            animation: pulse 0.5s;
+        }
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 12px 20px;
+            background-color: var(--secondary-bg);
+            color: var(--xp-color);
+            border: 2px solid var(--xp-color);
+            animation: toast-fade 4s ease-in-out forwards;
+            opacity: 0;
+            text-align: center;
+        }
+        @keyframes toast-fade {
+            0% { opacity: 0; transform: translateY(20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+        #achievements-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 20px;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        #achievements-list li {
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+        #achievements-list li.unlocked {
+            opacity: 1;
+            color: var(--xp-color);
+            border-left: 4px solid var(--xp-color);
+        }
+        #achievements-list li .achievement-desc {
+            font-size: 0.8em;
+            color: var(--text-color);
+        }
+        .log-crit {
+            color: var(--xp-color);
+            font-weight: bold;
+            text-shadow: 0 0 5px var(--xp-color);
+            animation: pulse 0.5s 2;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -162,6 +250,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <div id="wind-animation-container"></div>
+    <div id="toast-container"></div>
     <div id="main-menu-screen" class="screen active"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
     <div id="game-screen" class="screen">
         <div id="frenzy-display">x5</div>
@@ -169,385 +258,511 @@
     <div id="battle-screen" class="screen"><h2>Battle!</h2><div id="battle-arena"><div class="battle-character"><h3 id="battle-player-name">Guardian</h3><img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG"><div id="battle-player-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div><div class="battle-character"><h3 id="battle-npc-name">Goblin</h3><img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG" style="filter: hue-rotate(180deg);"><div id="battle-npc-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div></div><div id="battle-log"></div><div id="battle-actions"><button id="attack-btn">Attack</button><button id="run-btn">Run</button></div></div>
     <div id="expedition-screen" class="screen"><h2>Send on Expedition</h2><p>Your guardian will be unavailable but will return with rewards.</p><button class="expedition-choice-btn" data-duration="1800">Scout Ahead (30 Mins)</button><button class="expedition-choice-btn" data-duration="3600">Long Patrol (1 Hour)</button><button class="expedition-choice-btn" data-duration="21600">Deep Delve (6 Hours)</button><button id="expedition-cancel-btn">Cancel</button></div>
     <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
-    <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><button id="leaderboard-btn">Leaderboard</button><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button><button id="return-to-game-btn">Return to Game</button></div></div>
+    <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><button id="leaderboard-btn">Leaderboard</button><button id="achievements-btn">Achievements</button><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button><button id="return-to-game-btn">Return to Game</button></div></div>
     <div id="inventory-modal" class="modal"><div class="modal-content"><h2>Inventory</h2><div id="weapon-slot" class="inventory-slot">Weapon: None</div><div id="armor-slot" class="inventory-slot">Armor: None</div><button id="close-inventory-btn">Close</button></div></div>
     <div id="leaderboard-modal" class="modal"><div class="modal-content"><h2>Leaderboard</h2><ul id="leaderboard-list"><li>Loading...</li></ul><button id="close-leaderboard-btn">Close</button></div></div>
-
-<script>
-// --- YOUR LIVE FIREBASE CONFIGURATION ---
-const firebaseConfig = {
-    apiKey: "AIzaSyDyZ_aOOnuMNxC9QBE52KfjKzUyHjbagqk",
-    authDomain: "tap-guardian-rpg.firebaseapp.com",
-    projectId: "tap-guardian-rpg",
-    storageBucket: "tap-guardian-rpg.appspot.com",
-    messagingSenderId: "50272459426",
-    appId: "1:50272459426:web:7ae4beb76ed67d4a3a15fb",
-    measurementId: "G-4686TXHCHN"
-};
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-// --- END OF FIREBASE CONFIG ---
-
-document.addEventListener('DOMContentLoaded', () => {
-    let gameState = {};
-    const defaultState = {
-        playerName: "Guardian",
-        level: 1, xp: 0, gold: 0,
-        stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
-        resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
-        equipment: { weapon: null, armor: null },
-        expedition: { active: false, returnTime: 0 },
-        ascension: { tier: 1, points: 0, perks: {} }
+    <div id="achievements-modal" class="modal"><div class="modal-content"><h2>Achievements</h2><ul id="achievements-list"></ul><button id="close-achievements-btn">Close</button></div></div>
+    
+    <script>
+    // --- YOUR LIVE FIREBASE CONFIGURATION ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyDyZ_aOOnuMNxC9QBE52KfjKzUyHjbagqk",
+        authDomain: "tap-guardian-rpg.firebaseapp.com",
+        projectId: "tap-guardian-rpg",
+        storageBucket: "tap-guardian-rpg.appspot.com",
+        messagingSenderId: "50272459426",
+        appId: "1:50272459426:web:7ae4beb76ed67d4a3a15fb",
+        measurementId: "G-4686TXHCHN"
     };
-    const ASCENSION_LEVEL = 50;
-    let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
-    let expeditionInterval = null;
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    // --- END OF FIREBASE CONFIG ---
 
-    const screens = document.querySelectorAll('.screen');
-    const loadGameBtn = document.getElementById('load-game-btn');
-    const characterSprite = document.getElementById('character-sprite');
-    const playerNameLevel = document.getElementById('player-name-level');
-    const healthBarFill = document.querySelector('#health-bar .stat-bar-fill');
-    const healthBarLabel = document.querySelector('#health-bar .stat-bar-label');
-    const energyBarFill = document.querySelector('#energy-bar .stat-bar-fill');
-    const energyBarLabel = document.querySelector('#energy-bar .stat-bar-label');
-    const xpBarFill = document.querySelector('#xp-bar .stat-bar-fill');
-    const xpBarLabel = document.querySelector('#xp-bar .stat-bar-label');
-    const coreStatsDisplay = document.getElementById('core-stats-display');
-    const goldDisplay = document.getElementById('gold-display');
-    const worldTierDisplay = document.getElementById('world-tier-display');
-    const startGameBtn = document.getElementById('start-game-btn');
-    const feedBtn = document.getElementById('feed-btn');
-    const battleBtn = document.getElementById('battle-btn');
-    const expeditionBtn = document.getElementById('expedition-btn');
-    const modal = document.getElementById('notification-modal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalText = document.getElementById('modal-text');
-    const modalCloseBtn = document.getElementById('modal-close-btn');
-    const battleLog = document.getElementById('battle-log');
-    const battlePlayerName = document.getElementById('battle-player-name');
-    const attackBtn = document.getElementById('attack-btn');
-    const runBtn = document.getElementById('run-btn');
-    const battleNpcName = document.getElementById('battle-npc-name');
-    const expeditionCancelBtn = document.getElementById('expedition-cancel-btn');
-    const ingameMenuBtn = document.getElementById('ingame-menu-btn');
-    const ingameMenuModal = document.getElementById('ingame-menu-modal');
-    const ingameMenuContent = document.getElementById('ingame-menu-content');
-    const saveGameBtn = document.getElementById('save-game-btn');
-    const optionsBtn = document.getElementById('options-btn');
-    const quitToTitleBtn = document.getElementById('quit-to-title-btn');
-    const returnToGameBtn = document.getElementById('return-to-game-btn');
-    const inventoryBtn = document.getElementById('inventory-btn');
-    const inventoryModal = document.getElementById('inventory-modal');
-    const weaponSlot = document.getElementById('weapon-slot');
-    const armorSlot = document.getElementById('armor-slot');
-    const closeInventoryBtn = document.getElementById('close-inventory-btn');
-    const expeditionTimerDisplay = document.getElementById('expedition-timer-display');
-    const windAnimationContainer = document.getElementById('wind-animation-container');
-    const frenzyDisplay = document.getElementById('frenzy-display');
-    const leaderboardBtn = document.getElementById('leaderboard-btn');
-    const leaderboardModal = document.getElementById('leaderboard-modal');
-    const leaderboardList = document.getElementById('leaderboard-list');
-    const closeLeaderboardBtn = document.getElementById('close-leaderboard-btn');
-    
-    function showScreen(screenId) { screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); }
-    function init() { createWindEffect(); showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }
-    function startGame() {
-        const name = prompt("Enter your Guardian's name:", "Guardian");
-        gameState = JSON.parse(JSON.stringify(defaultState));
-        gameState.playerName = name ? name.substring(0, 15) : "Guardian";
-        checkExpeditionStatus(); updateUI(); saveGame(); showScreen('game-screen');
-    }
-    function loadGame() {
-        const savedData = localStorage.getItem('tapGuardianSave');
-        if (savedData) {
-            let loadedState = JSON.parse(savedData);
-            gameState = {...defaultState, ...loadedState};
-            gameState.stats = {...defaultState.stats, ...loadedState.stats};
-            gameState.resources = {...defaultState.resources, ...loadedState.resources};
-            gameState.ascension = {...defaultState.ascension, ...loadedState.ascension};
-            checkExpeditionStatus(); updateUI(); showScreen('game-screen');
-        } else { showNotification("No Save Data Found!", "Starting a new game instead."); startGame(); }
-    }
-    function saveGame() { localStorage.setItem('tapGuardianSave', JSON.stringify(gameState)); loadGameBtn.disabled = false; console.log("Game Saved!"); }
-    function getXpForNextLevel() { return Math.floor(100 * Math.pow(1.5, gameState.level - 1)); }
+    document.addEventListener('DOMContentLoaded', () => {
+        let gameState = {};
+        let audioCtx = null;
+        const achievements = {
+            tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false },
+            tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false },
+            tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false },
+            level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false },
+            level25: { name: "Seasoned Guardian", desc: "Reach level 25.", target: 25, unlocked: false },
+            level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false },
+            defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false },
+            defeat50: { name: "Monster Hunter", desc: "Defeat 50 enemies.", target: 50, unlocked: false },
+            ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false }
+        };
+        const defaultState = {
+            playerName: "Guardian",
+            level: 1, xp: 0, gold: 0,
+            stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
+            resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
+            equipment: { weapon: null, armor: null },
+            expedition: { active: false, returnTime: 0 },
+            ascension: { tier: 1, points: 0, perks: {} },
+            achievements: JSON.parse(JSON.stringify(achievements)),
+            counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0 }
+        };
+        const ASCENSION_LEVEL = 50;
+        let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
+        let expeditionInterval = null;
 
-    function updateExpeditionTimer() {
-        if (!gameState.expedition.active) { if (expeditionInterval) clearInterval(expeditionInterval); expeditionInterval = null; return; }
-        const timeLeft = gameState.expedition.returnTime - Date.now();
-        if (timeLeft <= 0) {
-            expeditionTimerDisplay.textContent = "Returning..."; clearInterval(expeditionInterval); expeditionInterval = null;
-            checkExpeditionStatus(); updateUI();
-        } else {
-            const pad = num => num.toString().padStart(2, '0');
-            const hours = pad(Math.floor(timeLeft / 3600000));
-            const minutes = pad(Math.floor((timeLeft % 3600000) / 60000));
-            const seconds = pad(Math.floor((timeLeft % 60000) / 1000));
-            expeditionTimerDisplay.textContent = `${hours}:${minutes}:${seconds}`;
+        const screens = document.querySelectorAll('.screen');
+        const loadGameBtn = document.getElementById('load-game-btn');
+        const characterSprite = document.getElementById('character-sprite');
+        const playerNameLevel = document.getElementById('player-name-level');
+        const healthBarFill = document.querySelector('#health-bar .stat-bar-fill');
+        const healthBarLabel = document.querySelector('#health-bar .stat-bar-label');
+        const energyBarFill = document.querySelector('#energy-bar .stat-bar-fill');
+        const energyBarLabel = document.querySelector('#energy-bar .stat-bar-label');
+        const xpBarFill = document.querySelector('#xp-bar .stat-bar-fill');
+        const xpBarLabel = document.querySelector('#xp-bar .stat-bar-label');
+        const coreStatsDisplay = document.getElementById('core-stats-display');
+        const goldDisplay = document.getElementById('gold-display');
+        const worldTierDisplay = document.getElementById('world-tier-display');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const feedBtn = document.getElementById('feed-btn');
+        const battleBtn = document.getElementById('battle-btn');
+        const expeditionBtn = document.getElementById('expedition-btn');
+        const modal = document.getElementById('notification-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalText = document.getElementById('modal-text');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const battleLog = document.getElementById('battle-log');
+        const battlePlayerName = document.getElementById('battle-player-name');
+        const attackBtn = document.getElementById('attack-btn');
+        const runBtn = document.getElementById('run-btn');
+        const battleNpcName = document.getElementById('battle-npc-name');
+        const expeditionCancelBtn = document.getElementById('expedition-cancel-btn');
+        const ingameMenuBtn = document.getElementById('ingame-menu-btn');
+        const ingameMenuModal = document.getElementById('ingame-menu-modal');
+        const ingameMenuContent = document.getElementById('ingame-menu-content');
+        const saveGameBtn = document.getElementById('save-game-btn');
+        const optionsBtn = document.getElementById('options-btn');
+        const quitToTitleBtn = document.getElementById('quit-to-title-btn');
+        const returnToGameBtn = document.getElementById('return-to-game-btn');
+        const inventoryBtn = document.getElementById('inventory-btn');
+        const inventoryModal = document.getElementById('inventory-modal');
+        const weaponSlot = document.getElementById('weapon-slot');
+        const armorSlot = document.getElementById('armor-slot');
+        const closeInventoryBtn = document.getElementById('close-inventory-btn');
+        const expeditionTimerDisplay = document.getElementById('expedition-timer-display');
+        const windAnimationContainer = document.getElementById('wind-animation-container');
+        const frenzyDisplay = document.getElementById('frenzy-display');
+        const leaderboardBtn = document.getElementById('leaderboard-btn');
+        const leaderboardModal = document.getElementById('leaderboard-modal');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const closeLeaderboardBtn = document.getElementById('close-leaderboard-btn');
+        const toastContainer = document.getElementById('toast-container');
+        const achievementsModal = document.getElementById('achievements-modal');
+        const closeAchievementsBtn = document.getElementById('close-achievements-btn');
+        const achievementsList = document.getElementById('achievements-list');
+        const achievementsBtn = document.getElementById('achievements-btn');
+
+        function showScreen(screenId) { screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); }
+        function init() { createWindEffect(); showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }
+        function startGame() {
+            const name = prompt("Enter your Guardian's name:", "Guardian");
+            gameState = JSON.parse(JSON.stringify(defaultState));
+            gameState.playerName = name ? name.substring(0, 15) : "Guardian";
+            localStorage.setItem('tapGuardianLastLogin', new Date().toDateString());
+            checkExpeditionStatus(); updateUI(); saveGame(); showScreen('game-screen');
         }
-    }
-
-    function updateUI() {
-        playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
-        worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
-        const xpForNext = getXpForNextLevel();
-        healthBarFill.style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
-        healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
-        energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
-        energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
-        xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
-        xpBarLabel.textContent = `XP: ${Math.floor(gameState.xp)} / ${xpForNext}`;
-        coreStatsDisplay.innerHTML = `<span>STR: ${getTotalStat('strength')}</span><span>AGI: ${getTotalStat('agility')}</span><span>FOR: ${getTotalStat('fortitude')}</span><span>STA: ${getTotalStat('stamina')}</span>`;
-        goldDisplay.textContent = `Gold: ${gameState.gold}`;
-        const onExpedition = gameState.expedition.active;
-        characterSprite.style.display = onExpedition ? 'none' : 'block';
-        expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
-        windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
-        if (onExpedition) {
-             expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
-             if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
-        } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
-        feedBtn.disabled = onExpedition; battleBtn.disabled = onExpedition; inventoryBtn.disabled = onExpedition;
-    }
-    function addXP(amount) { if (gameState.expedition.active) return;
-        const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
-        gameState.xp += (amount * tierMultiplier);
-        if (gameState.xp >= getXpForNextLevel()) { levelUp(); }
-        updateUI();
-    }
-    function levelUp() {
-        const xpOver = gameState.xp - getXpForNextLevel(); gameState.level++; gameState.xp = xpOver;
-        gameState.stats.strength += 2; gameState.stats.agility += 1; gameState.stats.fortitude += 2; gameState.stats.stamina += 1;
-        gameState.resources.maxHp += 10; gameState.resources.hp = gameState.resources.maxHp;
-        gameState.resources.maxEnergy += 5; gameState.resources.energy = gameState.resources.maxEnergy;
-        submitScoreToLeaderboard();
-        showNotification("LEVEL UP!", `You are now Level ${gameState.level}!`); saveGame();
-    }
-    function showNotification(title, text) { modalTitle.textContent = title; modalText.innerHTML = text; modal.style.display = 'flex'; }
-    
-    function updateFrenzyVisuals() {
-        const multiplier = tapCombo.currentMultiplier; const root = document.documentElement;
-        if (multiplier > 1) {
-            let color = 'var(--accent-color)';
-            if (multiplier >= 15) { color = 'var(--health-color)'; } 
-            else if (multiplier >= 10) { color = 'var(--xp-color)'; }
-            root.style.setProperty('--frenzy-glow-color', color);
-            frenzyDisplay.textContent = `x${multiplier}`; frenzyDisplay.style.color = color;
-            frenzyDisplay.classList.add('active'); characterSprite.classList.add('frenzy');
-        } else { frenzyDisplay.classList.remove('active'); characterSprite.classList.remove('frenzy'); }
-    }
-    function activateFrenzy() {
-        if (tapCombo.frenzyTimeout) { clearTimeout(tapCombo.frenzyTimeout); }
-        tapCombo.currentMultiplier = (tapCombo.currentMultiplier === 1) ? 5 : tapCombo.currentMultiplier + 5;
-        updateFrenzyVisuals(); tapCombo.frenzyTimeout = setTimeout(deactivateFrenzy, 7000);
-    }
-    function deactivateFrenzy() { tapCombo.currentMultiplier = 1; tapCombo.frenzyTimeout = null; updateFrenzyVisuals(); }
-    function createParticles(event) {
-        for (let i = 0; i < 8; i++) {
-            const particle = document.createElement('div'); particle.className = 'particle';
-            const x = event.clientX; const y = event.clientY;
-            particle.style.left = `${x}px`; particle.style.top = `${y}px`;
-            const xEnd = (Math.random() - 0.5) * 200; const yEnd = (Math.random() - 0.5) * 200;
-            particle.style.setProperty('--x-end', `${xEnd}px`); particle.style.setProperty('--y-end', `${yEnd}px`);
-            document.body.appendChild(particle); setTimeout(() => { particle.remove(); }, 800);
+        function loadGame() {
+            const savedData = localStorage.getItem('tapGuardianSave');
+            if (savedData) {
+                let loadedState = JSON.parse(savedData);
+                gameState = {...defaultState, ...loadedState};
+                gameState.stats = {...defaultState.stats, ...loadedState.stats};
+                gameState.resources = {...defaultState.resources, ...loadedState.resources};
+                gameState.ascension = {...defaultState.ascension, ...loadedState.ascension};
+                gameState.achievements = {...JSON.parse(JSON.stringify(achievements)), ...(loadedState.achievements || {})};
+                gameState.counters = {...defaultState.counters, ...(loadedState.counters || {})};
+                const lastLogin = localStorage.getItem('tapGuardianLastLogin');
+                const today = new Date().toDateString();
+                if (lastLogin !== today) {
+                    const dailyGold = 50 + (gameState.ascension.tier * 25);
+                    const dailyXP = 100 + (gameState.ascension.tier * 50);
+                    gameState.gold += dailyGold;
+                    addXP(dailyXP);
+                    showNotification("Welcome Back!", `You received a daily login bonus of:<br><br>+${dailyGold} Gold<br>+${dailyXP} XP`);
+                }
+                localStorage.setItem('tapGuardianLastLogin', today);
+                checkExpeditionStatus(); updateUI(); showScreen('game-screen');
+            } else { showNotification("No Save Data Found!", "Starting a new game instead."); startGame(); }
         }
-    }
-    function handleTap(event) {
-        if (gameState.expedition.active || gameState.resources.energy <= 0) return;
-        const now = Date.now();
-        if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
-        tapCombo.lastTapTime = now;
-        if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.13) { activateFrenzy(); } }
-        const xpGain = 0.25 * tapCombo.currentMultiplier; addXP(xpGain); gameState.resources.energy -= 0.1;
-        const floatingText = document.createElement('div'); floatingText.className = 'floating-text';
-        if (tapCombo.currentMultiplier > 1) { floatingText.classList.add('frenzy-text'); createParticles(event); }
-        floatingText.textContent = `+${xpGain.toFixed(2)} XP`;
-        let clientX = event.clientX || (event.touches && event.touches[0].clientX);
-        let clientY = event.clientY || (event.touches && event.touches[0].clientY);
-        floatingText.style.left = `${clientX}px`;
-        floatingText.style.top = `${clientY - 30}px`;
-        document.body.appendChild(floatingText);
-        setTimeout(() => { floatingText.style.transform = 'translateY(-50px)'; floatingText.style.opacity = '0'; }, 10);
-        setTimeout(() => { floatingText.remove(); }, 1000);
-        characterSprite.classList.add('tapped');
-        setTimeout(() => characterSprite.classList.remove('tapped'), 100); updateUI();
-    }
-    function feed() {
-        if (gameState.gold >= 10) {
-             gameState.gold -= 10; gameState.resources.energy = gameState.resources.maxEnergy;
-             gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 50);
-             showNotification("Yum!", "Energy restored."); updateUI(); saveGame();
-        } else { showNotification("Not enough gold!", "You need 10 gold to feed your guardian."); }
-    }
-    function startExpedition(durationInSeconds) {
-        gameState.expedition.active = true;
-        gameState.expedition.returnTime = Date.now() + durationInSeconds * 1000;
-        showNotification("Expedition Started!", `Your guardian will return in ${durationInSeconds / 60} minutes.`);
-        saveGame(); updateUI(); showScreen('game-screen');
-    }
-    function checkExpeditionStatus() {
-        if (gameState.expedition.active && Date.now() > gameState.expedition.returnTime) {
-            gameState.expedition.active = false;
-            const tierMultiplier = Math.pow(1.5, gameState.ascension.tier - 1);
-            const xpReward = Math.floor(100 * gameState.level * tierMultiplier);
-            const goldReward = Math.floor(50 * gameState.level * tierMultiplier);
-            let rewardText = `Your guardian has returned from World Tier ${gameState.ascension.tier}!<br><br>+${xpReward} XP<br>+${goldReward} Gold`;
-            if (Math.random() < (0.3 + (gameState.ascension.tier * 0.05))) {
-                const foundItem = { type: Math.random() < 0.5 ? 'weapon' : 'armor', bonus: gameState.level * (Math.floor(Math.random() * 3) + 1) * gameState.ascension.tier };
-                const stat = foundItem.type === 'weapon' ? 'strength' : 'fortitude';
-                if (!gameState.equipment[foundItem.type] || foundItem.bonus > gameState.equipment[foundItem.type].bonus) {
-                    gameState.equipment[foundItem.type] = foundItem;
-                    rewardText += `<br><br>Equipped New Tier ${gameState.ascension.tier} ${foundItem.type}: +${foundItem.bonus} ${stat.substring(0,3).toUpperCase()}`;
-                } else { rewardText += `<br><br>Found a weaker ${foundItem.type}.`; }
+        function saveGame() { localStorage.setItem('tapGuardianSave', JSON.stringify(gameState)); loadGameBtn.disabled = false; console.log("Game Saved!"); }
+        function getXpForNextLevel() { return Math.floor(100 * Math.pow(1.5, gameState.level - 1)); }
+
+        function updateExpeditionTimer() {
+            if (!gameState.expedition.active) { if (expeditionInterval) clearInterval(expeditionInterval); expeditionInterval = null; return; }
+            const timeLeft = gameState.expedition.returnTime - Date.now();
+            if (timeLeft <= 0) {
+                expeditionTimerDisplay.textContent = "Returning..."; clearInterval(expeditionInterval); expeditionInterval = null;
+                checkExpeditionStatus(); updateUI();
+            } else {
+                const pad = num => num.toString().padStart(2, '0');
+                const hours = pad(Math.floor(timeLeft / 3600000));
+                const minutes = pad(Math.floor((timeLeft % 3600000) / 60000));
+                const seconds = pad(Math.floor((timeLeft % 60000) / 1000));
+                expeditionTimerDisplay.textContent = `${hours}:${minutes}:${seconds}`;
             }
-            addXP(xpReward); gameState.gold += goldReward;
-            showNotification("Expedition Complete!", rewardText); saveGame(); updateUI();
         }
-    }
-    function getTotalStat(stat) {
-        let total = gameState.stats[stat];
-        if (stat === 'strength' && gameState.equipment.weapon) { total += gameState.equipment.weapon.bonus; }
-        if (stat === 'fortitude' && gameState.equipment.armor) { total += gameState.equipment.armor.bonus; }
-        return total;
-    }
-    function ascend() {
-        if (gameState.level < ASCENSION_LEVEL) { showNotification("Not Ready", `You must reach Level ${ASCENSION_LEVEL} to Ascend.`); return; }
-        if (confirm(`Are you sure you want to Ascend?\n\nYour Level, Stats, and Gold will be reset.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point.`)) {
-            gameState.ascension.tier++; gameState.ascension.points++;
-            gameState.level = 1; gameState.xp = 0; gameState.gold = 0;
-            gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
-            gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
+
+        function updateUI() {
+            playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
+            worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
+            const xpForNext = getXpForNextLevel();
+            healthBarFill.style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
+            healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
+            energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
+            energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
+            xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
+            xpBarLabel.textContent = `XP: ${Math.floor(gameState.xp)} / ${xpForNext}`;
+            coreStatsDisplay.innerHTML = `<span>STR: ${getTotalStat('strength')}</span><span>AGI: ${getTotalStat('agility')}</span><span>FOR: ${getTotalStat('fortitude')}</span><span>STA: ${getTotalStat('stamina')}</span>`;
+            goldDisplay.textContent = `Gold: ${gameState.gold}`;
+            const onExpedition = gameState.expedition.active;
+            characterSprite.style.display = onExpedition ? 'none' : 'block';
+            expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
+            windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
+            if (onExpedition) {
+                expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
+                if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
+            } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
+            feedBtn.disabled = onExpedition; battleBtn.disabled = onExpedition; inventoryBtn.disabled = onExpedition;
+        }
+        function addXP(amount) { if (gameState.expedition.active) return;
+            const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
+            gameState.xp += (amount * tierMultiplier);
+            if (gameState.xp >= getXpForNextLevel()) { levelUp(); }
+            updateUI();
+        }
+        function levelUp() {
+            const xpOver = gameState.xp - getXpForNextLevel(); gameState.level++; gameState.xp = xpOver;
+            gameState.stats.strength += 2; gameState.stats.agility += 1; gameState.stats.fortitude += 2; gameState.stats.stamina += 1;
+            gameState.resources.maxHp += 10; gameState.resources.hp = gameState.resources.maxHp;
+            gameState.resources.maxEnergy += 5; gameState.resources.energy = gameState.resources.maxEnergy;
+            playSound('levelUp', 1, 'triangle', 440, 880);
+            triggerScreenShake(400);
+            checkAllAchievements();
             submitScoreToLeaderboard();
-            saveGame(); updateUI(); ingameMenuModal.style.display = 'none';
-            showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You feel a new power flowing within you.`);
+            showNotification("LEVEL UP!", `You are now Level ${gameState.level}!`); saveGame();
         }
-    }
-    async function submitScoreToLeaderboard() {
-        if (!gameState.playerName || gameState.playerName === "Guardian") return;
-        const score = {
-            name: gameState.playerName,
-            level: gameState.level,
-            tier: gameState.ascension.tier,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        try {
-            await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true });
-            console.log("Score submitted to leaderboard!");
-        } catch (error) { console.error("Error submitting score: ", error); }
-    }
-    async function showLeaderboard() {
-        leaderboardList.innerHTML = "<li>Loading...</li>";
-        leaderboardModal.style.display = "flex";
-        try {
-            const snapshot = await db.collection("leaderboard").orderBy("tier", "desc").orderBy("level", "desc").limit(20).get();
-            if (snapshot.empty) { leaderboardList.innerHTML = "<li>No scores yet. Be the first!</li>"; return; }
-            leaderboardList.innerHTML = "";
-            let rank = 1;
-            snapshot.forEach(doc => {
-                const data = doc.data();
+        function showNotification(title, text) { modalTitle.textContent = title; modalText.innerHTML = text; modal.style.display = 'flex'; }
+        function updateFrenzyVisuals() {
+            const multiplier = tapCombo.currentMultiplier; const root = document.documentElement;
+            if (multiplier > 1) {
+                let color = 'var(--accent-color)';
+                if (multiplier >= 15) { color = 'var(--health-color)'; }
+                else if (multiplier >= 10) { color = 'var(--xp-color)'; }
+                root.style.setProperty('--frenzy-glow-color', color);
+                frenzyDisplay.textContent = `x${multiplier}`; frenzyDisplay.style.color = color;
+                frenzyDisplay.classList.add('active'); characterSprite.classList.add('frenzy');
+            } else { frenzyDisplay.classList.remove('active'); characterSprite.classList.remove('frenzy'); }
+        }
+        function activateFrenzy() {
+            if (tapCombo.frenzyTimeout) { clearTimeout(tapCombo.frenzyTimeout); }
+            tapCombo.currentMultiplier = (tapCombo.currentMultiplier === 1) ? 5 : tapCombo.currentMultiplier + 5;
+            updateFrenzyVisuals(); tapCombo.frenzyTimeout = setTimeout(deactivateFrenzy, 7000);
+        }
+        function deactivateFrenzy() { tapCombo.currentMultiplier = 1; tapCombo.frenzyTimeout = null; updateFrenzyVisuals(); }
+        function createParticles(event) {
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div'); particle.className = 'particle';
+                const x = event.clientX; const y = event.clientY;
+                particle.style.left = `${x}px`; particle.style.top = `${y}px`;
+                const xEnd = (Math.random() - 0.5) * 200; const yEnd = (Math.random() - 0.5) * 200;
+                particle.style.setProperty('--x-end', `${xEnd}px`); particle.style.setProperty('--y-end', `${yEnd}px`);
+                document.body.appendChild(particle); setTimeout(() => { particle.remove(); }, 800);
+            }
+        }
+        function handleTap(event) {
+            if (gameState.expedition.active || gameState.resources.energy <= 0) return;
+            initAudio();
+            gameState.counters.taps = (gameState.counters.taps || 0) + 1;
+            checkAllAchievements();
+            playSound('tap', 0.5, 'square', 150, 100, 0.05);
+            const now = Date.now();
+            if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
+            tapCombo.lastTapTime = now;
+            if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.13) { activateFrenzy(); } }
+            const xpGain = 0.25 * tapCombo.currentMultiplier; addXP(xpGain); gameState.resources.energy -= 0.1;
+            const floatingText = document.createElement('div'); floatingText.className = 'floating-text';
+            if (tapCombo.currentMultiplier > 1) { floatingText.classList.add('frenzy-text'); createParticles(event); }
+            floatingText.textContent = `+${xpGain.toFixed(2)} XP`;
+            let clientX = event.clientX || (event.touches && event.touches[0].clientX);
+            let clientY = event.clientY || (event.touches && event.touches[0].clientY);
+            floatingText.style.left = `${clientX}px`;
+            floatingText.style.top = `${clientY - 30}px`;
+            document.body.appendChild(floatingText);
+            setTimeout(() => { floatingText.style.transform = 'translateY(-50px)'; floatingText.style.opacity = '0'; }, 10);
+            setTimeout(() => { floatingText.remove(); }, 1000);
+            characterSprite.classList.add('tapped');
+            setTimeout(() => characterSprite.classList.remove('tapped'), 100); updateUI();
+        }
+        function feed() {
+            if (gameState.gold >= 10) {
+                gameState.gold -= 10; gameState.resources.energy = gameState.resources.maxEnergy;
+                gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 50);
+                playSound('feed', 1, 'sine', 200, 600, 0.2);
+                showNotification("Yum!", "Energy restored."); updateUI(); saveGame();
+            } else { showNotification("Not enough gold!", "You need 10 gold to feed your guardian."); }
+        }
+        function startExpedition(durationInSeconds) {
+            gameState.expedition.active = true;
+            gameState.expedition.returnTime = Date.now() + durationInSeconds * 1000;
+            showNotification("Expedition Started!", `Your guardian will return in ${durationInSeconds / 60} minutes.`);
+            saveGame(); updateUI(); showScreen('game-screen');
+        }
+        function checkExpeditionStatus() {
+            if (gameState.expedition.active && Date.now() > gameState.expedition.returnTime) {
+                gameState.expedition.active = false;
+                const tierMultiplier = Math.pow(1.5, gameState.ascension.tier - 1);
+                const xpReward = Math.floor(100 * gameState.level * tierMultiplier);
+                const goldReward = Math.floor(50 * gameState.level * tierMultiplier);
+                let rewardText = `Your guardian has returned from World Tier ${gameState.ascension.tier}!<br><br>+${xpReward} XP<br>+${goldReward} Gold`;
+                if (Math.random() < (0.3 + (gameState.ascension.tier * 0.05))) {
+                    const foundItem = { type: Math.random() < 0.5 ? 'weapon' : 'armor', bonus: gameState.level * (Math.floor(Math.random() * 3) + 1) * gameState.ascension.tier };
+                    const stat = foundItem.type === 'weapon' ? 'strength' : 'fortitude';
+                    if (!gameState.equipment[foundItem.type] || foundItem.bonus > gameState.equipment[foundItem.type].bonus) {
+                        gameState.equipment[foundItem.type] = foundItem;
+                        rewardText += `<br><br>Equipped New Tier ${gameState.ascension.tier} ${foundItem.type}: +${foundItem.bonus} ${stat.substring(0,3).toUpperCase()}`;
+                    } else { rewardText += `<br><br>Found a weaker ${foundItem.type}.`; }
+                }
+                addXP(xpReward); gameState.gold += goldReward;
+                showNotification("Expedition Complete!", rewardText); saveGame(); updateUI();
+            }
+        }
+        function getTotalStat(stat) {
+            let total = gameState.stats[stat];
+            if (stat === 'strength' && gameState.equipment.weapon) { total += gameState.equipment.weapon.bonus; }
+            if (stat === 'fortitude' && gameState.equipment.armor) { total += gameState.equipment.armor.bonus; }
+            return total;
+        }
+        function ascend() {
+            if (gameState.level < ASCENSION_LEVEL) { showNotification("Not Ready", `You must reach Level ${ASCENSION_LEVEL} to Ascend.`); return; }
+            if (confirm(`Are you sure you want to Ascend?\n\nYour Level, Stats, and Gold will be reset.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point.`)) {
+                gameState.ascension.tier++; gameState.ascension.points++;
+                gameState.counters.ascensionCount = (gameState.counters.ascensionCount || 0) + 1;
+                checkAllAchievements();
+                playSound('ascend', 1, 'sawtooth', 100, 1000, 1);
+                gameState.level = 1; gameState.xp = 0; gameState.gold = 0;
+                gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
+                gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
+                submitScoreToLeaderboard();
+                saveGame(); updateUI(); ingameMenuModal.style.display = 'none';
+                showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You feel a new power flowing within you.`);
+            }
+        }
+        async function submitScoreToLeaderboard() {
+            if (!gameState.playerName || gameState.playerName === "Guardian") return;
+            const score = {
+                name: gameState.playerName,
+                level: gameState.level,
+                tier: gameState.ascension.tier,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            try {
+                await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true });
+                console.log("Score submitted to leaderboard!");
+            } catch (error) { console.error("Error submitting score: ", error); }
+        }
+        async function showLeaderboard() {
+            leaderboardList.innerHTML = "<li>Loading...</li>";
+            leaderboardModal.style.display = "flex";
+            try {
+                const snapshot = await db.collection("leaderboard").orderBy("tier", "desc").orderBy("level", "desc").limit(20).get();
+                if (snapshot.empty) { leaderboardList.innerHTML = "<li>No scores yet. Be the first!</li>"; return; }
+                leaderboardList.innerHTML = "";
+                let rank = 1;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="rank-name">${rank}. ${data.name} (Tier ${data.tier})</span> <span class="rank-level">Level ${data.level}</span>`;
+                    leaderboardList.appendChild(li);
+                    rank++;
+                });
+            } catch (error) { console.error("Error fetching leaderboard: ", error); leaderboardList.innerHTML = "<li>Error loading scores.</li>"; }
+        }
+        let currentNpc = {};
+        function addBattleLog(message, type) { battleLog.innerHTML += `<div class="${type}">${message}</div>`; battleLog.scrollTop = battleLog.scrollHeight; }
+        function startBattle() {
+            battlePlayerName.textContent = gameState.playerName;
+            const tierMultiplier = gameState.ascension.tier;
+            const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
+            currentNpc = {
+                name: `Tier ${tierMultiplier} Shadow Goblin`,
+                hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier), maxHp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier),
+                strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier), agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier),
+                fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier),
+                xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier), goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier)
+            };
+            battleNpcName.textContent = `${currentNpc.name} Lv. ${levelMultiplier}`;
+            updateBattleUI(); battleLog.innerHTML = ""; addBattleLog(`A wild ${currentNpc.name} appears!`, "log-system");
+            attackBtn.disabled = false; showScreen('battle-screen');
+            if (currentNpc.agility > getTotalStat('agility')) {
+                addBattleLog(`${currentNpc.name} is faster and attacks first!`, "log-enemy");
+                attackBtn.disabled = true; setTimeout(npcAttack, 1500);
+            } else { addBattleLog("You are faster! Your turn.", "log-player"); }
+        }
+        function updateBattleUI() {
+            document.querySelector('#battle-player-hp .stat-bar-fill').style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
+            document.querySelector('#battle-player-hp .stat-bar-label').textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
+            document.querySelector('#battle-npc-hp .stat-bar-fill').style.width = `${(currentNpc.hp / currentNpc.maxHp) * 100}%`;
+            document.querySelector('#battle-npc-hp .stat-bar-label').textContent = `HP: ${Math.floor(currentNpc.hp)} / ${currentNpc.maxHp}`;
+        }
+        function playerAttack() {
+            attackBtn.disabled = true;
+            const isCrit = Math.random() < (getTotalStat('agility') / 200);
+            const baseDamage = Math.max(1, getTotalStat('strength') * 2 - currentNpc.fortitude);
+            const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
+            currentNpc.hp = Math.max(0, currentNpc.hp - damage);
+            if (isCrit) {
+                addBattleLog('CRITICAL HIT!', 'log-crit');
+                playSound('crit', 0.8, 'square', 1000, 500, 0.2);
+            } else {
+                playSound('hit', 0.8, 'square', 400, 100, 0.1);
+            }
+            addBattleLog(`You attack for ${damage} damage!`, "log-player");
+            createDamageNumber(damage, isCrit, true);
+            updateBattleUI(); if (currentNpc.hp <= 0) { endBattle(true); } else { setTimeout(npcAttack, 1500); }
+        }
+        function npcAttack() {
+            if (Math.random() < (getTotalStat('agility') / 250)) {
+                addBattleLog('You dodged the attack!', 'log-player');
+                attackBtn.disabled = false;
+                return;
+            }
+            const damage = Math.max(1, currentNpc.strength * 2 - getTotalStat('fortitude'));
+            gameState.resources.hp = Math.max(0, gameState.resources.hp - damage);
+            playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15);
+            triggerScreenShake(200);
+            createDamageNumber(damage, false, false);
+            addBattleLog(`${currentNpc.name} attacks for ${damage} damage!`, "log-enemy");
+            updateBattleUI(); if (gameState.resources.hp <= 0) { endBattle(false); } else { attackBtn.disabled = false; }
+        }
+        function endBattle(playerWon) {
+            attackBtn.disabled = true;
+            if (playerWon) {
+                gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
+                checkAllAchievements();
+                playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+                addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
+                setTimeout(() => { showNotification("Victory!", `You earned ${currentNpc.goldReward} Gold.`); addXP(currentNpc.xpReward); gameState.gold += currentNpc.goldReward; showScreen('game-screen'); saveGame(); }, 2000);
+            } else {
+                playSound('defeat', 1, 'sine', 440, 110, 0.8);
+                addBattleLog("You have been defeated...", "log-system");
+                setTimeout(() => { showNotification("Defeat", "You black out and wake up back home. You lost half your gold."); gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1; showScreen('game-screen'); saveGame(); }, 2000);
+            }
+        }
+        function updateInventoryUI() {
+            if (gameState.equipment.weapon) { weaponSlot.innerHTML = `Weapon: <span style="color:var(--accent-color)">Guardian Sword (+${gameState.equipment.weapon.bonus} STR)</span>`; } else { weaponSlot.textContent = 'Weapon: None'; }
+            if (gameState.equipment.armor) { armorSlot.innerHTML = `Armor: <span style="color:var(--accent-color)">Guardian Plate (+${gameState.equipment.armor.bonus} FOR)</span>`; } else { armorSlot.textContent = 'Armor: None'; }
+        }
+        function createWindEffect() {
+            for(let i=0; i<20; i++) {
+                const streak = document.createElement('div'); streak.className = 'wind-streak';
+                streak.style.top = `${Math.random() * 100}%`; streak.style.width = `${Math.random() * 150 + 50}px`;
+                streak.style.animationDuration = `${Math.random() * 3 + 2}s`; streak.style.animationDelay = `${Math.random() * 5}s`;
+                windAnimationContainer.appendChild(streak);
+            }
+        }
+        function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } }
+        function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
+            if (!audioCtx) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = wave;
+            oscillator.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + duration);
+            gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+        function triggerScreenShake(duration = 500) { document.body.classList.add('screen-shake'); setTimeout(() => document.body.classList.remove('screen-shake'), duration); }
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 4000);
+        }
+        function createDamageNumber(amount, isCrit, isPlayerSource) {
+            const num = document.createElement('div');
+            num.textContent = amount;
+            num.className = 'damage-text';
+            if (isPlayerSource) num.classList.add('player-damage'); else num.classList.add('enemy-damage');
+            if (isCrit) num.classList.add('crit');
+            document.getElementById('battle-arena').appendChild(num);
+            setTimeout(() => { num.style.transform = 'translateY(-80px)'; num.style.opacity = '0'; }, 10);
+            setTimeout(() => { num.remove(); }, 800);
+        }
+        function unlockAchievement(id) {
+            if (!gameState.achievements[id] || gameState.achievements[id].unlocked) return;
+            gameState.achievements[id].unlocked = true;
+            showToast(`Achievement Unlocked: ${gameState.achievements[id].name}`);
+            playSound('levelUp', 0.7, 'triangle', 880, 1200, 0.3);
+        }
+        function checkAllAchievements() {
+            if (!gameState.counters) return;
+            if (gameState.counters.taps >= 100) unlockAchievement('tap100');
+            if (gameState.counters.taps >= 1000) unlockAchievement('tap1000');
+            if (gameState.counters.taps >= 10000) unlockAchievement('tap10000');
+            if (gameState.level >= 10) unlockAchievement('level10');
+            if (gameState.level >= 25) unlockAchievement('level25');
+            if (gameState.level >= 50) unlockAchievement('level50');
+            if (gameState.counters.enemiesDefeated >= 10) unlockAchievement('defeat10');
+            if (gameState.counters.enemiesDefeated >= 50) unlockAchievement('defeat50');
+            if (gameState.counters.ascensionCount >= 1) unlockAchievement('ascend1');
+        }
+        function updateAchievementsUI() {
+            achievementsList.innerHTML = '';
+            for (const id in gameState.achievements) {
+                const ach = gameState.achievements[id];
                 const li = document.createElement('li');
-                li.innerHTML = `<span class="rank-name">${rank}. ${data.name} (Tier ${data.tier})</span> <span class="rank-level">Level ${data.level}</span>`;
-                leaderboardList.appendChild(li);
-                rank++;
-            });
-        } catch (error) { console.error("Error fetching leaderboard: ", error); leaderboardList.innerHTML = "<li>Error loading scores.</li>"; }
-    }
-    let currentNpc = {};
-    function addBattleLog(message, type) { battleLog.innerHTML += `<div class="${type}">${message}</div>`; battleLog.scrollTop = battleLog.scrollHeight; }
-    function startBattle() {
-        battlePlayerName.textContent = gameState.playerName;
-        const tierMultiplier = gameState.ascension.tier;
-        const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
-        currentNpc = {
-            name: `Tier ${tierMultiplier} Shadow Goblin`,
-            hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier), maxHp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier),
-            strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier), agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier),
-            fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier),
-            xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier), goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier)
-        };
-        battleNpcName.textContent = `${currentNpc.name} Lv. ${levelMultiplier}`;
-        updateBattleUI(); battleLog.innerHTML = ""; addBattleLog(`A wild ${currentNpc.name} appears!`, "log-system");
-        attackBtn.disabled = false; showScreen('battle-screen');
-        if (currentNpc.agility > getTotalStat('agility')) {
-            addBattleLog(`${currentNpc.name} is faster and attacks first!`, "log-enemy");
-            attackBtn.disabled = true; setTimeout(npcAttack, 1500);
-        } else { addBattleLog("You are faster! Your turn.", "log-player"); }
-    }
-    function updateBattleUI() {
-        document.querySelector('#battle-player-hp .stat-bar-fill').style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
-        document.querySelector('#battle-player-hp .stat-bar-label').textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
-        document.querySelector('#battle-npc-hp .stat-bar-fill').style.width = `${(currentNpc.hp / currentNpc.maxHp) * 100}%`;
-        document.querySelector('#battle-npc-hp .stat-bar-label').textContent = `HP: ${Math.floor(currentNpc.hp)} / ${currentNpc.maxHp}`;
-    }
-    function playerAttack() {
-        attackBtn.disabled = true; const damage = Math.max(1, getTotalStat('strength') * 2 - currentNpc.fortitude);
-        currentNpc.hp = Math.max(0, currentNpc.hp - damage); addBattleLog(`You attack for ${damage} damage!`, "log-player");
-        updateBattleUI(); if (currentNpc.hp <= 0) { endBattle(true); } else { setTimeout(npcAttack, 1500); }
-    }
-    function npcAttack() {
-        const damage = Math.max(1, currentNpc.strength * 2 - getTotalStat('fortitude'));
-        gameState.resources.hp = Math.max(0, gameState.resources.hp - damage);
-        addBattleLog(`${currentNpc.name} attacks for ${damage} damage!`, "log-enemy");
-        updateBattleUI(); if (gameState.resources.hp <= 0) { endBattle(false); } else { attackBtn.disabled = false; }
-    }
-    function endBattle(playerWon) {
-        attackBtn.disabled = true;
-        if (playerWon) {
-            addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
-            setTimeout(() => { showNotification("Victory!", `You earned ${currentNpc.goldReward} Gold.`); addXP(currentNpc.xpReward); gameState.gold += currentNpc.goldReward; showScreen('game-screen'); saveGame(); }, 2000);
-        } else {
-            addBattleLog("You have been defeated...", "log-system");
-             setTimeout(() => { showNotification("Defeat", "You black out and wake up back home. You lost half your gold."); gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1; showScreen('game-screen'); saveGame(); }, 2000);
+                if (ach.unlocked) li.classList.add('unlocked');
+                li.innerHTML = `<strong>${ach.name}</strong><div class="achievement-desc">${ach.desc}</div>`;
+                achievementsList.appendChild(li);
+            }
         }
-    }
-    function updateInventoryUI() {
-        if (gameState.equipment.weapon) { weaponSlot.innerHTML = `Weapon: <span style="color:var(--accent-color)">Guardian Sword (+${gameState.equipment.weapon.bonus} STR)</span>`; } else { weaponSlot.textContent = 'Weapon: None'; }
-        if (gameState.equipment.armor) { armorSlot.innerHTML = `Armor: <span style="color:var(--accent-color)">Guardian Plate (+${gameState.equipment.armor.bonus} FOR)</span>`; } else { armorSlot.textContent = 'Armor: None'; }
-    }
-    function createWindEffect() {
-        for(let i=0; i<20; i++) {
-            const streak = document.createElement('div'); streak.className = 'wind-streak';
-            streak.style.top = `${Math.random() * 100}%`; streak.style.width = `${Math.random() * 150 + 50}px`;
-            streak.style.animationDuration = `${Math.random() * 3 + 2}s`; streak.style.animationDelay = `${Math.random() * 5}s`;
-            windAnimationContainer.appendChild(streak);
-        }
-    }
-    startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
-    characterSprite.addEventListener('click', handleTap);
-    characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
-    modalCloseBtn.addEventListener('click', () => modal.style.display = 'none');
-    feedBtn.addEventListener('click', feed); battleBtn.addEventListener('click', startBattle);
-    expeditionBtn.addEventListener('click', () => showScreen('expedition-screen'));
-    attackBtn.addEventListener('click', playerAttack);
-    runBtn.addEventListener('click', () => {
-        if (Math.random() < 0.5) { addBattleLog("You successfully ran away.", "log-player"); setTimeout(()=>showScreen('game-screen'), 1000); } 
-        else {
-            addBattleLog("You failed to run away!", "log-enemy");
-            attackBtn.disabled = true; setTimeout(npcAttack, 1500);
-        }
+        startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
+        characterSprite.addEventListener('click', handleTap);
+        characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
+        modalCloseBtn.addEventListener('click', () => modal.style.display = 'none');
+        feedBtn.addEventListener('click', feed); battleBtn.addEventListener('click', startBattle);
+        expeditionBtn.addEventListener('click', () => showScreen('expedition-screen'));
+        attackBtn.addEventListener('click', playerAttack);
+        runBtn.addEventListener('click', () => {
+            if (Math.random() < 0.5) { addBattleLog("You successfully ran away.", "log-player"); setTimeout(()=>showScreen('game-screen'), 1000); }
+            else { addBattleLog("You failed to run away!", "log-enemy"); attackBtn.disabled = true; setTimeout(npcAttack, 1500); }
+        });
+        expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
+        ingameMenuBtn.addEventListener('click', () => {
+            let ascendBtn = document.getElementById('ascend-btn');
+            if (gameState.level >= ASCENSION_LEVEL && !ascendBtn) {
+                ascendBtn = document.createElement('button'); ascendBtn.id = 'ascend-btn';
+                ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
+                ascendBtn.onclick = ascend; ingameMenuContent.insertBefore(ascendBtn, returnToGameBtn);
+            } else if (gameState.level < ASCENSION_LEVEL && ascendBtn) { ascendBtn.remove(); }
+            ingameMenuModal.style.display = 'flex';
+        });
+        returnToGameBtn.addEventListener('click', () => { ingameMenuModal.style.display = 'none'; });
+        saveGameBtn.addEventListener('click', () => { saveGame(); showNotification("Game Saved", "Your progress is safe."); });
+        optionsBtn.addEventListener('click', () => { alert('Options not yet implemented! (Ascension Perks coming soon!)'); });
+        quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.style.display = 'none'; showScreen('main-menu-screen'); });
+        inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.style.display = 'flex'; });
+        closeInventoryBtn.addEventListener('click', () => { inventoryModal.style.display = 'none'; });
+        leaderboardBtn.addEventListener('click', showLeaderboard);
+        closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.style.display = 'none'; });
+        achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.style.display = 'flex'; });
+        closeAchievementsBtn.addEventListener('click', () => { achievementsModal.style.display = 'none'; });
+        document.querySelectorAll('.expedition-choice-btn').forEach(btn => { btn.addEventListener('click', (e) => startExpedition(parseInt(e.target.dataset.duration))); });
+        init();
     });
-    expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
-    ingameMenuBtn.addEventListener('click', () => {
-        let ascendBtn = document.getElementById('ascend-btn');
-        if (gameState.level >= ASCENSION_LEVEL && !ascendBtn) {
-            ascendBtn = document.createElement('button'); ascendBtn.id = 'ascend-btn';
-            ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
-            ascendBtn.onclick = ascend; ingameMenuContent.insertBefore(ascendBtn, returnToGameBtn);
-        } else if (gameState.level < ASCENSION_LEVEL && ascendBtn) { ascendBtn.remove(); }
-        ingameMenuModal.style.display = 'flex';
-    });
-    returnToGameBtn.addEventListener('click', () => { ingameMenuModal.style.display = 'none'; });
-    saveGameBtn.addEventListener('click', () => { saveGame(); showNotification("Game Saved", "Your progress is safe."); });
-    optionsBtn.addEventListener('click', () => { alert('Options not yet implemented! (Ascension Perks coming soon!)'); });
-    quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.style.display = 'none'; showScreen('main-menu-screen'); });
-    inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.style.display = 'flex'; });
-    closeInventoryBtn.addEventListener('click', () => { inventoryModal.style.display = 'none'; });
-    leaderboardBtn.addEventListener('click', showLeaderboard);
-    closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.style.display = 'none'; });
-    document.querySelectorAll('.expedition-choice-btn').forEach(btn => { btn.addEventListener('click', (e) => startExpedition(parseInt(e.target.dataset.duration))); });
-    init();
-});
-</script>
+    </script>
 </body>
 </html>
