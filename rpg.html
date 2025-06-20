@@ -761,7 +761,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             const now = Date.now();
             if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
             tapCombo.lastTapTime = now;
-            if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.35) { activateFrenzy(); } }
+            if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.45) { activateFrenzy(); } }
             
             if (Math.random() < 0.1) { triggerScreenShake(150); }
 
