@@ -1,160 +1,248 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
-     crossorigin="anonymous"></script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Tap Guardian</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        :root {
-            --primary-bg: #1a1a1a;
-            --secondary-bg: #2a2a2a;
-            --text-color: #e0e0e0;
-            --accent-color: #00ff7f;
-            --health-color: #ff4136;
-            --energy-color: #0074d9;
-            --xp-color: #ffdc00;
-            --frenzy-glow-color: var(--accent-color); 
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body {
-            width: 100%; height: 100%; font-family: 'Press Start 2P', cursive;
-            background-color: var(--primary-bg); color: var(--text-color); overflow: hidden;
-        }
-        .screen {
-            display: none; width: 100%; height: 100%; flex-direction: column;
-            align-items: center; justify-content: center; padding: 20px; text-align: center;
-        }
-        .screen.active { display: flex; }
-        h1, h2 { color: var(--accent-color); margin-bottom: 20px; }
-        button {
-            font-family: 'Press Start 2P', cursive; background-color: var(--secondary-bg);
-            color: var(--accent-color); border: 2px solid var(--accent-color);
-            padding: 15px 30px; margin: 10px; font-size: 1em; cursor: pointer; transition: all 0.2s ease;
-        }
-        button.ascend-button { border-color: var(--xp-color); color: var(--xp-color); text-shadow: 0 0 5px var(--xp-color);}
-        button.ascend-button:hover { background-color: var(--xp-color); color: var(--primary-bg); }
-        button:hover { background-color: var(--accent-color); color: var(--primary-bg); }
-        button:disabled { border-color: #555; color: #555; cursor: not-allowed; }
-        button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
-        #game-screen { justify-content: space-between; position: relative; }
-        #character-area {
-            flex-grow: 1; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; position: relative;
-        }
-        #character-sprite {
-            width: 220px; height: 220px; cursor: pointer;
-            transition: transform 0.1s ease, filter 0.5s ease;
-            -webkit-user-drag: none; user-select: none;
-        }
-        #character-sprite.tapped { transform: scale(1.1); }
-        @keyframes frenzy-glow {
-            0% { filter: drop-shadow(0 0 5px var(--frenzy-glow-color)); }
-            50% { filter: drop-shadow(0 0 20px var(--frenzy-glow-color)); }
-            100% { filter: drop-shadow(0 0 5px var(--frenzy-glow-color)); }
-        }
-        #character-sprite.frenzy { animation: frenzy-glow 1s infinite; }
-        .floating-text {
-            position: fixed; font-size: 1.2em; color: var(--xp-color); opacity: 1;
-            transition: all 1s ease-out; pointer-events: none; user-select: none; text-shadow: 1px 1px 2px black;
-            z-index: 110;
-        }
-        .floating-text.frenzy-text { color: var(--frenzy-glow-color); font-size: 1.6em; font-weight: bold; }
-        #stats-area { width: 100%; max-width: 500px; }
-        .stat-bar-container { margin-bottom: 5px; }
-        .stat-bar {
-            width: 100%; height: 20px; background-color: var(--secondary-bg);
-            border: 2px solid var(--text-color); position: relative;
-        }
-        .stat-bar-fill { height: 100%; transition: width 0.5s ease; }
-        .stat-bar-label {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 0.7em; color: #fff; text-shadow: 1px 1px 2px black;
-        }
-        #health-bar .stat-bar-fill { background-color: var(--health-color); }
-        #energy-bar .stat-bar-fill { background-color: var(--energy-color); }
-        #xp-bar .stat-bar-fill { background-color: var(--xp-color); }
-        #core-stats-display {
-            display: flex; justify-content: space-around; width: 100%;
-            margin-top: 15px; font-size: 0.8em;
-        }
-        #world-tier-display {
-             margin-top: 10px; font-size: 1em; color: var(--xp-color);
-             text-shadow: 0 0 5px var(--xp-color);
-        }
-        #gold-display { margin-top: 10px; font-size: 1em; color: var(--xp-color); }
-        #action-buttons { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; }
-        .modal {
-            display: none; position: fixed; z-index: 100; left: 0; top: 0;
-            width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
-            flex-direction: column; align-items: center; justify-content: center;
-        }
-        .modal-content {
-            background-color: var(--secondary-bg); padding: 30px; border: 2px solid var(--accent-color);
-            max-width: 90%; width: 500px; text-align: center;
-        }
-        .inventory-slot {
-            margin: 15px 0; font-size: 0.9em; text-align: left;
-            border-left: 4px solid var(--accent-color); padding-left: 10px;
-        }
-        #expedition-timer-display {
-            display: none; font-size: 2.5em; color: var(--xp-color);
-            text-shadow: 0 0 5px var(--xp-color), 0 0 15px var(--xp-color);
-        }
-        #wind-animation-container {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            overflow: hidden; pointer-events: none; z-index: -1;
-        }
-        .wind-streak {
-            position: absolute; background-color: rgba(224, 224, 224, 0.15); height: 2px;
-            animation: wind-blow linear infinite;
-        }
-        @keyframes wind-blow { from { transform: translateX(-200px); } to { transform: translateX(100vw); } }
-        .particle {
-            position: fixed; width: 5px; height: 5px; border-radius: 50%;
-            background-color: var(--frenzy-glow-color); pointer-events: none;
-            z-index: 101; animation: burst 0.8s ease-out forwards;
-        }
-        @keyframes burst {
-            0% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(0) translateY(var(--y-end)) translateX(var(--x-end)); opacity: 0; }
-        }
-        #frenzy-display {
-            position: absolute; left: 20px; top: 50%;
-            transform: translateY(-50%) scale(0); font-size: 2.5em; font-weight: bold;
-            opacity: 0; transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-            text-shadow: 0 0 5px black, 0 0 10px var(--frenzy-glow-color); pointer-events: none;
-        }
-        #frenzy-display.active { opacity: 1; transform: translateY(-50%) scale(1); }
-        
-        #battle-screen { justify-content: space-between; height: 100vh; }
-        #battle-screen > h2 { flex-shrink: 0; }
-        #battle-arena {
-            flex-grow: 1; display: flex;
-            align-items: center; justify-content: space-around;
-            width: 100%; padding: 10px 0;
-        }
-        .battle-character { display: flex; flex-direction: column; align-items: center; }
-        .battle-character h3 { margin-bottom: 8px; font-size: 0.9em; }
-        .battle-character img { width: 120px; height: 120px; margin-bottom: 8px; }
-        #battle-log {
-            width: 100%; height: 140px; flex-shrink: 0;
-            background: var(--secondary-bg); border: 2px solid var(--text-color);
-            overflow-y: scroll; padding: 10px; text-align: left; font-size: 0.8em;
-            line-height: 1.5;
-        }
-        #battle-actions { flex-shrink: 0; }
-        .log-player { color: var(--accent-color); }
-        .log-enemy { color: var(--health-color); }
-        .log-system { color: var(--xp-color); }
-        #leaderboard-list { list-style: none; padding: 0; margin-top: 20px; text-align: left; font-size: 0.8em; }
-        #leaderboard-list li { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--input-bg); }
-        #leaderboard-list li:nth-child(odd) { background-color: #33364a; }
-        #leaderboard-list .rank-name { text-align: left; }
-        #leaderboard-list .rank-level { text-align: right; color: var(--xp-color); }
-    </style>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
+crossorigin="anonymous"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Tap Guardian</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+:root {
+    --primary-bg: #1a1a1a;
+    --secondary-bg: #2a2a2a;
+    --text-color: #e0e0e0;
+    --accent-color: #00ff7f;
+    --health-color: #ff4136;
+    --energy-color: #0074d9;
+    --xp-color: #ffdc00;
+    --frenzy-glow-color: var(--accent-color);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    width: 100%; height: 100%; font-family: 'Press Start 2P', cursive;
+    background-color: var(--primary-bg); color: var(--text-color); overflow: hidden;
+}
+.screen {
+    display: none; width: 100%; height: 100%; flex-direction: column;
+    align-items: center; justify-content: center; padding: 20px; text-align: center;
+}
+.screen.active { display: flex; }
+h1, h2 { color: var(--accent-color); margin-bottom: 20px; }
+button {
+    font-family: 'Press Start 2P', cursive; background-color: var(--secondary-bg);
+    color: var(--accent-color); border: 2px solid var(--accent-color);
+    padding: 15px 30px; margin: 10px; font-size: 1em; cursor: pointer; transition: all 0.2s ease;
+}
+button.ascend-button { border-color: var(--xp-color); color: var(--xp-color); text-shadow: 0 0 5px var(--xp-color);}
+button.ascend-button:hover { background-color: var(--xp-color); color: var(--primary-bg); }
+button:hover { background-color: var(--accent-color); color: var(--primary-bg); }
+button:disabled { border-color: #555; color: #555; cursor: not-allowed; }
+button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
+#game-screen { justify-content: space-between; position: relative; }
+#character-area {
+    flex-grow: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; position: relative;
+}
+#character-sprite {
+    width: 220px; height: 220px; cursor: pointer;
+    transition: transform 0.1s ease, filter 0.5s ease;
+    -webkit-user-drag: none; user-select: none;
+}
+#character-sprite.tapped { transform: scale(1.1); }
+@keyframes frenzy-glow {
+    0% { filter: drop-shadow(0 0 5px var(--frenzy-glow-color)); }
+    50% { filter: drop-shadow(0 0 20px var(--frenzy-glow-color)); }
+    100% { filter: drop-shadow(0 0 5px var(--frenzy-glow-color)); }
+}
+#character-sprite.frenzy { animation: frenzy-glow 1s infinite; }
+.floating-text {
+    position: fixed; font-size: 1.2em; color: var(--xp-color); opacity: 1;
+    transition: all 1s ease-out; pointer-events: none; user-select: none; text-shadow: 1px 1px 2px black;
+    z-index: 110;
+}
+.floating-text.frenzy-text { color: var(--frenzy-glow-color); font-size: 1.6em; font-weight: bold; }
+#stats-area { width: 100%; max-width: 500px; }
+.stat-bar-container { margin-bottom: 5px; }
+.stat-bar {
+    width: 100%; height: 20px; background-color: var(--secondary-bg);
+    border: 2px solid var(--text-color); position: relative;
+}
+.stat-bar-fill { height: 100%; transition: width 0.5s ease; }
+.stat-bar-label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 0.7em; color: #fff; text-shadow: 1px 1px 2px black;
+}
+#health-bar .stat-bar-fill { background-color: var(--health-color); }
+#energy-bar .stat-bar-fill { background-color: var(--energy-color); }
+#xp-bar .stat-bar-fill { background-color: var(--xp-color); }
+#core-stats-display {
+    display: flex; justify-content: space-around; width: 100%;
+    margin-top: 15px; font-size: 0.8em;
+}
+#world-tier-display {
+    margin-top: 10px; font-size: 1em; color: var(--xp-color);
+    text-shadow: 0 0 5px var(--xp-color);
+}
+#gold-display { margin-top: 10px; font-size: 1em; color: var(--xp-color); }
+#action-buttons { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; }
+.modal {
+    display: none; position: fixed; z-index: 100; left: 0; top: 0;
+    width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
+    flex-direction: column; align-items: center; justify-content: center;
+}
+.modal-content {
+    background-color: var(--secondary-bg); padding: 30px; border: 2px solid var(--accent-color);
+    max-width: 90%; width: 500px; text-align: center;
+}
+.inventory-slot {
+    margin: 15px 0; font-size: 0.9em; text-align: left;
+    border-left: 4px solid var(--accent-color); padding-left: 10px;
+}
+#expedition-timer-display {
+    display: none; font-size: 2.5em; color: var(--xp-color);
+    text-shadow: 0 0 5px var(--xp-color), 0 0 15px var(--xp-color);
+}
+#wind-animation-container {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    overflow: hidden; pointer-events: none; z-index: -1;
+}
+.wind-streak {
+    position: absolute; background-color: rgba(224, 224, 224, 0.15); height: 2px;
+    animation: wind-blow linear infinite;
+}
+@keyframes wind-blow { from { transform: translateX(-200px); } to { transform: translateX(100vw); } }
+.particle {
+    position: fixed; width: 5px; height: 5px; border-radius: 50%;
+    background-color: var(--frenzy-glow-color); pointer-events: none;
+    z-index: 101; animation: burst 0.8s ease-out forwards;
+}
+@keyframes burst {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0) translateY(var(--y-end)) translateX(var(--x-end)); opacity: 0; }
+}
+#frenzy-display {
+    position: absolute; left: 20px; top: 50%;
+    transform: translateY(-50%) scale(0); font-size: 2.5em; font-weight: bold;
+    opacity: 0; transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    text-shadow: 0 0 5px black, 0 0 10px var(--frenzy-glow-color); pointer-events: none;
+}
+#frenzy-display.active { opacity: 1; transform: translateY(-50%) scale(1); }
+#battle-screen { justify-content: space-between; height: 100vh; }
+#battle-screen > h2 { flex-shrink: 0; }
+#battle-arena {
+    flex-grow: 1; display: flex;
+    align-items: center; justify-content: space-around;
+    width: 100%; padding: 10px 0;
+    position: relative;
+}
+.battle-character { display: flex; flex-direction: column; align-items: center; }
+.battle-character h3 { margin-bottom: 8px; font-size: 0.9em; }
+.battle-character img { width: 120px; height: 120px; margin-bottom: 8px; }
+#battle-log {
+    width: 100%; height: 140px; flex-shrink: 0;
+    background: var(--secondary-bg); border: 2px solid var(--text-color);
+    overflow-y: scroll; padding: 10px; text-align: left; font-size: 0.8em;
+    line-height: 1.5;
+}
+#battle-actions { flex-shrink: 0; }
+.log-player { color: var(--accent-color); }
+.log-enemy { color: var(--health-color); }
+.log-system { color: var(--xp-color); }
+#leaderboard-list { list-style: none; padding: 0; margin-top: 20px; text-align: left; font-size: 0.8em; }
+#leaderboard-list li { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--input-bg); }
+#leaderboard-list li:nth-child(odd) { background-color: #33364a; }
+#leaderboard-list .rank-name { text-align: left; }
+#leaderboard-list .rank-level { text-align: right; color: var(--xp-color); }
+.screen-shake {
+    animation: screen-shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+@keyframes screen-shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+.damage-text {
+    position: absolute;
+    font-size: 1.5em;
+    opacity: 1;
+    transition: all 0.8s ease-out;
+    pointer-events: none;
+    user-select: none;
+    text-shadow: 2px 2px 3px black;
+    transform: translateY(0);
+}
+.damage-text.player-damage { color: #ffdd57; right: 25%; }
+.damage-text.enemy-damage { color: #ff4136; left: 25%; }
+.damage-text.crit {
+    font-size: 2.2em;
+    color: var(--xp-color);
+    font-weight: bold;
+    transform: scale(1.2);
+    animation: pulse 0.5s;
+}
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    pointer-events: none;
+}
+.toast {
+    padding: 12px 20px;
+    background-color: var(--secondary-bg);
+    color: var(--xp-color);
+    border: 2px solid var(--xp-color);
+    animation: toast-fade 4s ease-in-out forwards;
+    opacity: 0;
+    text-align: center;
+}
+@keyframes toast-fade {
+    0% { opacity: 0; transform: translateY(20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
+}
+#achievements-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+    text-align: left;
+    max-height: 300px;
+    overflow-y: auto;
+}
+#achievements-list li {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+    opacity: 0.5;
+    transition: all 0.3s ease;
+}
+#achievements-list li.unlocked {
+    opacity: 1;
+    color: var(--xp-color);
+    border-left: 4px solid var(--xp-color);
+}
+#achievements-list li .achievement-desc {
+    font-size: 0.8em;
+    color: var(--text-color);
+}
+.log-crit {
+    color: var(--xp-color);
+    font-weight: bold;
+    text-shadow: 0 0 5px var(--xp-color);
+    animation: pulse 0.5s 2;
+}
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+</style>
 </head>
 <body>
     <!-- Firebase SDK Scripts -->
@@ -162,6 +250,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <div id="wind-animation-container"></div>
+    <div id="toast-container"></div>
     <div id="main-menu-screen" class="screen active"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
     <div id="game-screen" class="screen">
         <div id="frenzy-display">x5</div>
@@ -169,10 +258,11 @@
     <div id="battle-screen" class="screen"><h2>Battle!</h2><div id="battle-arena"><div class="battle-character"><h3 id="battle-player-name">Guardian</h3><img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG"><div id="battle-player-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div><div class="battle-character"><h3 id="battle-npc-name">Goblin</h3><img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG" style="filter: hue-rotate(180deg);"><div id="battle-npc-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div></div><div id="battle-log"></div><div id="battle-actions"><button id="attack-btn">Attack</button><button id="run-btn">Run</button></div></div>
     <div id="expedition-screen" class="screen"><h2>Send on Expedition</h2><p>Your guardian will be unavailable but will return with rewards.</p><button class="expedition-choice-btn" data-duration="1800">Scout Ahead (30 Mins)</button><button class="expedition-choice-btn" data-duration="3600">Long Patrol (1 Hour)</button><button class="expedition-choice-btn" data-duration="21600">Deep Delve (6 Hours)</button><button id="expedition-cancel-btn">Cancel</button></div>
     <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
-    <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><button id="leaderboard-btn">Leaderboard</button><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button><button id="return-to-game-btn">Return to Game</button></div></div>
+    <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><button id="leaderboard-btn">Leaderboard</button><button id="achievements-btn">Achievements</button><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button><button id="return-to-game-btn">Return to Game</button></div></div>
     <div id="inventory-modal" class="modal"><div class="modal-content"><h2>Inventory</h2><div id="weapon-slot" class="inventory-slot">Weapon: None</div><div id="armor-slot" class="inventory-slot">Armor: None</div><button id="close-inventory-btn">Close</button></div></div>
     <div id="leaderboard-modal" class="modal"><div class="modal-content"><h2>Leaderboard</h2><ul id="leaderboard-list"><li>Loading...</li></ul><button id="close-leaderboard-btn">Close</button></div></div>
-
+    <div id="achievements-modal" class="modal"><div class="modal-content"><h2>Achievements</h2><ul id="achievements-list"></ul><button id="close-achievements-btn">Close</button></div></div>
+    
 <script>
     // --- YOUR LIVE FIREBASE CONFIGURATION ---
     const firebaseConfig = {
@@ -191,6 +281,18 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         let gameState = {};
+        let audioCtx = null;
+        const achievements = {
+            tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false },
+            tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false },
+            tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false },
+            level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false },
+            level25: { name: "Seasoned Guardian", desc: "Reach level 25.", target: 25, unlocked: false },
+            level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false },
+            defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false },
+            defeat50: { name: "Monster Hunter", desc: "Defeat 50 enemies.", target: 50, unlocked: false },
+            ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false }
+        };
         const defaultState = {
             playerName: "Guardian",
             level: 1, xp: 0, gold: 0,
@@ -198,7 +300,9 @@
             resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
             equipment: { weapon: null, armor: null },
             expedition: { active: false, returnTime: 0 },
-            ascension: { tier: 1, points: 0, perks: {} }
+            ascension: { tier: 1, points: 0, perks: {} },
+            achievements: JSON.parse(JSON.stringify(achievements)),
+            counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0 }
         };
         const ASCENSION_LEVEL = 50;
         let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
@@ -250,37 +354,45 @@
         const leaderboardModal = document.getElementById('leaderboard-modal');
         const leaderboardList = document.getElementById('leaderboard-list');
         const closeLeaderboardBtn = document.getElementById('close-leaderboard-btn');
-        
+        const toastContainer = document.getElementById('toast-container');
+        const achievementsModal = document.getElementById('achievements-modal');
+        const closeAchievementsBtn = document.getElementById('close-achievements-btn');
+        const achievementsList = document.getElementById('achievements-list');
+        const achievementsBtn = document.getElementById('achievements-btn');
+
         function showScreen(screenId) { screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); }
         function init() { createWindEffect(); showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }
         
         async function startGame() {
             let playerName = "";
-            while (true) {
+            let isNameValid = false;
+            while (!isNameValid) {
                 const inputName = prompt("Enter your Guardian's name (3-15 chars):", "");
-                if (inputName === null) { return; } // User cancelled
+                if (inputName === null) { return; } 
+
                 if (inputName.length < 3 || inputName.length > 15) {
                     alert("Name must be between 3 and 15 characters.");
                     continue;
                 }
+                
                 try {
                     const leaderboardDoc = await db.collection("leaderboard").doc(inputName).get();
                     if (leaderboardDoc.exists) {
                         alert(`The name "${inputName}" is already taken. Please choose another.`);
-                        continue;
                     } else {
                         playerName = inputName;
-                        break;
+                        isNameValid = true;
                     }
                 } catch (error) {
                     console.error("Error checking name:", error);
                     alert("Could not verify name with the server. Please check your connection and try again.");
-                    return;
+                    return; 
                 }
             }
 
             gameState = JSON.parse(JSON.stringify(defaultState));
             gameState.playerName = playerName;
+            localStorage.setItem('tapGuardianLastLogin', new Date().toDateString());
             checkExpeditionStatus(); updateUI(); saveGame(); showScreen('game-screen');
         }
 
@@ -292,6 +404,18 @@
                 gameState.stats = {...defaultState.stats, ...loadedState.stats};
                 gameState.resources = {...defaultState.resources, ...loadedState.resources};
                 gameState.ascension = {...defaultState.ascension, ...loadedState.ascension};
+                gameState.achievements = {...JSON.parse(JSON.stringify(achievements)), ...(loadedState.achievements || {})};
+                gameState.counters = {...defaultState.counters, ...(loadedState.counters || {})};
+                const lastLogin = localStorage.getItem('tapGuardianLastLogin');
+                const today = new Date().toDateString();
+                if (lastLogin !== today) {
+                    const dailyGold = 50 + (gameState.ascension.tier * 25);
+                    const dailyXP = 100 + (gameState.ascension.tier * 50);
+                    gameState.gold += dailyGold;
+                    addXP(dailyXP);
+                    showNotification("Welcome Back!", `You received a daily login bonus of:<br><br>+${dailyGold} Gold<br>+${dailyXP} XP`);
+                }
+                localStorage.setItem('tapGuardianLastLogin', today);
                 checkExpeditionStatus(); updateUI(); showScreen('game-screen');
             } else { showNotification("No Save Data Found!", "Starting a new game instead."); startGame(); }
         }
@@ -330,8 +454,8 @@
             expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
             windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
             if (onExpedition) {
-                 expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
-                 if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
+                expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
+                if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
             } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
             feedBtn.disabled = onExpedition; battleBtn.disabled = onExpedition; inventoryBtn.disabled = onExpedition;
         }
@@ -346,16 +470,18 @@
             gameState.stats.strength += 2; gameState.stats.agility += 1; gameState.stats.fortitude += 2; gameState.stats.stamina += 1;
             gameState.resources.maxHp += 10; gameState.resources.hp = gameState.resources.maxHp;
             gameState.resources.maxEnergy += 5; gameState.resources.energy = gameState.resources.maxEnergy;
+            playSound('levelUp', 1, 'triangle', 440, 880);
+            triggerScreenShake(400);
+            checkAllAchievements();
             submitScoreToLeaderboard();
             showNotification("LEVEL UP!", `You are now Level ${gameState.level}!`); saveGame();
         }
         function showNotification(title, text) { modalTitle.textContent = title; modalText.innerHTML = text; modal.style.display = 'flex'; }
-        
         function updateFrenzyVisuals() {
             const multiplier = tapCombo.currentMultiplier; const root = document.documentElement;
             if (multiplier > 1) {
                 let color = 'var(--accent-color)';
-                if (multiplier >= 15) { color = 'var(--health-color)'; } 
+                if (multiplier >= 15) { color = 'var(--health-color)'; }
                 else if (multiplier >= 10) { color = 'var(--xp-color)'; }
                 root.style.setProperty('--frenzy-glow-color', color);
                 frenzyDisplay.textContent = `x${multiplier}`; frenzyDisplay.style.color = color;
@@ -380,10 +506,14 @@
         }
         function handleTap(event) {
             if (gameState.expedition.active || gameState.resources.energy <= 0) return;
+            initAudio();
+            gameState.counters.taps = (gameState.counters.taps || 0) + 1;
+            checkAllAchievements();
+            playSound('tap', 0.5, 'square', 150, 100, 0.05);
             const now = Date.now();
             if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
             tapCombo.lastTapTime = now;
-            if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.25) { activateFrenzy(); } }
+            if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.13) { activateFrenzy(); } }
             const xpGain = 0.25 * tapCombo.currentMultiplier; addXP(xpGain); gameState.resources.energy -= 0.1;
             const floatingText = document.createElement('div'); floatingText.className = 'floating-text';
             if (tapCombo.currentMultiplier > 1) { floatingText.classList.add('frenzy-text'); createParticles(event); }
@@ -400,9 +530,10 @@
         }
         function feed() {
             if (gameState.gold >= 10) {
-                 gameState.gold -= 10; gameState.resources.energy = gameState.resources.maxEnergy;
-                 gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 50);
-                 showNotification("Yum!", "Energy restored."); updateUI(); saveGame();
+                gameState.gold -= 10; gameState.resources.energy = gameState.resources.maxEnergy;
+                gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 50);
+                playSound('feed', 1, 'sine', 200, 600, 0.2);
+                showNotification("Yum!", "Energy restored."); updateUI(); saveGame();
             } else { showNotification("Not enough gold!", "You need 10 gold to feed your guardian."); }
         }
         function startExpedition(durationInSeconds) {
@@ -440,6 +571,9 @@
             if (gameState.level < ASCENSION_LEVEL) { showNotification("Not Ready", `You must reach Level ${ASCENSION_LEVEL} to Ascend.`); return; }
             if (confirm(`Are you sure you want to Ascend?\n\nYour Level, Stats, and Gold will be reset.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point.`)) {
                 gameState.ascension.tier++; gameState.ascension.points++;
+                gameState.counters.ascensionCount = (gameState.counters.ascensionCount || 0) + 1;
+                checkAllAchievements();
+                playSound('ascend', 1, 'sawtooth', 100, 1000, 1);
                 gameState.level = 1; gameState.xp = 0; gameState.gold = 0;
                 gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
                 gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
@@ -456,7 +590,9 @@
                 tier: gameState.ascension.tier,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             };
-            try { await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true }); console.log("Score submitted to leaderboard!");
+            try {
+                await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true });
+                console.log("Score submitted to leaderboard!");
             } catch (error) { console.error("Error submitting score: ", error); }
         }
         async function showLeaderboard() {
@@ -504,24 +640,47 @@
             document.querySelector('#battle-npc-hp .stat-bar-label').textContent = `HP: ${Math.floor(currentNpc.hp)} / ${currentNpc.maxHp}`;
         }
         function playerAttack() {
-            attackBtn.disabled = true; const damage = Math.max(1, getTotalStat('strength') * 2 - currentNpc.fortitude);
-            currentNpc.hp = Math.max(0, currentNpc.hp - damage); addBattleLog(`You attack for ${damage} damage!`, "log-player");
+            attackBtn.disabled = true;
+            const isCrit = Math.random() < (getTotalStat('agility') / 200);
+            const baseDamage = Math.max(1, getTotalStat('strength') * 2 - currentNpc.fortitude);
+            const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
+            currentNpc.hp = Math.max(0, currentNpc.hp - damage);
+            if (isCrit) {
+                addBattleLog('CRITICAL HIT!', 'log-crit');
+                playSound('crit', 0.8, 'square', 1000, 500, 0.2);
+            } else {
+                playSound('hit', 0.8, 'square', 400, 100, 0.1);
+            }
+            addBattleLog(`You attack for ${damage} damage!`, "log-player");
+            createDamageNumber(damage, isCrit, true);
             updateBattleUI(); if (currentNpc.hp <= 0) { endBattle(true); } else { setTimeout(npcAttack, 1500); }
         }
         function npcAttack() {
+            if (Math.random() < (getTotalStat('agility') / 250)) {
+                addBattleLog('You dodged the attack!', 'log-player');
+                attackBtn.disabled = false;
+                return;
+            }
             const damage = Math.max(1, currentNpc.strength * 2 - getTotalStat('fortitude'));
             gameState.resources.hp = Math.max(0, gameState.resources.hp - damage);
+            playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15);
+            triggerScreenShake(200);
+            createDamageNumber(damage, false, false);
             addBattleLog(`${currentNpc.name} attacks for ${damage} damage!`, "log-enemy");
             updateBattleUI(); if (gameState.resources.hp <= 0) { endBattle(false); } else { attackBtn.disabled = false; }
         }
         function endBattle(playerWon) {
             attackBtn.disabled = true;
             if (playerWon) {
+                gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
+                checkAllAchievements();
+                playSound('victory', 1, 'triangle', 523, 1046, 0.4);
                 addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
                 setTimeout(() => { showNotification("Victory!", `You earned ${currentNpc.goldReward} Gold.`); addXP(currentNpc.xpReward); gameState.gold += currentNpc.goldReward; showScreen('game-screen'); saveGame(); }, 2000);
             } else {
+                playSound('defeat', 1, 'sine', 440, 110, 0.8);
                 addBattleLog("You have been defeated...", "log-system");
-                 setTimeout(() => { showNotification("Defeat", "You black out and wake up back home. You lost half your gold."); gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1; showScreen('game-screen'); saveGame(); }, 2000);
+                setTimeout(() => { showNotification("Defeat", "You black out and wake up back home. You lost half your gold."); gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1; showScreen('game-screen'); saveGame(); }, 2000);
             }
         }
         function updateInventoryUI() {
@@ -536,7 +695,67 @@
                 windAnimationContainer.appendChild(streak);
             }
         }
-        
+        function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } }
+        function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
+            if (!audioCtx) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = wave;
+            oscillator.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + duration);
+            gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+        function triggerScreenShake(duration = 500) { document.body.classList.add('screen-shake'); setTimeout(() => document.body.classList.remove('screen-shake'), duration); }
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 4000);
+        }
+        function createDamageNumber(amount, isCrit, isPlayerSource) {
+            const num = document.createElement('div');
+            num.textContent = amount;
+            num.className = 'damage-text';
+            if (isPlayerSource) num.classList.add('player-damage'); else num.classList.add('enemy-damage');
+            if (isCrit) num.classList.add('crit');
+            document.getElementById('battle-arena').appendChild(num);
+            setTimeout(() => { num.style.transform = 'translateY(-80px)'; num.style.opacity = '0'; }, 10);
+            setTimeout(() => { num.remove(); }, 800);
+        }
+        function unlockAchievement(id) {
+            if (!gameState.achievements[id] || gameState.achievements[id].unlocked) return;
+            gameState.achievements[id].unlocked = true;
+            showToast(`Achievement Unlocked: ${gameState.achievements[id].name}`);
+            playSound('levelUp', 0.7, 'triangle', 880, 1200, 0.3);
+        }
+        function checkAllAchievements() {
+            if (!gameState.counters) return;
+            if (gameState.counters.taps >= 100) unlockAchievement('tap100');
+            if (gameState.counters.taps >= 1000) unlockAchievement('tap1000');
+            if (gameState.counters.taps >= 10000) unlockAchievement('tap10000');
+            if (gameState.level >= 10) unlockAchievement('level10');
+            if (gameState.level >= 25) unlockAchievement('level25');
+            if (gameState.level >= 50) unlockAchievement('level50');
+            if (gameState.counters.enemiesDefeated >= 10) unlockAchievement('defeat10');
+            if (gameState.counters.enemiesDefeated >= 50) unlockAchievement('defeat50');
+            if (gameState.counters.ascensionCount >= 1) unlockAchievement('ascend1');
+        }
+        function updateAchievementsUI() {
+            achievementsList.innerHTML = '';
+            for (const id in gameState.achievements) {
+                const ach = gameState.achievements[id];
+                const li = document.createElement('li');
+                if (ach.unlocked) li.classList.add('unlocked');
+                li.innerHTML = `<strong>${ach.name}</strong><div class="achievement-desc">${ach.desc}</div>`;
+                achievementsList.appendChild(li);
+            }
+        }
         startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
         characterSprite.addEventListener('click', handleTap);
         characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
@@ -545,7 +764,7 @@
         expeditionBtn.addEventListener('click', () => showScreen('expedition-screen'));
         attackBtn.addEventListener('click', playerAttack);
         runBtn.addEventListener('click', () => {
-            if (Math.random() < 0.5) { addBattleLog("You successfully ran away.", "log-player"); setTimeout(()=>showScreen('game-screen'), 1000); } 
+            if (Math.random() < 0.5) { addBattleLog("You successfully ran away.", "log-player"); setTimeout(()=>showScreen('game-screen'), 1000); }
             else { addBattleLog("You failed to run away!", "log-enemy"); attackBtn.disabled = true; setTimeout(npcAttack, 1500); }
         });
         expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
@@ -566,20 +785,8 @@
         closeInventoryBtn.addEventListener('click', () => { inventoryModal.style.display = 'none'; });
         leaderboardBtn.addEventListener('click', showLeaderboard);
         closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.style.display = 'none'; });
-        
-        // This part was missing from your provided code, so I am re-adding it.
-        if(document.getElementById('achievements-btn')){
-            document.getElementById('achievements-btn').addEventListener('click', () => { 
-                updateAchievementsUI(); 
-                document.getElementById('achievements-modal').style.display = 'flex'; 
-            });
-        }
-        if(document.getElementById('close-achievements-btn')){
-            document.getElementById('close-achievements-btn').addEventListener('click', () => { 
-                document.getElementById('achievements-modal').style.display = 'none'; 
-            });
-        }
-        
+        achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.style.display = 'flex'; });
+        closeAchievementsBtn.addEventListener('click', () => { achievementsModal.style.display = 'none'; });
         document.querySelectorAll('.expedition-choice-btn').forEach(btn => { btn.addEventListener('click', (e) => startExpedition(parseInt(e.target.dataset.duration))); });
         init();
     });
