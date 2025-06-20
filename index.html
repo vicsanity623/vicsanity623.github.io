@@ -8,7 +8,7 @@
     <meta name="description" content="Separate audio files into instrumental stems (vocals, drums, bass, other) using our free online Demucs-powered tool. Upload MP3, WAV, FLAC, and more.">
     <meta name="keywords" content="audio stem separation, demucs, music separation, isolate vocals, remove drums, instrumental maker, karaoke maker, audio tool, vicsanity">
     <title>Free Audio Stem Separator - Powered by Demucs</title>
-    <!-- ADDED: Firebase SDK Scripts -->
+    <!-- Your existing V8 SDK Scripts - DO NOT CHANGE THESE -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <style>
@@ -325,7 +325,7 @@
             <ul>
                 <li><strong>Original Demucs:</strong> Based on a U-Net convolutional architecture.</li>
                 <li><strong>Hybrid Demucs (<code>htdemucs</code>):</strong> Combines convolutional layers with Transformers, often providing improved quality. This is what our service primarily uses, specifically a fine-tuned version (often denoted by <code>_ft</code>). For instance, <code>htdemucs_ft</code> is a popular choice, fine-tuned on the MusDB HQ dataset.</li>
-                <li><strong>MDX Models (e.g., <code>mdx</code>, <code>mdx_extra</code>, <code>mdx_q</code>):</strong> These were earlier models, sometimes trained or fine-tuned by the community, and were part of the broader Demucs ecosystem. While good, newer hybrid transformer models generally offer superior performance for the standard four stems.</li>
+                <li><strong>MDX Models (e.g., <code>mdx</code>, <code>mdx_extra</code>,  `mdx_q`):** These were earlier models, sometimes trained or fine-tuned by the community, and were part of the broader Demucs ecosystem. While good, newer hybrid transformer models generally offer superior performance for the standard four stems.</li>
             </ul>
             <p>The choice of model involves trade-offs between separation quality, speed, and the specific stems it's trained to isolate. We aim to use a model that provides a great balance for general-purpose use.</p>
             <div class="image-container">
@@ -345,16 +345,17 @@
         </section>
     </div>
 
+    <!-- SCRIPT SECTION. DO NOT USE 'import' or type="module" -->
     <script>
-        // Your specific Firebase configuration has been added here:
+        // THE NEW, CORRECT AND COMPLETE firebaseConfig OBJECT
         const firebaseConfig = {
-            apiKey: "AIzaSyDyZ_a0oNuMNXC9QBE52KfJKzUyHjbagqk",
-            authDomain: "tap-guardian-rpg.firebaseapp.com",
-            projectId: "tap-guardian-rpg",
-            storageBucket: "tap-guardian-rpg.firebasestorage.app",
-            messagingSenderId: "50272459426",
-            appId: "1:50272459426:web:7ae4beb76ed67d4a3a15fb",
-            measurementId: "G-46861XHCHN"
+          apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
+          authDomain: "tap-guardian-rpg.firebaseapp.com",
+          projectId: "tap-guardian-rpg",
+          storageBucket: "tap-guardian-rpg.firebasestorage.app",
+          messagingSenderId: "50272459426",
+          appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
+          measurementId: "G-XJRE7YNPZR"
         };
 
         // Initialize Firebase
