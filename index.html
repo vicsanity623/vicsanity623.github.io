@@ -592,16 +592,9 @@
         async function handleSeparation(isGuest) {
             if (!selectedFile) {
                 setStatus('Please select an audio file first.', 'error');
-                addLog('Process attempt failed: No file selected.', 'error');
                 return;
             }
-            const MAX_FRONTEND_SIZE_MB = 100;
-            if (selectedFile.size > MAX_FRONTEND_SIZE_MB * 1024 * 1024) {
-                setStatus(`File is too large (max ${MAX_FRONTEND_SIZE_MB}MB).`, 'error');
-                addLog(`File too large: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB. Max is ${MAX_FRONTEND_SIZE_MB}MB.`, 'error');
-                return;
-            }
-    
+            
             authOptions.style.display = 'none';
             processBtn.style.display = 'none';
             logConsole.innerHTML = ''; 
@@ -609,93 +602,74 @@
             progressPercentageText.style.display = 'block';
             logConsoleContainer.style.display = 'block';
             updateProgress(0);
-            progressBar.style.backgroundColor = 'var(--accent-color)'; 
             setStatus('Starting process...', '');
-            addLog('Process initiated by user.', 'info');
             spinner.style.display = 'block';
             
             const formData = new FormData();
             formData.append('audioFile', selectedFile);
     
-            const fetchOptions = { method: 'POST', body: formData, };
-    
+            const fetchOptions = { method: 'POST', body: formData };
             if (!isGuest && currentUserToken) {
                 fetchOptions.headers = { 'Authorization': `Bearer ${currentUserToken}` };
-                addLog('Processing as signed-in user. File will be saved to your account.', 'info');
-            } else {
-                addLog('Processing as guest. Download will start automatically.', 'info');
             }
-    
-            addLog(`Uploading file "${selectedFile.name}"...`);
-            updateProgress(5); 
-            let currentProgress = 10; 
-            const targetProgress = 90; 
-            const simulatedProcessingSeconds = Math.min(Math.max(selectedFile.size / (1024*1024) * 15, 30), 300); 
-            const increments = (targetProgress - currentProgress); 
-            const intervalTime = (simulatedProcessingSeconds / increments) * 1000; 
-            if (progressInterval) clearInterval(progressInterval);
-            progressInterval = setInterval(() => {
-                currentProgress++;
-                if (currentProgress <= targetProgress) {
-                    updateProgress(currentProgress);
-                    if (currentProgress % 25 === 0) { 
-                        addLog(`Server processing audio... (stage ${currentProgress}%)`);
-                    }
-                } else {
-                    clearInterval(progressInterval);
-                }
-            }, intervalTime);
-            updateProgress(10); 
-    
+            
+            addLog(`Uploading and processing file "${selectedFile.name}"...`);
+            updateProgress(25);
+            
             try {
-                addLog('Waiting for server response...');
                 const response = await fetch(SERVER_ENDPOINT, fetchOptions);
-    
-                clearInterval(progressInterval); 
-                updateProgress(90); 
-    
+                updateProgress(50);
+                
                 if (!response.ok) {
-                    let errorMsg = `Server error: ${response.status} ${response.statusText}`;
-                    try { const errorData = await response.json(); if (errorData && errorData.error) { errorMsg = errorData.error; } } catch (e) {} 
-                    addLog(`Server responded with error: ${errorMsg}`, 'error');
-                    progressBar.style.backgroundColor = 'var(--error-color)'; 
-                    throw new Error(errorMsg);
+                    const errorData = await response.json().catch(() => ({ error: 'Server returned an invalid response.' }));
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
                 }
     
                 if (isGuest) {
-                    addLog('Server processing complete. Receiving file...', 'success');
-                    updateProgress(95); 
+                    addLog('Processing complete. Receiving file...', 'success');
+                    updateProgress(95);
     
                     const blob = await response.blob();
                     let downloadFilename = "stems.zip";
+                    
                     const disposition = response.headers.get('Content-Disposition');
                     if (disposition && disposition.includes('attachment')) {
                         const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
                         const matches = filenameRegex.exec(disposition);
-                        if (matches?.[1]) { downloadFilename = matches[1].replace(/['"]/g, ''); }
+                        if (matches?.[1]) {
+                            downloadFilename = matches[1].replace(/['"]/g, '');
+                        }
                     }
+    
                     const downloadUrl = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    a.style.display = 'none'; a.href = downloadUrl; a.download = downloadFilename;
-                    document.body.appendChild(a); a.click();
+                    a.style.display = 'none';
+                    a.href = downloadUrl;
+                    a.download = downloadFilename;
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    updateProgress(100);
+                    addLog(`Download started for ${downloadFilename}.`, 'success');
+                    setStatus('Download complete! Check your downloads folder.', 'success');
     
-                    addLog(`Download started: ${downloadFilename}`, 'success');
-                    updateProgress(100); 
-                    setStatus(`Stems downloaded as ${downloadFilename}! Check your downloads.`, 'success');
-                    setTimeout(() => { if (downloadUrl) window.URL.revokeObjectURL(downloadUrl); if (a?.parentElement) a.remove(); }, 3000);
+                    setTimeout(() => {
+                        window.URL.revokeObjectURL(downloadUrl);
+                        a.remove();
+                    }, 3000);
+    
                 } else {
                     const result = await response.json();
-                    addLog('Request received by server. You can now close this page.', 'success');
                     updateProgress(100);
-                    setStatus(result.message || 'File sent to your account for processing! Check "My Files" later.', 'success');
+                    setStatus(result.message, 'success');
+                    addLog(result.message, 'success');
                 }
+    
             } catch (error) {
                 setStatus(`Error: ${error.message}`, 'error');
                 addLog(`Operation failed: ${error.message}`, 'error');
-                if (progressInterval) clearInterval(progressInterval);
                 progressBar.style.backgroundColor = 'var(--error-color)';
             } finally {
-                if (progressInterval) clearInterval(progressInterval);
                 spinner.style.display = 'none';
                 setTimeout(resetUIState, 8000); 
             }
@@ -704,14 +678,10 @@
         function handleGoogleCredentialResponse(response) {
             const idToken = response.credential;
             const payload = parseJwt(idToken);
-            
             if (payload) {
-                addLog(`Successfully signed in as ${payload.name}.`, 'success');
                 currentUserToken = idToken;
                 currentUserName = payload.name;
                 updateUIForLoginState();
-            } else {
-                addLog(`Failed to parse sign-in token.`, 'error');
             }
         }
         
@@ -719,9 +689,7 @@
             currentUserToken = null;
             currentUserName = null;
             google.accounts.id.disableAutoSelect();
-            // Don't call prompt() on sign out, let the user re-initiate
             updateUIForLoginState();
-            addLog("You have been signed out.", "info");
             resetUIState();
         }
     
@@ -729,59 +697,53 @@
             resetUIState();
     
             const googleClientId = document.querySelector('meta[name="google-client-id"]').content;
-            if (googleClientId && googleClientId !== "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com") {
-                google.accounts.id.initialize({
-                    client_id: googleClientId,
-                    callback: handleGoogleCredentialResponse,
-                    auto_select: true
-                });
-                google.accounts.id.renderButton(
-                    document.getElementById('gsi-container'),
-                    { theme: 'outline', size: 'large', type: 'standard', text: 'signin_with', width: '300' } 
-                );
-                google.accounts.id.prompt();
-            } else {
-                addLog("Google Sign-In is not configured.", "warning");
-            }
+            google.accounts.id.initialize({
+                client_id: googleClientId,
+                callback: handleGoogleCredentialResponse,
+                auto_select: true
+            });
+            google.accounts.id.renderButton(document.getElementById('gsi-container'),
+                { theme: 'outline', size: 'large', type: 'standard', text: 'signin_with', width: '300' } 
+            );
+            // Initial prompt on page load
+            google.accounts.id.prompt();
     
             signOutBtn.addEventListener('click', handleSignOut);
             processGuestBtn.addEventListener('click', () => handleSeparation(true));
             processBtn.addEventListener('click', () => handleSeparation(false));
     
-            // CORRECTED EVENT HANDLER LOGIC
+            // --- CORRECTED EVENT HANDLER ---
             audioFileInput.addEventListener('change', (event) => {
                 selectedFile = event.target.files[0];
-    
-                // Only reset if the user cancels the file dialog
                 if (!selectedFile) {
                     resetUIState();
                     return;
                 }
-    
-                // A file has been selected, so update the UI accordingly
                 fileNameDisplay.textContent = selectedFile.name;
-                setStatus(''); // Clear any previous status messages
+                setStatus('');
                 logConsole.innerHTML = '';
                 logConsoleContainer.style.display = 'none';
-                addLog(`File selected: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`);
                 
-                // Now, decide which buttons to show based on login state
                 updateUIForLoginState();
+                
+                // **UX IMPROVEMENT**: If user is not logged in after selecting a file,
+                // try to show the One Tap prompt again.
+                if (!currentUserToken) {
+                    google.accounts.id.prompt();
+                }
             });
     
             async function fetchAndSetPreview() {
                 try {
                     const response = await fetch(PREVIEW_ENDPOINT);
-                    if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
+                    if (!response.ok) return;
                     const data = await response.json();
                     if (data.url) {
                         previewPlayer.src = `${SERVER_ENDPOINT_BASE}${data.url}`;
                         previewSection.style.display = 'block';
-                    } else {
-                        previewSection.style.display = 'none';
                     }
                 } catch (error) {
-                    previewSection.style.display = 'none';
+                    console.error('Could not fetch preview:', error);
                 }
             }
             fetchAndSetPreview();
