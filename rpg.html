@@ -225,6 +225,25 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 #tutorial-text { font-size: 1.2em; color: var(--xp-color); margin-bottom: 20px; text-shadow: 2px 2px 2px black; }
 #tutorial-finger { font-size: 4em; animation: bounce 1s infinite alternate; }
 @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-20px); } }
+.tap-flash-overlay {
+    position: absolute;
+    border-radius: 50%;
+    background-color: white;
+    pointer-events: none;
+    z-index: 10;
+    transform-origin: center;
+    animation: flash-effect 0.2s ease-out;
+}
+@keyframes flash-effect {
+    from {
+        transform: scale(0.5);
+        opacity: 0.7;
+    }
+    to {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
 </style>
 </head>
 <body>
@@ -838,6 +857,31 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.classList.add('visible'); });
         closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
         document.querySelectorAll('.expedition-choice-btn').forEach(btn => { btn.addEventListener('click', (e) => startExpedition(parseInt(e.target.dataset.duration))); });
+        
+        const handleVisualTap = () => {
+            if (gameState.expedition.active || gameState.resources.energy <= 0) return;
+            const characterArea = document.getElementById('character-area');
+            const spriteRect = characterSprite.getBoundingClientRect();
+            const areaRect = characterArea.getBoundingClientRect();
+            
+            const flash = document.createElement('div');
+            flash.className = 'tap-flash-overlay';
+            
+            flash.style.width = `${spriteRect.width}px`;
+            flash.style.height = `${spriteRect.height}px`;
+            flash.style.left = `${spriteRect.left - areaRect.left}px`;
+            flash.style.top = `${spriteRect.top - areaRect.top}px`;
+
+            characterArea.appendChild(flash);
+
+            setTimeout(() => {
+                flash.remove();
+            }, 200);
+        };
+        
+        characterSprite.addEventListener('click', handleVisualTap);
+        characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
+        
         init();
     });
     </script>
