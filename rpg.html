@@ -371,6 +371,86 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     document.addEventListener('DOMContentLoaded', () => {
         let gameState = {};
         let audioCtx = null;
+        // --- ADDED Music Management System ---
+        const musicFileUrls = {
+            main: 'https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/main.mp3',
+            battle: 'https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/battle.mp3',
+            expedition: 'https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/expedition.mp3'
+        };
+        const musicManager = {
+            isInitialized: false,
+            audio: {},
+            currentTrack: null,
+            fadeInterval: null
+        };
+        
+        function initMusic() {
+            if (musicManager.isInitialized) return;
+            console.log("Initializing music...");
+            for (const key in musicFileUrls) {
+                if (musicFileUrls[key]) {
+                    const audio = new Audio(musicFileUrls[key]);
+                    audio.loop = true;
+                    audio.volume = 0;
+                    musicManager.audio[key] = audio;
+                }
+            }
+            musicManager.isInitialized = true;
+            playMusic('main'); // Start main music as soon as initialized
+        }
+
+        function fadeOut(audio, onComplete) {
+            if (!audio || audio.volume === 0) {
+                if(onComplete) onComplete();
+                return;
+            }
+            let vol = audio.volume;
+            const fadeOutInterval = setInterval(() => {
+                vol -= 0.05;
+                if (vol <= 0) {
+                    audio.volume = 0;
+                    audio.pause();
+                    audio.currentTime = 0;
+                    clearInterval(fadeOutInterval);
+                    if(onComplete) onComplete();
+                } else {
+                    audio.volume = vol;
+                }
+            }, 100);
+        }
+
+        function fadeIn(audio) {
+            if (!audio || audio.volume > 0) return;
+            audio.volume = 0;
+            audio.play().catch(e => console.error("Music play failed:", e));
+            let vol = 0;
+            const fadeInInterval = setInterval(() => {
+                vol += 0.05;
+                if (vol >= 0.5) { // Target volume
+                    audio.volume = 0.5;
+                    clearInterval(fadeInInterval);
+                } else {
+                    audio.volume = vol;
+                }
+            }, 100);
+        }
+
+        function playMusic(trackName) {
+            if (!musicManager.isInitialized || !musicManager.audio[trackName] || musicManager.currentTrack === trackName) {
+                return;
+            }
+
+            const oldTrack = musicManager.currentTrack ? musicManager.audio[musicManager.currentTrack] : null;
+            musicManager.currentTrack = trackName;
+            const newTrack = musicManager.audio[trackName];
+            
+            if (oldTrack) {
+                fadeOut(oldTrack, () => fadeIn(newTrack));
+            } else {
+                fadeIn(newTrack);
+            }
+        }
+        // --- End of Music Management System ---
         const achievements = {
             tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false },
             tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false },
@@ -451,7 +531,18 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         const achievementsBtn = document.getElementById('achievements-btn');
         const tutorialOverlay = document.getElementById('tutorial-overlay');
 
-        function showScreen(screenId) { screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); }
+        function showScreen(screenId) { 
+            screens.forEach(s => s.classList.remove('active')); 
+            document.getElementById(screenId).classList.add('active'); 
+            // --- ADDED Music Trigger ---
+            if (screenId === 'battle-screen') {
+                playMusic('battle');
+            } else if (screenId === 'game-screen' || screenId === 'main-menu-screen') {
+                if (!gameState.expedition || !gameState.expedition.active) {
+                    playMusic('main');
+                }
+            }
+        }
         function init() { createWindEffect(); createStarfield(); showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }
         
         async function startGame() {
@@ -710,10 +801,12 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             gameState.expedition.returnTime = Date.now() + durationInSeconds * 1000;
             showNotification("Expedition Started!", `Your guardian will return in ${durationInSeconds / 60} minutes.`);
             saveGame(); updateUI(); showScreen('game-screen');
+            playMusic('expedition'); // --- ADDED Music Trigger ---
         }
         function checkExpeditionStatus() {
             if (gameState.expedition.active && Date.now() > gameState.expedition.returnTime) {
                 gameState.expedition.active = false;
+                playMusic('main'); // --- ADDED Music Trigger ---
                 const tierMultiplier = Math.pow(1.5, gameState.ascension.tier - 1);
                 const xpReward = Math.floor(100 * gameState.level * tierMultiplier);
                 const goldReward = Math.floor(50 * gameState.level * tierMultiplier);
@@ -877,7 +970,12 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 container.appendChild(star);
             }
         }
-        function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } }
+        function initAudio() { 
+            if (!audioCtx) { 
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+                initMusic(); // --- ADDED Music Initialization on first user interaction ---
+            } 
+        }
         function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
             if (!audioCtx) return;
             const oscillator = audioCtx.createOscillator();
