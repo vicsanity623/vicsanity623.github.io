@@ -244,6 +244,78 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         opacity: 0;
     }
 }
+/* --- ADDED FOR RESPONSIVE LAYOUT --- */
+@media (max-width: 600px) {
+    html {
+        font-size: 13px; /* Adjust base font size for legibility */
+    }
+    .screen {
+        padding: 10px 5px;
+        justify-content: flex-start;
+        overflow-y: auto; /* Allow scrolling if content overflows vertically */
+    }
+    #game-screen, #battle-screen {
+        justify-content: space-between; /* Distribute space on main screens */
+        padding-top: 15px;
+        padding-bottom: 15px;
+    }
+    h1 { font-size: 2em; }
+    h2 { font-size: 1.5em; margin-bottom: 10px; }
+    button {
+        padding: 10px 15px;
+        font-size: 0.85em;
+        margin: 5px;
+    }
+    #stats-area {
+        max-width: 100%;
+        flex-shrink: 0;
+    }
+    .stat-bar { height: 18px; }
+    .stat-bar-label { font-size: 0.7em; }
+    #core-stats-display { font-size: 0.8em; margin-top: 10px; }
+    #character-area {
+        flex-grow: 1; /* Allow it to take available space */
+        min-height: 180px; /* Ensure space for the sprite */
+    }
+    #character-sprite {
+        width: 160px;
+        height: 160px;
+    }
+    #action-buttons {
+        flex-shrink: 0;
+    }
+    #battle-arena {
+        align-items: center;
+    }
+    .battle-character {
+        transform: scale(0.8);
+        margin: 0 -10px;
+    }
+    .battle-character h3 {
+        font-size: 0.8em;
+        white-space: nowrap; /* Prevent name wrapping */
+    }
+    .battle-character img {
+        width: 90px;
+        height: 90px;
+    }
+    #battle-log {
+        height: 100px;
+        font-size: 0.75em;
+        flex-shrink: 0;
+        margin: 10px 0;
+    }
+    .modal-content {
+        width: 90%;
+        padding: 20px 15px;
+    }
+}
+@media (max-height: 700px) and (max-width: 400px) {
+    html { font-size: 12px; }
+    #character-sprite { width: 130px; height: 130px; }
+    #core-stats-display { font-size: 0.7em; }
+    .battle-character { transform: scale(0.7); margin: 0 -20px; }
+}
 </style>
 </head>
 <body>
