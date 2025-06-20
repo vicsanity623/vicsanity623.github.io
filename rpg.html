@@ -286,10 +286,13 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     }
     #battle-arena {
         align-items: center;
+        flex-grow: 0; /* MODIFIED: Prevent it from pushing log/buttons off-screen */
+        justify-content: center; /* MODIFIED: Center characters instead of spreading them */
+        gap: 10px; /* MODIFIED: Add a small gap between characters */
     }
     .battle-character {
         transform: scale(0.8);
-        margin: 0 -10px;
+        margin: 0; /* MODIFIED: Reset negative margin */
     }
     .battle-character h3 {
         font-size: 0.8em;
@@ -314,7 +317,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     html { font-size: 12px; }
     #character-sprite { width: 130px; height: 130px; }
     #core-stats-display { font-size: 0.7em; }
-    .battle-character { transform: scale(0.7); margin: 0 -20px; }
+    .battle-character { transform: scale(0.7); margin: 0; } /* MODIFIED */
 }
 /* --- ADDED for visual aura effects --- */
 @keyframes aura-level-10-anim {
