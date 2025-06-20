@@ -396,7 +396,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 }
             }
             musicManager.isInitialized = true;
-            playMusic('main'); // Start main music as soon as initialized
+            playMusic('main');
         }
 
         function fadeOut(audio, onComplete) {
@@ -546,6 +546,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         function init() { createWindEffect(); createStarfield(); showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }
         
         async function startGame() {
+            initAudio(); // --- ADDED to initialize audio on first user click ---
             let playerName = "";
             let isNameValid = false;
             while (!isNameValid) {
@@ -579,6 +580,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         }
 
         function loadGame() {
+            initAudio(); // --- ADDED to initialize audio on first user click ---
             const savedData = localStorage.getItem('tapGuardianSave');
             if (savedData) {
                 let loadedState = JSON.parse(savedData);
