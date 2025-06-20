@@ -350,7 +350,8 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     <div id="wind-animation-container"></div>
     <div id="toast-container"></div>
     <div id="loading-screen" class="screen active"><h1 id="loading-text">Loading...</h1></div>
-    <div id="main-menu-screen" class="screen"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button><button id="test-music-btn" style="border-color: yellow; color: yellow;">Test Music</button></div>
+    <!--/-- UPDATED HTML --/-->
+    <div id="main-menu-screen" class="screen"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
     <div id="game-screen" class="screen">
         <div id="frenzy-display">x5</div>
         <div id="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display">Gold: 0</div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" src="player.PNG" alt="Character"><div id="tutorial-overlay"><div id="tutorial-text">Tap to grow stronger!</div><div id="tutorial-finger">👆</div></div></div><div id="action-buttons"><button id="feed-btn">Feed (10 Gold)</button><button id="battle-btn">Battle</button><button id="expedition-btn">Expedition</button><button id="inventory-btn">Inventory</button><button id="ingame-menu-btn">Menu</button></div></div>
@@ -396,76 +397,50 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             fadeInterval: null
         };
         
+        // --- UPDATED JAVASCRIPT ---
+
         function initMusic() {
             if (musicManager.isInitialized) return;
             console.log("Initializing music...");
-
-            // We are NOT going to autoplay music here anymore.
-            // We will let the user click the test button first.
             musicManager.isInitialized = true;
-            
-            // Add a listener for our new test button
-            document.getElementById('test-music-btn').addEventListener('click', () => {
-                const mainMusic = musicManager.audio['main'];
-                if (mainMusic) {
-                    console.log("Test button clicked, attempting to play main.mp3");
-                    mainMusic.volume = 0.5; // Set volume directly
-                    mainMusic.play().catch(e => console.error("Test play failed:", e));
-                }
-            });
+            playMusic('main'); // Play main music on first user interaction.
         }
 
-        function fadeOut(audio, onComplete) {
-            if (!audio || audio.volume === 0) {
-                if(onComplete) onComplete();
-                return;
-            }
-            let vol = audio.volume;
-            const fadeOutInterval = setInterval(() => {
-                vol -= 0.05;
-                if (vol <= 0) {
-                    audio.volume = 0;
-                    audio.pause();
-                    audio.currentTime = 0;
-                    clearInterval(fadeOutInterval);
-                    if(onComplete) onComplete();
-                } else {
-                    audio.volume = vol;
-                }
-            }, 50);
-        }
-
-        function fadeIn(audio) {
-            if (!audio || audio.volume > 0) return;
-            audio.volume = 0;
-            audio.play().catch(e => console.error("Music play failed:", e));
-            let vol = 0;
-            const fadeInInterval = setInterval(() => {
-                vol += 0.05;
-                if (vol >= 0.5) { // Target volume
-                    audio.volume = 0.5;
-                    clearInterval(fadeInInterval);
-                } else {
-                    audio.volume = vol;
-                }
-            }, 50);
-        }
+        // The fadeIn and fadeOut functions were removed as they were causing issues on mobile.
 
         function playMusic(trackName) {
-            if (!musicManager.isInitialized || !musicManager.audio[trackName] || musicManager.currentTrack === trackName) {
+            if (!musicManager.isInitialized || !musicManager.audio[trackName]) {
                 return;
             }
 
-            const oldTrack = musicManager.currentTrack ? musicManager.audio[musicManager.currentTrack] : null;
-            musicManager.currentTrack = trackName;
-            const newTrack = musicManager.audio[trackName];
+            // Stop the currently playing track, if there is one.
+            const oldTrackName = musicManager.currentTrack;
+            if (oldTrackName && musicManager.audio[oldTrackName]) {
+                musicManager.audio[oldTrackName].pause();
+                musicManager.audio[oldTrackName].currentTime = 0;
+            }
+
+            // If the requested track is the same as the one we just stopped, do nothing.
+            // This prevents the track from restarting if called multiple times.
+            if (oldTrackName === trackName) {
+                // ...unless it's paused, in which case we resume it.
+                if (musicManager.audio[trackName].paused) {
+                    musicManager.audio[trackName].play().catch(e => console.error("Music resume failed:", e));
+                }
+                return; 
+            }
             
-            if (oldTrack) {
-                fadeOut(oldTrack, () => fadeIn(newTrack));
-            } else {
-                fadeIn(newTrack);
+            // Play the new track.
+            const newTrack = musicManager.audio[trackName];
+            musicManager.currentTrack = trackName;
+            
+            if (newTrack) {
+                newTrack.volume = 0.5;
+                newTrack.play().catch(e => console.error(`Music play failed for ${trackName}:`, e));
             }
         }
+
+        // --- END OF UPDATED JAVASCRIPT ---
 
         function startBackgroundAssetLoading() {
             for (const key in musicFileUrls) {
