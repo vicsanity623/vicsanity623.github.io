@@ -1122,8 +1122,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         
         characterSprite.addEventListener('click', handleVisualTap);
         characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
-        
-        
+                
         // --- ADDED for passive energy regeneration ---
         setInterval(() => {
             if (gameState.resources && gameState.resources.energy < gameState.resources.maxEnergy && !gameState.expedition.active) {
