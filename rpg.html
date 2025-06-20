@@ -954,19 +954,18 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         characterSprite.addEventListener('click', handleVisualTap);
         characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
         
-        // --- ADDED TO FIX IMAGE CACHING AND URL CASING ---
-        // This finds all character images, corrects the URL casing from .PNG to .png,
-        // and adds a unique parameter to force the browser to download the latest version.
-        const fixAndBustImageCache = () => {
-            const oldImageUrl = "https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG";
-            const newImageUrl = "https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.png";
-            const images = document.querySelectorAll(`img[src="${oldImageUrl}"]`);
+        // --- CORRECTED FIX FOR IMAGE LOADING AND CACHING ---
+        // This targets all player images and appends a unique timestamp to the URL.
+        // This forces the browser to bypass any cache and download the latest version of the image.
+        const fixAndBustPlayerImageCache = () => {
+            const imageUrl = "https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG";
+            const images = document.querySelectorAll(`img[src="${imageUrl}"]`);
             const cacheBuster = `?v=${new Date().getTime()}`;
             images.forEach(img => {
-                img.src = newImageUrl + cacheBuster;
+                img.src = imageUrl + cacheBuster;
             });
         };
-        fixAndBustImageCache();
+        fixAndBustPlayerImageCache();
 
         init();
     });
