@@ -21,24 +21,27 @@ crossorigin="anonymous"></script>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
     width: 100%; height: 100%; font-family: 'Press Start 2P', cursive;
-    background-color: var(--primary-bg); color: var(--text-color); overflow: hidden;
+    background: radial-gradient(ellipse at center, #2c3e50 0%, #1a1a1a 100%);
+    color: var(--text-color); overflow: hidden;
 }
 .screen {
     display: none; width: 100%; height: 100%; flex-direction: column;
     align-items: center; justify-content: center; padding: 20px; text-align: center;
 }
 .screen.active { display: flex; }
-h1, h2 { color: var(--accent-color); margin-bottom: 20px; }
+h1, h2 { color: var(--accent-color); margin-bottom: 20px; text-shadow: 0 0 5px rgba(0, 255, 127, 0.5); }
 button {
     font-family: 'Press Start 2P', cursive; background-color: var(--secondary-bg);
     color: var(--accent-color); border: 2px solid var(--accent-color);
     padding: 15px 30px; margin: 10px; font-size: 1em; cursor: pointer; transition: all 0.2s ease;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
 }
+button:active { transform: scale(0.95); transition-duration: 0.1s; }
 button.ascend-button { border-color: var(--xp-color); color: var(--xp-color); text-shadow: 0 0 5px var(--xp-color);}
 button.ascend-button:hover { background-color: var(--xp-color); color: var(--primary-bg); }
 button:hover { background-color: var(--accent-color); color: var(--primary-bg); }
 button:disabled { border-color: #555; color: #555; cursor: not-allowed; }
-button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
+button:disabled:hover { background-color: var(--secondary-bg); color: #555; transform: none; }
 #game-screen { justify-content: space-between; position: relative; }
 #character-area {
     flex-grow: 1; display: flex; flex-direction: column;
@@ -48,26 +51,39 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
     width: 220px; height: 220px; cursor: pointer;
     transition: transform 0.1s ease, filter 0.5s ease;
     -webkit-user-drag: none; user-select: none;
+    animation: idle-breathe 4s ease-in-out infinite;
 }
-#character-sprite.tapped { transform: scale(1.1); }
+@keyframes idle-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes tap-bounce { 0%, 100% { transform: scale(1.05); } 50% { transform: scale(1.15); } }
+@keyframes tap-glow { 0%, 100% { filter: drop-shadow(0 0 0px white); } 50% { filter: drop-shadow(0 0 15px white); } }
+#character-sprite.tapped { animation: tap-bounce 0.2s, tap-glow 0.2s; }
 @keyframes frenzy-glow {
     0% { filter: drop-shadow(0 0 5px var(--frenzy-glow-color)); }
     50% { filter: drop-shadow(0 0 20px var(--frenzy-glow-color)); }
     100% { filter: drop-shadow(0 0 5px var(--frenzy-glow-color)); }
 }
-#character-sprite.frenzy { animation: frenzy-glow 1s infinite; }
-.floating-text {
-    position: fixed; font-size: 1.2em; color: var(--xp-color); opacity: 1;
-    transition: all 1s ease-out; pointer-events: none; user-select: none; text-shadow: 1px 1px 2px black;
-    z-index: 110;
+#character-sprite.frenzy { animation: frenzy-glow 1s infinite, idle-breathe 4s ease-in-out infinite; }
+.xp-orb-container {
+    position: fixed;
+    transition: all 0.8s cubic-bezier(0.5, -0.5, 0.5, 1.5);
+    z-index: 110; pointer-events: none;
 }
-.floating-text.frenzy-text { color: var(--frenzy-glow-color); font-size: 1.6em; font-weight: bold; }
-#stats-area { width: 100%; max-width: 500px; }
+.xp-orb {
+    width: 20px; height: 20px; background-color: var(--xp-color); border-radius: 50%;
+    box-shadow: 0 0 10px var(--xp-color), 0 0 20px white;
+}
+.xp-orb-text {
+    position: absolute; bottom: 100%; left: 50%;
+    transform: translateX(-50%); font-size: 1.2em; color: var(--xp-color);
+    text-shadow: 1px 1px 2px black; font-weight: bold;
+}
+#stats-area { width: 100%; max-width: 500px; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
 .stat-bar-container { margin-bottom: 5px; }
 .stat-bar {
     width: 100%; height: 20px; background-color: var(--secondary-bg);
-    border: 2px solid var(--text-color); position: relative;
+    border: 2px solid var(--text-color); position: relative; transition: box-shadow 0.3s ease;
 }
+.stat-bar.bar-pulse { box-shadow: 0 0 15px var(--xp-color); }
 .stat-bar-fill { height: 100%; transition: width 0.5s ease; }
 .stat-bar-label {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -80,21 +96,22 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
     display: flex; justify-content: space-around; width: 100%;
     margin-top: 15px; font-size: 0.8em;
 }
-#world-tier-display {
-    margin-top: 10px; font-size: 1em; color: var(--xp-color);
-    text-shadow: 0 0 5px var(--xp-color);
-}
+#world-tier-display { margin-top: 10px; font-size: 1em; color: var(--xp-color); text-shadow: 0 0 5px var(--xp-color); }
 #gold-display { margin-top: 10px; font-size: 1em; color: var(--xp-color); }
 #action-buttons { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; }
 .modal {
     display: none; position: fixed; z-index: 100; left: 0; top: 0;
     width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
     flex-direction: column; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.3s ease;
 }
+.modal.visible { display: flex; opacity: 1; }
 .modal-content {
     background-color: var(--secondary-bg); padding: 30px; border: 2px solid var(--accent-color);
     max-width: 90%; width: 500px; text-align: center;
+    transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
+.modal.visible .modal-content { transform: scale(1); }
 .inventory-slot {
     margin: 15px 0; font-size: 0.9em; text-align: left;
     border-left: 4px solid var(--accent-color); padding-left: 10px;
@@ -103,9 +120,18 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
     display: none; font-size: 2.5em; color: var(--xp-color);
     text-shadow: 0 0 5px var(--xp-color), 0 0 15px var(--xp-color);
 }
-#wind-animation-container {
+#wind-animation-container, #background-stars {
     display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     overflow: hidden; pointer-events: none; z-index: -1;
+}
+#background-stars { display: block; }
+.star {
+    position: absolute; background-color: white; border-radius: 50%;
+    animation: star-fall linear infinite;
+}
+@keyframes star-fall {
+    from { transform: translateY(-10px); }
+    to { transform: translateY(100vh); }
 }
 .wind-streak {
     position: absolute; background-color: rgba(224, 224, 224, 0.15); height: 2px;
@@ -122,7 +148,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
     100% { transform: scale(0) translateY(var(--y-end)) translateX(var(--x-end)); opacity: 0; }
 }
 #frenzy-display {
-    position: absolute; left: 20px; top: 50%;
+    position: absolute; left: 20px; top: 50%; z-index: 120;
     transform: translateY(-50%) scale(0); font-size: 2.5em; font-weight: bold;
     opacity: 0; transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
     text-shadow: 0 0 5px black, 0 0 10px var(--frenzy-glow-color); pointer-events: none;
@@ -146,6 +172,9 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
     line-height: 1.5;
 }
 #battle-actions { flex-shrink: 0; }
+@keyframes pulse-button { 0%, 100% { box-shadow: 0 0 5px var(--accent-color); } 50% { box-shadow: 0 0 15px var(--accent-color); } }
+#battle-btn { animation: pulse-button 2s infinite; }
+#expedition-btn { animation: pulse-button 2s infinite alternate-reverse; }
 .log-player { color: var(--accent-color); }
 .log-enemy { color: var(--health-color); }
 .log-system { color: var(--xp-color); }
@@ -154,107 +183,58 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
 #leaderboard-list li:nth-child(odd) { background-color: #33364a; }
 #leaderboard-list .rank-name { text-align: left; }
 #leaderboard-list .rank-level { text-align: right; color: var(--xp-color); }
-.screen-shake {
-    animation: screen-shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
-}
+.screen-shake { animation: screen-shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes screen-shake {
-    10%, 90% { transform: translate3d(-1px, 0, 0); }
-    20%, 80% { transform: translate3d(2px, 0, 0); }
-    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-    40%, 60% { transform: translate3d(4px, 0, 0); }
+    10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); }
 }
 .damage-text {
-    position: absolute;
-    font-size: 1.5em;
-    opacity: 1;
-    transition: all 0.8s ease-out;
-    pointer-events: none;
-    user-select: none;
-    text-shadow: 2px 2px 3px black;
-    transform: translateY(0);
+    position: absolute; font-size: 1.5em; opacity: 1; transition: all 0.8s ease-out;
+    pointer-events: none; user-select: none; text-shadow: 2px 2px 3px black; transform: translateY(0);
 }
 .damage-text.player-damage { color: #ffdd57; right: 25%; }
 .damage-text.enemy-damage { color: #ff4136; left: 25%; }
-.damage-text.crit {
-    font-size: 2.2em;
-    color: var(--xp-color);
-    font-weight: bold;
-    transform: scale(1.2);
-    animation: pulse 0.5s;
-}
+.damage-text.crit { font-size: 2.2em; color: var(--xp-color); font-weight: bold; transform: scale(1.2); animation: pulse 0.5s; }
 #toast-container {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 200;
-    display: flex;
-    flex-direction: column-reverse;
-    gap: 10px;
-    pointer-events: none;
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 200; display: flex; flex-direction: column-reverse; gap: 10px; pointer-events: none;
 }
 .toast {
-    padding: 12px 20px;
-    background-color: var(--secondary-bg);
-    color: var(--xp-color);
-    border: 2px solid var(--xp-color);
-    animation: toast-fade 4s ease-in-out forwards;
-    opacity: 0;
-    text-align: center;
+    padding: 12px 20px; background-color: var(--secondary-bg); color: var(--xp-color);
+    border: 2px solid var(--xp-color); animation: toast-fade 4s ease-in-out forwards;
+    opacity: 0; text-align: center;
 }
 @keyframes toast-fade {
-    0% { opacity: 0; transform: translateY(20px); }
-    10% { opacity: 1; transform: translateY(0); }
-    90% { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(-20px); }
+    0% { opacity: 0; transform: translateY(20px); } 10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-20px); }
 }
-#achievements-list {
-    list-style: none;
-    padding: 0;
-    margin-top: 20px;
-    text-align: left;
-    max-height: 300px;
-    overflow-y: auto;
+#achievements-list { list-style: none; padding: 0; margin-top: 20px; text-align: left; max-height: 300px; overflow-y: auto; }
+#achievements-list li { padding: 10px; border-bottom: 1px solid #444; opacity: 0.5; transition: all 0.3s ease; }
+#achievements-list li.unlocked { opacity: 1; color: var(--xp-color); border-left: 4px solid var(--xp-color); }
+#achievements-list li .achievement-desc { font-size: 0.8em; color: var(--text-color); }
+.log-crit { color: var(--xp-color); font-weight: bold; text-shadow: 0 0 5px var(--xp-color); animation: pulse 0.5s 2; }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+#tutorial-overlay {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); display: none;
+    flex-direction: column; align-items: center;
+    pointer-events: none; z-index: 50;
+    opacity: 0; transition: opacity 0.5s ease;
 }
-#achievements-list li {
-    padding: 10px;
-    border-bottom: 1px solid #444;
-    opacity: 0.5;
-    transition: all 0.3s ease;
-}
-#achievements-list li.unlocked {
-    opacity: 1;
-    color: var(--xp-color);
-    border-left: 4px solid var(--xp-color);
-}
-#achievements-list li .achievement-desc {
-    font-size: 0.8em;
-    color: var(--text-color);
-}
-.log-crit {
-    color: var(--xp-color);
-    font-weight: bold;
-    text-shadow: 0 0 5px var(--xp-color);
-    animation: pulse 0.5s 2;
-}
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-    100% { transform: scale(1); }
-}
+#tutorial-overlay.visible { display: flex; opacity: 1; }
+#tutorial-text { font-size: 1.2em; color: var(--xp-color); margin-bottom: 20px; text-shadow: 2px 2px 2px black; }
+#tutorial-finger { font-size: 4em; animation: bounce 1s infinite alternate; }
+@keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-20px); } }
 </style>
 </head>
 <body>
-    <!-- Firebase SDK Scripts -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
+    <div id="background-stars"></div>
     <div id="wind-animation-container"></div>
     <div id="toast-container"></div>
     <div id="main-menu-screen" class="screen active"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
     <div id="game-screen" class="screen">
         <div id="frenzy-display">x5</div>
-        <div id="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display">Gold: 0</div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG" alt="Character"></div><div id="action-buttons"><button id="feed-btn">Feed (10 Gold)</button><button id="battle-btn">Battle</button><button id="expedition-btn">Expedition</button><button id="inventory-btn">Inventory</button><button id="ingame-menu-btn">Menu</button></div></div>
+        <div id="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display">Gold: 0</div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG" alt="Character"><div id="tutorial-overlay"><div id="tutorial-text">Tap to grow stronger!</div><div id="tutorial-finger">👆</div></div></div><div id="action-buttons"><button id="feed-btn">Feed (10 Gold)</button><button id="battle-btn">Battle</button><button id="expedition-btn">Expedition</button><button id="inventory-btn">Inventory</button><button id="ingame-menu-btn">Menu</button></div></div>
     <div id="battle-screen" class="screen"><h2>Battle!</h2><div id="battle-arena"><div class="battle-character"><h3 id="battle-player-name">Guardian</h3><img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG"><div id="battle-player-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div><div class="battle-character"><h3 id="battle-npc-name">Goblin</h3><img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/main/player.PNG" style="filter: hue-rotate(180deg);"><div id="battle-npc-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div></div><div id="battle-log"></div><div id="battle-actions"><button id="attack-btn">Attack</button><button id="run-btn">Run</button></div></div>
     <div id="expedition-screen" class="screen"><h2>Send on Expedition</h2><p>Your guardian will be unavailable but will return with rewards.</p><button class="expedition-choice-btn" data-duration="1800">Scout Ahead (30 Mins)</button><button class="expedition-choice-btn" data-duration="3600">Long Patrol (1 Hour)</button><button class="expedition-choice-btn" data-duration="21600">Deep Delve (6 Hours)</button><button id="expedition-cancel-btn">Cancel</button></div>
     <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
@@ -263,6 +243,8 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
     <div id="leaderboard-modal" class="modal"><div class="modal-content"><h2>Leaderboard</h2><ul id="leaderboard-list"><li>Loading...</li></ul><button id="close-leaderboard-btn">Close</button></div></div>
     <div id="achievements-modal" class="modal"><div class="modal-content"><h2>Achievements</h2><ul id="achievements-list"></ul><button id="close-achievements-btn">Close</button></div></div>
     
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script>
     // --- YOUR LIVE FIREBASE CONFIGURATION ---
     const firebaseConfig = {
@@ -295,6 +277,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
         };
         const defaultState = {
             playerName: "Guardian",
+            tutorialCompleted: false,
             level: 1, xp: 0, gold: 0,
             stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
             resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
@@ -359,16 +342,17 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
         const closeAchievementsBtn = document.getElementById('close-achievements-btn');
         const achievementsList = document.getElementById('achievements-list');
         const achievementsBtn = document.getElementById('achievements-btn');
+        const tutorialOverlay = document.getElementById('tutorial-overlay');
 
         function showScreen(screenId) { screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); }
-        function init() { createWindEffect(); showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }
+        function init() { createWindEffect(); createStarfield(); showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }
         
         async function startGame() {
             let playerName = "";
             let isNameValid = false;
             while (!isNameValid) {
                 const inputName = prompt("Enter your Guardian's name (3-15 chars):", "");
-                if (inputName === null) { return; } // User clicked cancel
+                if (inputName === null) { return; } 
 
                 if (inputName.length < 3 || inputName.length > 15) {
                     alert("Name must be between 3 and 15 characters.");
@@ -406,6 +390,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
                 gameState.ascension = {...defaultState.ascension, ...loadedState.ascension};
                 gameState.achievements = {...JSON.parse(JSON.stringify(achievements)), ...(loadedState.achievements || {})};
                 gameState.counters = {...defaultState.counters, ...(loadedState.counters || {})};
+                gameState.tutorialCompleted = loadedState.tutorialCompleted === true;
                 const lastLogin = localStorage.getItem('tapGuardianLastLogin');
                 const today = new Date().toDateString();
                 if (lastLogin !== today) {
@@ -458,6 +443,11 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
                 if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
             } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
             feedBtn.disabled = onExpedition; battleBtn.disabled = onExpedition; inventoryBtn.disabled = onExpedition;
+            if (gameState.tutorialCompleted) {
+                tutorialOverlay.classList.remove('visible');
+            } else {
+                tutorialOverlay.classList.add('visible');
+            }
         }
         function addXP(amount) { if (gameState.expedition.active) return;
             const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
@@ -476,7 +466,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
             submitScoreToLeaderboard();
             showNotification("LEVEL UP!", `You are now Level ${gameState.level}!`); saveGame();
         }
-        function showNotification(title, text) { modalTitle.textContent = title; modalText.innerHTML = text; modal.style.display = 'flex'; }
+        function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
         function updateFrenzyVisuals() {
             const multiplier = tapCombo.currentMultiplier; const root = document.documentElement;
             if (multiplier > 1) {
@@ -497,16 +487,53 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
         function createParticles(event) {
             for (let i = 0; i < 8; i++) {
                 const particle = document.createElement('div'); particle.className = 'particle';
-                const x = event.clientX; const y = event.clientY;
-                particle.style.left = `${x}px`; particle.style.top = `${y}px`;
+                let clientX = event.clientX || (event.touches && event.touches[0].clientX);
+                let clientY = event.clientY || (event.touches && event.touches[0].clientY);
+                particle.style.left = `${clientX}px`; particle.style.top = `${clientY}px`;
                 const xEnd = (Math.random() - 0.5) * 200; const yEnd = (Math.random() - 0.5) * 200;
                 particle.style.setProperty('--x-end', `${xEnd}px`); particle.style.setProperty('--y-end', `${yEnd}px`);
                 document.body.appendChild(particle); setTimeout(() => { particle.remove(); }, 800);
             }
         }
+        function createXpOrb(event, xpGain) {
+            let clientX = event.clientX || (event.touches && event.touches[0].clientX);
+            let clientY = event.clientY || (event.touches && event.touches[0].clientY);
+            const orbContainer = document.createElement('div');
+            orbContainer.className = 'xp-orb-container';
+            orbContainer.style.left = `${clientX - 10}px`;
+            orbContainer.style.top = `${clientY - 10}px`;
+            orbContainer.innerHTML = `<div class="xp-orb"></div><div class="xp-orb-text">+${xpGain.toFixed(2)}</div>`;
+            document.body.appendChild(orbContainer);
+            
+            const xpBarRect = document.querySelector('#xp-bar').getBoundingClientRect();
+            const targetX = xpBarRect.left + (xpBarRect.width / 2);
+            const targetY = xpBarRect.top + (xpBarRect.height / 2);
+
+            setTimeout(() => {
+                orbContainer.style.left = `${targetX}px`;
+                orbContainer.style.top = `${targetY}px`;
+                orbContainer.style.transform = 'scale(0)';
+                orbContainer.style.opacity = '0';
+            }, 50);
+
+            setTimeout(() => {
+                const xpBar = document.querySelector('#xp-bar');
+                xpBar.classList.add('bar-pulse');
+                addXP(xpGain); 
+                setTimeout(() => xpBar.classList.remove('bar-pulse'), 300);
+                orbContainer.remove();
+            }, 850);
+        }
         function handleTap(event) {
             if (gameState.expedition.active || gameState.resources.energy <= 0) return;
             initAudio();
+            
+            if (gameState.tutorialCompleted === false) {
+                gameState.tutorialCompleted = true;
+                tutorialOverlay.classList.remove('visible');
+                saveGame();
+            }
+
             gameState.counters.taps = (gameState.counters.taps || 0) + 1;
             checkAllAchievements();
             playSound('tap', 0.5, 'square', 150, 100, 0.05);
@@ -514,19 +541,29 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
             if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
             tapCombo.lastTapTime = now;
             if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.13) { activateFrenzy(); } }
-            const xpGain = 0.25 * tapCombo.currentMultiplier; addXP(xpGain); gameState.resources.energy -= 0.1;
-            const floatingText = document.createElement('div'); floatingText.className = 'floating-text';
-            if (tapCombo.currentMultiplier > 1) { floatingText.classList.add('frenzy-text'); createParticles(event); }
-            floatingText.textContent = `+${xpGain.toFixed(2)} XP`;
-            let clientX = event.clientX || (event.touches && event.touches[0].clientX);
-            let clientY = event.clientY || (event.touches && event.touches[0].clientY);
-            floatingText.style.left = `${clientX}px`;
-            floatingText.style.top = `${clientY - 30}px`;
-            document.body.appendChild(floatingText);
-            setTimeout(() => { floatingText.style.transform = 'translateY(-50px)'; floatingText.style.opacity = '0'; }, 10);
-            setTimeout(() => { floatingText.remove(); }, 1000);
+            
+            if (Math.random() < 0.1) { triggerScreenShake(150); }
+
+            const xpGain = 0.25 * tapCombo.currentMultiplier;
+            createXpOrb(event, xpGain);
+            
+            gameState.resources.energy -= 0.1;
+            
+            if (tapCombo.currentMultiplier > 1) { createParticles(event); }
+            
+            characterSprite.style.animation = 'none';
+            void characterSprite.offsetWidth;
             characterSprite.classList.add('tapped');
-            setTimeout(() => characterSprite.classList.remove('tapped'), 100); updateUI();
+
+            setTimeout(() => { 
+                characterSprite.classList.remove('tapped');
+                let newAnimation = 'idle-breathe 4s ease-in-out infinite';
+                if(characterSprite.classList.contains('frenzy')){
+                    newAnimation += ', frenzy-glow 1s infinite';
+                }
+                characterSprite.style.animation = newAnimation;
+            }, 200); 
+            updateUI();
         }
         function feed() {
             if (gameState.gold >= 10) {
@@ -578,7 +615,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
                 gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
                 gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
                 submitScoreToLeaderboard();
-                saveGame(); updateUI(); ingameMenuModal.style.display = 'none';
+                saveGame(); updateUI(); ingameMenuModal.classList.remove('visible');
                 showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You feel a new power flowing within you.`);
             }
         }
@@ -597,7 +634,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
         }
         async function showLeaderboard() {
             leaderboardList.innerHTML = "<li>Loading...</li>";
-            leaderboardModal.style.display = "flex";
+            leaderboardModal.classList.add('visible');
             try {
                 const snapshot = await db.collection("leaderboard").orderBy("tier", "desc").orderBy("level", "desc").limit(20).get();
                 if (snapshot.empty) { leaderboardList.innerHTML = "<li>No scores yet. Be the first!</li>"; return; }
@@ -695,6 +732,19 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
                 windAnimationContainer.appendChild(streak);
             }
         }
+        function createStarfield() {
+            const container = document.getElementById('background-stars');
+            for(let i=0; i<100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 2 + 1;
+                star.style.width = `${size}px`; star.style.height = `${size}px`;
+                star.style.top = `${Math.random() * 100}%`; star.style.left = `${Math.random() * 100}%`;
+                star.style.animationDuration = `${Math.random() * 50 + 25}s`;
+                star.style.animationDelay = `${Math.random() * 50}s`;
+                container.appendChild(star);
+            }
+        }
         function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } }
         function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
             if (!audioCtx) return;
@@ -759,7 +809,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
         startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
         characterSprite.addEventListener('click', handleTap);
         characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
-        modalCloseBtn.addEventListener('click', () => modal.style.display = 'none');
+        modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
         feedBtn.addEventListener('click', feed); battleBtn.addEventListener('click', startBattle);
         expeditionBtn.addEventListener('click', () => showScreen('expedition-screen'));
         attackBtn.addEventListener('click', playerAttack);
@@ -775,18 +825,18 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; }
                 ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
                 ascendBtn.onclick = ascend; ingameMenuContent.insertBefore(ascendBtn, returnToGameBtn);
             } else if (gameState.level < ASCENSION_LEVEL && ascendBtn) { ascendBtn.remove(); }
-            ingameMenuModal.style.display = 'flex';
+            ingameMenuModal.classList.add('visible');
         });
-        returnToGameBtn.addEventListener('click', () => { ingameMenuModal.style.display = 'none'; });
+        returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
         saveGameBtn.addEventListener('click', () => { saveGame(); showNotification("Game Saved", "Your progress is safe."); });
         optionsBtn.addEventListener('click', () => { alert('Options not yet implemented! (Ascension Perks coming soon!)'); });
-        quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.style.display = 'none'; showScreen('main-menu-screen'); });
-        inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.style.display = 'flex'; });
-        closeInventoryBtn.addEventListener('click', () => { inventoryModal.style.display = 'none'; });
+        quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
+        inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.classList.add('visible'); });
+        closeInventoryBtn.addEventListener('click', () => { inventoryModal.classList.remove('visible'); });
         leaderboardBtn.addEventListener('click', showLeaderboard);
-        closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.style.display = 'none'; });
-        achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.style.display = 'flex'; });
-        closeAchievementsBtn.addEventListener('click', () => { achievementsModal.style.display = 'none'; });
+        closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.classList.remove('visible'); });
+        achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.classList.add('visible'); });
+        closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
         document.querySelectorAll('.expedition-choice-btn').forEach(btn => { btn.addEventListener('click', (e) => startExpedition(parseInt(e.target.dataset.duration))); });
         init();
     });
