@@ -18,7 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let audioCtx = null;
     let buffInterval = null;
     let lightningInterval = null;
-    let battleState = { isActive: false, currentWave: 0, totalWaves: 5, playerHp: 0, enemy: null, totalXp: 0, totalGold: 0, totalDamage: 0 };
+    
+    let battleState = {
+        isActive: false, currentWave: 0, totalWaves: 5, playerHp: 0, enemy: null,
+        totalXp: 0, totalGold: 0, totalDamage: 0
+    };
+
     let availableExpeditions = [];
     let forgeSlots = [null, null];
     let partnerTimerInterval = null;
@@ -33,7 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
         inventory: [], hasEgg: false, partner: null,
         expedition: { active: false, returnTime: 0 },
         ascension: { tier: 1, points: 0, perks: {} },
-        permanentUpgrades: {}, activeBuffs: {},
+        permanentUpgrades: {},
+        activeBuffs: {},
         achievements: {
             tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 50 } },
             level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'uncommon' } },
@@ -63,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const xpBarLabel = document.querySelector('#xp-bar .stat-bar-label');
     const coreStatsDisplay = document.getElementById('core-stats-display');
     const goldDisplay = document.getElementById('gold-display');
+    const buffDisplay = document.getElementById('buff-display');
     const worldTierDisplay = document.getElementById('world-tier-display');
     const startGameBtn = document.getElementById('start-game-btn');
     const feedBtn = document.getElementById('feed-btn');
@@ -109,6 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryModal = document.getElementById('inventory-modal');
     const inventoryList = document.getElementById('inventory-list');
     const closeInventoryBtn = document.getElementById('close-inventory-btn');
+    const forgeModal = document.getElementById('forge-modal');
+    const forgeSlot1Div = document.getElementById('forge-slot-1');
+    const forgeSlot2Div = document.getElementById('forge-slot-2');
+    const forgeResultSlotDiv = document.getElementById('forge-result-slot');
     const expeditionTimerDisplay = document.getElementById('expedition-timer-display');
     const windAnimationContainer = document.getElementById('wind-animation-container');
     const frenzyDisplay = document.getElementById('frenzy-display');
@@ -142,7 +153,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const sfxVolumeSlider = document.getElementById('sfx-volume-slider');
     const autoBattleCheckbox = document.getElementById('auto-battle-checkbox');
 
-    // --- UTILITY FUNCTIONS ---
+    function initMusic() { if (musicManager.isInitialized) return; musicManager.isInitialized = true; playMusic('main'); }
+    function playMusic(trackName) {
+        if (!musicManager.isInitialized || !musicManager.audio[trackName]) return;
+        if (gameState.settings && gameState.settings.isMuted) return;
+
+        const oldTrackName = musicManager.currentTrack;
+        if (oldTrackName && musicManager.audio[oldTrackName]) { musicManager.audio[oldTrackName].pause(); musicManager.audio[oldTrackName].currentTime = 0; }
+        if (oldTrackName === trackName) { if (musicManager.audio[trackName].paused) { musicManager.audio[trackName].play().catch(e => console.error("Music resume failed:", e)); } return; }
+        
+        const newTrack = musicManager.audio[trackName];
+        musicManager.currentTrack = trackName;
+        if (newTrack) { 
+            newTrack.volume = (gameState.settings) ? gameState.settings.musicVolume : 0.5;
+            newTrack.play().catch(e => console.error(`Music play failed for ${trackName}:`, e)); 
+        }
+    }
+    function startBackgroundAssetLoading() {
+        for (const key in musicFileUrls) { if (musicFileUrls[key]) { const audio = new Audio(musicFileUrls[key]); audio.loop = true; audio.preload = 'auto'; musicManager.audio[key] = audio; } }
+    }
+    function createWindEffect() { for(let i=0; i<20; i++) { const streak = document.createElement('div'); streak.className = 'wind-streak'; streak.style.top = `${Math.random() * 100}%`; streak.style.width = `${Math.random() * 150 + 50}px`; streak.style.animationDuration = `${Math.random() * 3 + 2}s`; streak.style.animationDelay = `${Math.random() * 5}s`; windAnimationContainer.appendChild(streak); } }
+    function createStarfield() { const container = document.getElementById('background-stars'); for(let i=0; i<100; i++) { const star = document.createElement('div'); star.className = 'star'; const size = Math.random() * 2 + 1; star.style.width = `${size}px`; star.style.height = `${size}px`; star.style.top = `${Math.random() * 100}%`; star.style.left = `${Math.random() * 100}%`; star.style.animationDuration = `${Math.random() * 50 + 25}s`; star.style.animationDelay = `${Math.random() * 50}s`; container.appendChild(star); } }
+
     function showScreen(screenId) { 
         screens.forEach(s => s.classList.remove('active')); 
         const screenToShow = document.getElementById(screenId);
@@ -154,27 +186,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
-    function showToast(message) { const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; toastContainer.appendChild(toast); setTimeout(() => { toast.remove(); }, 4000); }
-    function createWindEffect() { for(let i=0; i<20; i++) { const streak = document.createElement('div'); streak.className = 'wind-streak'; streak.style.top = `${Math.random() * 100}%`; streak.style.width = `${Math.random() * 150 + 50}px`; streak.style.animationDuration = `${Math.random() * 3 + 2}s`; streak.style.animationDelay = `${Math.random() * 5}s`; windAnimationContainer.appendChild(streak); } }
-    function createStarfield() { const container = document.getElementById('background-stars'); for(let i=0; i<100; i++) { const star = document.createElement('div'); star.className = 'star'; const size = Math.random() * 2 + 1; star.style.width = `${size}px`; star.style.height = `${size}px`; star.style.top = `${Math.random() * 100}%`; star.style.left = `${Math.random() * 100}%`; star.style.animationDuration = `${Math.random() * 50 + 25}s`; star.style.animationDelay = `${Math.random() * 50}s`; container.appendChild(star); } }
-    function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
-        if (!audioCtx || (gameState.settings && gameState.settings.isMuted)) return;
-        const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.type = wave;
-        oscillator.frequency.setValueAtTime(startFreq, audioCtx.currentTime); oscillator.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + duration);
-        const finalVolume = (gameState.settings ? gameState.settings.sfxVolume : 1.0) * volume;
-        gainNode.gain.setValueAtTime(finalVolume, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-        oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.start(); oscillator.stop(audioCtx.currentTime + duration);
-    }
-
-    // --- GAME LOGIC FUNCTIONS ---
     function init() { 
-        startBackgroundAssetLoading();
-        createWindEffect();
-        createStarfield();
+        createWindEffect(); createStarfield(); startBackgroundAssetLoading();
         auth.onAuthStateChanged(user => {
             updateAuthUI(user);
-            if (user) { loadGame(); }
+            if (user) {
+                loadGame(); 
+            }
         });
         setTimeout(() => { 
             const loadingScreen = document.getElementById('loading-screen');
@@ -337,6 +355,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showNotification("LEVEL UP!", `${character.name} is now Level ${character.level}!`); saveGame();
     }
 
+    function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
+
     function handleTap(event) {
         if (gameState.expedition && gameState.expedition.active) return;
         initAudio();
@@ -424,11 +444,23 @@ document.addEventListener('DOMContentLoaded', () => {
         gainNode.gain.setValueAtTime(finalVolume, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
         oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.start(); oscillator.stop(audioCtx.currentTime + duration);
     }
-    
+
+    function createDamageNumber(amount, isCrit, isPlayerSource) {
+        const num = document.createElement('div'); num.textContent = amount; num.className = 'damage-text';
+        if (isPlayerSource) num.classList.add('player-damage'); else num.classList.add('enemy-damage');
+        if (isCrit) num.classList.add('crit'); document.getElementById('battle-arena').appendChild(num);
+        setTimeout(() => { num.style.transform = 'translateY(-80px)'; num.style.opacity = '0'; }, 10);
+        setTimeout(() => { num.remove(); }, 800);
+    }
+
     function unlockAchievement(id) {
-        if (!gameState.achievements[id] || gameState.achievements[id].unlocked) return;
+        const allAchievements = defaultState.achievements;
+        if (!allAchievements[id] || (gameState.achievements[id] && gameState.achievements[id].unlocked)) return;
+        
+        gameState.achievements[id] = gameState.achievements[id] || {};
         gameState.achievements[id].unlocked = true;
-        const ach = achievements[id];
+        
+        const ach = allAchievements[id];
         let rewardText = "";
         if (ach.reward) {
             switch (ach.reward.type) {
@@ -447,6 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
         playSound('levelUp', 0.7, 'triangle', 880, 1200, 0.3);
         updateUI();
     }
+
     function checkAllAchievements() {
         if (!gameState.counters) return;
         const counters = gameState.counters;
@@ -638,14 +671,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- EVENT LISTENERS ---
     startGameBtn.addEventListener('click', startGame);
     loadGameBtn.addEventListener('click', loadGame);
-    characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
+    characterSprite.addEventListener('click', (e) => handleTap(e)); 
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
     battleBtn.addEventListener('click', startBattle);
     attackBtn.addEventListener('click', handlePlayerAttack);
     fleeBtn.addEventListener('click', () => endBattle(false));
-    expeditionBtn.addEventListener('click', () => { /* Add expedition logic if needed */ }); 
-    shopBtn.addEventListener('click', () => { /* Add shop logic if needed */ });
     ingameMenuBtn.addEventListener('click', () => {
         const ascendBtn = document.getElementById('ascension-btn');
         if (ascendBtn) {
@@ -657,15 +688,10 @@ document.addEventListener('DOMContentLoaded', () => {
     saveGameBtn.addEventListener('click', () => saveGame(true));
     optionsBtn.addEventListener('click', () => { updateSettingsUI(); optionsModal.classList.add('visible'); });
     quitToTitleBtn.addEventListener('click', () => { showScreen('main-menu-screen'); });
-    inventoryBtn.addEventListener('click', () => { /* Add inventory logic if needed */ });
-    leaderboardBtn.addEventListener('click', () => showLeaderboard('level'));
-    leaderboardTabs.forEach(tab => tab.addEventListener('click', () => showLeaderboard(tab.dataset.type)) );
-    closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.classList.remove('visible'); });
     achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.classList.add('visible'); });
     closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
     ascensionBtn.addEventListener('click', () => { updatePerksUI(); ascensionModal.classList.add('visible'); });
     closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
-    
     closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
     googleSigninBtn.addEventListener('click', () => {
         if(auth.currentUser) { signOut(); }
