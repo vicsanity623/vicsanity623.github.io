@@ -321,13 +321,14 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     opacity: 0; animation: lightning-flash-anim 0.2s ease-out;
     pointer-events: none; z-index: 150;
 }
-#perks-container, #shop-consumables-container, #shop-upgrades-container, #expedition-list-container { margin-top: 10px; max-height: 60vh; overflow-y: auto; text-align: left; }
+#perks-container, #shop-consumables-container, #shop-upgrades-container, #expedition-list-container, .menu-section { margin-top: 10px; text-align: left; }
 .perk-item, .shop-item, .expedition-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #444; }
 .perk-info, .shop-info, .expedition-info { flex-grow: 1; }
 .perk-info strong, .shop-info strong, .expedition-info strong { color: var(--xp-color); }
 .perk-info .perk-desc, .shop-info .shop-desc, .expedition-info .expedition-desc { font-size: 0.75em; opacity: 0.8; }
 .perk-level { font-size: 0.8em; margin-right: 15px; }
 .perk-item button, .shop-item button, .expedition-item button { padding: 8px 12px; font-size: 0.7em; margin: 0; flex-shrink: 0; }
+.menu-section > button { width: 100%; text-align: center; }
 </style>
 </head>
 <body>
@@ -342,7 +343,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     <div id="battle-screen" class="screen"><h2>The Gauntlet!</h2><div id="gauntlet-wave-display">Wave: 1/5</div><div id="battle-arena"><div class="battle-character"><h3 id="battle-player-name">Guardian</h3><img src="player.PNG"><div id="battle-player-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div><div class="battle-character"><h3 id="battle-npc-name">Goblin</h3><img src="player.PNG" style="filter: hue-rotate(180deg);"><div id="battle-npc-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div></div><div id="battle-log"></div><div id="battle-actions"><button id="attack-btn">Attack</button><button id="gauntlet-action-btn">Flee</button></div></div>
     <div id="expedition-screen" class="screen"><h2>Available Expeditions</h2><div id="expedition-list-container"></div><button id="expedition-cancel-btn">Back</button></div>
     <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
-    <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><button id="ascension-btn">Ascension</button><button id="leaderboard-btn">Leaderboard</button><button id="achievements-btn">Achievements</button><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button><button id="return-to-game-btn">Return to Game</button></div></div>
+    <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><div id="progression-menu-section" class="menu-section"><h3 class="modal-subtitle">Progression</h3><button id="ascension-btn">Ascension</button><button id="achievements-btn">Achievements</button></div><div id="community-menu-section" class="menu-section"><h3 class="modal-subtitle">Community</h3><button id="leaderboard-btn">Leaderboard</button></div><div id="system-menu-section" class="menu-section"><h3 class="modal-subtitle">System</h3><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button></div><button id="return-to-game-btn">Return to Game</button></div></div>
     <div id="inventory-modal" class="modal"><div class="modal-content"><h2>Inventory</h2><div id="weapon-slot" class="inventory-slot">Weapon: None</div><div id="armor-slot" class="inventory-slot">Armor: None</div><button id="close-inventory-btn">Close</button></div></div>
     <div id="leaderboard-modal" class="modal"><div class="modal-content"><h2>Leaderboard</h2><ul id="leaderboard-list"><li>Loading...</li></ul><button id="close-leaderboard-btn">Close</button></div></div>
     <div id="achievements-modal" class="modal"><div class="modal-content"><h2>Achievements</h2><ul id="achievements-list"></ul><button id="close-achievements-btn">Close</button></div></div>
