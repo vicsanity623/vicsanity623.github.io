@@ -11,7 +11,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.2; // New version to trigger migration for the Forge
+    const GAME_VERSION = 1.3;
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
@@ -36,11 +36,21 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const key in musicFileUrls) { if (musicFileUrls[key]) { const audio = new Audio(musicFileUrls[key]); audio.loop = true; audio.preload = 'auto'; musicManager.audio[key] = audio; } }
     }
     const achievements = {
-        tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false }, tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false },
-        tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false }, level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false },
-        level25: { name: "Seasoned Guardian", desc: "Reach level 25.", target: 25, unlocked: false }, level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false },
-        defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false }, defeat50: { name: "Monster Hunter", desc: "Defeat 50 enemies.", target: 50, unlocked: false },
-        ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false }
+        tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 50 } },
+        tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 250 } },
+        tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false, reward: { type: 'gold', amount: 1000 } },
+        level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'uncommon' } },
+        level25: { name: "Seasoned Guardian", desc: "Reach level 25.", target: 25, unlocked: false, reward: { type: 'item', rarity: 'rare' } },
+        level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false, reward: { type: 'gold', amount: 5000 } },
+        defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100 } },
+        defeat100: { name: "Monster Hunter", desc: "Defeat 100 enemies.", target: 100, unlocked: false, reward: { type: 'gold', amount: 500 } },
+        defeat500: { name: "Legendary Hunter", desc: "Defeat 500 enemies.", target: 500, unlocked: false, reward: { type: 'item', rarity: 'epic' } },
+        ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'gold', amount: 1000 } },
+        ascend5: { name: "World Walker", desc: "Reach Ascension Tier 5.", target: 5, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
+        gauntlet1: { name: "Gauntlet Runner", desc: "Complete the Gauntlet once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000 } },
+        forge1: { name: "Apprentice Blacksmith", desc: "Forge an item once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 750 } },
+        findLegendary: { name: "A Glimmer of Power", desc: "Find your first Legendary item.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2500 } },
+        masterGuardian: { name: "Master Guardian", desc: "Reach Ascension Tier 5 and Level 50.", target: 1, unlocked: false, reward: { type: 'egg' } }
     };
     const perks = {
         vigor: { name: "Guardian's Vigor", desc: "+10 Max HP & Energy per level.", maxLevel: 5, cost: [1, 1, 2, 2, 3] },
@@ -80,13 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
         stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
         resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
         equipment: { weapon: null, armor: null }, 
-        inventory: [],
+        inventory: [], hasEgg: false,
         expedition: { active: false, returnTime: 0 },
         ascension: { tier: 1, points: 0, perks: {} },
         permanentUpgrades: {},
         activeBuffs: {},
         achievements: JSON.parse(JSON.stringify(achievements)),
-        counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0 }
+        counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, gauntletsCompleted: 0, itemsForged: 0, legendariesFound: 0 }
     };
     const ASCENSION_LEVEL = 50;
     const GAUNTLET_UNLOCK_LEVEL = 10;
@@ -205,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!loadedState.version || loadedState.version < GAME_VERSION) {
             showScreen('update-screen');
             loadedState.version = GAME_VERSION;
-            if (!loadedState.equipment) loadedState.equipment = { weapon: null, armor: null };
+            loadedState.equipment = loadedState.equipment || { weapon: null, armor: null };
             if (!loadedState.inventory) { 
                 loadedState.inventory = [];
                 if (loadedState.equipment.weapon) loadedState.inventory.push(loadedState.equipment.weapon);
@@ -215,7 +225,9 @@ document.addEventListener('DOMContentLoaded', () => {
             loadedState.permanentUpgrades = loadedState.permanentUpgrades || {};
             loadedState.activeBuffs = loadedState.activeBuffs || {};
             loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
-            loadedState.counters = loadedState.counters || { taps: 0, enemiesDefeated: 0, ascensionCount: 0 };
+            const defaultCounters = { taps: 0, enemiesDefeated: 0, ascensionCount: 0, gauntletsCompleted: 0, itemsForged: 0, legendariesFound: 0 };
+            loadedState.counters = { ...defaultCounters, ...(loadedState.counters || {})};
+            loadedState.hasEgg = loadedState.hasEgg || false;
             
             return new Promise(resolve => setTimeout(() => resolve(loadedState), 1500));
         }
@@ -405,6 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const itemFindChance = 0.3 + (gameState.ascension.tier * 0.05);
             if (Math.random() < (itemFindChance * itemMod)) {
                 const foundItem = generateItem(); 
+                if (foundItem.rarity.key === 'legendary') gameState.counters.legendariesFound = (gameState.counters.legendariesFound || 0) + 1;
                 rewardText += `<br><br>Found: <strong style="color:${foundItem.rarity.color}">${foundItem.name}</strong>`;
                 gameState.inventory.push(foundItem);
                 const currentItem = gameState.equipment[foundItem.type];
@@ -528,6 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gauntletState.totalXp += currentNpc.xpReward; gauntletState.totalGold += finalGoldReward;
             addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
             if (gauntletState.currentWave >= gauntletState.totalWaves) {
+                gameState.counters.gauntletsCompleted = (gameState.counters.gauntletsCompleted || 0) + 1; checkAllAchievements();
                 playSound('victory', 1, 'triangle', 523, 1046, 0.4);
                 let bonusItem = generateItem();
                 let rewardText = `GAUNTLET COMPLETE!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
@@ -654,20 +668,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function unlockAchievement(id) {
         if (!gameState.achievements[id] || gameState.achievements[id].unlocked) return;
-        gameState.achievements[id].unlocked = true; showToast(`Achievement Unlocked: ${gameState.achievements[id].name}`);
+        gameState.achievements[id].unlocked = true;
+        const ach = achievements[id];
+        let rewardText = "";
+        if (ach.reward) {
+            switch (ach.reward.type) {
+                case 'gold':
+                    gameState.gold += ach.reward.amount;
+                    rewardText = ` (+${ach.reward.amount} Gold)`;
+                    break;
+                case 'item':
+                    const newItem = generateItem(ach.reward.rarity);
+                    gameState.inventory.push(newItem);
+                    rewardText = ` (+${newItem.name})`;
+                    break;
+                case 'egg':
+                    gameState.hasEgg = true;
+                    rewardText = ' (You found a Mysterious Egg!)';
+                    break;
+            }
+        }
+        showToast(`Achievement: ${ach.name}${rewardText}`);
         playSound('levelUp', 0.7, 'triangle', 880, 1200, 0.3);
+        updateUI();
     }
     function checkAllAchievements() {
         if (!gameState.counters) return;
-        if (gameState.counters.taps >= 100) unlockAchievement('tap100'); if (gameState.counters.taps >= 1000) unlockAchievement('tap1000');
-        if (gameState.counters.taps >= 10000) unlockAchievement('tap10000'); if (gameState.level >= 10) unlockAchievement('level10');
-        if (gameState.level >= 25) unlockAchievement('level25'); if (gameState.level >= 50) unlockAchievement('level50');
-        if (gameState.counters.enemiesDefeated >= 10) unlockAchievement('defeat10'); if (gameState.counters.enemiesDefeated >= 50) unlockAchievement('defeat50');
-        if (gameState.counters.ascensionCount >= 1) unlockAchievement('ascend1');
+        const counters = gameState.counters;
+        if (counters.taps >= 100) unlockAchievement('tap100');
+        if (counters.taps >= 1000) unlockAchievement('tap1000');
+        if (counters.taps >= 10000) unlockAchievement('tap10000');
+        if (gameState.level >= 10) unlockAchievement('level10');
+        if (gameState.level >= 25) unlockAchievement('level25');
+        if (gameState.level >= 50) unlockAchievement('level50');
+        if (counters.enemiesDefeated >= 10) unlockAchievement('defeat10');
+        if (counters.enemiesDefeated >= 100) unlockAchievement('defeat100');
+        if (counters.enemiesDefeated >= 500) unlockAchievement('defeat500');
+        if (counters.ascensionCount >= 1) unlockAchievement('ascend1');
+        if (counters.ascensionCount >= 5) unlockAchievement('ascend5');
+        if (counters.gauntletsCompleted >= 1) unlockAchievement('gauntlet1');
+        if (counters.itemsForged >= 1) unlockAchievement('forge1');
+        if (counters.legendariesFound >= 1) unlockAchievement('findLegendary');
+        if (gameState.ascension.tier >= 5 && gameState.level >= 50) unlockAchievement('masterGuardian');
     }
     function updateAchievementsUI() {
         achievementsList.innerHTML = '';
-        for (const id in gameState.achievements) { const ach = gameState.achievements[id]; const li = document.createElement('li'); if (ach.unlocked) li.classList.add('unlocked'); li.innerHTML = `<strong>${ach.name}</strong><div class="achievement-desc">${ach.desc}</div>`; achievementsList.appendChild(li); }
+        for (const id in achievements) {
+            const achData = achievements[id];
+            const achState = gameState.achievements[id] || { unlocked: false };
+            const li = document.createElement('li');
+            if (achState.unlocked) li.classList.add('unlocked');
+            
+            let rewardHtml = '';
+            if (achData.reward) {
+                let rewardDesc = '';
+                switch(achData.reward.type) {
+                    case 'gold': rewardDesc = `Reward: ${achData.reward.amount} Gold`; break;
+                    case 'item': rewardDesc = `Reward: A ${achData.reward.rarity} item`; break;
+                    case 'egg': rewardDesc = 'Reward: ???'; break;
+                }
+                rewardHtml = `<div class="achievement-reward">${rewardDesc}</div>`;
+            }
+
+            li.innerHTML = `<strong>${achData.name}</strong><div class="achievement-desc">${achData.desc}</div>${rewardHtml}`;
+            achievementsList.appendChild(li);
+        }
     }
     function updatePerksUI() {
         perksContainer.innerHTML = ''; ascensionPointsDisplay.textContent = gameState.ascension.points;
@@ -853,7 +918,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameState.equipment[item1.type] && (gameState.equipment[item1.type].name === item1.name || gameState.equipment[item1.type].name === item2.name)) {
             gameState.equipment[item1.type] = null;
         }
-
+        
+        gameState.counters.itemsForged = (gameState.counters.itemsForged || 0) + 1;
         forgeSlots = [null, null];
         updateForgeUI();
         showToast("Items successfully forged!");
