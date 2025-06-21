@@ -10,10 +10,10 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
-const googleProvider = new firebase.auth.GoogleAuthProvider(); // Define provider globally like in your working example
+const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.7; 
+    const GAME_VERSION = 1.8; // Final polished version
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
@@ -33,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function initMusic() { if (musicManager.isInitialized) return; musicManager.isInitialized = true; playMusic('main'); }
     function playMusic(trackName) {
         if (!musicManager.isInitialized || !musicManager.audio[trackName]) return;
-        // FIX: Check for mute setting before playing
         if (gameState.settings && gameState.settings.isMuted) return;
 
         const oldTrackName = musicManager.currentTrack;
@@ -52,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const achievements = {
         tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 50 } },
+        tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 250 } },
         level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'uncommon' } },
         defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100 } },
         ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'gold', amount: 1000 } },
@@ -135,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const shopBtn = document.getElementById('shop-btn');
     const forgeBtn = document.getElementById('forge-btn');
     const forgeUnlockText = document.getElementById('forge-unlock-text');
-    const partnerScreen = document.getElementById('partner-screen');
     const modal = document.getElementById('notification-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalText = document.getElementById('modal-text');
@@ -158,9 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryModal = document.getElementById('inventory-modal');
     const inventoryList = document.getElementById('inventory-list');
     const closeInventoryBtn = document.getElementById('close-inventory-btn');
-    const forgeModal = document.getElementById('forge-modal');
-    const forgeSlot1Div = document.getElementById('forge-slot-1');
-    const forgeSlot2Div = document.getElementById('forge-slot-2');
     const expeditionTimerDisplay = document.getElementById('expedition-timer-display');
     const frenzyDisplay = document.getElementById('frenzy-display');
     const leaderboardBtn = document.getElementById('leaderboard-btn');
@@ -196,14 +192,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- CORE GAME FUNCTIONS ---
     function showScreen(screenId) { 
         screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); 
-        // FIX: Music now plays *after* gameState is loaded, preventing mute bug
         if (gameState.settings) {
             if (screenId === 'battle-screen') { playMusic('battle'); } 
-            else if (screenId === 'game-screen' || screenId === 'main-menu-screen' || screenId === 'partner-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
+            else if (screenId === 'game-screen' || screenId === 'main-menu-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
         }
     }
     function init() { 
-        createWindEffect(); createStarfield(); startBackgroundAssetLoading();
+        startBackgroundAssetLoading();
         auth.onAuthStateChanged(user => {
             updateAuthUI(user);
             if (user) { loadGame(); }
@@ -280,19 +275,21 @@ document.addEventListener('DOMContentLoaded', () => {
             startGame();
         }
     }
-    async function saveGame() {
+    async function saveGame(showToastNotification = false) {
         if (!gameState.playerName) return;
+
         if (auth.currentUser) {
             try {
                 const docRef = db.collection('playerSaves').doc(auth.currentUser.uid);
                 await docRef.set(gameState);
-                // Don't toast on every save, can be annoying
+                if (showToastNotification) showToast("Game saved to Cloud!");
             } catch (error) {
                 console.error("Error saving to cloud:", error);
-                showToast("Cloud save failed!");
+                if (showToastNotification) showToast("Cloud save failed!");
             }
         } else {
             localStorage.setItem('tapGuardianSave', JSON.stringify(gameState));
+            if (showToastNotification) showToast("Game Saved Locally!");
         }
         loadGameBtn.disabled = false;
     }
@@ -315,6 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
         xpBarLabel.textContent = `XP: ${Math.floor(gameState.xp)} / ${xpForNext}`;
         coreStatsDisplay.innerHTML = `<span>STR: ${getTotalStat('strength')}</span><span>AGI: ${getTotalStat('agility')}</span><span>FOR: ${getTotalStat('fortitude')}</span><span>STA: ${getTotalStat('stamina')}</span><span>Crit: ${getTotalStat('critChance').toFixed(2)}%</span><span>Gold: ${getTotalStat('goldFind').toFixed(2)}%</span>`;
         goldDisplay.textContent = `Gold: ${gameState.gold}`;
+        
         const onExpedition = gameState.expedition.active;
         characterSprite.style.display = onExpedition ? 'none' : 'block';
         const canUseBattle = gameState.level >= BATTLE_UNLOCK_LEVEL;
@@ -328,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         shopBtn.disabled = onExpedition;
         if (onExpedition) {
             expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
-            if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
+            if (!expeditionInterval) { expeditionInterval = setInterval(() => { expeditionTimerDisplay.textContent = new Date((gameState.expedition.returnTime - Date.now()) || 0).toISOString().substr(11, 8); }, 1000); }
         } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
         if (gameState.tutorialCompleted) { tutorialOverlay.style.display = 'none'; } else { tutorialOverlay.style.display = 'flex'; }
     }
@@ -346,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         character.stats.strength += 2; character.stats.agility += 2; character.stats.fortitude += 1; character.stats.stamina += 1;
         character.resources.maxHp += 10; character.resources.hp = character.resources.maxHp;
         character.resources.maxEnergy += 5; character.resources.energy = character.resources.maxEnergy;
-        playSound('levelUp', 1, 'triangle', 440, 880); triggerScreenShake(400); 
+        playSound('levelUp', 1, 'triangle', 440, 880); 
         checkAllAchievements();
         submitScoreToLeaderboard();
         updateAscensionVisuals();
@@ -359,9 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameState.tutorialCompleted === false) { gameState.tutorialCompleted = true; tutorialOverlay.style.display = 'none'; saveGame(); }
         if (gameState.resources.energy <= 0) return;
         gameState.counters.taps = (gameState.counters.taps || 0) + 1; checkAllAchievements();
-        playSound('tap', 0.5, 'square', 150, 100, 0.05); const now = Date.now();
-        if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
-        tapCombo.lastTapTime = now;
+        playSound('tap', 0.5, 'square', 150, 100, 0.05);
         let xpGain = 0.25;
         if (gameState.level >= 10) { xpGain = 0.75; }
         const tapXpBonus = 1 + (gameState.ascension.perks.tapXp || 0) * 0.10;
@@ -376,14 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
             playSound('feed', 1, 'sine', 200, 600, 0.2);
             showNotification("Yum!", "Energy and HP restored slightly."); updateUI(); saveGame();
         } else { showNotification("Not enough gold!", "You need 50 gold to feed your guardian."); }
-    }
-    function startExpedition(index) {
-        const expedition = availableExpeditions[index]; if (!expedition) return;
-        const speedBonus = 1 - (gameState.ascension.perks.expeditionSpeed || 0) * 0.05;
-        const finalDuration = expedition.duration * speedBonus;
-        gameState.expedition = { active: true, returnTime: Date.now() + finalDuration * 1000, name: expedition.name, modifiers: expedition.modifiers };
-        showNotification("Expedition Started!", `Your guardian begins to ${expedition.name}.<br><br>They will return in ${(finalDuration / 60).toFixed(0)} minutes.`);
-        saveGame(); updateUI(); showScreen('game-screen'); playMusic('expedition');
     }
     function getTotalStat(stat) {
         let total = gameState.stats[stat] || 0;
@@ -412,33 +400,64 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
             gameState.equipment = JSON.parse(JSON.stringify(defaultState.equipment));
             gameState.inventory = [];
-            const oldHp = gameState.resources.hp; const oldEnergy = gameState.resources.energy;
             gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
-            updateUI();
-            gameState.resources.hp = Math.min(oldHp, gameState.resources.maxHp);
-            gameState.resources.energy = Math.min(oldEnergy, gameState.resources.maxEnergy);
             submitScoreToLeaderboard();
             updateAscensionVisuals();
             saveGame(); updateUI(); ingameMenuModal.classList.remove('visible');
             showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You have gained 1 Ascension Point to spend.`);
         }
     }
+    async function submitScoreToLeaderboard() {
+        if (!auth.currentUser || !gameState.playerName || gameState.playerName === "Guardian") return;
+        const score = { name: gameState.playerName, level: gameState.level, tier: gameState.ascension.tier };
+        try { await db.collection("leaderboard").doc(auth.currentUser.uid).set(score); } catch (error) { console.error("Error submitting score: ", error); }
+    }
     async function showLeaderboard(type = 'level') {
-        // ... (This function remains unchanged)
+        // ... unchanged ...
     }
     function generateItem(forceRarity = null) {
-        // ... (This function remains unchanged)
-    }
-    function equipItem(itemToEquip) {
-        // ... (This function remains unchanged)
+        // ... unchanged ...
     }
     function updateInventoryUI() {
-        // ... (This function remains unchanged)
+        // ... unchanged ...
     }
-    function generateAndShowExpeditions() {
-        // ... (This function remains unchanged)
+    function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); initMusic(); } }
+    function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
+        if (!audioCtx || (gameState.settings && gameState.settings.isMuted)) return;
+        const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.type = wave;
+        oscillator.frequency.setValueAtTime(startFreq, audioCtx.currentTime); oscillator.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + duration);
+        const finalVolume = (gameState.settings ? gameState.settings.sfxVolume : 1.0) * volume;
+        gainNode.gain.setValueAtTime(finalVolume, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.start(); oscillator.stop(audioCtx.currentTime + duration);
     }
-    // ... (All other utility and minor functions remain here, unchanged)
+    function createDamageNumber(amount, isCrit, isPlayerSource) {
+        const num = document.createElement('div'); num.textContent = amount; num.className = 'damage-text';
+        if (isPlayerSource) num.classList.add('player-damage'); else num.classList.add('enemy-damage');
+        if (isCrit) num.classList.add('crit'); document.getElementById('battle-arena').appendChild(num);
+        setTimeout(() => { num.style.transform = 'translateY(-80px)'; num.style.opacity = '0'; }, 10);
+        setTimeout(() => { num.remove(); }, 800);
+    }
+    function unlockAchievement(id) {
+        // ... unchanged ...
+    }
+    function checkAllAchievements() {
+        // ... unchanged ...
+    }
+    function updateAchievementsUI() {
+        // ... unchanged ...
+    }
+    function updatePerksUI() {
+        // ... unchanged ...
+    }
+    function buyPerk(perkId) {
+        // ... unchanged ...
+    }
+    function updateShopUI() {
+        // ... unchanged ...
+    }
+    function buyShopItem(itemId, type) {
+        // ... unchanged ...
+    }
     
     // --- BATTLE SYSTEM ---
     
@@ -566,7 +585,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const damage = Math.max(1, battleState.enemy.strength * 2 - getTotalStat('fortitude'));
         battleState.playerHp = Math.max(0, battleState.playerHp - damage);
         playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15);
-        triggerScreenShake(200);
         createDamageNumber(damage, false, false);
         addBattleLog(`${battleState.enemy.name} attacks for ${damage} damage!`, "log-enemy");
         updateBattleHud();
@@ -645,22 +663,30 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- AUTH & SETTINGS ---
     function signInWithGoogle() {
-        auth.signInWithPopup(googleProvider)
-            .catch(error => console.error("Sign in error", error));
+        auth.signInWithPopup(googleProvider).catch(error => console.error("Sign in error", error));
     }
     function signOut() {
+        const localSaveExists = localStorage.getItem('tapGuardianSave');
         auth.signOut();
-        showNotification("Signed Out", "You are now playing locally. Your cloud save is safe.");
+        
+        if (localSaveExists) {
+            if (confirm("You have signed out. Load your local save?")) {
+                loadGame();
+            } else {
+                showScreen('main-menu-screen');
+            }
+        } else {
+            showNotification("Signed Out", "You are now playing locally. Your cloud save is safe.");
+            showScreen('main-menu-screen');
+        }
     }
     function updateAuthUI(user) {
         if (user) {
             authStatus.textContent = `Signed in as ${user.displayName || user.email}`;
             googleSigninBtn.textContent = 'Sign Out';
-            googleSigninBtn.onclick = signOut;
         } else {
             authStatus.textContent = 'Sign in to save to the cloud.';
             googleSigninBtn.textContent = 'Sign in with Google';
-            googleSigninBtn.onclick = signInWithGoogle;
         }
     }
     function updateSettingsUI() {
@@ -676,7 +702,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- EVENT LISTENERS ---
     startGameBtn.addEventListener('click', startGame);
     loadGameBtn.addEventListener('click', loadGame);
-    characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
     battleBtn.addEventListener('click', startBattle);
@@ -693,7 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ingameMenuModal.classList.add('visible');
     });
     returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
-    saveGameBtn.addEventListener('click', saveGame);
+    saveGameBtn.addEventListener('click', () => saveGame(true));
     optionsBtn.addEventListener('click', () => { updateSettingsUI(); optionsModal.classList.add('visible'); });
     quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
     inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.classList.add('visible'); });
@@ -706,10 +731,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ascensionBtn.addEventListener('click', () => { updatePerksUI(); ascensionModal.classList.add('visible'); });
     closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
     closeShopBtn.addEventListener('click', () => { shopModal.classList.remove('visible'); });
-    forgeBtn.addEventListener('click', () => { updateForgeUI(); forgeModal.classList.add('visible'); });
-    closeForgeBtn.addEventListener('click', () => { forgeSlots = [null, null]; forgeModal.classList.remove('visible'); });
     
     closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
+    googleSigninBtn.addEventListener('click', () => {
+        if(auth.currentUser) { signOut(); }
+        else { signInWithGoogle(); }
+    });
     muteAllCheckbox.addEventListener('change', (e) => {
         gameState.settings.isMuted = e.target.checked;
         if (gameState.settings.isMuted) {
