@@ -27,12 +27,9 @@ crossorigin="anonymous"></script>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
     width: 100%; height: 100dvh; font-family: 'Press Start 2P', cursive;
-    /* --- Z-INDEX FIX HERE --- */
-    /* The main body background needs a z-index so the stars/wind can appear over it but under the content */
     background: radial-gradient(ellipse at center, #2c3e50 0%, #1a1a1a 100%);
     position: relative;
     z-index: -2;
-    /* --- END FIX --- */
     color: var(--text-color); overflow: hidden;
 }
 .screen {
@@ -130,7 +127,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     background-color: var(--secondary-bg); padding: 30px; border: 2px solid var(--accent-color);
     max-width: 90%; width: 500px; text-align: center;
     transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-    overflow-y: auto; max-height: 90vh; /* Added for scrollability on small screens */
+    overflow-y: auto; max-height: 90vh;
 }
 .modal.visible .modal-content { transform: scale(1); }
 #expedition-timer-display, #egg-timer-display {
@@ -348,7 +345,6 @@ input[type="range"] { flex-grow: 1; }
         <h1>Tap Guardian</h1>
         <button id="start-game-btn">Start New Game</button>
         <button id="load-game-btn">Load Game</button>
-        <!-- Options button is now in the in-game menu -->
     </div>
     
     <div id="game-screen" class="screen">
