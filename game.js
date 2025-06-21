@@ -11,6 +11,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 document.addEventListener('DOMContentLoaded', () => {
+    const GAME_VERSION = 1.0;
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
@@ -73,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     const defaultState = {
+        version: GAME_VERSION,
         playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0,
         stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
         resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
@@ -84,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0 }
     };
     const ASCENSION_LEVEL = 50;
+    const GAUNTLET_UNLOCK_LEVEL = 10;
     let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
     let expeditionInterval = null;
     const screens = document.querySelectorAll('.screen');
@@ -105,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startGameBtn = document.getElementById('start-game-btn');
     const feedBtn = document.getElementById('feed-btn');
     const battleBtn = document.getElementById('battle-btn');
+    const gauntletUnlockText = document.getElementById('gauntlet-unlock-text');
     const expeditionBtn = document.getElementById('expedition-btn');
     const shopBtn = document.getElementById('shop-btn');
     const modal = document.getElementById('notification-modal');
@@ -185,21 +189,27 @@ document.addEventListener('DOMContentLoaded', () => {
         checkExpeditionStatus(); updateUI(); updateAscensionVisuals(); saveGame(); showScreen('game-screen');
     }
 
-    function loadGame() {
+    function migrateSaveData(loadedState) {
+        if (!loadedState.version || loadedState.version < GAME_VERSION) {
+            showScreen('update-screen');
+            loadedState.version = GAME_VERSION;
+            loadedState.equipment = loadedState.equipment || { weapon: null, armor: null };
+            loadedState.permanentUpgrades = loadedState.permanentUpgrades || {};
+            loadedState.activeBuffs = loadedState.activeBuffs || {};
+            loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
+            loadedState.counters = loadedState.counters || { taps: 0, enemiesDefeated: 0, ascensionCount: 0 };
+            return new Promise(resolve => setTimeout(() => resolve(loadedState), 1500));
+        }
+        return Promise.resolve(loadedState);
+    }
+    
+    async function loadGame() {
         initAudio();
         const savedData = localStorage.getItem('tapGuardianSave');
         if (savedData) {
             let loadedState = JSON.parse(savedData);
+            loadedState = await migrateSaveData(loadedState);
             gameState = {...defaultState, ...loadedState};
-            gameState.stats = {...defaultState.stats, ...loadedState.stats};
-            gameState.resources = {...defaultState.resources, ...loadedState.resources};
-            gameState.ascension = {...defaultState.ascension, ...loadedState.ascension};
-            gameState.equipment = {...defaultState.equipment, ...(loadedState.equipment || {})};
-            gameState.activeBuffs = loadedState.activeBuffs || {};
-            gameState.permanentUpgrades = loadedState.permanentUpgrades || {};
-            gameState.achievements = {...JSON.parse(JSON.stringify(achievements)), ...(loadedState.achievements || {})};
-            gameState.counters = {...defaultState.counters, ...(loadedState.counters || {})};
-            gameState.tutorialCompleted = loadedState.tutorialCompleted === true;
             const lastLogin = localStorage.getItem('tapGuardianLastLogin');
             const today = new Date().toDateString();
             if (lastLogin !== today) {
@@ -209,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             localStorage.setItem('tapGuardianLastLogin', today);
             checkExpeditionStatus(); updateUI(); updateAscensionVisuals(); showScreen('game-screen');
+            saveGame();
         } else { showNotification("No Save Data Found!", "Starting a new game instead."); startGame(); }
     }
     function saveGame() { localStorage.setItem('tapGuardianSave', JSON.stringify(gameState)); loadGameBtn.disabled = false; }
@@ -252,11 +263,24 @@ document.addEventListener('DOMContentLoaded', () => {
         characterSprite.style.display = onExpedition ? 'none' : 'block';
         expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
         windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
+
+        if (gameState.level < GAUNTLET_UNLOCK_LEVEL) {
+            battleBtn.disabled = true;
+            gauntletUnlockText.textContent = `Unlocks at LVL ${GAUNTLET_UNLOCK_LEVEL}`;
+        } else {
+            battleBtn.disabled = onExpedition;
+            gauntletUnlockText.textContent = "";
+        }
+
+        feedBtn.disabled = onExpedition; 
+        inventoryBtn.disabled = onExpedition; 
+        shopBtn.disabled = onExpedition;
+
         if (onExpedition) {
             expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
             if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
         } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
-        feedBtn.disabled = onExpedition; battleBtn.disabled = onExpedition; inventoryBtn.disabled = onExpedition; shopBtn.disabled = onExpedition;
+        
         if (gameState.tutorialCompleted) { tutorialOverlay.classList.remove('visible'); } else { tutorialOverlay.classList.add('visible'); }
     }
     function addXP(amount) { if (gameState.expedition.active) return;
@@ -375,17 +399,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function getTotalStat(stat) {
         let total = gameState.stats[stat] || 0;
+        if(gameState.permanentUpgrades) {
+            for (const upgradeId in gameState.permanentUpgrades) {
+                const upgradeData = permanentShopUpgrades[upgradeId];
+                if (upgradeData && upgradeData.stat === stat) {
+                    total += (gameState.permanentUpgrades[upgradeId] || 0) * upgradeData.bonus;
+                }
+            }
+        }
         for (const slot in gameState.equipment) {
             const item = gameState.equipment[slot];
             if (item && item.stats && item.stats[stat]) { total += item.stats[stat]; }
         }
-        for (const upgradeId in gameState.permanentUpgrades) {
-            const upgradeData = permanentShopUpgrades[upgradeId];
-            if (upgradeData && upgradeData.stat === stat) {
-                total += (gameState.permanentUpgrades[upgradeId] || 0) * upgradeData.bonus;
-            }
-        }
-        if (stat === 'goldFind') { total += (gameState.ascension.perks.goldBoost || 0) * 5; }
+        if (stat === 'goldFind' && gameState.ascension.perks) { total += (gameState.ascension.perks.goldBoost || 0) * 5; }
         return total;
     }
     function ascend() {
