@@ -11,7 +11,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.1; // New version to trigger migration
+    const GAME_VERSION = 1.2; // New version to trigger migration for the Forge
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
@@ -206,14 +206,12 @@ document.addEventListener('DOMContentLoaded', () => {
             showScreen('update-screen');
             loadedState.version = GAME_VERSION;
             if (!loadedState.equipment) loadedState.equipment = { weapon: null, armor: null };
-            if (!loadedState.inventory) loadedState.inventory = [];
-            if (loadedState.equipment.weapon && !loadedState.inventory.some(i => i.name === loadedState.equipment.weapon.name)) {
-                loadedState.inventory.push(loadedState.equipment.weapon);
+            if (!loadedState.inventory) { 
+                loadedState.inventory = [];
+                if (loadedState.equipment.weapon) loadedState.inventory.push(loadedState.equipment.weapon);
+                if (loadedState.equipment.armor) loadedState.inventory.push(loadedState.equipment.armor);
             }
-            if (loadedState.equipment.armor && !loadedState.inventory.some(i => i.name === loadedState.equipment.armor.name)) {
-                loadedState.inventory.push(loadedState.equipment.armor);
-            }
-            loadedState.inventory.forEach(item => { if (item.reforgeCount === undefined) item.reforgeCount = 0; });
+            loadedState.inventory.forEach(item => { if (item && item.reforgeCount === undefined) item.reforgeCount = 0; });
             loadedState.permanentUpgrades = loadedState.permanentUpgrades || {};
             loadedState.activeBuffs = loadedState.activeBuffs || {};
             loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
@@ -223,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return Promise.resolve(loadedState);
     }
-
+    
     async function loadGame() {
         initAudio();
         const savedData = localStorage.getItem('tapGuardianSave');
@@ -579,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: rarity.color }, stats: stats, power: power, reforgeCount: 0 };
     }
     function equipItem(itemToEquip) {
-        const itemIndex = gameState.inventory.findIndex(i => i.name === itemToEquip.name);
+        const itemIndex = gameState.inventory.findIndex(i => i && i.name === itemToEquip.name);
         if (itemIndex === -1) return;
         gameState.equipment[itemToEquip.type] = itemToEquip;
         updateUI(); saveGame();
@@ -590,34 +588,23 @@ document.addEventListener('DOMContentLoaded', () => {
             inventoryList.innerHTML = '<p>Your inventory is empty.</p>';
             return;
         }
-
-        const sortedInventory = [...gameState.inventory].sort((a,b) => b.power - a.power);
-
-        sortedInventory.forEach((item, index) => {
+        const sortedInventory = [...gameState.inventory].filter(i => i).sort((a,b) => b.power - a.power);
+        sortedInventory.forEach((item) => {
             const itemEl = document.createElement('div');
             itemEl.className = 'inventory-item';
-            
             let statsHtml = '';
             for (const stat in item.stats) {
                 const value = item.stats[stat];
                 const suffix = (stat === 'critChance' || stat === 'goldFind') ? '%' : '';
                 statsHtml += `<span>+${value}${suffix} ${stat}</span><br>`;
             }
-
             const infoDiv = document.createElement('div');
             infoDiv.className = 'inventory-item-info';
-            infoDiv.innerHTML = `<strong style="color:${item.rarity.color}">${item.name}</strong><div class="item-stats">${statsHtml}</div>`;
-            
+            infoDiv.innerHTML = `<strong style="color:${item.rarity.color}">${item.name}</strong><div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount}/3</div>`;
             const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
             const button = document.createElement('button');
-            if (isEquipped) {
-                button.textContent = 'Equipped';
-                button.disabled = true;
-            } else {
-                button.textContent = 'Equip';
-                button.onclick = (e) => { e.stopPropagation(); equipItem(item); inventoryModal.classList.remove('visible'); };
-            }
-
+            if (isEquipped) { button.textContent = 'Equipped'; button.disabled = true; } 
+            else { button.textContent = 'Equip'; button.onclick = (e) => { e.stopPropagation(); equipItem(item); inventoryModal.classList.remove('visible'); }; }
             itemEl.appendChild(infoDiv);
             itemEl.appendChild(button);
             itemEl.onclick = () => selectItemForForge(item);
@@ -632,7 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const modKeys = Object.keys(expeditionData.modifiers);
             const modKey = modKeys[Math.floor(Math.random() * modKeys.length)];
             const modifier = expeditionData.modifiers[modKey];
-            const duration = (Math.floor(Math.random() * 10) + 20) * 60; // 20-29 minutes
+            const duration = (Math.floor(Math.random() * 10) + 20) * 60;
             const expedition = { name: `${action} ${location}`, description: modifier.description, duration: duration, modifiers: { goldMod: modifier.goldMod, itemMod: modifier.itemMod, xpMod: modifier.xpMod }, index: i };
             availableExpeditions.push(expedition);
             const itemEl = document.createElement('div'); itemEl.className = 'expedition-item';
@@ -778,10 +765,8 @@ document.addEventListener('DOMContentLoaded', () => {
         gameScreen.classList.remove('background-glitch');
         if (lightningInterval) clearInterval(lightningInterval);
         lightningInterval = null;
-
         const tier = gameState.ascension.tier;
         let newAnimation = 'idle-breathe 4s ease-in-out infinite';
-
         if (tier >= 5) {
             characterSprite.classList.add('aura-ascended');
             gameScreen.classList.add('background-glitch');
@@ -794,12 +779,87 @@ document.addEventListener('DOMContentLoaded', () => {
             characterSprite.classList.add('aura-level-10');
             newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite';
         }
-        
-        if(characterSprite.classList.contains('frenzy')){
-            newAnimation += ', frenzy-glow 1s infinite';
-        }
+        if(characterSprite.classList.contains('frenzy')){ newAnimation += ', frenzy-glow 1s infinite'; }
         characterSprite.style.animation = newAnimation;
     }
+    function selectItemForForge(item) {
+        if (forgeSlots[0] && forgeSlots[1]) {
+            showToast("Forge slots are full. Clear one first."); return;
+        }
+        const emptySlot = forgeSlots[0] ? 1 : 0;
+        forgeSlots[emptySlot] = item;
+        inventoryModal.classList.remove('visible');
+        forgeModal.classList.add('visible');
+        updateForgeUI();
+    }
+    function updateForgeUI() {
+        const [item1, item2] = forgeSlots;
+        const slots = [forgeSlot1Div, forgeSlot2Div];
+        slots.forEach((slot, i) => {
+            const item = forgeSlots[i];
+            if (item) {
+                slot.innerHTML = `<strong style="color:${item.rarity.color}">${item.name}</strong><br><small>Reforges: ${item.reforgeCount}/3</small>`;
+                slot.classList.add('filled');
+            } else {
+                slot.innerHTML = `Slot ${i + 1}`;
+                slot.classList.remove('filled');
+            }
+        });
+        forgeResultSlotDiv.innerHTML = "Result";
+        forgeResultSlotDiv.classList.remove('filled');
+        if (item1 && item2) {
+            const cost = (item1.power + item2.power) * 5;
+            forgeCostDisplay.innerHTML = `Cost: ${cost} Gold, 50 Energy`;
+        } else {
+            forgeCostDisplay.innerHTML = '';
+        }
+    }
+    function forgeItems() {
+        const [item1, item2] = forgeSlots;
+        if (!item1 || !item2) { showToast("Need two items to forge."); return; }
+        if (item1.type !== item2.type) { showToast("Items must be the same type."); return; }
+        if (item1.reforgeCount >= 3 || item2.reforgeCount >= 3) { showToast("One of the items cannot be reforged further."); return; }
+        
+        const cost = Math.floor((item1.power + item2.power) * 5);
+        if (gameState.gold < cost) { showToast(`Not enough gold. Need ${cost} G.`); return; }
+        if (gameState.resources.energy < 50) { showToast("Not enough energy. Need 50."); return; }
+
+        gameState.gold -= cost;
+        gameState.resources.energy -= 50;
+        
+        const newStats = {};
+        const allKeys = new Set([...Object.keys(item1.stats), ...Object.keys(item2.stats)]);
+        allKeys.forEach(stat => {
+            const val1 = item1.stats[stat] || 0;
+            const val2 = item2.stats[stat] || 0;
+            newStats[stat] = Math.ceil((val1 + val2) * 1.1);
+        });
+
+        const newName = `Reforged ${item1.type === 'weapon' ? 'Blade' : 'Plate'}`;
+        const newPower = Object.values(newStats).reduce((a, b) => a + b, 0);
+        const newItem = {
+            type: item1.type, name: newName,
+            rarity: { key: 'epic', color: 'var(--rarity-epic)' },
+            stats: newStats, power: newPower,
+            reforgeCount: Math.max(item1.reforgeCount, item2.reforgeCount) + 1
+        };
+
+        const index1 = gameState.inventory.findIndex(i => i.name === item1.name);
+        if (index1 > -1) gameState.inventory.splice(index1, 1);
+        const index2 = gameState.inventory.findIndex(i => i.name === item2.name);
+        if (index2 > -1) gameState.inventory.splice(index2, 1);
+        gameState.inventory.push(newItem);
+        
+        if (gameState.equipment[item1.type] && (gameState.equipment[item1.type].name === item1.name || gameState.equipment[item1.type].name === item2.name)) {
+            gameState.equipment[item1.type] = null;
+        }
+
+        forgeSlots = [null, null];
+        updateForgeUI();
+        showToast("Items successfully forged!");
+        updateUI(); saveGame();
+    }
+    
     startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
     characterSprite.addEventListener('click', handleTap); characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
@@ -832,8 +892,15 @@ document.addEventListener('DOMContentLoaded', () => {
     ascensionBtn.addEventListener('click', () => { updatePerksUI(); ascensionModal.classList.add('visible'); });
     closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
     closeShopBtn.addEventListener('click', () => { shopModal.classList.remove('visible'); });
-    forgeBtn.addEventListener('click', () => { forgeModal.classList.add('visible'); });
-    closeForgeBtn.addEventListener('click', () => { forgeModal.classList.remove('visible'); });
+    forgeBtn.addEventListener('click', () => { updateForgeUI(); forgeModal.classList.add('visible'); });
+    closeForgeBtn.addEventListener('click', () => { forgeSlots = [null, null]; forgeModal.classList.remove('visible'); });
+    forgeBtnAction.addEventListener('click', forgeItems);
+    [forgeSlot1Div, forgeSlot2Div].forEach((slot, index) => {
+        slot.addEventListener('click', () => {
+            forgeSlots[index] = null;
+            updateForgeUI();
+        });
+    });
     const handleVisualTap = (e) => {
         if (gameState.expedition.active || gameState.resources.energy <= 0) return;
         const characterArea = document.getElementById('character-area'); const spriteRect = characterSprite.getBoundingClientRect(); const areaRect = characterArea.getBoundingClientRect();
