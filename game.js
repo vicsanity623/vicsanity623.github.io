@@ -1147,11 +1147,11 @@ document.addEventListener('DOMContentLoaded', () => {
     partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
-    battleBtn.addEventListener('click', () => {
+    battleBtn.addEventListener('click', () => { 
         if (gameState.level >= GAUNTLET_UNLOCK_LEVEL) {
             attackBtn.textContent = "Attack";
             attackBtn.onclick = playerAttack;
-            startGauntlet();
+            startGauntlet(); 
         }
     });
     gauntletActionBtn.addEventListener('click', () => { if (gauntletState.currentWave > 0 && gauntletState.currentWave <= gauntletState.totalWaves) { claimAndFlee(); } });
