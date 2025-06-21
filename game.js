@@ -122,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ingameMenuBtn = document.getElementById('ingame-menu-btn');
     const ingameMenuModal = document.getElementById('ingame-menu-modal');
     const ingameMenuContent = document.getElementById('ingame-menu-content');
+    const progressionMenuSection = document.getElementById('progression-menu-section');
     const saveGameBtn = document.getElementById('save-game-btn');
     const optionsBtn = document.getElementById('options-btn');
     const quitToTitleBtn = document.getElementById('quit-to-title-btn');
@@ -694,17 +695,25 @@ document.addEventListener('DOMContentLoaded', () => {
         lightningInterval = null;
 
         const tier = gameState.ascension.tier;
+        let newAnimation = 'idle-breathe 4s ease-in-out infinite';
+
         if (tier >= 5) {
             characterSprite.classList.add('aura-ascended');
             gameScreen.classList.add('background-glitch');
             lightningInterval = setInterval(createLightningEffect, 3000);
+            newAnimation = 'idle-breathe 2s ease-in-out infinite, super-aura-anim 1s ease-in-out infinite alternate';
         } else if (tier >= 3) {
             characterSprite.classList.add('aura-ascended');
+            newAnimation = 'idle-breathe 2s ease-in-out infinite, super-aura-anim 1s ease-in-out infinite alternate';
         } else if (gameState.level >= 10) {
             characterSprite.classList.add('aura-level-10');
-        } else {
-            characterSprite.style.animation = 'idle-breathe 4s ease-in-out infinite';
+            newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite';
         }
+        
+        if(characterSprite.classList.contains('frenzy')){
+            newAnimation += ', frenzy-glow 1s infinite';
+        }
+        characterSprite.style.animation = newAnimation;
     }
     startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
     characterSprite.addEventListener('click', handleTap); characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
@@ -718,8 +727,10 @@ document.addEventListener('DOMContentLoaded', () => {
     ingameMenuBtn.addEventListener('click', () => {
         let ascendBtn = document.getElementById('ascend-btn');
         if (gameState.level >= ASCENSION_LEVEL && !ascendBtn) {
-            ascendBtn = document.createElement('button'); ascendBtn.id = 'ascend-btn'; ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
-            ascendBtn.onclick = ascend; ingameMenuContent.insertBefore(ascendBtn, returnToGameBtn);
+            ascendBtn = document.createElement('button'); ascendBtn.id = 'ascend-btn';
+            ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
+            ascendBtn.onclick = ascend;
+            progressionMenuSection.insertBefore(ascendBtn, achievementsBtn);
         } else if (gameState.level < ASCENSION_LEVEL && ascendBtn) { ascendBtn.remove(); }
         ingameMenuModal.classList.add('visible');
     });
