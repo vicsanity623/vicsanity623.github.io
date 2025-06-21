@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let buffInterval = null;
     let currentNpc = {};
     let gauntletState = {};
+    let availableExpeditions = [];
     const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
     const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
     
@@ -55,6 +56,15 @@ document.addEventListener('DOMContentLoaded', () => {
         hpPotion: { name: "Health Potion", desc: "Instantly restores 50% of your Max HP.", cost: 150, type: 'instant' },
         energyPotion: { name: "Energy Potion", desc: "Instantly restores 50% of your Max Energy.", cost: 100, type: 'instant' },
         xpBoost: { name: "Scroll of Wisdom", desc: "+50% XP from all sources for 15 minutes.", cost: 500, type: 'buff', duration: 900 }
+    };
+    const expeditionData = {
+        actions: ["Explore", "Patrol", "Scour", "Delve into", "Investigate"],
+        locations: ["the Glimmering Caves", "the Whispering Woods", "the Forgotten Ruins", "the Sunken City", "the Dragon's Pass"],
+        modifiers: {
+            gold: { name: "Rich", description: "High chance of Gold", goldMod: 1.5, itemMod: 0.8 },
+            item: { name: "Mysterious", description: "High chance of Items", goldMod: 0.8, itemMod: 1.5 },
+            xp: { name: "Dangerous", description: "High XP reward", goldMod: 1, itemMod: 1, xpMod: 1.5 },
+        }
     };
     const defaultState = {
         playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0,
@@ -99,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gauntletWaveDisplay = document.getElementById('gauntlet-wave-display');
     const battleNpcName = document.getElementById('battle-npc-name');
     const expeditionCancelBtn = document.getElementById('expedition-cancel-btn');
+    const expeditionListContainer = document.getElementById('expedition-list-container');
     const ingameMenuBtn = document.getElementById('ingame-menu-btn');
     const ingameMenuModal = document.getElementById('ingame-menu-modal');
     const ingameMenuContent = document.getElementById('ingame-menu-content');
@@ -328,21 +339,38 @@ document.addEventListener('DOMContentLoaded', () => {
             showNotification("Yum!", "Energy and HP restored slightly."); updateUI(); saveGame();
         } else { showNotification("Not enough gold!", "You need 50 gold to feed your guardian."); }
     }
-    function startExpedition(durationInSeconds) {
-        const expeditionSpeedBonus = 1 - (gameState.ascension.perks.expeditionSpeed || 0) * 0.05;
-        const finalDuration = durationInSeconds * expeditionSpeedBonus;
-        gameState.expedition.active = true; gameState.expedition.returnTime = Date.now() + finalDuration * 1000;
-        showNotification("Expedition Started!", `Your guardian will return in ${(finalDuration / 60).toFixed(0)} minutes.`);
+    function startExpedition(index) {
+        const expedition = availableExpeditions[index];
+        if (!expedition) return;
+
+        const speedBonus = 1 - (gameState.ascension.perks.expeditionSpeed || 0) * 0.05;
+        const finalDuration = expedition.duration * speedBonus;
+
+        gameState.expedition = {
+            active: true,
+            returnTime: Date.now() + finalDuration * 1000,
+            name: expedition.name,
+            modifiers: expedition.modifiers
+        };
+        
+        showNotification("Expedition Started!", `Your guardian begins to ${expedition.name}.<br><br>They will return in ${(finalDuration / 60).toFixed(0)} minutes.`);
         saveGame(); updateUI(); showScreen('game-screen'); playMusic('expedition');
     }
     function checkExpeditionStatus() {
         if (gameState.expedition.active && Date.now() > gameState.expedition.returnTime) {
+            const mods = gameState.expedition.modifiers || {};
+            const goldMod = mods.goldMod || 1;
+            const itemMod = mods.itemMod || 1;
+            const xpMod = mods.xpMod || 1;
+
             gameState.expedition.active = false; playMusic('main');
             const tierMultiplier = Math.pow(1.5, gameState.ascension.tier - 1);
-            const xpReward = Math.floor(100 * gameState.level * tierMultiplier);
-            const goldReward = Math.floor(50 * gameState.level * tierMultiplier * (1 + getTotalStat('goldFind') / 100));
-            let rewardText = `Your guardian has returned from World Tier ${gameState.ascension.tier}!<br><br>+${xpReward} XP<br>+${goldReward} Gold`;
-            if (Math.random() < (0.3 + (gameState.ascension.tier * 0.05))) {
+            const xpReward = Math.floor(100 * gameState.level * tierMultiplier * xpMod);
+            const goldReward = Math.floor(50 * gameState.level * tierMultiplier * (1 + getTotalStat('goldFind') / 100) * goldMod);
+            let rewardText = `Your guardian has returned from ${gameState.expedition.name}!<br><br>+${xpReward} XP<br>+${goldReward} Gold`;
+            
+            const itemFindChance = 0.3 + (gameState.ascension.tier * 0.05);
+            if (Math.random() < (itemFindChance * itemMod)) {
                 const foundItem = generateItem(); const currentItem = gameState.equipment[foundItem.type];
                 rewardText += `<br><br>Found: <strong style="color:${foundItem.rarity.color}">${foundItem.name}</strong>`;
                 if (!currentItem || foundItem.power > currentItem.power) {
@@ -394,128 +422,76 @@ document.addEventListener('DOMContentLoaded', () => {
             snapshot.forEach(doc => { const data = doc.data(); const li = document.createElement('li'); li.innerHTML = `<span class="rank-name">${rank}. ${data.name} (Tier ${data.tier})</span> <span class="rank-level">Level ${data.level}</span>`; leaderboardList.appendChild(li); rank++; });
         } catch (error) { console.error("Error fetching leaderboard: ", error); leaderboardList.innerHTML = "<li>Error loading scores.</li>"; }
     }
-    
     function startGauntlet() {
-        gauntletState = {
-            currentWave: 0,
-            totalWaves: 5,
-            totalXp: 0,
-            totalGold: 0
-        };
+        gauntletState = { currentWave: 0, totalWaves: 5, totalXp: 0, totalGold: 0 };
         battlePlayerName.textContent = gameState.playerName;
-        battleLog.innerHTML = "";
-        addBattleLog("The Gauntlet begins! Prepare for battle.", "log-system");
+        battleLog.innerHTML = ""; addBattleLog("The Gauntlet begins! Prepare for battle.", "log-system");
         showScreen('battle-screen');
         startNextWave();
     }
-
     function startNextWave() {
-        gauntletState.currentWave++;
-        gauntletWaveDisplay.textContent = `Wave: ${gauntletState.currentWave} / ${gauntletState.totalWaves}`;
-        const tierMultiplier = gameState.ascension.tier;
-        const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
+        gauntletState.currentWave++; gauntletWaveDisplay.textContent = `Wave: ${gauntletState.currentWave} / ${gauntletState.totalWaves}`;
+        const tierMultiplier = gameState.ascension.tier; const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
         const waveMultiplier = 1 + (gauntletState.currentWave - 1) * 0.25;
-
         currentNpc = {
             name: `Wave ${gauntletState.currentWave} Goblin`,
-            hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier),
-            maxHp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier),
-            strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier),
-            agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
+            hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier), maxHp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier),
+            strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier), agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
             fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
-            xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier),
-            goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier)
+            xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier), goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier)
         };
         battleNpcName.textContent = `${currentNpc.name} Lv. ${levelMultiplier}`;
-        updateBattleUI();
-        addBattleLog(`A wild ${currentNpc.name} appears!`, "log-system");
-        
-        attackBtn.disabled = true;
-        gauntletActionBtn.disabled = true;
-        
+        updateBattleUI(); addBattleLog(`A wild ${currentNpc.name} appears!`, "log-system");
+        attackBtn.disabled = true; gauntletActionBtn.disabled = true;
         setTimeout(() => {
             if (currentNpc.agility > getTotalStat('agility')) {
-                addBattleLog(`${currentNpc.name} is faster and attacks first!`, "log-enemy");
-                npcAttack();
+                addBattleLog(`${currentNpc.name} is faster and attacks first!`, "log-enemy"); npcAttack();
             } else {
                 addBattleLog("You are faster! Your turn.", "log-player");
-                attackBtn.disabled = false;
-                gauntletActionBtn.disabled = false;
-                gauntletActionBtn.textContent = 'Flee';
+                attackBtn.disabled = false; gauntletActionBtn.disabled = false; gauntletActionBtn.textContent = 'Flee';
             }
         }, 1000);
     }
-
     function playerAttack() {
-        attackBtn.disabled = true;
-        gauntletActionBtn.disabled = true;
+        attackBtn.disabled = true; gauntletActionBtn.disabled = true;
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
         const baseDamage = Math.max(1, getTotalStat('strength') * 2 - currentNpc.fortitude);
         const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
         currentNpc.hp = Math.max(0, currentNpc.hp - damage);
         if (isCrit) { addBattleLog('CRITICAL HIT!', 'log-crit'); playSound('crit', 0.8, 'square', 1000, 500, 0.2); } 
         else { playSound('hit', 0.8, 'square', 400, 100, 0.1); }
-        addBattleLog(`You attack for ${damage} damage!`, "log-player");
-        createDamageNumber(damage, isCrit, true);
+        addBattleLog(`You attack for ${damage} damage!`, "log-player"); createDamageNumber(damage, isCrit, true);
         updateBattleUI();
-        if (currentNpc.hp <= 0) {
-            endBattle(true);
-        } else {
-            setTimeout(npcAttack, 1500);
-        }
+        if (currentNpc.hp <= 0) { endBattle(true); } else { setTimeout(npcAttack, 1500); }
     }
-
     function npcAttack() {
-        if (Math.random() < (getTotalStat('agility') / 250)) {
-            addBattleLog('You dodged the attack!', 'log-player');
-            attackBtn.disabled = false;
-            gauntletActionBtn.disabled = false;
-            return;
-        }
+        if (Math.random() < (getTotalStat('agility') / 250)) { addBattleLog('You dodged the attack!', 'log-player'); attackBtn.disabled = false; gauntletActionBtn.disabled = false; return; }
         const damage = Math.max(1, currentNpc.strength * 2 - getTotalStat('fortitude'));
         gameState.resources.hp = Math.max(0, gameState.resources.hp - damage);
-        playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15);
-        triggerScreenShake(200);
-        createDamageNumber(damage, false, false);
+        playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15); triggerScreenShake(200); createDamageNumber(damage, false, false);
         addBattleLog(`${currentNpc.name} attacks for ${damage} damage!`, "log-enemy");
         updateBattleUI();
-        if (gameState.resources.hp <= 0) {
-            endBattle(false);
-        } else {
-            attackBtn.disabled = false;
-            gauntletActionBtn.disabled = false;
-        }
+        if (gameState.resources.hp <= 0) { endBattle(false); } else { attackBtn.disabled = false; gauntletActionBtn.disabled = false; }
     }
-
     function endBattle(playerWon) {
-        attackBtn.disabled = true;
-        gauntletActionBtn.disabled = true;
+        attackBtn.disabled = true; gauntletActionBtn.disabled = true;
         if (playerWon) {
             gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
             const finalGoldReward = Math.floor(currentNpc.goldReward * (1 + getTotalStat('goldFind') / 100));
-            gauntletState.totalXp += currentNpc.xpReward;
-            gauntletState.totalGold += finalGoldReward;
-
+            gauntletState.totalXp += currentNpc.xpReward; gauntletState.totalGold += finalGoldReward;
             addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
-            
             if (gauntletState.currentWave >= gauntletState.totalWaves) {
                 playSound('victory', 1, 'triangle', 523, 1046, 0.4);
                 let bonusItem = generateItem();
                 let rewardText = `GAUNTLET COMPLETE!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
-                addXP(gauntletState.totalXp);
-                gameState.gold += gauntletState.totalGold;
-                if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) {
-                    gameState.equipment[bonusItem.type] = bonusItem;
-                }
+                addXP(gauntletState.totalXp); gameState.gold += gauntletState.totalGold;
+                if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { gameState.equipment[bonusItem.type] = bonusItem; }
                 setTimeout(() => { showNotification("Victory!", rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
             } else {
                 addBattleLog(`Wave ${gauntletState.currentWave} cleared! Prepare for the next wave...`, 'log-system');
                 setTimeout(() => {
                     gauntletActionBtn.textContent = `Claim (${gauntletState.totalGold}G) & Flee`;
-                    gauntletActionBtn.disabled = false;
-                    attackBtn.disabled = false;
-                    attackBtn.textContent = "Next Wave";
-                    attackBtn.onclick = startNextWave;
+                    gauntletActionBtn.disabled = false; attackBtn.disabled = false; attackBtn.textContent = "Next Wave"; attackBtn.onclick = startNextWave;
                 }, 1500);
             }
         } else {
@@ -523,23 +499,17 @@ document.addEventListener('DOMContentLoaded', () => {
             addBattleLog("You have been defeated... The Gauntlet ends.", "log-system");
             setTimeout(() => {
                 showNotification("Defeat", "You black out and wake up back home. You lost half your gold.");
-                gameState.gold = Math.floor(gameState.gold / 2);
-                gameState.resources.hp = 1;
-                showScreen('game-screen');
-                saveGame();
-                updateUI();
+                gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1;
+                showScreen('game-screen'); saveGame(); updateUI();
             }, 2000);
         }
     }
-
     function claimAndFlee() {
         addBattleLog(`You claim your rewards and flee the Gauntlet!`, "log-player");
-        addXP(gauntletState.totalXp);
-        gameState.gold += gauntletState.totalGold;
+        addXP(gauntletState.totalXp); gameState.gold += gauntletState.totalGold;
         let rewardText = `You escaped the Gauntlet with your life!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP`;
         setTimeout(() => { showNotification("Gauntlet Run Over", rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
     }
-
     function generateItem() {
         const roll = Math.random() * 100; let chosenRarityKey = 'common'; let cumulativeWeight = 0;
         for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
@@ -568,6 +538,39 @@ document.addEventListener('DOMContentLoaded', () => {
             } else { slot.innerHTML = `${slot.id === 'weapon-slot' ? 'Weapon' : 'Armor'}: None`; }
         }
         updateSlot(weaponSlot, gameState.equipment.weapon); updateSlot(armorSlot, gameState.equipment.armor);
+    }
+    function generateAndShowExpeditions() {
+        availableExpeditions = [];
+        expeditionListContainer.innerHTML = '';
+        for (let i = 0; i < 5; i++) {
+            const action = expeditionData.actions[Math.floor(Math.random() * expeditionData.actions.length)];
+            const location = expeditionData.locations[Math.floor(Math.random() * expeditionData.locations.length)];
+            const modKeys = Object.keys(expeditionData.modifiers);
+            const modKey = modKeys[Math.floor(Math.random() * modKeys.length)];
+            const modifier = expeditionData.modifiers[modKey];
+            const duration = (Math.floor(Math.random() * 10) + 20) * 60; // 20-29 minutes
+            
+            const expedition = {
+                name: `${action} ${location}`,
+                description: modifier.description,
+                duration: duration,
+                modifiers: { goldMod: modifier.goldMod, itemMod: modifier.itemMod, xpMod: modifier.xpMod },
+                index: i
+            };
+            availableExpeditions.push(expedition);
+
+            const itemEl = document.createElement('div');
+            itemEl.className = 'expedition-item';
+            itemEl.innerHTML = `
+                <div class="expedition-info">
+                    <strong>${expedition.name}</strong>
+                    <div class="expedition-desc">${expedition.description} (~${Math.round(expedition.duration / 60)} mins)</div>
+                </div>
+                <button data-index="${i}">Begin</button>
+            `;
+            itemEl.querySelector('button').onclick = () => startExpedition(expedition.index);
+            expeditionListContainer.appendChild(itemEl);
+        }
     }
     function createWindEffect() {
         for(let i=0; i<20; i++) { const streak = document.createElement('div'); streak.className = 'wind-streak'; streak.style.top = `${Math.random() * 100}%`; streak.style.width = `${Math.random() * 150 + 50}px`; streak.style.animationDuration = `${Math.random() * 3 + 2}s`; streak.style.animationDelay = `${Math.random() * 5}s`; windAnimationContainer.appendChild(streak); }
@@ -688,7 +691,8 @@ document.addEventListener('DOMContentLoaded', () => {
             claimAndFlee();
         }
     });
-    expeditionBtn.addEventListener('click', () => showScreen('expedition-screen')); shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
+    expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
+    shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
     expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
     ingameMenuBtn.addEventListener('click', () => {
         let ascendBtn = document.getElementById('ascend-btn');
@@ -711,7 +715,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ascensionBtn.addEventListener('click', () => { updatePerksUI(); ascensionModal.classList.add('visible'); });
     closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
     closeShopBtn.addEventListener('click', () => { shopModal.classList.remove('visible'); });
-    document.querySelectorAll('.expedition-choice-btn').forEach(btn => { btn.addEventListener('click', (e) => startExpedition(parseInt(e.target.dataset.duration))); });
     const handleVisualTap = (e) => {
         if (gameState.expedition.active || gameState.resources.energy <= 0) return;
         const characterArea = document.getElementById('character-area'); const spriteRect = characterSprite.getBoundingClientRect(); const areaRect = characterArea.getBoundingClientRect();
