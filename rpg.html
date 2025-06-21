@@ -592,7 +592,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         }
 
         function loadGame() {
-            initAudio(); // --- ADDED to initialize audio on first user click ---
+            initAudio();
             const savedData = localStorage.getItem('tapGuardianSave');
             if (savedData) {
                 let loadedState = JSON.parse(savedData);
@@ -600,6 +600,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 gameState.stats = {...defaultState.stats, ...loadedState.stats};
                 gameState.resources = {...defaultState.resources, ...loadedState.resources};
                 gameState.ascension = {...defaultState.ascension, ...loadedState.ascension};
+                gameState.equipment = {...defaultState.equipment, ...(loadedState.equipment || {})};
                 gameState.achievements = {...JSON.parse(JSON.stringify(achievements)), ...(loadedState.achievements || {})};
                 gameState.counters = {...defaultState.counters, ...(loadedState.counters || {})};
                 gameState.tutorialCompleted = loadedState.tutorialCompleted === true;
