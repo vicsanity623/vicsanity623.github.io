@@ -45,7 +45,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 #game-screen { justify-content: space-between; position: relative; }
 #character-area {
     flex-grow: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; position: relative; min-height: 0; /* Prevents flex item from overflowing parent */
+    align-items: center; justify-content: center; position: relative; min-height: 0;
 }
 #character-sprite {
     width: 220px; height: 220px; cursor: pointer;
@@ -249,15 +249,14 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
-/* --- ADDED FOR RESPONSIVE LAYOUT --- */
 @media (max-width: 600px) {
     html {
-        font-size: 13px; /* Adjust base font size for legibility */
+        font-size: 13px;
     }
     .screen {
         padding: 10px 5px;
         justify-content: flex-start;
-        overflow-y: auto; /* Allow scrolling if content overflows vertically */
+        overflow-y: auto;
     }
     #game-screen {
         justify-content: space-between;
@@ -265,7 +264,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         padding-bottom: 15px;
     }
     #battle-screen {
-        justify-content: space-between; /* MODIFIED: Arrange items vertically */
+        justify-content: space-between;
     }
     h1 { font-size: 2em; }
     h2 { font-size: 1.5em; margin-bottom: 10px; }
@@ -282,8 +281,8 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     .stat-bar-label { font-size: 0.7em; }
     #core-stats-display { font-size: 0.8em; margin-top: 10px; }
     #character-area {
-        flex-grow: 1; /* Allow it to take available space */
-        min-height: 180px; /* Ensure space for the sprite */
+        flex-grow: 1;
+        min-height: 180px;
     }
     #character-sprite {
         width: 160px;
@@ -293,9 +292,9 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         flex-shrink: 0;
     }
     #battle-arena {
-        flex-direction: column-reverse; /* MODIFIED: Player on bottom, enemy on top */
-        justify-content: space-between;   /* MODIFIED: Pushes them to the vertical ends */
-        flex-grow: 1;                     /* MODIFIED: Takes up all available middle space */
+        flex-direction: column-reverse;
+        justify-content: space-between;
+        flex-grow: 1;
         padding: 10px 0;
     }
     .battle-character {
@@ -304,7 +303,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     }
     .battle-character h3 {
         font-size: 0.8em;
-        white-space: nowrap; /* Prevent name wrapping */
+        white-space: nowrap;
     }
     .battle-character img {
         width: 90px;
@@ -327,7 +326,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     #core-stats-display { font-size: 0.7em; }
     .battle-character { transform: scale(0.7); margin: 0; } 
 }
-/* --- ADDED for visual aura effects --- */
 @keyframes aura-level-10-anim {
     0%, 100% { filter: drop-shadow(0 0 6px gold) drop-shadow(0 0 12px orangered); }
     50% { filter: drop-shadow(0 0 10px gold) drop-shadow(0 0 20px orangered) drop-shadow(0 0 2px yellow); }
@@ -343,6 +341,40 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 .aura-level-10 { animation: idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite; }
 .aura-level-20 { animation: idle-breathe 4s ease-in-out infinite, aura-level-20-anim 1.5s ease-in-out infinite; }
 .aura-level-30 { animation: idle-breathe 4s ease-in-out infinite, aura-level-30-anim 1s ease-in-out infinite; }
+
+#perks-container {
+    margin-top: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+    text-align: left;
+}
+.perk-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #444;
+}
+.perk-info {
+    flex-grow: 1;
+}
+.perk-info strong {
+    color: var(--xp-color);
+}
+.perk-info .perk-desc {
+    font-size: 0.75em;
+    opacity: 0.8;
+}
+.perk-level {
+    font-size: 0.8em;
+    margin-right: 15px;
+}
+.perk-item button {
+    padding: 8px 12px;
+    font-size: 0.7em;
+    margin: 0;
+    flex-shrink: 0;
+}
 </style>
 </head>
 <body>
@@ -350,7 +382,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     <div id="wind-animation-container"></div>
     <div id="toast-container"></div>
     <div id="loading-screen" class="screen active"><h1 id="loading-text">Loading...</h1></div>
-    <!--/-- UPDATED HTML --/-->
     <div id="main-menu-screen" class="screen"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
     <div id="game-screen" class="screen">
         <div id="frenzy-display">x5</div>
@@ -358,15 +389,15 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     <div id="battle-screen" class="screen"><h2>Battle!</h2><div id="battle-arena"><div class="battle-character"><h3 id="battle-player-name">Guardian</h3><img src="player.PNG"><div id="battle-player-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div><div class="battle-character"><h3 id="battle-npc-name">Goblin</h3><img src="player.PNG" style="filter: hue-rotate(180deg);"><div id="battle-npc-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div></div><div id="battle-log"></div><div id="battle-actions"><button id="attack-btn">Attack</button><button id="run-btn">Run</button></div></div>
     <div id="expedition-screen" class="screen"><h2>Send on Expedition</h2><p>Your guardian will be unavailable but will return with rewards.</p><button class="expedition-choice-btn" data-duration="1800">Scout Ahead (30 Mins)</button><button class="expedition-choice-btn" data-duration="3600">Long Patrol (1 Hour)</button><button class="expedition-choice-btn" data-duration="21600">Deep Delve (6 Hours)</button><button id="expedition-cancel-btn">Cancel</button></div>
     <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
-    <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><button id="leaderboard-btn">Leaderboard</button><button id="achievements-btn">Achievements</button><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button><button id="return-to-game-btn">Return to Game</button></div></div>
+    <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><button id="ascension-btn">Ascension</button><button id="leaderboard-btn">Leaderboard</button><button id="achievements-btn">Achievements</button><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button><button id="return-to-game-btn">Return to Game</button></div></div>
     <div id="inventory-modal" class="modal"><div class="modal-content"><h2>Inventory</h2><div id="weapon-slot" class="inventory-slot">Weapon: None</div><div id="armor-slot" class="inventory-slot">Armor: None</div><button id="close-inventory-btn">Close</button></div></div>
     <div id="leaderboard-modal" class="modal"><div class="modal-content"><h2>Leaderboard</h2><ul id="leaderboard-list"><li>Loading...</li></ul><button id="close-leaderboard-btn">Close</button></div></div>
     <div id="achievements-modal" class="modal"><div class="modal-content"><h2>Achievements</h2><ul id="achievements-list"></ul><button id="close-achievements-btn">Close</button></div></div>
+    <div id="ascension-modal" class="modal"><div class="modal-content"><h2>Ascension Perks</h2><p>Available Points: <span id="ascension-points-display">0</span></p><div id="perks-container"></div><button id="close-ascension-btn">Close</button></div></div>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script>
-    // --- YOUR LIVE FIREBASE CONFIGURATION ---
     const firebaseConfig = {
         apiKey: "AIzaSyDyZ_aOOnuMNxC9QBE52KfjKzUyHjbagqk",
         authDomain: "tap-guardian-rpg.firebaseapp.com",
@@ -376,15 +407,12 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         appId: "1:50272459426:web:7ae4beb76ed67d4a3a15fb",
         measurementId: "G-4686TXHCHN"
     };
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    // --- END OF FIREBASE CONFIG ---
 
     document.addEventListener('DOMContentLoaded', () => {
         let gameState = {};
         let audioCtx = null;
-        // --- ADDED Music Management System ---
         const musicFileUrls = {
             main: 'main.mp3',
             battle: 'battle.mp3',
@@ -397,50 +425,32 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             fadeInterval: null
         };
         
-        // --- UPDATED JAVASCRIPT ---
-
         function initMusic() {
             if (musicManager.isInitialized) return;
-            console.log("Initializing music...");
             musicManager.isInitialized = true;
-            playMusic('main'); // Play main music on first user interaction.
+            playMusic('main');
         }
 
-        // The fadeIn and fadeOut functions were removed as they were causing issues on mobile.
-
         function playMusic(trackName) {
-            if (!musicManager.isInitialized || !musicManager.audio[trackName]) {
-                return;
-            }
-
-            // Stop the currently playing track, if there is one.
+            if (!musicManager.isInitialized || !musicManager.audio[trackName]) return;
             const oldTrackName = musicManager.currentTrack;
             if (oldTrackName && musicManager.audio[oldTrackName]) {
                 musicManager.audio[oldTrackName].pause();
                 musicManager.audio[oldTrackName].currentTime = 0;
             }
-
-            // If the requested track is the same as the one we just stopped, do nothing.
-            // This prevents the track from restarting if called multiple times.
             if (oldTrackName === trackName) {
-                // ...unless it's paused, in which case we resume it.
                 if (musicManager.audio[trackName].paused) {
                     musicManager.audio[trackName].play().catch(e => console.error("Music resume failed:", e));
                 }
                 return; 
             }
-            
-            // Play the new track.
             const newTrack = musicManager.audio[trackName];
             musicManager.currentTrack = trackName;
-            
             if (newTrack) {
                 newTrack.volume = 0.5;
                 newTrack.play().catch(e => console.error(`Music play failed for ${trackName}:`, e));
             }
         }
-
-        // --- END OF UPDATED JAVASCRIPT ---
 
         function startBackgroundAssetLoading() {
             for (const key in musicFileUrls) {
@@ -452,7 +462,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 }
             }
         }
-        // --- End of Music Management System ---
         const achievements = {
             tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false },
             tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false },
@@ -463,6 +472,12 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false },
             defeat50: { name: "Monster Hunter", desc: "Defeat 50 enemies.", target: 50, unlocked: false },
             ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false }
+        };
+        const perks = {
+            vigor: { name: "Guardian's Vigor", desc: "+10 Max HP & Energy per level.", maxLevel: 5, cost: [1, 1, 2, 2, 3] },
+            tapXp: { name: "Tapper's Insight", desc: "+10% XP from Taps per level.", maxLevel: 5, cost: [1, 1, 2, 2, 3] },
+            goldBoost: { name: "Fortune's Favor", desc: "+5% Gold from all sources per level.", maxLevel: 10, cost: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4] },
+            expeditionSpeed: { name: "Expeditionary Leader", desc: "-5% Expedition Duration per level.", maxLevel: 5, cost: [1, 2, 2, 3, 3] }
         };
         const defaultState = {
             playerName: "Guardian",
@@ -532,11 +547,15 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         const achievementsList = document.getElementById('achievements-list');
         const achievementsBtn = document.getElementById('achievements-btn');
         const tutorialOverlay = document.getElementById('tutorial-overlay');
+        const ascensionBtn = document.getElementById('ascension-btn');
+        const ascensionModal = document.getElementById('ascension-modal');
+        const closeAscensionBtn = document.getElementById('close-ascension-btn');
+        const ascensionPointsDisplay = document.getElementById('ascension-points-display');
+        const perksContainer = document.getElementById('perks-container');
 
         function showScreen(screenId) { 
             screens.forEach(s => s.classList.remove('active')); 
             document.getElementById(screenId).classList.add('active'); 
-            // --- ADDED Music Trigger ---
             if (screenId === 'battle-screen') {
                 playMusic('battle');
             } else if (screenId === 'game-screen' || screenId === 'main-menu-screen') {
@@ -554,11 +573,11 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 if (!localStorage.getItem('tapGuardianSave')) { 
                     loadGameBtn.disabled = true; 
                 }
-            }, 1500); // Show loading for 1.5 seconds
+            }, 1500);
         }
         
         async function startGame() {
-            initAudio(); // --- ADDED to initialize audio on first user click ---
+            initAudio();
             let playerName = "";
             let isNameValid = false;
             while (!isNameValid) {
@@ -617,7 +636,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 checkExpeditionStatus(); updateUI(); showScreen('game-screen');
             } else { showNotification("No Save Data Found!", "Starting a new game instead."); startGame(); }
         }
-        function saveGame() { localStorage.setItem('tapGuardianSave', JSON.stringify(gameState)); loadGameBtn.disabled = false; console.log("Game Saved!"); }
+        function saveGame() { localStorage.setItem('tapGuardianSave', JSON.stringify(gameState)); loadGameBtn.disabled = false; }
         function getXpForNextLevel() { return Math.floor(100 * Math.pow(1.5, gameState.level - 1)); }
 
         function updateExpeditionTimer() {
@@ -636,6 +655,14 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         }
 
         function updateUI() {
+            if (!gameState.stats) return;
+            const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
+            const baseMaxHp = 100 + (gameState.level - 1) * 10;
+            const baseMaxEnergy = 100 + (gameState.level - 1) * 5;
+
+            gameState.resources.maxHp = baseMaxHp + vigorBonus;
+            gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus;
+
             playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
             worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
             const xpForNext = getXpForNextLevel();
@@ -661,7 +688,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             } else {
                 tutorialOverlay.classList.add('visible');
             }
-            // --- ADDED to manage visual auras ---
             characterSprite.classList.remove('aura-level-10', 'aura-level-20', 'aura-level-30');
             if (gameState.level >= 30) {
                 characterSprite.classList.add('aura-level-30');
@@ -680,8 +706,8 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         function levelUp() {
             const xpOver = gameState.xp - getXpForNextLevel(); gameState.level++; gameState.xp = xpOver;
             gameState.stats.strength += 2; gameState.stats.agility += 1; gameState.stats.fortitude += 2; gameState.stats.stamina += 1;
-            gameState.resources.maxHp += 10; gameState.resources.hp = gameState.resources.maxHp;
-            gameState.resources.maxEnergy += 5; gameState.resources.energy = gameState.resources.maxEnergy;
+            gameState.resources.hp = gameState.resources.maxHp;
+            gameState.resources.energy = gameState.resources.maxEnergy;
             playSound('levelUp', 1, 'triangle', 440, 880);
             triggerScreenShake(400);
             checkAllAchievements();
@@ -766,18 +792,18 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             
             if (Math.random() < 0.1) { triggerScreenShake(150); }
 
-            let xpGain = 0.25 * tapCombo.currentMultiplier; // --- MODIFIED for dynamic XP gain ---
-            // --- ADDED for level-based XP bonus ---
+            let xpGain = 0.25 * tapCombo.currentMultiplier;
             if (gameState.level >= 30) {
                 xpGain = 1.0 * tapCombo.currentMultiplier;
             } else if (gameState.level >= 10) {
                 xpGain = 0.75 * tapCombo.currentMultiplier;
             }
             
+            const tapXpBonus = 1 + (gameState.ascension.perks.tapXp || 0) * 0.10;
+            xpGain *= tapXpBonus;
+
             createXpOrb(event, xpGain);
-            
             gameState.resources.energy -= 0.1;
-            
             if (tapCombo.currentMultiplier > 1) { createParticles(event); }
             
             characterSprite.style.animation = 'none';
@@ -787,7 +813,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             setTimeout(() => { 
                 characterSprite.classList.remove('tapped');
                 let newAnimation = 'idle-breathe 2s ease-in-out infinite';
-                // --- ADDED to re-apply aura animation after tap ---
                 if (characterSprite.classList.contains('aura-level-30')) {
                     newAnimation = 'idle-breathe 3s ease-in-out infinite, aura-level-30-anim 1s ease-in-out infinite';
                 } else if (characterSprite.classList.contains('aura-level-20')) {
@@ -805,26 +830,32 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         function feed() {
             if (gameState.gold >= 50) {
                 gameState.gold -= 50; 
-                gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 20); // --- MODIFIED for partial energy refill ---
+                gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 20);
                 gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 10);
                 playSound('feed', 1, 'sine', 200, 600, 0.2);
-                showNotification("Yum!", "Energy and HP restored slightly."); updateUI(); saveGame(); // --- MODIFIED text for clarity ---
+                showNotification("Yum!", "Energy and HP restored slightly."); updateUI(); saveGame();
             } else { showNotification("Not enough gold!", "You need 10 gold to feed your guardian."); }
         }
         function startExpedition(durationInSeconds) {
+            const expeditionSpeedBonus = 1 - (gameState.ascension.perks.expeditionSpeed || 0) * 0.05;
+            const finalDuration = durationInSeconds * expeditionSpeedBonus;
+
             gameState.expedition.active = true;
-            gameState.expedition.returnTime = Date.now() + durationInSeconds * 1000;
-            showNotification("Expedition Started!", `Your guardian will return in ${durationInSeconds / 60} minutes.`);
+            gameState.expedition.returnTime = Date.now() + finalDuration * 1000;
+            showNotification("Expedition Started!", `Your guardian will return in ${(finalDuration / 60).toFixed(0)} minutes.`);
             saveGame(); updateUI(); showScreen('game-screen');
-            playMusic('expedition'); // --- ADDED Music Trigger ---
+            playMusic('expedition');
         }
         function checkExpeditionStatus() {
             if (gameState.expedition.active && Date.now() > gameState.expedition.returnTime) {
                 gameState.expedition.active = false;
-                playMusic('main'); // --- ADDED Music Trigger ---
+                playMusic('main');
                 const tierMultiplier = Math.pow(1.5, gameState.ascension.tier - 1);
                 const xpReward = Math.floor(100 * gameState.level * tierMultiplier);
-                const goldReward = Math.floor(50 * gameState.level * tierMultiplier);
+                
+                const goldBonus = 1 + (gameState.ascension.perks.goldBoost || 0) * 0.05;
+                const goldReward = Math.floor(50 * gameState.level * tierMultiplier * goldBonus);
+
                 let rewardText = `Your guardian has returned from World Tier ${gameState.ascension.tier}!<br><br>+${xpReward} XP<br>+${goldReward} Gold`;
                 if (Math.random() < (0.3 + (gameState.ascension.tier * 0.05))) {
                     const foundItem = { type: Math.random() < 0.5 ? 'weapon' : 'armor', bonus: gameState.level * (Math.floor(Math.random() * 3) + 1) * gameState.ascension.tier };
@@ -846,17 +877,23 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         }
         function ascend() {
             if (gameState.level < ASCENSION_LEVEL) { showNotification("Not Ready", `You must reach Level ${ASCENSION_LEVEL} to Ascend.`); return; }
-            if (confirm(`Are you sure you want to Ascend?\n\nYour Level, Stats, and Gold will be reset.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point.`)) {
+            if (confirm(`Are you sure you want to Ascend?\n\nYour Level, Stats, and Gold will be reset.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point. Your Perks will remain.`)) {
                 gameState.ascension.tier++; gameState.ascension.points++;
                 gameState.counters.ascensionCount = (gameState.counters.ascensionCount || 0) + 1;
                 checkAllAchievements();
                 playSound('ascend', 1, 'sawtooth', 100, 1000, 1);
                 gameState.level = 1; gameState.xp = 0; gameState.gold = 0;
                 gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
+                const oldHp = gameState.resources.hp;
+                const oldEnergy = gameState.resources.energy;
                 gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
+                updateUI();
+                gameState.resources.hp = Math.min(oldHp, gameState.resources.maxHp);
+                gameState.resources.energy = Math.min(oldEnergy, gameState.resources.maxEnergy);
+                
                 submitScoreToLeaderboard();
                 saveGame(); updateUI(); ingameMenuModal.classList.remove('visible');
-                showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You feel a new power flowing within you.`);
+                showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You have gained 1 Ascension Point to spend.`);
             }
         }
         async function submitScoreToLeaderboard() {
@@ -869,7 +906,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             };
             try {
                 await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true });
-                console.log("Score submitted to leaderboard!");
             } catch (error) { console.error("Error submitting score: ", error); }
         }
         async function showLeaderboard() {
@@ -951,13 +987,16 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             if (playerWon) {
                 gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
                 checkAllAchievements();
+                const goldBonus = 1 + (gameState.ascension.perks.goldBoost || 0) * 0.05;
+                const finalGoldReward = Math.floor(currentNpc.goldReward * goldBonus);
+
                 playSound('victory', 1, 'triangle', 523, 1046, 0.4);
                 addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
-                setTimeout(() => { showNotification("Victory!", `You earned ${currentNpc.goldReward} Gold.`); addXP(currentNpc.xpReward); gameState.gold += currentNpc.goldReward; showScreen('game-screen'); saveGame(); }, 2000);
+                setTimeout(() => { showNotification("Victory!", `You earned ${finalGoldReward} Gold.`); addXP(currentNpc.xpReward); gameState.gold += finalGoldReward; showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
             } else {
                 playSound('defeat', 1, 'sine', 440, 110, 0.8);
                 addBattleLog("You have been defeated...", "log-system");
-                setTimeout(() => { showNotification("Defeat", "You black out and wake up back home. You lost half your gold."); gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1; showScreen('game-screen'); saveGame(); }, 2000);
+                setTimeout(() => { showNotification("Defeat", "You black out and wake up back home. You lost half your gold."); gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1; showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
             }
         }
         function updateInventoryUI() {
@@ -988,7 +1027,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         function initAudio() { 
             if (!audioCtx) { 
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
-                initMusic(); // --- ADDED Music Initialization on first user interaction ---
+                initMusic();
             } 
         }
         function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
@@ -1051,6 +1090,59 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
                 achievementsList.appendChild(li);
             }
         }
+        function updatePerksUI() {
+            perksContainer.innerHTML = '';
+            ascensionPointsDisplay.textContent = gameState.ascension.points;
+            for (const perkId in perks) {
+                const perkData = perks[perkId];
+                const currentLevel = gameState.ascension.perks[perkId] || 0;
+                
+                const perkItem = document.createElement('div');
+                perkItem.className = 'perk-item';
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'perk-info';
+                infoDiv.innerHTML = `<strong>${perkData.name}</strong><div class="perk-desc">${perkData.desc}</div>`;
+                
+                const levelSpan = document.createElement('span');
+                levelSpan.className = 'perk-level';
+                levelSpan.textContent = `Lvl ${currentLevel}/${perkData.maxLevel}`;
+                
+                const buyBtn = document.createElement('button');
+                
+                if (currentLevel >= perkData.maxLevel) {
+                    buyBtn.textContent = 'Maxed';
+                    buyBtn.disabled = true;
+                } else {
+                    const cost = perkData.cost[currentLevel];
+                    buyBtn.textContent = `Up (${cost} AP)`;
+                    if (gameState.ascension.points < cost) {
+                        buyBtn.disabled = true;
+                    }
+                    buyBtn.onclick = () => buyPerk(perkId);
+                }
+                
+                perkItem.appendChild(infoDiv);
+                perkItem.appendChild(levelSpan);
+                perkItem.appendChild(buyBtn);
+                perksContainer.appendChild(perkItem);
+            }
+        }
+        function buyPerk(perkId) {
+            const perkData = perks[perkId];
+            const currentLevel = gameState.ascension.perks[perkId] || 0;
+            if (currentLevel >= perkData.maxLevel) return;
+
+            const cost = perkData.cost[currentLevel];
+            if (gameState.ascension.points >= cost) {
+                gameState.ascension.points -= cost;
+                gameState.ascension.perks[perkId] = (gameState.ascension.perks[perkId] || 0) + 1;
+                playSound('levelUp', 0.8, 'sine', 600, 1200, 0.2);
+                updatePerksUI();
+                updateUI();
+                saveGame();
+            }
+        }
         startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
         characterSprite.addEventListener('click', handleTap);
         characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
@@ -1073,8 +1165,8 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
             ingameMenuModal.classList.add('visible');
         });
         returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
-        saveGameBtn.addEventListener('click', () => { saveGame(); showNotification("Game Saved", "Your progress is safe."); });
-        optionsBtn.addEventListener('click', () => { alert('Options not yet implemented! (Ascension Perks coming soon!)'); });
+        saveGameBtn.addEventListener('click', () => { saveGame(); showToast("Game Saved!"); });
+        optionsBtn.addEventListener('click', () => { alert('Options not yet implemented!'); });
         quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
         inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.classList.add('visible'); });
         closeInventoryBtn.addEventListener('click', () => { inventoryModal.classList.remove('visible'); });
@@ -1082,36 +1174,30 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.classList.remove('visible'); });
         achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.classList.add('visible'); });
         closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
+        ascensionBtn.addEventListener('click', () => { updatePerksUI(); ascensionModal.classList.add('visible'); });
+        closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
         document.querySelectorAll('.expedition-choice-btn').forEach(btn => { btn.addEventListener('click', (e) => startExpedition(parseInt(e.target.dataset.duration))); });
         
-        const handleVisualTap = () => {
+        const handleVisualTap = (e) => {
             if (gameState.expedition.active || gameState.resources.energy <= 0) return;
             const characterArea = document.getElementById('character-area');
             const spriteRect = characterSprite.getBoundingClientRect();
             const areaRect = characterArea.getBoundingClientRect();
-            
             const flash = document.createElement('div');
             flash.className = 'tap-flash-overlay';
-            
             flash.style.width = `${spriteRect.width}px`;
             flash.style.height = `${spriteRect.height}px`;
             flash.style.left = `${spriteRect.left - areaRect.left}px`;
             flash.style.top = `${spriteRect.top - areaRect.top}px`;
-
             characterArea.appendChild(flash);
-
-            setTimeout(() => {
-                flash.remove();
-            }, 200);
+            setTimeout(() => { flash.remove(); }, 200);
         };
         
         characterSprite.addEventListener('click', handleVisualTap);
         characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
                 
-        // --- ADDED for passive energy regeneration ---
         setInterval(() => {
             if (gameState.resources && gameState.resources.energy < gameState.resources.maxEnergy && !gameState.expedition.active) {
-                // Regenerate 0.15 energy per second
                 gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.15);
                 updateUI();
             }
