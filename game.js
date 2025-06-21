@@ -11,7 +11,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.0;
+    const GAME_VERSION = 1.1; // New version to trigger migration
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentNpc = {};
     let gauntletState = {};
     let availableExpeditions = [];
+    let forgeSlots = [null, null];
     const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
     const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
     
@@ -78,7 +79,9 @@ document.addEventListener('DOMContentLoaded', () => {
         playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0,
         stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
         resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
-        equipment: { weapon: null, armor: null }, expedition: { active: false, returnTime: 0 },
+        equipment: { weapon: null, armor: null }, 
+        inventory: [],
+        expedition: { active: false, returnTime: 0 },
         ascension: { tier: 1, points: 0, perks: {} },
         permanentUpgrades: {},
         activeBuffs: {},
@@ -87,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const ASCENSION_LEVEL = 50;
     const GAUNTLET_UNLOCK_LEVEL = 10;
+    const FORGE_UNLOCK_LEVEL = 15;
     let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
     let expeditionInterval = null;
     const screens = document.querySelectorAll('.screen');
@@ -111,6 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const gauntletUnlockText = document.getElementById('gauntlet-unlock-text');
     const expeditionBtn = document.getElementById('expedition-btn');
     const shopBtn = document.getElementById('shop-btn');
+    const forgeBtn = document.getElementById('forge-btn');
+    const forgeUnlockText = document.getElementById('forge-unlock-text');
     const modal = document.getElementById('notification-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalText = document.getElementById('modal-text');
@@ -133,9 +139,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const returnToGameBtn = document.getElementById('return-to-game-btn');
     const inventoryBtn = document.getElementById('inventory-btn');
     const inventoryModal = document.getElementById('inventory-modal');
-    const weaponSlot = document.getElementById('weapon-slot');
-    const armorSlot = document.getElementById('armor-slot');
+    const inventoryList = document.getElementById('inventory-list');
     const closeInventoryBtn = document.getElementById('close-inventory-btn');
+    const forgeModal = document.getElementById('forge-modal');
+    const forgeSlot1Div = document.getElementById('forge-slot-1');
+    const forgeSlot2Div = document.getElementById('forge-slot-2');
+    const forgeResultSlotDiv = document.getElementById('forge-result-slot');
+    const forgeCostDisplay = document.getElementById('forge-cost-display');
+    const forgeBtnAction = document.getElementById('forge-btn-action');
+    const closeForgeBtn = document.getElementById('close-forge-btn');
     const expeditionTimerDisplay = document.getElementById('expedition-timer-display');
     const windAnimationContainer = document.getElementById('wind-animation-container');
     const frenzyDisplay = document.getElementById('frenzy-display');
@@ -189,27 +201,36 @@ document.addEventListener('DOMContentLoaded', () => {
         checkExpeditionStatus(); updateUI(); updateAscensionVisuals(); saveGame(); showScreen('game-screen');
     }
 
-    function migrateSaveData(loadedState) {
+    async function migrateSaveData(loadedState) {
         if (!loadedState.version || loadedState.version < GAME_VERSION) {
             showScreen('update-screen');
             loadedState.version = GAME_VERSION;
-            loadedState.equipment = loadedState.equipment || { weapon: null, armor: null };
+            if (!loadedState.equipment) loadedState.equipment = { weapon: null, armor: null };
+            if (!loadedState.inventory) loadedState.inventory = [];
+            if (loadedState.equipment.weapon && !loadedState.inventory.some(i => i.name === loadedState.equipment.weapon.name)) {
+                loadedState.inventory.push(loadedState.equipment.weapon);
+            }
+            if (loadedState.equipment.armor && !loadedState.inventory.some(i => i.name === loadedState.equipment.armor.name)) {
+                loadedState.inventory.push(loadedState.equipment.armor);
+            }
+            loadedState.inventory.forEach(item => { if (item.reforgeCount === undefined) item.reforgeCount = 0; });
             loadedState.permanentUpgrades = loadedState.permanentUpgrades || {};
             loadedState.activeBuffs = loadedState.activeBuffs || {};
             loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
             loadedState.counters = loadedState.counters || { taps: 0, enemiesDefeated: 0, ascensionCount: 0 };
+            
             return new Promise(resolve => setTimeout(() => resolve(loadedState), 1500));
         }
         return Promise.resolve(loadedState);
     }
-    
+
     async function loadGame() {
         initAudio();
         const savedData = localStorage.getItem('tapGuardianSave');
         if (savedData) {
             let loadedState = JSON.parse(savedData);
             loadedState = await migrateSaveData(loadedState);
-            gameState = {...defaultState, ...loadedState};
+            gameState = { ...defaultState, ...loadedState };
             const lastLogin = localStorage.getItem('tapGuardianLastLogin');
             const today = new Date().toDateString();
             if (lastLogin !== today) {
@@ -264,13 +285,11 @@ document.addEventListener('DOMContentLoaded', () => {
         expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
         windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
 
-        if (gameState.level < GAUNTLET_UNLOCK_LEVEL) {
-            battleBtn.disabled = true;
-            gauntletUnlockText.textContent = `Unlocks at LVL ${GAUNTLET_UNLOCK_LEVEL}`;
-        } else {
-            battleBtn.disabled = onExpedition;
-            gauntletUnlockText.textContent = "";
-        }
+        if (gameState.level < GAUNTLET_UNLOCK_LEVEL) { battleBtn.disabled = true; gauntletUnlockText.textContent = `Unlocks at LVL ${GAUNTLET_UNLOCK_LEVEL}`; } 
+        else { battleBtn.disabled = onExpedition; gauntletUnlockText.textContent = ""; }
+
+        if (gameState.level < FORGE_UNLOCK_LEVEL) { forgeBtn.disabled = true; forgeUnlockText.textContent = `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`; }
+        else { forgeBtn.disabled = onExpedition; forgeUnlockText.textContent = ""; }
 
         feedBtn.disabled = onExpedition; 
         inventoryBtn.disabled = onExpedition; 
@@ -387,11 +406,14 @@ document.addEventListener('DOMContentLoaded', () => {
             let rewardText = `Your guardian has returned from ${gameState.expedition.name}!<br><br>+${xpReward} XP<br>+${goldReward} Gold`;
             const itemFindChance = 0.3 + (gameState.ascension.tier * 0.05);
             if (Math.random() < (itemFindChance * itemMod)) {
-                const foundItem = generateItem(); const currentItem = gameState.equipment[foundItem.type];
+                const foundItem = generateItem(); 
                 rewardText += `<br><br>Found: <strong style="color:${foundItem.rarity.color}">${foundItem.name}</strong>`;
+                gameState.inventory.push(foundItem);
+                const currentItem = gameState.equipment[foundItem.type];
                 if (!currentItem || foundItem.power > currentItem.power) {
-                    gameState.equipment[foundItem.type] = foundItem; rewardText += `<br><br>New item equipped!`;
-                } else { rewardText += `<br><br>Your current item is stronger.`; }
+                    equipItem(foundItem);
+                    rewardText += `<br><br>New item equipped!`;
+                }
             }
             addXP(xpReward); gameState.gold += goldReward;
             showNotification("Expedition Complete!", rewardText); saveGame(); updateUI();
@@ -423,6 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.level = 1; gameState.xp = 0; gameState.gold = 0;
             gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
             gameState.equipment = JSON.parse(JSON.stringify(defaultState.equipment));
+            gameState.inventory = [];
             const oldHp = gameState.resources.hp; const oldEnergy = gameState.resources.energy;
             gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
             updateUI();
@@ -511,7 +534,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 let bonusItem = generateItem();
                 let rewardText = `GAUNTLET COMPLETE!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
                 addXP(gauntletState.totalXp); gameState.gold += gauntletState.totalGold;
-                if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { gameState.equipment[bonusItem.type] = bonusItem; }
+                gameState.inventory.push(bonusItem);
+                if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { equipItem(bonusItem); }
                 setTimeout(() => { showNotification("Victory!", rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
             } else {
                 addBattleLog(`Wave ${gauntletState.currentWave} cleared! Prepare for the next wave...`, 'log-system');
@@ -552,18 +576,53 @@ document.addEventListener('DOMContentLoaded', () => {
             else { value = Math.ceil(totalBudget * 0.25 * (Math.random() * 0.5 + 0.75)); power += value; }
             stats[affix] = value; if (i === 1) { nameSuffix = itemData.suffixes[affix]; }
         }
-        return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: rarity.color }, stats: stats, power: power };
+        return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: rarity.color }, stats: stats, power: power, reforgeCount: 0 };
+    }
+    function equipItem(itemToEquip) {
+        const itemIndex = gameState.inventory.findIndex(i => i.name === itemToEquip.name);
+        if (itemIndex === -1) return;
+        gameState.equipment[itemToEquip.type] = itemToEquip;
+        updateUI(); saveGame();
     }
     function updateInventoryUI() {
-        function updateSlot(slot, item) {
-            if (item) {
-                let statsHtml = '<div class="item-stats">';
-                for (const stat in item.stats) { const value = item.stats[stat]; const suffix = (stat === 'critChance' || stat === 'goldFind') ? '%' : ''; statsHtml += `<span class="item-stat">+${value}${suffix} ${stat}</span>`; }
-                statsHtml += '</div>';
-                slot.innerHTML = `<span class="item-name" style="color:${item.rarity.color}">${item.name}</span>${statsHtml}`;
-            } else { slot.innerHTML = `${slot.id === 'weapon-slot' ? 'Weapon' : 'Armor'}: None`; }
+        inventoryList.innerHTML = '';
+        if (gameState.inventory.length === 0) {
+            inventoryList.innerHTML = '<p>Your inventory is empty.</p>';
+            return;
         }
-        updateSlot(weaponSlot, gameState.equipment.weapon); updateSlot(armorSlot, gameState.equipment.armor);
+
+        const sortedInventory = [...gameState.inventory].sort((a,b) => b.power - a.power);
+
+        sortedInventory.forEach((item, index) => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'inventory-item';
+            
+            let statsHtml = '';
+            for (const stat in item.stats) {
+                const value = item.stats[stat];
+                const suffix = (stat === 'critChance' || stat === 'goldFind') ? '%' : '';
+                statsHtml += `<span>+${value}${suffix} ${stat}</span><br>`;
+            }
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'inventory-item-info';
+            infoDiv.innerHTML = `<strong style="color:${item.rarity.color}">${item.name}</strong><div class="item-stats">${statsHtml}</div>`;
+            
+            const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
+            const button = document.createElement('button');
+            if (isEquipped) {
+                button.textContent = 'Equipped';
+                button.disabled = true;
+            } else {
+                button.textContent = 'Equip';
+                button.onclick = (e) => { e.stopPropagation(); equipItem(item); inventoryModal.classList.remove('visible'); };
+            }
+
+            itemEl.appendChild(infoDiv);
+            itemEl.appendChild(button);
+            itemEl.onclick = () => selectItemForForge(item);
+            inventoryList.appendChild(itemEl);
+        });
     }
     function generateAndShowExpeditions() {
         availableExpeditions = []; expeditionListContainer.innerHTML = '';
@@ -773,6 +832,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ascensionBtn.addEventListener('click', () => { updatePerksUI(); ascensionModal.classList.add('visible'); });
     closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
     closeShopBtn.addEventListener('click', () => { shopModal.classList.remove('visible'); });
+    forgeBtn.addEventListener('click', () => { forgeModal.classList.add('visible'); });
+    closeForgeBtn.addEventListener('click', () => { forgeModal.classList.remove('visible'); });
     const handleVisualTap = (e) => {
         if (gameState.expedition.active || gameState.resources.energy <= 0) return;
         const characterArea = document.getElementById('character-area'); const spriteRect = characterSprite.getBoundingClientRect(); const areaRect = characterArea.getBoundingClientRect();
