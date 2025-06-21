@@ -26,9 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let availableExpeditions = [];
     let forgeSlots = [null, null];
-    let partnerTimerInterval = null;
     const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
-    const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
+    const musicManager = { isInitialized: false, audio: {}, currentTrack: null };
     
     function initMusic() { if (musicManager.isInitialized) return; musicManager.isInitialized = true; playMusic('main'); }
     function playMusic(trackName) {
@@ -37,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const oldTrackName = musicManager.currentTrack;
         if (oldTrackName && musicManager.audio[oldTrackName]) { musicManager.audio[oldTrackName].pause(); musicManager.audio[oldTrackName].currentTime = 0; }
-        if (oldTrackName === trackName) { if (musicManager.audio[trackName].paused) { musicManager.audio[trackName].play().catch(e => console.error("Music resume failed:", e)); } return; }
         
         const newTrack = musicManager.audio[trackName];
         musicManager.currentTrack = trackName;
@@ -51,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const achievements = {
         tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 50 } },
-        tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 250 } },
         level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'uncommon' } },
         defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100 } },
         ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'gold', amount: 1000 } },
@@ -108,8 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const ASCENSION_LEVEL = 50;
     const BATTLE_UNLOCK_LEVEL = 20;
     const FORGE_UNLOCK_LEVEL = 15;
-    let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
-    let expeditionInterval = null;
     
     // --- ELEMENT SELECTORS ---
     const screens = document.querySelectorAll('.screen');
@@ -197,15 +192,22 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (screenId === 'game-screen' || screenId === 'main-menu-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
         }
     }
+    // FIXED: Corrected init function
     function init() { 
         startBackgroundAssetLoading();
         createWindEffect();
         createStarfield();
         auth.onAuthStateChanged(user => {
             updateAuthUI(user);
-            if (user) { loadGame(); }
+            // If user is logged in, attempt to load their game.
+            // If they are not, we wait for them to click "Load Game" or "Start New".
+            if (user) { 
+                loadGame(); 
+            } else {
+                // If no user, show the main menu after a delay.
+                setTimeout(() => { showScreen('main-menu-screen'); }, 1500);
+            }
         });
-        setTimeout(() => { if(!auth.currentUser) showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }, 1500);
         setInterval(passiveResourceRegen, 1000);
     }
     async function startGame() {
@@ -414,13 +416,59 @@ document.addEventListener('DOMContentLoaded', () => {
         try { await db.collection("leaderboard").doc(auth.currentUser.uid).set(score); } catch (error) { console.error("Error submitting score: ", error); }
     }
     async function showLeaderboard(type = 'level') {
-        // ... (This function remains unchanged)
+        const allLists = document.querySelectorAll('.leaderboard-list');
+        allLists.forEach(l => l.classList.remove('active'));
+        let targetList, collectionName, orderByField, orderByDirection, secondaryOrderByField, secondaryOrderByDirection;
+        if(type === 'damage') {
+            targetList = damageLeaderboardList; collectionName = 'damageLeaderboard';
+            orderByField = 'totalDamage'; orderByDirection = 'desc';
+        } else {
+            targetList = levelLeaderboardList; collectionName = 'leaderboard';
+            orderByField = 'tier'; orderByDirection = 'desc';
+            secondaryOrderByField = 'level'; secondaryOrderByDirection = 'desc';
+        }
+        targetList.classList.add('active');
+        leaderboardTabs.forEach(t => t.classList.remove('active'));
+        document.querySelector(`.leaderboard-tab[data-type="${type}"]`).classList.add('active');
+        leaderboardModal.classList.add('visible');
+        targetList.innerHTML = "<li>Loading...</li>";
+        try {
+            let query = db.collection(collectionName).orderBy(orderByField, orderByDirection);
+            if (secondaryOrderByField) { query = query.orderBy(secondaryOrderByField, secondaryOrderByDirection); }
+            const snapshot = await query.limit(10).get();
+            if (snapshot.empty) { targetList.innerHTML = "<li>No scores yet. Be the first!</li>"; return; }
+            targetList.innerHTML = "";
+            let rank = 1;
+            snapshot.forEach(doc => {
+                const data = doc.data(); const li = document.createElement('li');
+                let scoreText;
+                if(type === 'damage') { scoreText = `Damage: ${data.totalDamage.toLocaleString()}`; } 
+                else { scoreText = `Level ${data.level} (Tier ${data.tier})`; }
+                li.innerHTML = `<span class="rank-name">${rank}. ${data.name}</span> <span class="rank-score">${scoreText}</span>`;
+                targetList.appendChild(li); rank++;
+            });
+        } catch (error) { console.error("Error fetching leaderboard: ", error); targetList.innerHTML = "<li>Error loading scores.</li>"; }
     }
     function generateItem(forceRarity = null) {
-        // ... (This function remains unchanged)
-    }
-    function updateInventoryUI() {
-        // ... (This function remains unchanged)
+        let chosenRarityKey = forceRarity;
+        if (!chosenRarityKey) {
+            const roll = Math.random() * 100; let cumulativeWeight = 0;
+            for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
+        }
+        const rarity = itemData.rarities[chosenRarityKey];
+        const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor'; const itemType = itemData.types[itemTypeKey];
+        const baseName = itemType.base[Math.floor(Math.random() * itemType.base.length)]; const primaryStat = itemType.primary;
+        const stats = {}; let power = 0; const totalBudget = (gameState.level + (gameState.ascension.tier * 5)) * rarity.budget;
+        stats[primaryStat] = Math.ceil(totalBudget * 0.6); power += stats[primaryStat];
+        let availableAffixes = [...itemData.affixes]; let namePrefix = itemData.prefixes[primaryStat]; let nameSuffix = '';
+        for (let i = 1; i < rarity.affixes && availableAffixes.length > 0; i++) {
+            const affixIndex = Math.floor(Math.random() * availableAffixes.length); const affix = availableAffixes.splice(affixIndex, 1)[0];
+            let value;
+            if (affix === 'critChance' || affix === 'goldFind') { value = Math.max(1, Math.ceil(totalBudget * 0.15 * (Math.random() * 0.5 + 0.75))); power += value * 3; } 
+            else { value = Math.ceil(totalBudget * 0.25 * (Math.random() * 0.5 + 0.75)); power += value; }
+            stats[affix] = value; if (i === 1) { nameSuffix = itemData.suffixes[affix]; }
+        }
+        return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: rarity.color }, stats: stats, power: power, reforgeCount: 0 };
     }
     function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); initMusic(); } }
     function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
@@ -469,21 +517,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (counters.enemiesDefeated >= 10) unlockAchievement('defeat10');
         if (counters.ascensionCount >= 1) unlockAchievement('ascend1');
         if (counters.battlesCompleted >= 1) unlockAchievement('battle1');
-    }
-    function updateAchievementsUI() {
-        // ... (This function remains unchanged)
-    }
-    function updatePerksUI() {
-        // ... (This function remains unchanged)
-    }
-    function buyPerk(perkId) {
-        // ... (This function remains unchanged)
-    }
-    function updateShopUI() {
-        // ... (This function remains unchanged)
-    }
-    function buyShopItem(itemId, type) {
-        // ... (This function remains unchanged)
     }
     
     // --- BATTLE SYSTEM ---
@@ -725,6 +758,11 @@ document.addEventListener('DOMContentLoaded', () => {
         muteAllCheckbox.checked = gameState.settings.isMuted;
         autoBattleCheckbox.checked = gameState.settings.isAutoBattle;
     }
+
+    // --- Background Effects ---
+    function createWindEffect() { for(let i=0; i<20; i++) { const streak = document.createElement('div'); streak.className = 'wind-streak'; streak.style.top = `${Math.random() * 100}%`; streak.style.width = `${Math.random() * 150 + 50}px`; streak.style.animationDuration = `${Math.random() * 3 + 2}s`; streak.style.animationDelay = `${Math.random() * 5}s`; windAnimationContainer.appendChild(streak); } }
+    function createStarfield() { const container = document.getElementById('background-stars'); for(let i=0; i<100; i++) { const star = document.createElement('div'); star.className = 'star'; const size = Math.random() * 2 + 1; star.style.width = `${size}px`; star.style.height = `${size}px`; star.style.top = `${Math.random() * 100}%`; star.style.left = `${Math.random() * 100}%`; star.style.animationDuration = `${Math.random() * 50 + 25}s`; star.style.animationDelay = `${Math.random() * 50}s`; container.appendChild(star); } }
+
 
     // --- EVENT LISTENERS ---
     startGameBtn.addEventListener('click', startGame);
