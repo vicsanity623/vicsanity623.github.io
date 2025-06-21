@@ -235,7 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (screenId === 'game-screen' || screenId === 'main-menu-screen' || screenId === 'partner-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
     }
     
-    // --- CORRECTED init() FUNCTION ---
     function init() { 
         createWindEffect(); createStarfield(); startBackgroundAssetLoading();
         
@@ -243,9 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
         auth.onAuthStateChanged(user => {
             authStateHandled = true;
             updateAuthUI(user);
-            if (user) {
-                loadGame(); 
-            } else {
+            if (user) { loadGame(); } 
+            else { 
                 loadGameBtn.disabled = !localStorage.getItem('tapGuardianSave');
                 const loadingScreen = document.getElementById('loading-screen');
                 if (loadingScreen && loadingScreen.classList.contains('active')) {
@@ -254,7 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Fallback for browsers that might block initial auth check
         setTimeout(() => {
             if (!authStateHandled) {
                 showScreen('main-menu-screen');
@@ -308,7 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let loadedState = null;
         let fromCloud = false;
 
-        // Step 1: Prioritize loading from the cloud if the user is logged in.
         if (auth.currentUser) {
             try {
                 const docRef = db.collection('playerSaves').doc(auth.currentUser.uid);
@@ -323,7 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Step 2: If no cloud save was found, fall back to local storage.
         if (!loadedState) {
             const savedData = localStorage.getItem('tapGuardianSave');
             if (savedData) {
@@ -332,8 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // --- THIS IS THE CRITICAL FIX ---
-        // Step 3: If ANY save was found (cloud or local), process it and start the game.
         if (loadedState) {
             loadedState = await migrateSaveData(loadedState);
             gameState = { ...defaultState, ...loadedState };
@@ -342,20 +335,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast("Cloud save loaded!");
             }
             
-            // Now run all the necessary setup and show the game screen
             updateSettingsUI();
             checkExpeditionStatus();
             updateUI(); 
             updateAscensionVisuals();
-            showScreen('game-screen'); // <--- This is the crucial line that was being missed.
+            showScreen('game-screen');
             checkWeeklyRewards();
-            await saveGame(); // Save back to sync local/cloud if needed
+            await saveGame();
         } else if (auth.currentUser) {
-            // If logged in but NO save exists anywhere, start a new game for them.
              showToast("No saves found. Starting a new game.");
              startGame();
         }
-        // If not logged in and no local save, do nothing. Wait for user input.
     }
 
     async function saveGame(showToastNotification = false) {
@@ -1406,17 +1396,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- AUTH & SETTINGS ---
     function signInWithGoogle() { 
         auth.signInWithPopup(googleProvider)
-            .then(result => { showToast(`Welcome, ${result.user.displayName}!`); })
-            .catch(error => { console.error("Sign in error", error); showToast(`Sign in failed: ${error.message}`); }); 
+            .then(result => {
+                showToast(`Welcome, ${result.user.displayName}!`);
+                // onAuthStateChanged will handle loading the game
+            })
+            .catch(error => {
+                console.error("Sign in error", error);
+                showToast(`Sign in failed: ${error.message}`);
+            }); 
     }
     
     function signOut() {
+        const localSaveExists = !!localStorage.getItem('tapGuardianSave');
+        const wasLoggedIn = !!auth.currentUser;
+        
         auth.signOut().then(() => {
             showToast("Signed Out");
+            // Reset game state to default before deciding what to do next
             gameState = JSON.parse(JSON.stringify(defaultState));
-            localStorage.removeItem('tapGuardianSave'); // Clear any old local save
-            updateUI();
-            showScreen('main-menu-screen');
+            if (localSaveExists) {
+                if (confirm("You are now signed out. Do you want to load your local save file? (This will not affect your cloud save)")) {
+                    loadGame();
+                } else {
+                    showScreen('main-menu-screen');
+                    updateUI(); // Update UI to reflect logged-out state
+                }
+            } else {
+                showScreen('main-menu-screen');
+                updateUI();
+            }
         });
     }
 
