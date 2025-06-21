@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
+    let lightningInterval = null;
     let currentNpc = {};
     let gauntletState = {};
     let availableExpeditions = [];
@@ -86,8 +87,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
     let expeditionInterval = null;
     const screens = document.querySelectorAll('.screen');
+    const gameScreen = document.getElementById('game-screen');
     const loadGameBtn = document.getElementById('load-game-btn');
     const characterSprite = document.getElementById('character-sprite');
+    const characterArea = document.getElementById('character-area');
     const playerNameLevel = document.getElementById('player-name-level');
     const healthBarFill = document.querySelector('#health-bar .stat-bar-fill');
     const healthBarLabel = document.querySelector('#health-bar .stat-bar-label');
@@ -178,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState = JSON.parse(JSON.stringify(defaultState));
         gameState.playerName = playerName;
         localStorage.setItem('tapGuardianLastLogin', new Date().toDateString());
-        checkExpeditionStatus(); updateUI(); saveGame(); showScreen('game-screen');
+        checkExpeditionStatus(); updateUI(); updateAscensionVisuals(); saveGame(); showScreen('game-screen');
     }
 
     function loadGame() {
@@ -204,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showNotification("Welcome Back!", `You received a daily login bonus of:<br><br>+${dailyGold} Gold<br>+${dailyXP} XP`);
             }
             localStorage.setItem('tapGuardianLastLogin', today);
-            checkExpeditionStatus(); updateUI(); showScreen('game-screen');
+            checkExpeditionStatus(); updateUI(); updateAscensionVisuals(); showScreen('game-screen');
         } else { showNotification("No Save Data Found!", "Starting a new game instead."); startGame(); }
     }
     function saveGame() { localStorage.setItem('tapGuardianSave', JSON.stringify(gameState)); loadGameBtn.disabled = false; }
@@ -254,10 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
         feedBtn.disabled = onExpedition; battleBtn.disabled = onExpedition; inventoryBtn.disabled = onExpedition; shopBtn.disabled = onExpedition;
         if (gameState.tutorialCompleted) { tutorialOverlay.classList.remove('visible'); } else { tutorialOverlay.classList.add('visible'); }
-        characterSprite.classList.remove('aura-level-10', 'aura-level-20', 'aura-level-30');
-        if (gameState.level >= 30) { characterSprite.classList.add('aura-level-30'); } 
-        else if (gameState.level >= 20) { characterSprite.classList.add('aura-level-20'); } 
-        else if (gameState.level >= 10) { characterSprite.classList.add('aura-level-10'); }
     }
     function addXP(amount) { if (gameState.expedition.active) return;
         const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
@@ -272,7 +271,9 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.stats.strength += 2; gameState.stats.agility += 1; gameState.stats.fortitude += 2; gameState.stats.stamina += 1;
         gameState.resources.hp = gameState.resources.maxHp; gameState.resources.energy = gameState.resources.maxEnergy;
         playSound('levelUp', 1, 'triangle', 440, 880); triggerScreenShake(400); checkAllAchievements(); submitScoreToLeaderboard();
-        showNotification("LEVEL UP!", `You are now Level ${gameState.level}!`); saveGame();
+        showNotification("LEVEL UP!", `You are now Level ${gameState.level}!`);
+        updateAscensionVisuals();
+        saveGame();
     }
     function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
     function updateFrenzyVisuals() {
@@ -329,12 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tapCombo.currentMultiplier > 1) { createParticles(event); }
         characterSprite.style.animation = 'none'; void characterSprite.offsetWidth; characterSprite.classList.add('tapped');
         setTimeout(() => { 
-            characterSprite.classList.remove('tapped'); let newAnimation = 'idle-breathe 2s ease-in-out infinite';
-            if (characterSprite.classList.contains('aura-level-30')) { newAnimation = 'idle-breathe 3s ease-in-out infinite, aura-level-30-anim 1s ease-in-out infinite'; } 
-            else if (characterSprite.classList.contains('aura-level-20')) { newAnimation = 'idle-breathe 3s ease-in-out infinite, aura-level-20-anim 1.5s ease-in-out infinite'; } 
-            else if (characterSprite.classList.contains('aura-level-10')) { newAnimation = 'idle-breathe 3s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite'; }
-            if(characterSprite.classList.contains('frenzy')){ newAnimation += ', frenzy-glow 1s infinite'; }
-            characterSprite.style.animation = newAnimation;
+            characterSprite.classList.remove('tapped'); updateAscensionVisuals();
         }, 200); 
         updateUI();
     }
@@ -405,7 +401,9 @@ document.addEventListener('DOMContentLoaded', () => {
             updateUI();
             gameState.resources.hp = Math.min(oldHp, gameState.resources.maxHp);
             gameState.resources.energy = Math.min(oldEnergy, gameState.resources.maxEnergy);
-            submitScoreToLeaderboard(); saveGame(); updateUI(); ingameMenuModal.classList.remove('visible');
+            submitScoreToLeaderboard();
+            updateAscensionVisuals();
+            saveGame(); updateUI(); ingameMenuModal.classList.remove('visible');
             showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You have gained 1 Ascension Point to spend.`);
         }
     }
@@ -627,7 +625,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gameState.gold < itemData.cost || (itemData.type === 'buff' && gameState.activeBuffs[itemId])) { buyBtn.disabled = true; }
             buyBtn.onclick = () => buyShopItem(itemId, 'consumable'); shopItem.appendChild(infoDiv); shopItem.appendChild(buyBtn); shopConsumablesContainer.appendChild(shopItem);
         }
-
         shopUpgradesContainer.innerHTML = '';
         for (const upgradeId in permanentShopUpgrades) {
             const upgradeData = permanentShopUpgrades[upgradeId]; const currentLevel = gameState.permanentUpgrades[upgradeId] || 0;
@@ -681,6 +678,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         buffDisplay.textContent = buffText;
+    }
+    function createLightningEffect() {
+        const bolt = document.createElement('div');
+        bolt.className = 'lightning-bolt';
+        bolt.style.left = `${Math.random() * 100}%`;
+        bolt.style.transform = `rotate(${(Math.random() - 0.5) * 20}deg)`;
+        characterArea.appendChild(bolt);
+        setTimeout(() => bolt.remove(), 200);
+    }
+    function updateAscensionVisuals() {
+        characterSprite.classList.remove('aura-level-10', 'aura-ascended');
+        gameScreen.classList.remove('background-glitch');
+        if (lightningInterval) clearInterval(lightningInterval);
+        lightningInterval = null;
+
+        const tier = gameState.ascension.tier;
+        if (tier >= 5) {
+            characterSprite.classList.add('aura-ascended');
+            gameScreen.classList.add('background-glitch');
+            lightningInterval = setInterval(createLightningEffect, 3000);
+        } else if (tier >= 3) {
+            characterSprite.classList.add('aura-ascended');
+        } else if (gameState.level >= 10) {
+            characterSprite.classList.add('aura-level-10');
+        } else {
+            characterSprite.style.animation = 'idle-breathe 4s ease-in-out infinite';
+        }
     }
     startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
     characterSprite.addEventListener('click', handleTap); characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
