@@ -9,10 +9,10 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const auth = firebase.auth(); // NEW: Initialize Firebase Auth
+const auth = firebase.auth();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.7; // Updated version for new features
+    const GAME_VERSION = 1.7;
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
@@ -100,7 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
         achievements: JSON.parse(JSON.stringify(achievements)),
         counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
         lastWeeklyRewardClaim: 0,
-        // NEW: Settings object
         settings: {
             musicVolume: 0.5,
             sfxVolume: 1.0,
@@ -207,7 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const shopConsumablesContainer = document.getElementById('shop-consumables-container');
     const shopUpgradesContainer = document.getElementById('shop-upgrades-container');
     const closeShopBtn = document.getElementById('close-shop-btn');
-    // NEW: Options Modal Selectors
     const optionsModal = document.getElementById('options-modal');
     const closeOptionsBtn = document.getElementById('close-options-btn');
     const googleSigninBtn = document.getElementById('google-signin-btn');
@@ -227,38 +225,31 @@ document.addEventListener('DOMContentLoaded', () => {
         createWindEffect(); createStarfield(); startBackgroundAssetLoading();
         auth.onAuthStateChanged(user => {
             updateAuthUI(user);
-            if (user) {
-                loadGame(); // Attempt to load from cloud if user is logged in
-            }
+            if (user) { loadGame(); }
         });
-        setTimeout(() => { showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }, 1500);
+        setTimeout(() => { if(!auth.currentUser) showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }, 1500);
         buffInterval = setInterval(updateBuffs, 1000);
         partnerTimerInterval = setInterval(checkEggHatch, 1000);
         setInterval(passiveResourceRegen, 1000);
     }
     async function startGame() {
-        initAudio();
         let playerName = ""; let isNameValid = false;
         while (!isNameValid) {
-            const inputName = prompt("Enter your Guardian's name (3-15 chars):", "");
+            const inputName = prompt("Enter your Guardian's name (3-15 chars):", auth.currentUser ? auth.currentUser.displayName : "");
             if (inputName === null) { return; } 
             if (inputName.length < 3 || inputName.length > 15) { alert("Name must be between 3 and 15 characters."); continue; }
-            if (auth.currentUser) {
-                 isNameValid = true;
-                 playerName = inputName;
-            } else {
-                try {
-                    const leaderboardDoc = await db.collection("leaderboard").doc(inputName).get();
-                    if (leaderboardDoc.exists) { alert(`The name "${inputName}" is already taken. Please choose another.`); } 
-                    else { playerName = inputName; isNameValid = true; }
-                } catch (error) { console.error("Error checking name:", error); alert("Could not verify name with the server. Please check your connection and try again."); return; }
-            }
+            playerName = inputName; isNameValid = true;
         }
         gameState = JSON.parse(JSON.stringify(defaultState));
         gameState.playerName = playerName;
+        
+        initAudio(); // Initialize audio context on user action
         updateSettingsUI();
-        localStorage.setItem('tapGuardianLastLogin', new Date().toDateString());
-        checkExpeditionStatus(); updateUI(); updateAscensionVisuals(); saveGame(); showScreen('game-screen');
+        checkExpeditionStatus(); 
+        updateUI(); 
+        updateAscensionVisuals(); 
+        saveGame(); 
+        showScreen('game-screen');
     }
     async function migrateSaveData(loadedState) {
         if (!loadedState.version || loadedState.version < GAME_VERSION) {
@@ -272,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return Promise.resolve(loadedState);
     }
     async function loadGame() {
-        initAudio();
+        initAudio(); // Initialize audio context on user action
         let loadedState = null;
 
         if (auth.currentUser) {
@@ -283,7 +274,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     loadedState = doc.data();
                     showToast("Cloud save loaded!");
                 } else {
-                    showToast("No cloud save found. Loading local save.");
+                    showToast("No cloud save found. Starting a new game.");
+                    startGame();
+                    return;
                 }
             } catch (error) {
                 console.error("Error loading from cloud:", error);
@@ -301,18 +294,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loadedState) {
             loadedState = await migrateSaveData(loadedState);
             gameState = { ...defaultState, ...loadedState };
-            updateSettingsUI();
+            updateSettingsUI(); // Apply settings first
             checkExpeditionStatus(); 
             updateUI(); 
             updateAscensionVisuals(); 
-            showScreen('game-screen');
+            showScreen('game-screen'); // Then show the screen (which might play music)
         } else {
             showNotification("No Save Data Found!", "Starting a new game instead.");
             startGame();
         }
     }
     async function saveGame() {
-        if (!gameState.playerName) return; // Don't save an uninitialized game
+        if (!gameState.playerName) return;
 
         if (auth.currentUser) {
             try {
@@ -390,7 +383,6 @@ document.addEventListener('DOMContentLoaded', () => {
         switchCharacterBtn.style.display = gameState.hasEgg ? 'block' : 'none';
         updatePartnerUI();
     }
-    //... (All other functions from before, UNCHANGED)
     function addXP(character, amount) { 
         if(character.isPartner && gameState.expedition.active) return;
         const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
@@ -685,7 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function generateAndShowExpeditions() {
         availableExpeditions = []; expeditionListContainer.innerHTML = '';
-        for (let i = 0; i < 3; i++) { // Reduced to 3 for variety
+        for (let i = 0; i < 3; i++) {
             const action = expeditionData.actions[Math.floor(Math.random() * expeditionData.actions.length)];
             const location = expeditionData.locations[Math.floor(Math.random() * expeditionData.locations.length)];
             const modKeys = Object.keys(expeditionData.modifiers);
@@ -1239,19 +1231,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (UINeedsUpdate) { updateUI(); }
     }
-    // NEW: Authentication and Settings Functions
+    
+    // --- AUTH & SETTINGS ---
     function signInWithGoogle() {
         const provider = new firebase.auth.GoogleAuthProvider();
         auth.signInWithPopup(provider).catch(error => console.error("Sign in error", error));
     }
     function signOut() {
+        const localSave = localStorage.getItem('tapGuardianSave');
         auth.signOut();
-        // Ask user if they want to start a new local game
-        if (confirm("You have signed out. Do you want to start a new local game? Your cloud save will not be affected.")) {
-            gameState = JSON.parse(JSON.stringify(defaultState));
-            localStorage.removeItem('tapGuardianSave');
-            updateUI();
-            showScreen('main-menu-screen');
+        if (localSave) {
+            if (confirm("You have signed out. Load your local save?")) {
+                loadGame();
+            }
+        } else {
+            if (confirm("You have signed out. Start a new local game?")) {
+                startGame();
+            }
         }
     }
     function updateAuthUI(user) {
@@ -1336,7 +1332,7 @@ document.addEventListener('DOMContentLoaded', () => {
     partnerSprite.addEventListener('click', handleVisualTap);
     partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
 
-    // NEW: Options Listeners
+    // Options Listeners
     closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
     muteAllCheckbox.addEventListener('change', (e) => {
         gameState.settings.isMuted = e.target.checked;
