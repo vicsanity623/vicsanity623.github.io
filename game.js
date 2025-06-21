@@ -1,11 +1,11 @@
 const firebaseConfig = {
-    apiKey: "AIzaSyDyZ_aOOnuMNxC9QBE52KfjKzUyHjbagqk",
-    authDomain: "tap-guardian-rpg.firebaseapp.com",
-    projectId: "tap-guardian-rpg",
-    storageBucket: "tap-guardian-rpg.appspot.com",
-    messagingSenderId: "50272459426",
-    appId: "1:50272459426:web:7ae4beb76ed67d4a3a15fb",
-    measurementId: "G-4686TXHCHN"
+  apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
+  authDomain: "tap-guardian-rpg.firebaseapp.com",
+  projectId: "tap-guardian-rpg",
+  storageBucket: "tap-guardian-rpg.firebasestorage.app",
+  messagingSenderId: "50272459426",
+  appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
+  measurementId: "G-XJRE7YNPZR"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
