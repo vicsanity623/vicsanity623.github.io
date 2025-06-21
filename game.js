@@ -278,14 +278,12 @@ const firebaseConfig = {
           if (!loadedState.version || loadedState.version < GAME_VERSION) {
               showScreen('update-screen');
               loadedState.version = GAME_VERSION;
-              // Add any new properties from defaultState to the loadedState
               const defaultKeys = Object.keys(defaultState);
               defaultKeys.forEach(key => {
                   if (loadedState[key] === undefined) {
                       loadedState[key] = JSON.parse(JSON.stringify(defaultState[key]));
                   }
               });
-              // Deep merge for nested objects like counters and achievements
               loadedState.counters = { ...defaultState.counters, ...loadedState.counters };
               loadedState.achievements = { ...defaultState.achievements, ...loadedState.achievements };
               loadedState.settings = { ...defaultState.settings, ...loadedState.settings };
@@ -712,10 +710,534 @@ const firebaseConfig = {
               expeditionListContainer.appendChild(itemEl);
           }
       }
+      
+      function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); initMusic(); } }
+      
+      function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
+          if (!audioCtx || (gameState.settings && gameState.settings.isMuted)) return;
+          const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.type = wave;
+          oscillator.frequency.setValueAtTime(startFreq, audioCtx.currentTime); oscillator.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + duration);
+          const finalVolume = (gameState.settings ? gameState.settings.sfxVolume : 1.0) * volume;
+          gainNode.gain.setValueAtTime(finalVolume, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+          oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.start(); oscillator.stop(audioCtx.currentTime + duration);
+      }
+      
+      function triggerScreenShake(duration = 500) { document.body.classList.add('screen-shake'); setTimeout(() => document.body.classList.remove('screen-shake'), duration); }
+      function showToast(message) { const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; toastContainer.appendChild(toast); setTimeout(() => { toast.remove(); }, 4000); }
+      
+      function createDamageNumber(amount, isCrit, isPlayerSource) {
+          const num = document.createElement('div'); num.textContent = amount; num.className = 'damage-text';
+          if (isPlayerSource) num.classList.add('player-damage'); else num.classList.add('enemy-damage');
+          if (isCrit) num.classList.add('crit'); document.getElementById('battle-arena').appendChild(num);
+          setTimeout(() => { num.style.transform = 'translateY(-80px)'; num.style.opacity = '0'; }, 10);
+          setTimeout(() => { num.remove(); }, 800);
+      }
+      
+      function unlockAchievement(id) {
+          if (!gameState.achievements[id] || gameState.achievements[id].unlocked) return;
+          gameState.achievements[id].unlocked = true;
+          const ach = achievements[id];
+          let rewardText = "";
+          if (ach.reward) {
+              switch (ach.reward.type) {
+                  case 'gold':
+                      gameState.gold += ach.reward.amount;
+                      rewardText = ` (+${ach.reward.amount} Gold)`;
+                      break;
+                  case 'item':
+                      const newItem = generateItem(ach.reward.rarity);
+                      gameState.inventory.push(newItem);
+                      rewardText = ` (Received ${newItem.name})`;
+                      break;
+                  case 'egg':
+                      gameState.hasEgg = true;
+                      gameState.partner = {
+                          name: 'Mysterious Egg',
+                          isPartner: true,
+                          isHatched: false,
+                          hatchTime: Date.now() + 7 * 24 * 60 * 60 * 1000,
+                      };
+                      rewardText = ' (You found a Mysterious Egg!)';
+                      break;
+              }
+          }
+          showToast(`Achievement: ${ach.name}${rewardText}`);
+          playSound('levelUp', 0.7, 'triangle', 880, 1200, 0.3);
+          updateUI();
+      }
+      
+      function checkAllAchievements() {
+          if (!gameState.counters) return;
+          const counters = gameState.counters;
+          if (counters.taps >= 100) unlockAchievement('tap100');
+          if (counters.taps >= 1000) unlockAchievement('tap1000');
+          if (counters.taps >= 10000) unlockAchievement('tap10000');
+          if (gameState.level >= 10) unlockAchievement('level10');
+          if (gameState.level >= 25) unlockAchievement('level25');
+          if (gameState.level >= 50) unlockAchievement('level50');
+          if (counters.enemiesDefeated >= 10) unlockAchievement('defeat10');
+          if (counters.enemiesDefeated >= 100) unlockAchievement('defeat100');
+          if (counters.enemiesDefeated >= 500) unlockAchievement('defeat500');
+          if (counters.ascensionCount >= 1) unlockAchievement('ascend1');
+          if (counters.ascensionCount >= 5) unlockAchievement('ascend5');
+          if (counters.battlesCompleted >= 1) unlockAchievement('battle1');
+          if (counters.itemsForged >= 1) unlockAchievement('forge1');
+          if (counters.legendariesFound >= 1) unlockAchievement('findLegendary');
+          if (gameState.ascension.tier >= 5 && gameState.level >= 50) unlockAchievement('masterGuardian');
+      }
+      
+      function updateAchievementsUI() {
+          achievementsList.innerHTML = '';
+          for (const id in achievements) {
+              const achData = achievements[id];
+              const achState = gameState.achievements[id] || { unlocked: false };
+              const li = document.createElement('li');
+              if (achState.unlocked) li.classList.add('unlocked');
+              
+              let rewardHtml = '';
+              if (achData.reward) {
+                  let rewardDesc = '';
+                  switch(achData.reward.type) {
+                      case 'gold': rewardDesc = `Reward: ${achData.reward.amount} Gold`; break;
+                      case 'item': rewardDesc = `Reward: A ${achData.reward.rarity} item`; break;
+                      case 'egg': rewardDesc = 'Reward: ???'; break;
+                  }
+                  rewardHtml = `<div class="achievement-reward">${rewardDesc}</div>`;
+              }
   
-      // --- (The rest of the file continues with all the other functions) ---
-      // (This is just a truncated view for the response)
-  
+              li.innerHTML = `<strong>${achData.name}</strong><div class="achievement-desc">${achData.desc}</div>${rewardHtml}`;
+              achievementsList.appendChild(li);
+          }
+      }
+      
+      function updatePerksUI() {
+          perksContainer.innerHTML = ''; ascensionPointsDisplay.textContent = gameState.ascension.points;
+          for (const perkId in perks) {
+              const perkData = perks[perkId]; const currentLevel = gameState.ascension.perks[perkId] || 0;
+              const perkItem = document.createElement('div'); perkItem.className = 'perk-item';
+              const infoDiv = document.createElement('div'); infoDiv.className = 'perk-info';
+              infoDiv.innerHTML = `<strong>${perkData.name}</strong><div class="perk-desc">${perkData.desc}</div>`;
+              const levelSpan = document.createElement('span'); levelSpan.className = 'perk-level';
+              levelSpan.textContent = `Lvl ${currentLevel}/${perkData.maxLevel}`; const buyBtn = document.createElement('button');
+              if (currentLevel >= perkData.maxLevel) { buyBtn.textContent = 'Maxed'; buyBtn.disabled = true; } 
+              else { const cost = perkData.cost[currentLevel]; buyBtn.textContent = `Up (${cost} AP)`; if (gameState.ascension.points < cost) { buyBtn.disabled = true; } buyBtn.onclick = () => buyPerk(perkId); }
+              perkItem.appendChild(infoDiv); perkItem.appendChild(levelSpan); perkItem.appendChild(buyBtn); perksContainer.appendChild(perkItem);
+          }
+      }
+      
+      function buyPerk(perkId) {
+          const perkData = perks[perkId]; const currentLevel = gameState.ascension.perks[perkId] || 0;
+          if (currentLevel >= perkData.maxLevel) return; const cost = perkData.cost[currentLevel];
+          if (gameState.ascension.points >= cost) { gameState.ascension.points -= cost; gameState.ascension.perks[perkId] = (gameState.ascension.perks[perkId] || 0) + 1; playSound('levelUp', 0.8, 'sine', 600, 1200, 0.2); updatePerksUI(); updateUI(); saveGame(); }
+      }
+      
+      function updateShopUI() {
+          shopConsumablesContainer.innerHTML = '';
+          for (const itemId in shopItems) {
+              const itemData = shopItems[itemId]; const shopItem = document.createElement('div'); shopItem.className = 'shop-item';
+              const infoDiv = document.createElement('div'); infoDiv.className = 'shop-info';
+              infoDiv.innerHTML = `<strong>${itemData.name}</strong><div class="shop-desc">${itemData.desc}</div>`;
+              const buyBtn = document.createElement('button'); buyBtn.textContent = `Buy (${itemData.cost} G)`;
+              if (gameState.gold < itemData.cost || (itemData.type === 'buff' && gameState.activeBuffs[itemId])) { buyBtn.disabled = true; }
+              buyBtn.onclick = () => buyShopItem(itemId, 'consumable'); shopItem.appendChild(infoDiv); shopItem.appendChild(buyBtn); shopConsumablesContainer.appendChild(shopItem);
+          }
+          shopUpgradesContainer.innerHTML = '';
+          for (const upgradeId in permanentShopUpgrades) {
+              const upgradeData = permanentShopUpgrades[upgradeId]; const currentLevel = gameState.permanentUpgrades[upgradeId] || 0;
+              const shopItem = document.createElement('div'); shopItem.className = 'shop-item';
+              const infoDiv = document.createElement('div'); infoDiv.className = 'shop-info';
+              infoDiv.innerHTML = `<strong>${upgradeData.name}</strong><div class="shop-desc">${upgradeData.desc} (Lvl ${currentLevel}/${upgradeData.maxLevel})</div>`;
+              const buyBtn = document.createElement('button');
+              if (currentLevel >= upgradeData.maxLevel) { buyBtn.textContent = 'Maxed'; buyBtn.disabled = true; } 
+              else if (gameState.level < upgradeData.levelReq) { buyBtn.textContent = `Req Lvl ${upgradeData.levelReq}`; buyBtn.disabled = true; }
+              else { const cost = upgradeData.cost(currentLevel); buyBtn.textContent = `Upgrade (${cost} G)`; if (gameState.gold < cost) { buyBtn.disabled = true; } buyBtn.onclick = () => buyShopItem(upgradeId, 'permanent'); }
+              shopItem.appendChild(infoDiv); shopItem.appendChild(buyBtn); shopUpgradesContainer.appendChild(shopItem);
+          }
+      }
+      
+      function buyShopItem(itemId, type) {
+          if (type === 'permanent') {
+              const upgrade = permanentShopUpgrades[itemId]; const currentLevel = gameState.permanentUpgrades[itemId] || 0;
+              const cost = upgrade.cost(currentLevel);
+              if (gameState.gold >= cost) {
+                  gameState.gold -= cost; gameState.permanentUpgrades[itemId] = currentLevel + 1;
+                  showToast(`Purchased ${upgrade.name} Level ${currentLevel + 1}!`);
+              }
+          } else {
+              const item = shopItems[itemId];
+              if (gameState.gold >= item.cost) {
+                  gameState.gold -= item.cost;
+                  switch (itemId) {
+                      case 'hpPotion': gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + gameState.resources.maxHp * 0.5); break;
+                      case 'energyPotion': gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + gameState.resources.maxEnergy * 0.5); break;
+                      case 'xpBoost': gameState.activeBuffs[itemId] = { expiry: Date.now() + item.duration * 1000 }; break;
+                  }
+                  showToast(`Purchased ${item.name}!`);
+              }
+          }
+          updateUI(); updateShopUI(); saveGame();
+      }
+      
+      function updateBuffs() {
+          if (!gameState.activeBuffs) return; let buffsUpdated = false;
+          for (const buffId in gameState.activeBuffs) {
+              if (Date.now() > gameState.activeBuffs[buffId].expiry) {
+                  delete gameState.activeBuffs[buffId]; showToast(`${shopItems[buffId].name} has worn off.`); buffsUpdated = true;
+              }
+          }
+          if (buffsUpdated) { updateUI(); saveGame(); }
+      }
+      
+      function updateBuffDisplay() {
+          let buffText = "";
+          if (gameState.activeBuffs) {
+              for (const buffId in gameState.activeBuffs) {
+                  const timeLeft = Math.round((gameState.activeBuffs[buffId].expiry - Date.now()) / 1000);
+                  buffText += `${shopItems[buffId].name} (${timeLeft}s) `;
+              }
+          }
+          buffDisplay.textContent = buffText;
+      }
+      
+      function createLightningEffect() {
+          const bolt = document.createElement('div');
+          bolt.className = 'lightning-bolt';
+          bolt.style.left = `${Math.random() * 100}%`;
+          bolt.style.transform = `rotate(${(Math.random() - 0.5) * 20}deg)`;
+          characterArea.appendChild(bolt);
+          setTimeout(() => bolt.remove(), 200);
+      }
+      
+      function updateAscensionVisuals() {
+          characterSprite.classList.remove('aura-level-10', 'aura-ascended');
+          gameScreen.classList.remove('background-glitch');
+          if (lightningInterval) clearInterval(lightningInterval);
+          lightningInterval = null;
+          const tier = gameState.ascension.tier;
+          let newAnimation = 'idle-breathe 4s ease-in-out infinite';
+          if (tier >= 5) {
+              characterSprite.classList.add('aura-ascended');
+              gameScreen.classList.add('background-glitch');
+              lightningInterval = setInterval(createLightningEffect, 3000);
+              newAnimation = 'idle-breathe 2s ease-in-out infinite, super-aura-anim 1s ease-in-out infinite alternate';
+          } else if (tier >= 3) {
+              characterSprite.classList.add('aura-ascended');
+              newAnimation = 'idle-breathe 2s ease-in-out infinite, super-aura-anim 1s ease-in-out infinite alternate';
+          } else if (gameState.level >= 10) {
+              characterSprite.classList.add('aura-level-10');
+              newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite';
+          }
+          if(characterSprite.classList.contains('frenzy')){ newAnimation += ', frenzy-glow 1s infinite'; }
+          characterSprite.style.animation = newAnimation;
+      }
+      
+      function selectItemForForge(item) {
+          if (forgeSlots[0] && forgeSlots[1]) {
+              showToast("Forge slots are full. Clear one first.");
+              return;
+          }
+          // Find the first empty slot and place the item
+          const emptySlotIndex = forgeSlots[0] ? 1 : 0;
+          forgeSlots[emptySlotIndex] = item;
+    
+          // Refresh the UI without opening/closing modals
+          updateForgeUI();
+          updateForgeInventoryUI();
+      }
+    
+      function updateForgeInventoryUI() {
+          const listContainer = document.getElementById('forge-inventory-list');
+          listContainer.innerHTML = '';
+    
+          // Get a list of names of items currently in the forge slots
+          const itemsInForge = forgeSlots.filter(Boolean).map(i => i.name);
+    
+          const forgeableItems = gameState.inventory.filter(item => 
+              item && !itemsInForge.includes(item.name) // Only show items not already in the forge
+          );
+    
+          if (forgeableItems.length === 0) {
+              listContainer.innerHTML = '<p>No other items to forge.</p>';
+              return;
+          }
+    
+          forgeableItems.forEach(item => {
+              const itemEl = document.createElement('div');
+              itemEl.className = 'inventory-item';
+              itemEl.innerHTML = `<div class="inventory-item-info"><strong style="color:${item.rarity.color}">${item.name}</strong></div>`;
+              itemEl.onclick = () => selectItemForForge(item);
+              listContainer.appendChild(itemEl);
+          });
+      }
+    
+      function updateForgeUI() {
+          const [item1, item2] = forgeSlots;
+          const slots = [forgeSlot1Div, forgeSlot2Div];
+          slots.forEach((slot, i) => {
+              const item = forgeSlots[i];
+              if (item) {
+                  slot.innerHTML = `<strong style="color:${item.rarity.color}">${item.name}</strong><br><small>Reforges: ${item.reforgeCount}/3</small>`;
+                  slot.classList.add('filled');
+              } else {
+                  slot.innerHTML = `Slot ${i + 1}`;
+                  slot.classList.remove('filled');
+              }
+          });
+          forgeResultSlotDiv.innerHTML = "Result";
+          forgeResultSlotDiv.classList.remove('filled');
+          if (item1 && item2) {
+              const cost = (item1.power + item2.power) * 5;
+              forgeCostDisplay.innerHTML = `Cost: ${cost} Gold, 50 Energy`;
+          } else {
+              forgeCostDisplay.innerHTML = '';
+          }
+      }
+      
+      function forgeItems() {
+          const [item1, item2] = forgeSlots;
+          if (!item1 || !item2) { showToast("Need two items to forge."); return; }
+          if (item1.type !== item2.type) { showToast("Items must be the same type."); return; }
+          if (item1.reforgeCount >= 3 || item2.reforgeCount >= 3) { showToast("One of the items cannot be reforged further."); return; }
+          
+          const cost = Math.floor((item1.power + item2.power) * 5);
+          if (gameState.gold < cost) { showToast(`Not enough gold. Need ${cost} G.`); return; }
+          if (gameState.resources.energy < 50) { showToast("Not enough energy. Need 50."); return; }
+    
+          gameState.gold -= cost;
+          gameState.resources.energy -= 50;
+          
+          const newStats = {};
+          const allKeys = new Set([...Object.keys(item1.stats), ...Object.keys(item2.stats)]);
+          allKeys.forEach(stat => {
+              const val1 = item1.stats[stat] || 0;
+              const val2 = item2.stats[stat] || 0;
+              newStats[stat] = Math.ceil((val1 + val2) * 1.1);
+          });
+    
+          const newName = `Reforged ${item1.type === 'weapon' ? 'Blade' : 'Plate'}`;
+          const newPower = Object.values(newStats).reduce((a, b) => a + b, 0);
+          const newItem = {
+              type: item1.type, name: newName,
+              rarity: { key: 'epic', color: 'var(--rarity-epic)' },
+              stats: newStats, power: newPower,
+              reforgeCount: Math.max(item1.reforgeCount, item2.reforgeCount) + 1
+          };
+    
+          const index1 = gameState.inventory.findIndex(i => i.name === item1.name);
+          if (index1 > -1) gameState.inventory.splice(index1, 1);
+          const index2 = gameState.inventory.findIndex(i => i.name === item2.name);
+          if (index2 > -1) gameState.inventory.splice(index2, 1);
+          gameState.inventory.push(newItem);
+          
+          if (gameState.equipment[item1.type] && (gameState.equipment[item1.type].name === item1.name || gameState.equipment[item1.type].name === item2.name)) {
+              gameState.equipment[item1.type] = null;
+          }
+          
+          gameState.counters.itemsForged = (gameState.counters.itemsForged || 0) + 1;
+          checkAllAchievements();
+          
+          forgeSlots = [null, null];
+          updateForgeUI();
+          updateForgeInventoryUI();
+          showToast("Items successfully forged!");
+          updateUI(); 
+          saveGame();
+      }
+      
+      function checkEggHatch() {
+          if (gameState.partner && gameState.partner.hatchTime && Date.now() > gameState.partner.hatchTime) {
+              gameState.partner.isHatched = true;
+              gameState.partner.hatchTime = null;
+              gameState.partner.name = "Newborn Guardian";
+              gameState.partner.level = 1;
+              gameState.partner.xp = 0;
+              gameState.partner.stats = { strength: 5, agility: 5, fortitude: 5, stamina: 5 };
+              gameState.partner.resources = { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 };
+              
+              showNotification("A Mysterious Egg Hatched!", "A newborn guardian has joined you! You can switch to it from the main screen.");
+              playSound('victory', 1, 'sawtooth', 200, 1000, 1);
+              updatePartnerUI();
+              saveGame();
+          }
+      }
+      
+      function updatePartnerUI() {
+          if (!gameState.hasEgg) return;
+          const partner = gameState.partner;
+          if (!partner) return;
+    
+          if (partner.isHatched) {
+              partnerStatsArea.style.display = 'block';
+              eggTimerDisplay.style.display = 'none';
+              partnerSprite.src = 'player.PNG';
+              partnerSprite.classList.add('hatched');
+              partnerNameLevel.textContent = `${partner.name} Lv. ${partner.level}`;
+              const xpForNext = getXpForNextLevel(partner.level);
+              partnerHealthBarFill.style.width = `${(partner.resources.hp / partner.resources.maxHp) * 100}%`;
+              partnerHealthBarLabel.textContent = `HP: ${Math.floor(partner.resources.hp)} / ${partner.resources.maxHp}`;
+              partnerEnergyBarFill.style.width = `${(partner.resources.energy / partner.resources.maxEnergy) * 100}%`;
+              partnerEnergyBarLabel.textContent = `Energy: ${Math.floor(partner.resources.energy)} / ${partner.resources.maxEnergy}`;
+              partnerXpBarFill.style.width = `${(partner.xp / xpForNext) * 100}%`;
+              partnerXpBarLabel.textContent = `XP: ${Math.floor(partner.xp)} / ${xpForNext}`;
+              partnerCoreStatsDisplay.innerHTML = `<span>STR: ${partner.stats.strength}</span><span>AGI: ${partner.stats.agility}</span><span>FOR: ${partner.stats.fortitude}</span><span>STA: ${partner.stats.stamina}</span>`;
+          } else {
+              partnerStatsArea.style.display = 'none';
+              eggTimerDisplay.style.display = 'block';
+              partnerSprite.src = 'egg.png';
+              partnerSprite.classList.remove('hatched');
+              const timeLeft = partner.hatchTime - Date.now();
+              if (timeLeft > 0) {
+                  const pad = num => num.toString().padStart(2, '0');
+                  const days = pad(Math.floor(timeLeft / (1000 * 60 * 60 * 24)));
+                  const hours = pad(Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+                  const minutes = pad(Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60)));
+                  const seconds = pad(Math.floor((timeLeft % (1000 * 60)) / 1000));
+                  eggTimerDisplay.textContent = `${days}:${hours}:${minutes}:${seconds}`;
+              } else {
+                  eggTimerDisplay.textContent = "Hatching...";
+              }
+          }
+      }
+    
+      async function checkWeeklyRewards() {
+          try {
+              const rewardDocRef = db.collection("admin").doc("weeklyReward");
+              const rewardDoc = await rewardDocRef.get();
+              const weekInMs = 7 * 24 * 60 * 60 * 1000;
+              const now = Date.now();
+              
+              if (!rewardDoc.exists || now > rewardDoc.data().nextRewardTime) {
+                  const snapshot = await db.collection("damageLeaderboard").orderBy("totalDamage", "desc").limit(1).get();
+                  if (!snapshot.empty) {
+                      const winner = snapshot.docs[0].data();
+                      if (gameState.playerName === winner.name && now > (gameState.lastWeeklyRewardClaim + weekInMs)) {
+                          const rewardItem = generateItem('legendary');
+                          gameState.inventory.push(rewardItem);
+                          gameState.lastWeeklyRewardClaim = now;
+                          saveGame();
+                          showNotification("Weekly Champion!", `For being #1 on the damage leaderboard, you receive a reward: <strong style="color:var(--rarity-legendary)">${rewardItem.name}</strong>!`);
+                      }
+                  }
+                  
+                  const nextTime = now + weekInMs;
+                  await rewardDocRef.set({ nextRewardTime: nextTime });
+              }
+          } catch(e) { console.error("Could not check weekly rewards:", e); }
+      }
+    
+      // --- BATTLE SYSTEM ---
+      
+      function addBattleLog(message, className) {
+          battleLog.innerHTML += `<div class="${className}">${message}</div>`;
+          battleLog.scrollTop = battleLog.scrollHeight;
+      }
+    
+      function updateBattleHud() {
+          const playerHpBar = document.querySelector('#battle-player-hp-bar .stat-bar-fill');
+          const playerHpLabel = document.querySelector('#battle-player-hp-bar .stat-bar-label');
+          playerHpBar.style.width = `${(battleState.playerHp / gameState.resources.maxHp) * 100}%`;
+          playerHpLabel.textContent = `HP: ${Math.ceil(battleState.playerHp)} / ${gameState.resources.maxHp}`;
+          document.getElementById('battle-player-name').textContent = gameState.playerName;
+          
+          if (battleState.enemy) {
+              const enemyHpBar = document.querySelector('#battle-enemy-hp-bar .stat-bar-fill');
+              const enemyHpLabel = document.querySelector('#battle-enemy-hp-bar .stat-bar-label');
+              enemyHpBar.style.width = `${(battleState.enemy.hp / battleState.enemy.maxHp) * 100}%`;
+              enemyHpLabel.textContent = `HP: ${Math.ceil(battleState.enemy.hp)} / ${battleState.enemy.maxHp}`;
+              document.getElementById('battle-enemy-name').textContent = battleState.enemy.name;
+          }
+    
+          battleWaveDisplay.textContent = `Wave: ${battleState.currentWave} / ${battleState.totalWaves}`;
+      }
+    
+      function startBattle() {
+          battleState = {
+              isActive: true, currentWave: 0, totalWaves: 5, playerHp: gameState.resources.hp,
+              enemy: null, totalXp: 0, totalGold: 0, totalDamage: 0
+          };
+          battleLog.innerHTML = "";
+          addBattleLog("The battle begins!", "log-system");
+          showScreen('battle-screen');
+          startNextWave();
+      }
+    
+      function startNextWave() {
+          battleState.currentWave++;
+    
+          const tierMultiplier = gameState.ascension.tier;
+          const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
+          const waveMultiplier = 1 + (battleState.currentWave - 1) * 0.2;
+          let isBoss = battleState.currentWave === battleState.totalWaves;
+          let enemy;
+          
+          if (isBoss) {
+              enemy = { name: "Goblin King", hp: Math.floor((150 + 20 * levelMultiplier) * tierMultiplier * waveMultiplier), strength: Math.floor((10 + 4 * levelMultiplier) * tierMultiplier * waveMultiplier), agility: Math.floor((5 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier), fortitude: Math.floor((8 + 3 * levelMultiplier) * tierMultiplier * waveMultiplier), xpReward: Math.floor((100 * levelMultiplier) * tierMultiplier * waveMultiplier), goldReward: Math.floor((75 * levelMultiplier) * tierMultiplier * waveMultiplier) };
+          } else {
+              enemy = { name: `Wave ${battleState.currentWave} Goblin`, hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier), strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier), agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier), fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier), xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier), goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier) };
+          }
+          enemy.maxHp = enemy.hp;
+          battleState.enemy = enemy;
+          updateBattleHud();
+          addBattleLog(`A wild ${battleState.enemy.name} appears!`, "log-system");
+          attackBtn.disabled = true; fleeBtn.disabled = true;
+    
+          setTimeout(() => {
+              if (battleState.enemy.agility > getTotalStat('agility')) {
+                  addBattleLog(`${battleState.enemy.name} is faster and attacks first!`, "log-enemy");
+                  handleEnemyAttack();
+              } else {
+                  addBattleLog("You are faster! Your turn.", "log-player");
+                  if (gameState.settings && gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); } 
+                  else { attackBtn.disabled = false; fleeBtn.disabled = false; }
+              }
+          }, 1000);
+      }
+      
+      function handlePlayerAttack() {
+          if (!battleState.isActive) return;
+          attackBtn.disabled = true; fleeBtn.disabled = true;
+          const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+          const baseDamage = Math.max(1, getTotalStat('strength') * 2 - battleState.enemy.fortitude);
+          const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
+          battleState.totalDamage += damage;
+          battleState.enemy.hp = Math.max(0, battleState.enemy.hp - damage);
+    
+          if (isCrit) { addBattleLog('CRITICAL HIT!', 'log-crit'); playSound('crit', 0.8, 'square', 1000, 500, 0.2); } 
+          else { playSound('hit', 0.8, 'square', 400, 100, 0.1); }
+          addBattleLog(`You attack for ${damage} damage!`, "log-player");
+          createDamageNumber(damage, isCrit, true);
+          updateBattleHud();
+    
+          if (battleState.enemy.hp <= 0) {
+              gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
+              const finalGoldReward = Math.floor(battleState.enemy.goldReward * (1 + getTotalStat('goldFind') / 100));
+              battleState.totalXp += battleState.enemy.xpReward;
+              battleState.totalGold += finalGoldReward;
+              addBattleLog(`You defeated ${battleState.enemy.name}!`, "log-system");
+              if (battleState.currentWave >= battleState.totalWaves) { endBattle(true); } 
+              else { addBattleLog(`Prepare for the next wave...`, 'log-system'); setTimeout(startNextWave, 2000); }
+          } else { setTimeout(handleEnemyAttack, 1500); }
+      }
+    
+      function handleEnemyAttack() {
+          if (!battleState.isActive) return;
+          if (Math.random() < (getTotalStat('agility') / 250)) {
+              addBattleLog('You dodged the attack!', 'log-player');
+              if (gameState.settings && gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); }
+              else { attackBtn.disabled = false; fleeBtn.disabled = false; }
+              return;
+          }
+          const damage = Math.max(1, battleState.enemy.strength * 2 - getTotalStat('fortitude'));
+          battleState.playerHp = Math.max(0, battleState.playerHp - damage);
+          playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15);
+          triggerScreenShake(200);
+          createDamageNumber(damage, false, false);
+          addBattleLog(`${battleState.enemy.name} attacks for ${damage} damage!`, "log-enemy");
+          updateBattleHud();
+          if (battleState.playerHp <= 0) { endBattle(false); } 
+          else { if (gameState.settings && gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); } else { attackBtn.disabled = false; fleeBtn.disabled = false; } }
+      }
+    
       async function endBattle(playerWon) {
           battleState.isActive = false;
           
@@ -769,9 +1291,188 @@ const firebaseConfig = {
           }, 2500);
       }
       
-      //... (All other functions from the fully working file) ...
-  
-      // --- EVENT LISTENERS (Final Version) ---
-      // (All event listeners from the fully working file)
-  
-  });
+      function passiveResourceRegen() {
+          let playerUINeedsUpdate = false;
+          let partnerUINeedsUpdate = false;
+    
+          if (gameState.resources && !gameState.expedition.active && !battleState.isActive) {
+              if (gameState.resources.hp < gameState.resources.maxHp) {
+                  const hpRegenAmount = getTotalStat('stamina') * 0.05; 
+                  gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + hpRegenAmount);
+                  playerUINeedsUpdate = true;
+              }
+              if (gameState.resources.energy < gameState.resources.maxEnergy) {
+                  gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.15);
+                  playerUINeedsUpdate = true;
+              }
+          }
+          
+          if (gameState.partner && gameState.partner.isHatched) {
+              if (gameState.partner.resources.hp < gameState.partner.resources.maxHp) {
+                  const partnerHpRegenAmount = gameState.partner.stats.stamina * 0.05;
+                  gameState.partner.resources.hp = Math.min(gameState.partner.resources.maxHp, gameState.partner.resources.hp + partnerHpRegenAmount);
+                  partnerUINeedsUpdate = true;
+              }
+              if (gameState.partner.resources.energy < gameState.partner.resources.maxEnergy) {
+                  gameState.partner.resources.energy = Math.min(gameState.partner.resources.maxEnergy, gameState.partner.resources.energy + 0.15);
+                  partnerUINeedsUpdate = true;
+              }
+          }
+    
+          if (playerUINeedsUpdate) { updateUI(); }
+          if (partnerUINeedsUpdate) { updatePartnerUI(); }
+      }
+    
+      // --- AUTH & SETTINGS ---
+      function signInWithGoogle() { 
+          auth.signInWithPopup(googleProvider)
+              .then(result => { showToast(`Welcome, ${result.user.displayName}!`); })
+              .catch(error => { console.error("Sign in error", error); showToast(`Sign in failed: ${error.message}`); }); 
+      }
+      
+      function signOut() {
+          auth.signOut().then(() => {
+              showToast("Signed Out");
+              gameState = JSON.parse(JSON.stringify(defaultState));
+              localStorage.removeItem('tapGuardianSave'); // Clear any old local save
+              updateUI();
+              showScreen('main-menu-screen');
+          });
+      }
+    
+      function updateAuthUI(user) {
+          if (user) {
+              authStatus.textContent = `Signed in as ${user.displayName || user.email}`;
+              googleSigninBtn.textContent = 'Sign Out';
+              loadGameBtn.disabled = false;
+          } else {
+              authStatus.textContent = 'Sign in for Cloud Saves & Leaderboards';
+              googleSigninBtn.textContent = 'Sign in with Google';
+              loadGameBtn.disabled = !localStorage.getItem('tapGuardianSave');
+          }
+      }
+      function updateSettingsUI() {
+          if (!gameState.settings) {
+              gameState.settings = JSON.parse(JSON.stringify(defaultState.settings));
+          }
+          musicVolumeSlider.value = gameState.settings.musicVolume;
+          sfxVolumeSlider.value = gameState.settings.sfxVolume;
+          muteAllCheckbox.checked = gameState.settings.isMuted;
+          autoBattleCheckbox.checked = gameState.settings.isAutoBattle;
+    
+          if (gameState.settings.isMuted) {
+               for(const key in musicManager.audio) { if(musicManager.audio[key] && !musicManager.audio[key].paused) musicManager.audio[key].pause(); }
+          } else {
+              if(musicManager.currentTrack) playMusic(musicManager.currentTrack);
+          }
+    
+          const currentMusic = musicManager.audio[musicManager.currentTrack];
+          if (currentMusic) { currentMusic.volume = gameState.settings.musicVolume; }
+      }
+    
+      // --- EVENT LISTENERS ---
+      startGameBtn.addEventListener('click', startGame);
+      loadGameBtn.addEventListener('click', loadGame);
+      characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
+      characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], false); }, {passive: false});
+      partnerSprite.addEventListener('click', (e) => handleTap(e, true)); 
+      partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
+      modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
+      feedBtn.addEventListener('click', feed); 
+      
+      battleBtn.addEventListener('click', startBattle);
+      attackBtn.addEventListener('click', handlePlayerAttack);
+      fleeBtn.addEventListener('click', () => endBattle(false));
+    
+      expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
+      shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
+      expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
+      
+      ingameMenuBtn.addEventListener('click', () => {
+          if (gameState.level >= ASCENSION_LEVEL) {
+              ascensionBtn.style.display = 'block';
+          } else {
+              ascensionBtn.style.display = 'none';
+          }
+          ingameMenuModal.classList.add('visible');
+      });
+    
+      returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
+      saveGameBtn.addEventListener('click', () => saveGame(true));
+      quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
+      inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.classList.add('visible'); });
+      closeInventoryBtn.addEventListener('click', () => { inventoryModal.classList.remove('visible'); });
+      leaderboardBtn.addEventListener('click', () => showLeaderboard('level'));
+      leaderboardTabs.forEach(tab => {
+          tab.addEventListener('click', () => showLeaderboard(tab.dataset.type));
+      });
+      closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.classList.remove('visible'); });
+      achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.classList.add('visible'); });
+      closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
+      ascensionBtn.addEventListener('click', () => { updatePerksUI(); ascensionModal.classList.add('visible'); });
+      closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
+      closeShopBtn.addEventListener('click', () => { shopModal.classList.remove('visible'); });
+      
+      forgeBtn.addEventListener('click', () => {
+          forgeSlots = [null, null]; // Always start with a clean forge
+          updateForgeUI();
+          updateForgeInventoryUI();
+          forgeModal.classList.add('visible');
+      });
+      closeForgeBtn.addEventListener('click', () => { forgeSlots = [null, null]; forgeModal.classList.remove('visible'); });
+      forgeBtnAction.addEventListener('click', forgeItems);
+      [forgeSlot1Div, forgeSlot2Div].forEach((slot, index) => {
+          slot.addEventListener('click', () => {
+              if (forgeSlots[index]) {
+                  forgeSlots[index] = null;
+                  updateForgeUI();
+                  updateForgeInventoryUI(); // <-- Refresh inventory on clear
+              }
+          });
+      });
+    
+      switchCharacterBtn.addEventListener('click', () => showScreen('partner-screen'));
+      switchToMainBtn.addEventListener('click', () => showScreen('game-screen'));
+      
+      optionsBtn.addEventListener('click', () => { updateSettingsUI(); optionsModal.classList.add('visible'); });
+      closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
+      googleSigninBtn.addEventListener('click', () => {
+          if(auth.currentUser) { signOut(); }
+          else { signInWithGoogle(); }
+      });
+      muteAllCheckbox.addEventListener('change', (e) => {
+          gameState.settings.isMuted = e.target.checked;
+          updateSettingsUI();
+      });
+      musicVolumeSlider.addEventListener('input', (e) => {
+          gameState.settings.musicVolume = parseFloat(e.target.value);
+          updateSettingsUI();
+      });
+      sfxVolumeSlider.addEventListener('input', (e) => { 
+          gameState.settings.sfxVolume = parseFloat(e.target.value); 
+      });
+      autoBattleCheckbox.addEventListener('change', (e) => { 
+          gameState.settings.isAutoBattle = e.target.checked; 
+      });
+      
+      const handleVisualTap = (e) => {
+          if (gameState.expedition.active || (e.currentTarget.id === 'character-sprite' && gameState.resources.energy <= 0) || (e.currentTarget.id === 'partner-sprite' && gameState.partner && gameState.partner.isHatched && gameState.partner.resources.energy <= 0)) return;
+          const targetSprite = e.currentTarget;
+          const area = targetSprite.parentElement;
+          const spriteRect = targetSprite.getBoundingClientRect();
+          const areaRect = area.getBoundingClientRect();
+          const flash = document.createElement('div');
+          flash.className = 'tap-flash-overlay';
+          flash.style.width = `${spriteRect.width}px`;
+          flash.style.height = `${spriteRect.height}px`;
+          flash.style.left = `${spriteRect.left - areaRect.left}px`;
+          flash.style.top = `${spriteRect.top - areaRect.top}px`;
+          area.appendChild(flash); setTimeout(() => { flash.remove(); }, 200);
+      };
+      characterSprite.addEventListener('click', handleVisualTap); 
+      characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
+      partnerSprite.addEventListener('click', handleVisualTap);
+      partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
+      
+      init();
+    });
