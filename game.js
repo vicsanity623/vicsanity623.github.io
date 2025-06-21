@@ -551,9 +551,9 @@ document.addEventListener('DOMContentLoaded', () => {
             playSound('tap', 0.5, 'square', 150, 100, 0.05); const now = Date.now();
             if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
             tapCombo.lastTapTime = now;
-            if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.45) { activateFrenzy(); } }
+            if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.55) { activateFrenzy(); } }
             if (Math.random() < 0.1) { triggerScreenShake(150); }
-            let xpGain = 0.25 * tapCombo.currentMultiplier;
+            let xpGain = 0.32 * tapCombo.currentMultiplier;
             if (gameState.level >= 30) { xpGain = 1.0 * tapCombo.currentMultiplier; } else if (gameState.level >= 10) { xpGain = 0.75 * tapCombo.currentMultiplier; }
             const tapXpBonus = 1 + (gameState.ascension.perks.tapXp || 0) * 0.10;
             xpGain *= tapXpBonus; createXpOrb(event, xpGain, gameState); gameState.resources.energy -= 0.1;
