@@ -16,98 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const GAME_VERSION = 1.9;
     let gameState = {};
     let audioCtx = null;
-    let buffInterval = null;
-    let lightningInterval = null;
-    
     let battleState = {
         isActive: false, currentWave: 0, totalWaves: 5, playerHp: 0, enemy: null,
         totalXp: 0, totalGold: 0, totalDamage: 0
     };
-
-    let availableExpeditions = [];
-    let forgeSlots = [null, null];
-    let partnerTimerInterval = null;
+    let expeditionInterval = null;
     const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
     const musicManager = { isInitialized: false, audio: {}, currentTrack: null };
-    
-    function initMusic() { if (musicManager.isInitialized) return; musicManager.isInitialized = true; playMusic('main'); }
-    function playMusic(trackName) {
-        if (!musicManager.isInitialized || !musicManager.audio[trackName]) return;
-        if (gameState.settings && gameState.settings.isMuted) return;
 
-        const oldTrackName = musicManager.currentTrack;
-        if (oldTrackName && musicManager.audio[oldTrackName]) { musicManager.audio[oldTrackName].pause(); musicManager.audio[oldTrackName].currentTime = 0; }
-        
-        const newTrack = musicManager.audio[trackName];
-        musicManager.currentTrack = trackName;
-        if (newTrack) { 
-            newTrack.volume = (gameState.settings) ? gameState.settings.musicVolume : 0.5;
-            newTrack.play().catch(e => console.error(`Music play failed for ${trackName}:`, e)); 
-        }
-    }
-    function startBackgroundAssetLoading() {
-        for (const key in musicFileUrls) { if (musicFileUrls[key]) { const audio = new Audio(musicFileUrls[key]); audio.loop = true; audio.preload = 'auto'; musicManager.audio[key] = audio; } }
-    }
-    const achievements = {
-        tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 50 } },
-        tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 250 } },
-        level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'uncommon' } },
-        defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100 } },
-        ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'gold', amount: 1000 } },
-        battle1: { name: "Battle Runner", desc: "Complete a Battle sequence once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000 } },
-    };
-    const perks = {
-        vigor: { name: "Guardian's Vigor", desc: "+10 Max HP & Energy per level.", maxLevel: 5, cost: [1, 1, 2, 2, 3] },
-        tapXp: { name: "Tapper's Insight", desc: "+10% XP from Taps per level.", maxLevel: 5, cost: [1, 1, 2, 2, 3] },
-        goldBoost: { name: "Fortune's Favor", desc: "+5% Gold from all sources per level.", maxLevel: 10, cost: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4] },
-    };
-    const itemData = {
-        rarities: { common: { weight: 70, color: 'var(--rarity-common)', budget: 1, affixes: 1 }, uncommon: { weight: 20, color: 'var(--rarity-uncommon)', budget: 1.4, affixes: 2 }, rare: { weight: 7, color: 'var(--rarity-rare)', budget: 1.9, affixes: 2 }, epic: { weight: 2.5, color: 'var(--rarity-epic)', budget: 2.5, affixes: 3 }, legendary: { weight: 0.5, color: 'var(--rarity-legendary)', budget: 3.5, affixes: 4 } },
-        types: { weapon: { base: ['Sword', 'Axe', 'Mace', 'Dagger'], primary: 'strength' }, armor: { base: ['Cuirass', 'Plate', 'Mail', 'Armor'], primary: 'fortitude' } },
-        prefixes: { strength: 'Mighty', fortitude: 'Sturdy', agility: 'Swift', critChance: 'Deadly', goldFind: 'Gilded' },
-        suffixes: { strength: 'of the Bear', fortitude: 'of the Tortoise', agility: 'of the Viper', critChance: 'of Piercing', goldFind: 'of Greed' },
-        affixes: ['agility', 'critChance', 'goldFind']
-    };
-    const shopItems = {
-        hpPotion: { name: "Health Potion", desc: "Instantly restores 50% of your Max HP.", cost: 150, type: 'consumable' },
-        energyPotion: { name: "Energy Potion", desc: "Instantly restores 50% of your Max Energy.", cost: 100, type: 'consumable' },
-    };
-    const permanentShopUpgrades = {
-        strTraining: { name: "Strength Training", desc: "Permanently increases base Strength.", stat: 'strength', bonus: 1, levelReq: 10, maxLevel: 10, cost: (level) => 1000 * Math.pow(2, level) },
-        forTraining: { name: "Fortitude Training", desc: "Permanently increases base Fortitude.", stat: 'fortitude', bonus: 1, levelReq: 10, maxLevel: 10, cost: (level) => 1000 * Math.pow(2, level) },
-    };
-    const expeditionData = {
-        actions: ["Explore", "Patrol", "Scour", "Delve into", "Investigate"],
-        locations: ["the Glimmering Caves", "the Whispering Woods", "the Forgotten Ruins"],
-        modifiers: {
-            gold: { name: "Rich", description: "High chance of Gold", goldMod: 1.5, itemMod: 0.8 },
-            item: { name: "Mysterious", description: "High chance of Items", goldMod: 0.8, itemMod: 1.5 },
-            xp: { name: "Dangerous", description: "High XP reward", goldMod: 1, itemMod: 1, xpMod: 1.5 },
-        }
-    };
-    const defaultState = {
-        version: GAME_VERSION,
-        playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0,
-        stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
-        resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
-        equipment: { weapon: null, armor: null }, 
-        inventory: [],
-        expedition: { active: false, returnTime: 0 },
-        ascension: { tier: 1, points: 0, perks: {} },
-        permanentUpgrades: {},
-        achievements: JSON.parse(JSON.stringify(achievements)),
-        counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
-        settings: {
-            musicVolume: 0.5,
-            sfxVolume: 1.0,
-            isMuted: false,
-            isAutoBattle: false,
-        }
-    };
-    const ASCENSION_LEVEL = 50;
-    const BATTLE_UNLOCK_LEVEL = 20;
-    const FORGE_UNLOCK_LEVEL = 15;
-    
     // --- ELEMENT SELECTORS ---
     const screens = document.querySelectorAll('.screen');
     const loadGameBtn = document.getElementById('load-game-btn');
@@ -184,6 +100,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const autoBattleCheckbox = document.getElementById('auto-battle-checkbox');
     const windAnimationContainer = document.getElementById('wind-animation-container');
 
+    const defaultState = {
+        version: GAME_VERSION, playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0,
+        stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
+        resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
+        equipment: { weapon: null, armor: null }, 
+        inventory: [],
+        expedition: { active: false, returnTime: 0 },
+        ascension: { tier: 1, points: 0, perks: {} },
+        permanentUpgrades: {},
+        achievements: JSON.parse(JSON.stringify({
+            tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 50 } },
+            level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'uncommon' } },
+            defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100 } },
+            ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'gold', amount: 1000 } },
+            battle1: { name: "Battle Runner", desc: "Complete a Battle sequence once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000 } },
+        })),
+        counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
+        settings: { musicVolume: 0.5, sfxVolume: 1.0, isMuted: false, isAutoBattle: false }
+    };
+    const ASCENSION_LEVEL = 50;
+    const BATTLE_UNLOCK_LEVEL = 20;
+    const FORGE_UNLOCK_LEVEL = 15;
+    
     // --- CORE GAME FUNCTIONS ---
     function showScreen(screenId) { 
         screens.forEach(s => s.classList.remove('active')); 
@@ -195,16 +134,14 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (screenId === 'game-screen' || screenId === 'main-menu-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
         }
     }
-
+    
     function init() { 
         startBackgroundAssetLoading();
         createWindEffect();
         createStarfield();
         auth.onAuthStateChanged(user => {
             updateAuthUI(user);
-            if (user) {
-                loadGame();
-            }
+            if (user) { loadGame(); }
         });
         setTimeout(() => { 
             const loadingScreen = document.getElementById('loading-screen');
@@ -230,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
         initAudio(); 
         updateSettingsUI();
         updateUI(); 
-        updateAscensionVisuals(); 
         await saveGame(); 
         showScreen('game-screen');
     }
@@ -249,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadGame() {
         initAudio();
         let loadedState = null;
+        let fromCloud = false;
 
         if (auth.currentUser) {
             try {
@@ -256,11 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const doc = await docRef.get();
                 if (doc.exists) {
                     loadedState = doc.data();
-                    showToast("Cloud save loaded!");
-                } else {
-                    showToast("No cloud save found. Starting a new game.");
-                    startGame();
-                    return;
+                    fromCloud = true;
                 }
             } catch (error) {
                 console.error("Error loading from cloud:", error);
@@ -272,19 +205,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const savedData = localStorage.getItem('tapGuardianSave');
             if (savedData) {
                 loadedState = JSON.parse(savedData);
-                 if (auth.currentUser) { showToast("No cloud save found, loaded local save instead."); }
             }
         }
         
         if (loadedState) {
             loadedState = await migrateSaveData(loadedState);
             gameState = { ...defaultState, ...loadedState };
+            if(fromCloud) showToast("Cloud save loaded!");
+            else if (auth.currentUser) showToast("No cloud save found, loaded local save instead.");
+            
             updateSettingsUI();
             updateUI(); 
-            updateAscensionVisuals(); 
             showScreen('game-screen');
         } else if (!auth.currentUser) {
             showNotification("No Save Data Found!", "Please start a new game.");
+        } else {
+             showToast("No saves found. Starting a new game.");
+             startGame();
         }
     }
 
@@ -310,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateUI() {
         if (!gameState.stats) return;
-        const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
+        const vigorBonus = (gameState.ascension && gameState.ascension.perks.vigor) ? gameState.ascension.perks.vigor * 10 : 0;
         const baseMaxHp = 100 + (gameState.level - 1) * 10;
         const baseMaxEnergy = 100 + (gameState.level - 1) * 5;
         gameState.resources.maxHp = baseMaxHp + vigorBonus;
@@ -327,8 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
         coreStatsDisplay.innerHTML = `<span>STR: ${getTotalStat('strength')}</span><span>AGI: ${getTotalStat('agility')}</span><span>FOR: ${getTotalStat('fortitude')}</span><span>STA: ${getTotalStat('stamina')}</span><span>Crit: ${getTotalStat('critChance').toFixed(2)}%</span><span>Gold: ${getTotalStat('goldFind').toFixed(2)}%</span>`;
         goldDisplay.textContent = `Gold: ${gameState.gold}`;
         
-        const onExpedition = gameState.expedition.active;
+        const onExpedition = gameState.expedition && gameState.expedition.active;
         characterSprite.style.display = onExpedition ? 'none' : 'block';
+        expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
         const canUseBattle = gameState.level >= BATTLE_UNLOCK_LEVEL;
         battleBtn.disabled = onExpedition || !canUseBattle;
         battleUnlockText.textContent = canUseBattle ? "" : `Unlocks at LVL ${BATTLE_UNLOCK_LEVEL}`;
@@ -341,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (onExpedition) {
             expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
             if (!expeditionInterval) { expeditionInterval = setInterval(() => { expeditionTimerDisplay.textContent = new Date((gameState.expedition.returnTime - Date.now()) || 0).toISOString().substr(11, 8); }, 1000); }
-        } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
+        } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; if(expeditionInterval) clearInterval(expeditionInterval); expeditionInterval = null; }
         if (gameState.tutorialCompleted) { tutorialOverlay.style.display = 'none'; } else { tutorialOverlay.style.display = 'flex'; }
     }
 
@@ -363,14 +301,13 @@ document.addEventListener('DOMContentLoaded', () => {
         playSound('levelUp', 1, 'triangle', 440, 880); 
         checkAllAchievements();
         submitScoreToLeaderboard();
-        updateAscensionVisuals();
         showNotification("LEVEL UP!", `${character.name} is now Level ${character.level}!`); saveGame();
     }
 
     function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
 
     function handleTap(event) {
-        if (gameState.expedition.active) return;
+        if (gameState.expedition && gameState.expedition.active) return;
         initAudio();
         if (gameState.tutorialCompleted === false) { gameState.tutorialCompleted = true; tutorialOverlay.style.display = 'none'; saveGame(); }
         if (gameState.resources.energy <= 0) return;
@@ -378,9 +315,9 @@ document.addEventListener('DOMContentLoaded', () => {
         playSound('tap', 0.5, 'square', 150, 100, 0.05);
         let xpGain = 0.25;
         if (gameState.level >= 10) { xpGain = 0.75; }
-        const tapXpBonus = 1 + (gameState.ascension.perks.tapXp || 0) * 0.10;
+        const tapXpBonus = (gameState.ascension.perks && gameState.ascension.perks.tapXp) ? 1 + (gameState.ascension.perks.tapXp * 0.10) : 1;
         xpGain *= tapXpBonus; 
-        createXpOrb(event, xpGain, gameState); 
+        createXpOrb(event, xpGain); 
         gameState.resources.energy -= 0.1;
         updateUI();
     }
@@ -420,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const item = gameState.equipment[slot];
             if (item && item.stats && item.stats[stat]) { total += item.stats[stat]; }
         }
-        if (stat === 'goldFind' && gameState.ascension.perks) { total += (gameState.ascension.perks.goldBoost || 0) * 5; }
+        if (stat === 'goldFind' && gameState.ascension && gameState.ascension.perks) { total += (gameState.ascension.perks.goldBoost || 0) * 5; }
         return total;
     }
     function ascend() {
@@ -435,7 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.inventory = [];
             gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
             submitScoreToLeaderboard();
-            updateAscensionVisuals();
             saveGame(); updateUI(); ingameMenuModal.classList.remove('visible');
             showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You have gained 1 Ascension Point to spend.`);
         }
@@ -444,40 +380,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!auth.currentUser || !gameState.playerName || gameState.playerName === "Guardian") return;
         const score = { name: gameState.playerName, level: gameState.level, tier: gameState.ascension.tier };
         try { await db.collection("leaderboard").doc(auth.currentUser.uid).set(score); } catch (error) { console.error("Error submitting score: ", error); }
-    }
-    async function showLeaderboard(type = 'level') {
-        const allLists = document.querySelectorAll('.leaderboard-list');
-        allLists.forEach(l => l.classList.remove('active'));
-        let targetList, collectionName, orderByField, orderByDirection, secondaryOrderByField, secondaryOrderByDirection;
-        if(type === 'damage') {
-            targetList = damageLeaderboardList; collectionName = 'damageLeaderboard';
-            orderByField = 'totalDamage'; orderByDirection = 'desc';
-        } else {
-            targetList = levelLeaderboardList; collectionName = 'leaderboard';
-            orderByField = 'tier'; orderByDirection = 'desc';
-            secondaryOrderByField = 'level'; secondaryOrderByDirection = 'desc';
-        }
-        targetList.classList.add('active');
-        leaderboardTabs.forEach(t => t.classList.remove('active'));
-        document.querySelector(`.leaderboard-tab[data-type="${type}"]`).classList.add('active');
-        leaderboardModal.classList.add('visible');
-        targetList.innerHTML = "<li>Loading...</li>";
-        try {
-            let query = db.collection(collectionName).orderBy(orderByField, orderByDirection);
-            if (secondaryOrderByField) { query = query.orderBy(secondaryOrderByField, secondaryOrderByDirection); }
-            const snapshot = await query.limit(10).get();
-            if (snapshot.empty) { targetList.innerHTML = "<li>No scores yet. Be the first!</li>"; return; }
-            targetList.innerHTML = "";
-            let rank = 1;
-            snapshot.forEach(doc => {
-                const data = doc.data(); const li = document.createElement('li');
-                let scoreText;
-                if(type === 'damage') { scoreText = `Damage: ${data.totalDamage.toLocaleString()}`; } 
-                else { scoreText = `Level ${data.level} (Tier ${data.tier})`; }
-                li.innerHTML = `<span class="rank-name">${rank}. ${data.name}</span> <span class="rank-score">${scoreText}</span>`;
-                targetList.appendChild(li); rank++;
-            });
-        } catch (error) { console.error("Error fetching leaderboard: ", error); targetList.innerHTML = "<li>Error loading scores.</li>"; }
     }
     function generateItem(forceRarity = null) {
         let chosenRarityKey = forceRarity;
@@ -542,7 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!gameState.counters) return;
         const counters = gameState.counters;
         if (counters.taps >= 100) unlockAchievement('tap100');
-        if (counters.taps >= 1000) unlockAchievement('tap1000');
         if (gameState.level >= 10) unlockAchievement('level10');
         if (counters.enemiesDefeated >= 10) unlockAchievement('defeat10');
         if (counters.ascensionCount >= 1) unlockAchievement('ascend1');
@@ -550,11 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // --- BATTLE SYSTEM ---
-    
-    function addBattleLog(message, className) {
-        battleLog.innerHTML += `<div class="${className}">${message}</div>`;
-        battleLog.scrollTop = battleLog.scrollHeight;
-    }
+    function addBattleLog(message, className) { battleLog.innerHTML += `<div class="${className}">${message}</div>`; battleLog.scrollTop = battleLog.scrollHeight; }
     function updateBattleHud() {
         const playerHpBar = document.querySelector('#battle-player-hp-bar .stat-bar-fill');
         const playerHpLabel = document.querySelector('#battle-player-hp-bar .stat-bar-label');
@@ -571,10 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
         battleWaveDisplay.textContent = `Wave: ${battleState.currentWave} / ${battleState.totalWaves}`;
     }
     function startBattle() {
-        battleState = {
-            isActive: true, currentWave: 0, totalWaves: 5, playerHp: gameState.resources.hp,
-            enemy: null, totalXp: 0, totalGold: 0, totalDamage: 0
-        };
+        battleState = { isActive: true, currentWave: 0, totalWaves: 5, playerHp: gameState.resources.hp, enemy: null, totalXp: 0, totalGold: 0, totalDamage: 0 };
         battleLog.innerHTML = "";
         addBattleLog("The battle begins!", "log-system");
         showScreen('battle-screen');
@@ -582,31 +476,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function startNextWave() {
         battleState.currentWave++;
-
         const tierMultiplier = gameState.ascension.tier;
         const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
         const waveMultiplier = 1 + (battleState.currentWave - 1) * 0.2;
         let isBoss = battleState.currentWave === battleState.totalWaves;
         let enemy;
-        
         if (isBoss) {
-            enemy = {
-                name: "Goblin King", hp: Math.floor((150 + 20 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                strength: Math.floor((10 + 4 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                agility: Math.floor((5 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                fortitude: Math.floor((8 + 3 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                xpReward: Math.floor((100 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                goldReward: Math.floor((75 * levelMultiplier) * tierMultiplier * waveMultiplier)
-            };
+            enemy = { name: "Goblin King", hp: Math.floor((150 + 20 * levelMultiplier) * tierMultiplier * waveMultiplier), strength: Math.floor((10 + 4 * levelMultiplier) * tierMultiplier * waveMultiplier), agility: Math.floor((5 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier), fortitude: Math.floor((8 + 3 * levelMultiplier) * tierMultiplier * waveMultiplier), xpReward: Math.floor((100 * levelMultiplier) * tierMultiplier * waveMultiplier), goldReward: Math.floor((75 * levelMultiplier) * tierMultiplier * waveMultiplier) };
         } else {
-            enemy = {
-                name: `Wave ${battleState.currentWave} Goblin`, hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier),
-                goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier)
-            };
+            enemy = { name: `Wave ${battleState.currentWave} Goblin`, hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier), strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier), agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier), fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier), xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier), goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier) };
         }
         enemy.maxHp = enemy.hp;
         battleState.enemy = enemy;
@@ -621,12 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleEnemyAttack();
             } else {
                 addBattleLog("You are faster! Your turn.", "log-player");
-                if (gameState.settings.isAutoBattle) {
-                    setTimeout(handlePlayerAttack, 1000); // Wait 1s before auto-attacking
-                } else {
-                    attackBtn.disabled = false;
-                    fleeBtn.disabled = false;
-                }
+                if (gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); } else { attackBtn.disabled = false; fleeBtn.disabled = false; }
             }
         }, 1000);
     }
@@ -634,35 +507,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!battleState.isActive) return;
         attackBtn.disabled = true;
         fleeBtn.disabled = true;
-
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
         const baseDamage = Math.max(1, getTotalStat('strength') * 2 - battleState.enemy.fortitude);
         const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
         battleState.totalDamage += damage;
         battleState.enemy.hp = Math.max(0, battleState.enemy.hp - damage);
-
         if (isCrit) { addBattleLog('CRITICAL HIT!', 'log-crit'); playSound('crit', 0.8, 'square', 1000, 500, 0.2); } 
         else { playSound('hit', 0.8, 'square', 400, 100, 0.1); }
         addBattleLog(`You attack for ${damage} damage!`, "log-player");
         createDamageNumber(damage, isCrit, true);
         updateBattleHud();
-
         if (battleState.enemy.hp <= 0) {
             gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
             const finalGoldReward = Math.floor(battleState.enemy.goldReward * (1 + getTotalStat('goldFind') / 100));
             battleState.totalXp += battleState.enemy.xpReward;
             battleState.totalGold += finalGoldReward;
             addBattleLog(`You defeated ${battleState.enemy.name}!`, "log-system");
-
-            if (battleState.currentWave >= battleState.totalWaves) {
-                endBattle(true);
-            } else {
-                addBattleLog(`Prepare for the next wave...`, 'log-system');
-                setTimeout(startNextWave, 2000);
-            }
-        } else {
-            setTimeout(handleEnemyAttack, 1500);
-        }
+            if (battleState.currentWave >= battleState.totalWaves) { endBattle(true); } else { addBattleLog(`Prepare for the next wave...`, 'log-system'); setTimeout(startNextWave, 2000); }
+        } else { setTimeout(handleEnemyAttack, 1500); }
     }
     function handleEnemyAttack() {
         if (!battleState.isActive) return;
@@ -678,16 +540,11 @@ document.addEventListener('DOMContentLoaded', () => {
         createDamageNumber(damage, false, false);
         addBattleLog(`${battleState.enemy.name} attacks for ${damage} damage!`, "log-enemy");
         updateBattleHud();
-        if (battleState.playerHp <= 0) {
-            endBattle(false);
-        } else {
-            if (gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); }
-            else { attackBtn.disabled = false; fleeBtn.disabled = false; }
-        }
+        if (battleState.playerHp <= 0) { endBattle(false); } 
+        else { if (gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); } else { attackBtn.disabled = false; fleeBtn.disabled = false; } }
     }
     async function endBattle(playerWon) {
         battleState.isActive = false;
-        
         if (battleState.totalDamage > 0 && auth.currentUser) {
             try {
                 const damageRef = db.collection("damageLeaderboard").doc(auth.currentUser.uid);
@@ -697,10 +554,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch(e) { console.error("Failed to submit damage score", e); }
         }
-        
         let title = "";
         let rewardText = "";
-
         if (playerWon) {
             gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
             checkAllAchievements();
@@ -711,9 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.gold += battleState.totalGold;
             addXP(gameState, battleState.totalXp);
             gameState.inventory.push(bonusItem);
-            if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { 
-                equipItem(bonusItem); 
-            }
+            if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { equipItem(bonusItem); }
         } else {
             playSound('defeat', 1, 'sine', 440, 110, 0.8);
             if (battleState.playerHp <= 0) {
@@ -727,17 +580,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         gameState.resources.hp = battleState.playerHp;
-
-        setTimeout(() => {
-            showScreen('game-screen');
-            showNotification(title, rewardText);
-            saveGame();
-            updateUI();
-        }, 2500);
+        setTimeout(() => { showScreen('game-screen'); showNotification(title, rewardText); saveGame(); updateUI(); }, 2500);
     }
     function passiveResourceRegen() {
         let UINeedsUpdate = false;
-        if (gameState.resources && !gameState.expedition.active && !battleState.isActive) {
+        if (gameState.resources && (!gameState.expedition || !gameState.expedition.active) && !battleState.isActive) {
             if (gameState.resources.hp < gameState.resources.maxHp) {
                 const hpRegenAmount = getTotalStat('stamina') * 0.05; 
                 gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + hpRegenAmount);
@@ -758,7 +605,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function signOut() {
         const localSaveExists = localStorage.getItem('tapGuardianSave');
         auth.signOut();
-        
         if (localSaveExists) {
             if (confirm("You have signed out. Load your local save?")) {
                 loadGame();
@@ -793,7 +639,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function createWindEffect() { for(let i=0; i<20; i++) { const streak = document.createElement('div'); streak.className = 'wind-streak'; streak.style.top = `${Math.random() * 100}%`; streak.style.width = `${Math.random() * 150 + 50}px`; streak.style.animationDuration = `${Math.random() * 3 + 2}s`; streak.style.animationDelay = `${Math.random() * 5}s`; windAnimationContainer.appendChild(streak); } }
     function createStarfield() { const container = document.getElementById('background-stars'); for(let i=0; i<100; i++) { const star = document.createElement('div'); star.className = 'star'; const size = Math.random() * 2 + 1; star.style.width = `${size}px`; star.style.height = `${size}px`; star.style.top = `${Math.random() * 100}%`; star.style.left = `${Math.random() * 100}%`; star.style.animationDuration = `${Math.random() * 50 + 25}s`; star.style.animationDelay = `${Math.random() * 50}s`; container.appendChild(star); } }
 
-
     // --- EVENT LISTENERS ---
     startGameBtn.addEventListener('click', startGame);
     loadGameBtn.addEventListener('click', loadGame);
@@ -816,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
     returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
     saveGameBtn.addEventListener('click', () => saveGame(true));
     optionsBtn.addEventListener('click', () => { updateSettingsUI(); optionsModal.classList.add('visible'); });
-    quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
+    quitToTitleBtn.addEventListener('click', () => { showScreen('main-menu-screen'); });
     inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.classList.add('visible'); });
     closeInventoryBtn.addEventListener('click', () => { inventoryModal.classList.remove('visible'); });
     leaderboardBtn.addEventListener('click', () => showLeaderboard('level'));
