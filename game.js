@@ -13,15 +13,20 @@ const auth = firebase.auth();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.9; // Final Polished Version
+    const GAME_VERSION = 1.9;
     let gameState = {};
     let audioCtx = null;
+    let buffInterval = null;
+    let lightningInterval = null;
     
     let battleState = {
         isActive: false, currentWave: 0, totalWaves: 5, playerHp: 0, enemy: null,
         totalXp: 0, totalGold: 0, totalDamage: 0
     };
 
+    let availableExpeditions = [];
+    let forgeSlots = [null, null];
+    let partnerTimerInterval = null;
     const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
     const musicManager = { isInitialized: false, audio: {}, currentTrack: null };
     
@@ -45,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const achievements = {
         tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 50 } },
+        tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 250 } },
         level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'uncommon' } },
         defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100 } },
         ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'gold', amount: 1000 } },
@@ -184,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const screenToShow = document.getElementById(screenId);
         if(screenToShow) screenToShow.classList.add('active'); 
 
-        if (gameState.settings) {
+        if (gameState && gameState.settings) {
             if (screenId === 'battle-screen') { playMusic('battle'); } 
             else if (screenId === 'game-screen' || screenId === 'main-menu-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
         }
@@ -194,18 +200,19 @@ document.addEventListener('DOMContentLoaded', () => {
         startBackgroundAssetLoading();
         createWindEffect();
         createStarfield();
-
         auth.onAuthStateChanged(user => {
             updateAuthUI(user);
+            if (user) {
+                loadGame();
+            }
         });
-
-        // Simplified startup: Just show the main menu after a delay.
-        // User action (clicking a button) will then handle loading/starting.
         setTimeout(() => { 
-            showScreen('main-menu-screen'); 
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen.classList.contains('active')) {
+                showScreen('main-menu-screen'); 
+            }
             loadGameBtn.disabled = !localStorage.getItem('tapGuardianSave') && !auth.currentUser;
         }, 1500);
-
         setInterval(passiveResourceRegen, 1000);
     }
     
@@ -227,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await saveGame(); 
         showScreen('game-screen');
     }
+
     async function migrateSaveData(loadedState) {
         if (!loadedState.version || loadedState.version < GAME_VERSION) {
             showScreen('update-screen');
@@ -237,6 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return loadedState;
     }
+
     async function loadGame() {
         initAudio();
         let loadedState = null;
@@ -274,10 +283,11 @@ document.addEventListener('DOMContentLoaded', () => {
             updateUI(); 
             updateAscensionVisuals(); 
             showScreen('game-screen');
-        } else {
+        } else if (!auth.currentUser) {
             showNotification("No Save Data Found!", "Please start a new game.");
         }
     }
+
     async function saveGame(showToastNotification = false) {
         if (!gameState.playerName) return;
         if (auth.currentUser) {
@@ -295,7 +305,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         loadGameBtn.disabled = false;
     }
+
     function getXpForNextLevel(level) { return Math.floor(100 * Math.pow(1.5, level - 1)); }
+
     function updateUI() {
         if (!gameState.stats) return;
         const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
@@ -332,6 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
         if (gameState.tutorialCompleted) { tutorialOverlay.style.display = 'none'; } else { tutorialOverlay.style.display = 'flex'; }
     }
+
     function addXP(character, amount) { 
         const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
         let finalAmount = amount * tierMultiplier;
@@ -341,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateUI();
     }
+
     function levelUp(character) {
         const xpOver = character.xp - getXpForNextLevel(character.level); character.level++; character.xp = xpOver;
         character.stats.strength += 2; character.stats.agility += 2; character.stats.fortitude += 1; character.stats.stamina += 1;
@@ -352,7 +366,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAscensionVisuals();
         showNotification("LEVEL UP!", `${character.name} is now Level ${character.level}!`); saveGame();
     }
+
     function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
+
     function handleTap(event) {
         if (gameState.expedition.active) return;
         initAudio();
@@ -363,9 +379,24 @@ document.addEventListener('DOMContentLoaded', () => {
         let xpGain = 0.25;
         if (gameState.level >= 10) { xpGain = 0.75; }
         const tapXpBonus = 1 + (gameState.ascension.perks.tapXp || 0) * 0.10;
-        xpGain *= tapXpBonus; createXpOrb(event, xpGain, gameState); gameState.resources.energy -= 0.1;
+        xpGain *= tapXpBonus; 
+        createXpOrb(event, xpGain, gameState); 
+        gameState.resources.energy -= 0.1;
         updateUI();
     }
+    
+    function createXpOrb(event, xpGain) {
+        let clientX = event.clientX || (event.touches && event.touches[0].clientX); let clientY = event.clientY || (event.touches && event.touches[0].clientY);
+        const orbContainer = document.createElement('div'); orbContainer.className = 'xp-orb-container';
+        orbContainer.style.left = `${clientX - 10}px`; orbContainer.style.top = `${clientY - 10}px`;
+        orbContainer.innerHTML = `<div class="xp-orb"></div><div class="xp-orb-text">+${xpGain.toFixed(2)}</div>`;
+        document.body.appendChild(orbContainer);
+        const xpBarRect = document.querySelector('#xp-bar').getBoundingClientRect();
+        const targetX = xpBarRect.left + (xpBarRect.width / 2); const targetY = xpBarRect.top + (xpBarRect.height / 2);
+        setTimeout(() => { orbContainer.style.left = `${targetX}px`; orbContainer.style.top = `${targetY}px`; orbContainer.style.transform = 'scale(0)'; orbContainer.style.opacity = '0'; }, 50);
+        setTimeout(() => { const xpBar = document.querySelector('#xp-bar'); xpBar.classList.add('bar-pulse'); addXP(gameState, xpGain); setTimeout(() => xpBar.classList.remove('bar-pulse'), 300); orbContainer.remove(); }, 850);
+    }
+    
     function feed() {
         if (gameState.gold >= 50) {
             gameState.gold -= 50; 
@@ -414,9 +445,131 @@ document.addEventListener('DOMContentLoaded', () => {
         const score = { name: gameState.playerName, level: gameState.level, tier: gameState.ascension.tier };
         try { await db.collection("leaderboard").doc(auth.currentUser.uid).set(score); } catch (error) { console.error("Error submitting score: ", error); }
     }
+    async function showLeaderboard(type = 'level') {
+        const allLists = document.querySelectorAll('.leaderboard-list');
+        allLists.forEach(l => l.classList.remove('active'));
+        let targetList, collectionName, orderByField, orderByDirection, secondaryOrderByField, secondaryOrderByDirection;
+        if(type === 'damage') {
+            targetList = damageLeaderboardList; collectionName = 'damageLeaderboard';
+            orderByField = 'totalDamage'; orderByDirection = 'desc';
+        } else {
+            targetList = levelLeaderboardList; collectionName = 'leaderboard';
+            orderByField = 'tier'; orderByDirection = 'desc';
+            secondaryOrderByField = 'level'; secondaryOrderByDirection = 'desc';
+        }
+        targetList.classList.add('active');
+        leaderboardTabs.forEach(t => t.classList.remove('active'));
+        document.querySelector(`.leaderboard-tab[data-type="${type}"]`).classList.add('active');
+        leaderboardModal.classList.add('visible');
+        targetList.innerHTML = "<li>Loading...</li>";
+        try {
+            let query = db.collection(collectionName).orderBy(orderByField, orderByDirection);
+            if (secondaryOrderByField) { query = query.orderBy(secondaryOrderByField, secondaryOrderByDirection); }
+            const snapshot = await query.limit(10).get();
+            if (snapshot.empty) { targetList.innerHTML = "<li>No scores yet. Be the first!</li>"; return; }
+            targetList.innerHTML = "";
+            let rank = 1;
+            snapshot.forEach(doc => {
+                const data = doc.data(); const li = document.createElement('li');
+                let scoreText;
+                if(type === 'damage') { scoreText = `Damage: ${data.totalDamage.toLocaleString()}`; } 
+                else { scoreText = `Level ${data.level} (Tier ${data.tier})`; }
+                li.innerHTML = `<span class="rank-name">${rank}. ${data.name}</span> <span class="rank-score">${scoreText}</span>`;
+                targetList.appendChild(li); rank++;
+            });
+        } catch (error) { console.error("Error fetching leaderboard: ", error); targetList.innerHTML = "<li>Error loading scores.</li>"; }
+    }
+    function generateItem(forceRarity = null) {
+        let chosenRarityKey = forceRarity;
+        if (!chosenRarityKey) {
+            const roll = Math.random() * 100; let cumulativeWeight = 0;
+            for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
+        }
+        const rarity = itemData.rarities[chosenRarityKey];
+        const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor'; const itemType = itemData.types[itemTypeKey];
+        const baseName = itemType.base[Math.floor(Math.random() * itemType.base.length)]; const primaryStat = itemType.primary;
+        const stats = {}; let power = 0; const totalBudget = (gameState.level + (gameState.ascension.tier * 5)) * rarity.budget;
+        stats[primaryStat] = Math.ceil(totalBudget * 0.6); power += stats[primaryStat];
+        let availableAffixes = [...itemData.affixes]; let namePrefix = itemData.prefixes[primaryStat]; let nameSuffix = '';
+        for (let i = 1; i < rarity.affixes && availableAffixes.length > 0; i++) {
+            const affixIndex = Math.floor(Math.random() * availableAffixes.length); const affix = availableAffixes.splice(affixIndex, 1)[0];
+            let value;
+            if (affix === 'critChance' || affix === 'goldFind') { value = Math.max(1, Math.ceil(totalBudget * 0.15 * (Math.random() * 0.5 + 0.75))); power += value * 3; } 
+            else { value = Math.ceil(totalBudget * 0.25 * (Math.random() * 0.5 + 0.75)); power += value; }
+            stats[affix] = value; if (i === 1) { nameSuffix = itemData.suffixes[affix]; }
+        }
+        return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: rarity.color }, stats: stats, power: power, reforgeCount: 0 };
+    }
+    function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); initMusic(); } }
+    function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
+        if (!audioCtx || (gameState.settings && gameState.settings.isMuted)) return;
+        const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.type = wave;
+        oscillator.frequency.setValueAtTime(startFreq, audioCtx.currentTime); oscillator.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + duration);
+        const finalVolume = (gameState.settings ? gameState.settings.sfxVolume : 1.0) * volume;
+        gainNode.gain.setValueAtTime(finalVolume, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.start(); oscillator.stop(audioCtx.currentTime + duration);
+    }
+    function createDamageNumber(amount, isCrit, isPlayerSource) {
+        const num = document.createElement('div'); num.textContent = amount; num.className = 'damage-text';
+        if (isPlayerSource) num.classList.add('player-damage'); else num.classList.add('enemy-damage');
+        if (isCrit) num.classList.add('crit'); document.getElementById('battle-arena').appendChild(num);
+        setTimeout(() => { num.style.transform = 'translateY(-80px)'; num.style.opacity = '0'; }, 10);
+        setTimeout(() => { num.remove(); }, 800);
+    }
+    function unlockAchievement(id) {
+        if (!gameState.achievements[id] || gameState.achievements[id].unlocked) return;
+        gameState.achievements[id].unlocked = true;
+        const ach = achievements[id];
+        let rewardText = "";
+        if (ach.reward) {
+            switch (ach.reward.type) {
+                case 'gold':
+                    gameState.gold += ach.reward.amount;
+                    rewardText = ` (+${ach.reward.amount} Gold)`;
+                    break;
+                case 'item':
+                    const newItem = generateItem(ach.reward.rarity);
+                    gameState.inventory.push(newItem);
+                    rewardText = ` (Received ${newItem.name})`;
+                    break;
+            }
+        }
+        showToast(`Achievement: ${ach.name}${rewardText}`);
+        playSound('levelUp', 0.7, 'triangle', 880, 1200, 0.3);
+        updateUI();
+    }
+    function checkAllAchievements() {
+        if (!gameState.counters) return;
+        const counters = gameState.counters;
+        if (counters.taps >= 100) unlockAchievement('tap100');
+        if (counters.taps >= 1000) unlockAchievement('tap1000');
+        if (gameState.level >= 10) unlockAchievement('level10');
+        if (counters.enemiesDefeated >= 10) unlockAchievement('defeat10');
+        if (counters.ascensionCount >= 1) unlockAchievement('ascend1');
+        if (counters.battlesCompleted >= 1) unlockAchievement('battle1');
+    }
     
     // --- BATTLE SYSTEM ---
     
+    function addBattleLog(message, className) {
+        battleLog.innerHTML += `<div class="${className}">${message}</div>`;
+        battleLog.scrollTop = battleLog.scrollHeight;
+    }
+    function updateBattleHud() {
+        const playerHpBar = document.querySelector('#battle-player-hp-bar .stat-bar-fill');
+        const playerHpLabel = document.querySelector('#battle-player-hp-bar .stat-bar-label');
+        playerHpBar.style.width = `${(battleState.playerHp / gameState.resources.maxHp) * 100}%`;
+        playerHpLabel.textContent = `HP: ${Math.ceil(battleState.playerHp)} / ${gameState.resources.maxHp}`;
+        document.getElementById('battle-player-name').textContent = gameState.playerName;
+        if (battleState.enemy) {
+            const enemyHpBar = document.querySelector('#battle-enemy-hp-bar .stat-bar-fill');
+            const enemyHpLabel = document.querySelector('#battle-enemy-hp-bar .stat-bar-label');
+            enemyHpBar.style.width = `${(battleState.enemy.hp / battleState.enemy.maxHp) * 100}%`;
+            enemyHpLabel.textContent = `HP: ${Math.ceil(battleState.enemy.hp)} / ${battleState.enemy.maxHp}`;
+            document.getElementById('battle-enemy-name').textContent = battleState.enemy.name;
+        }
+        battleWaveDisplay.textContent = `Wave: ${battleState.currentWave} / ${battleState.totalWaves}`;
+    }
     function startBattle() {
         battleState = {
             isActive: true, currentWave: 0, totalWaves: 5, playerHp: gameState.resources.hp,
@@ -427,8 +580,176 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen('battle-screen');
         startNextWave();
     }
-    
-    // ... all other battle functions (startNextWave, handlePlayerAttack, etc.) remain unchanged ...
+    function startNextWave() {
+        battleState.currentWave++;
+
+        const tierMultiplier = gameState.ascension.tier;
+        const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
+        const waveMultiplier = 1 + (battleState.currentWave - 1) * 0.2;
+        let isBoss = battleState.currentWave === battleState.totalWaves;
+        let enemy;
+        
+        if (isBoss) {
+            enemy = {
+                name: "Goblin King", hp: Math.floor((150 + 20 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                strength: Math.floor((10 + 4 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                agility: Math.floor((5 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                fortitude: Math.floor((8 + 3 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                xpReward: Math.floor((100 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                goldReward: Math.floor((75 * levelMultiplier) * tierMultiplier * waveMultiplier)
+            };
+        } else {
+            enemy = {
+                name: `Wave ${battleState.currentWave} Goblin`, hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier)
+            };
+        }
+        enemy.maxHp = enemy.hp;
+        battleState.enemy = enemy;
+        updateBattleHud();
+        addBattleLog(`A wild ${battleState.enemy.name} appears!`, "log-system");
+        attackBtn.disabled = true;
+        fleeBtn.disabled = true;
+
+        setTimeout(() => {
+            if (battleState.enemy.agility > getTotalStat('agility')) {
+                addBattleLog(`${battleState.enemy.name} is faster and attacks first!`, "log-enemy");
+                handleEnemyAttack();
+            } else {
+                addBattleLog("You are faster! Your turn.", "log-player");
+                if (gameState.settings.isAutoBattle) {
+                    setTimeout(handlePlayerAttack, 1000); // Wait 1s before auto-attacking
+                } else {
+                    attackBtn.disabled = false;
+                    fleeBtn.disabled = false;
+                }
+            }
+        }, 1000);
+    }
+    function handlePlayerAttack() {
+        if (!battleState.isActive) return;
+        attackBtn.disabled = true;
+        fleeBtn.disabled = true;
+
+        const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+        const baseDamage = Math.max(1, getTotalStat('strength') * 2 - battleState.enemy.fortitude);
+        const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
+        battleState.totalDamage += damage;
+        battleState.enemy.hp = Math.max(0, battleState.enemy.hp - damage);
+
+        if (isCrit) { addBattleLog('CRITICAL HIT!', 'log-crit'); playSound('crit', 0.8, 'square', 1000, 500, 0.2); } 
+        else { playSound('hit', 0.8, 'square', 400, 100, 0.1); }
+        addBattleLog(`You attack for ${damage} damage!`, "log-player");
+        createDamageNumber(damage, isCrit, true);
+        updateBattleHud();
+
+        if (battleState.enemy.hp <= 0) {
+            gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
+            const finalGoldReward = Math.floor(battleState.enemy.goldReward * (1 + getTotalStat('goldFind') / 100));
+            battleState.totalXp += battleState.enemy.xpReward;
+            battleState.totalGold += finalGoldReward;
+            addBattleLog(`You defeated ${battleState.enemy.name}!`, "log-system");
+
+            if (battleState.currentWave >= battleState.totalWaves) {
+                endBattle(true);
+            } else {
+                addBattleLog(`Prepare for the next wave...`, 'log-system');
+                setTimeout(startNextWave, 2000);
+            }
+        } else {
+            setTimeout(handleEnemyAttack, 1500);
+        }
+    }
+    function handleEnemyAttack() {
+        if (!battleState.isActive) return;
+        if (Math.random() < (getTotalStat('agility') / 250)) {
+            addBattleLog('You dodged the attack!', 'log-player');
+            if (gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); }
+            else { attackBtn.disabled = false; fleeBtn.disabled = false; }
+            return;
+        }
+        const damage = Math.max(1, battleState.enemy.strength * 2 - getTotalStat('fortitude'));
+        battleState.playerHp = Math.max(0, battleState.playerHp - damage);
+        playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15);
+        createDamageNumber(damage, false, false);
+        addBattleLog(`${battleState.enemy.name} attacks for ${damage} damage!`, "log-enemy");
+        updateBattleHud();
+        if (battleState.playerHp <= 0) {
+            endBattle(false);
+        } else {
+            if (gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); }
+            else { attackBtn.disabled = false; fleeBtn.disabled = false; }
+        }
+    }
+    async function endBattle(playerWon) {
+        battleState.isActive = false;
+        
+        if (battleState.totalDamage > 0 && auth.currentUser) {
+            try {
+                const damageRef = db.collection("damageLeaderboard").doc(auth.currentUser.uid);
+                const doc = await damageRef.get();
+                if (!doc.exists || doc.data().totalDamage < battleState.totalDamage) {
+                    await damageRef.set({ name: gameState.playerName, totalDamage: battleState.totalDamage });
+                }
+            } catch(e) { console.error("Failed to submit damage score", e); }
+        }
+        
+        let title = "";
+        let rewardText = "";
+
+        if (playerWon) {
+            gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
+            checkAllAchievements();
+            playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+            let bonusItem = generateItem();
+            title = "Battle Complete!";
+            rewardText = `You are victorious!<br><br>Total Rewards:<br>+${battleState.totalGold} Gold<br>+${battleState.totalXp} XP<br>Total Damage: ${battleState.totalDamage}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
+            gameState.gold += battleState.totalGold;
+            addXP(gameState, battleState.totalXp);
+            gameState.inventory.push(bonusItem);
+            if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { 
+                equipItem(bonusItem); 
+            }
+        } else {
+            playSound('defeat', 1, 'sine', 440, 110, 0.8);
+            if (battleState.playerHp <= 0) {
+                title = "Defeated!";
+                rewardText = "You black out and wake up back home. You lost half your current gold.";
+                gameState.gold = Math.floor(gameState.gold / 2);
+                gameState.resources.hp = 1;
+            } else {
+                title = "Fled from Battle";
+                rewardText = "You escaped with your life, but no rewards were gained.";
+            }
+        }
+        gameState.resources.hp = battleState.playerHp;
+
+        setTimeout(() => {
+            showScreen('game-screen');
+            showNotification(title, rewardText);
+            saveGame();
+            updateUI();
+        }, 2500);
+    }
+    function passiveResourceRegen() {
+        let UINeedsUpdate = false;
+        if (gameState.resources && !gameState.expedition.active && !battleState.isActive) {
+            if (gameState.resources.hp < gameState.resources.maxHp) {
+                const hpRegenAmount = getTotalStat('stamina') * 0.05; 
+                gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + hpRegenAmount);
+                UINeedsUpdate = true;
+            }
+            if (gameState.resources.energy < gameState.resources.maxEnergy) {
+                gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.15);
+                UINeedsUpdate = true;
+            }
+        }
+        if (UINeedsUpdate) { updateUI(); }
+    }
     
     // --- AUTH & SETTINGS ---
     function signInWithGoogle() {
