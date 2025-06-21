@@ -600,6 +600,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function startNextWave() {
         gauntletState.currentWave++; gauntletWaveDisplay.textContent = `Wave: ${gauntletState.currentWave} / ${gauntletState.totalWaves}`;
+        
+        // --- FIX STARTS HERE ---
+        // Reset the Attack button's text and functionality for the new wave
+        attackBtn.textContent = 'Attack';
+        attackBtn.onclick = playerAttack;
+        // --- FIX ENDS HERE ---
+
         const tierMultiplier = gameState.ascension.tier; const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
         const waveMultiplier = 1 + (gauntletState.currentWave - 1) * 0.25;
         currentNpc = {
@@ -1203,8 +1210,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const areaRect = area.getBoundingClientRect();
         const flash = document.createElement('div');
         flash.className = 'tap-flash-overlay';
-        flash.style.width = `${spriteRect.width}px`; flash.style.height = `${spriteRect.height}px`;
-        flash.style.left = `${spriteRect.left - areaRect.left}px`; flash.style.top = `${spriteRect.top - areaRect.top}px`;
+        flash.style.width = `${spriteRect.width}px`;
+        flash.style.height = `${spriteRect.height}px`;
+        flash.style.left = `${spriteRect.left - areaRect.left}px`;
+        flash.style.top = `${spriteRect.top - areaRect.top}px`;
         area.appendChild(flash); setTimeout(() => { flash.remove(); }, 200);
     };
     characterSprite.addEventListener('click', handleVisualTap); 
