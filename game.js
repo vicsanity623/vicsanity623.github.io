@@ -223,6 +223,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }, 1500);
         buffInterval = setInterval(updateBuffs, 1000);
         partnerTimerInterval = setInterval(checkEggHatch, 1000);
+        // Start the passive resource regeneration timer
+        setInterval(passiveResourceRegen, 1000);
     }
     async function startGame() {
         initAudio();
@@ -1034,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- BATTLE SYSTEM REWRITE ---
+    // --- BATTLE SYSTEM ---
     
     function addBattleLog(message, className) {
         battleLog.innerHTML += `<div class="${className}">${message}</div>`;
@@ -1182,7 +1184,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function endBattle(playerWon) {
         battleState.isActive = false;
         
-        // --- FIX: SUBMIT DAMAGE SCORE TO LEADERBOARD ---
         if (battleState.totalDamage > 0) {
             try {
                 const damageRef = db.collection("damageLeaderboard").doc(gameState.playerName);
@@ -1192,7 +1193,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch(e) { console.error("Failed to submit damage score", e); }
         }
-        // --- END FIX ---
         
         let title = "";
         let rewardText = "";
@@ -1232,6 +1232,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2500);
     }
     
+    // --- NEW: PASSIVE REGENERATION FUNCTION ---
+    function passiveResourceRegen() {
+        let playerUINeedsUpdate = false;
+        let partnerUINeedsUpdate = false;
+
+        // Player Regeneration (if not on expedition and not in battle)
+        if (gameState.resources && !gameState.expedition.active && !battleState.isActive) {
+            // HP Regen, scales with Stamina
+            if (gameState.resources.hp < gameState.resources.maxHp) {
+                const hpRegenAmount = getTotalStat('stamina') * 0.1; 
+                gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + hpRegenAmount);
+                playerUINeedsUpdate = true;
+            }
+            // Energy Regen
+            if (gameState.resources.energy < gameState.resources.maxEnergy) {
+                gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.15);
+                playerUINeedsUpdate = true;
+            }
+        }
+        
+        // Partner Regeneration
+        if (gameState.partner && gameState.partner.isHatched) {
+            // Partner HP Regen
+            if (gameState.partner.resources.hp < gameState.partner.resources.maxHp) {
+                const partnerHpRegenAmount = gameState.partner.stats.stamina * 0.1;
+                gameState.partner.resources.hp = Math.min(gameState.partner.resources.maxHp, gameState.partner.resources.hp + partnerHpRegenAmount);
+                partnerUINeedsUpdate = true;
+            }
+            // Partner Energy Regen
+            if (gameState.partner.resources.energy < gameState.partner.resources.maxEnergy) {
+                gameState.partner.resources.energy = Math.min(gameState.partner.resources.maxEnergy, gameState.partner.resources.energy + 0.15);
+                partnerUINeedsUpdate = true;
+            }
+        }
+
+        if (playerUINeedsUpdate) {
+            updateUI();
+        }
+        if (partnerUINeedsUpdate) {
+            updatePartnerUI();
+        }
+    }
+
+
     // --- EVENT LISTENERS ---
     startGameBtn.addEventListener('click', startGame);
     loadGameBtn.addEventListener('click', loadGame);
@@ -1250,7 +1294,7 @@ document.addEventListener('DOMContentLoaded', () => {
     shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
     expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
     ingameMenuBtn.addEventListener('click', () => {
-        let ascendBtn = document.getElementById('ascend-btn');
+        let ascendBtn = document.getElementById('ascension-btn');
         if (gameState.level >= ASCENSION_LEVEL && !ascendBtn) {
             ascendBtn = document.createElement('button'); ascendBtn.id = 'ascend-btn';
             ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
@@ -1304,15 +1348,6 @@ document.addEventListener('DOMContentLoaded', () => {
     characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
     partnerSprite.addEventListener('click', handleVisualTap);
     partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
-    setInterval(() => { 
-        if (gameState.resources && gameState.resources.energy < gameState.resources.maxEnergy && !gameState.expedition.active) { 
-            gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.15); 
-            updateUI();
-        } 
-        if (gameState.partner && gameState.partner.isHatched && gameState.partner.resources.energy < gameState.partner.resources.maxEnergy) {
-            gameState.partner.resources.energy = Math.min(gameState.partner.resources.maxEnergy, gameState.partner.resources.energy + 0.15);
-            updatePartnerUI();
-        }
-    }, 1000);
+    
     init();
 });
