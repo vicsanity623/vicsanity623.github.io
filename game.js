@@ -53,9 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
         affixes: ['agility', 'critChance', 'goldFind']
     };
     const shopItems = {
-        hpPotion: { name: "Health Potion", desc: "Instantly restores 50% of your Max HP.", cost: 150, type: 'instant' },
-        energyPotion: { name: "Energy Potion", desc: "Instantly restores 50% of your Max Energy.", cost: 100, type: 'instant' },
+        hpPotion: { name: "Health Potion", desc: "Instantly restores 50% of your Max HP.", cost: 150, type: 'consumable' },
+        energyPotion: { name: "Energy Potion", desc: "Instantly restores 50% of your Max Energy.", cost: 100, type: 'consumable' },
         xpBoost: { name: "Scroll of Wisdom", desc: "+50% XP from all sources for 15 minutes.", cost: 500, type: 'buff', duration: 900 }
+    };
+    const permanentShopUpgrades = {
+        strTraining: { name: "Strength Training", desc: "Permanently increases base Strength.", stat: 'strength', bonus: 1, levelReq: 10, maxLevel: 10, cost: (level) => 1000 * Math.pow(2, level) },
+        forTraining: { name: "Fortitude Training", desc: "Permanently increases base Fortitude.", stat: 'fortitude', bonus: 1, levelReq: 10, maxLevel: 10, cost: (level) => 1000 * Math.pow(2, level) },
+        agiTraining: { name: "Agility Training", desc: "Permanently increases base Agility.", stat: 'agility', levelReq: 20, maxLevel: 5, cost: (level) => 5000 * Math.pow(3, level) }
     };
     const expeditionData = {
         actions: ["Explore", "Patrol", "Scour", "Delve into", "Investigate"],
@@ -72,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
         equipment: { weapon: null, armor: null }, expedition: { active: false, returnTime: 0 },
         ascension: { tier: 1, points: 0, perks: {} },
+        permanentUpgrades: {},
         activeBuffs: {},
         achievements: JSON.parse(JSON.stringify(achievements)),
         counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0 }
@@ -141,7 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const ascensionPointsDisplay = document.getElementById('ascension-points-display');
     const perksContainer = document.getElementById('perks-container');
     const shopModal = document.getElementById('shop-modal');
-    const shopContainer = document.getElementById('shop-container');
+    const shopConsumablesContainer = document.getElementById('shop-consumables-container');
+    const shopUpgradesContainer = document.getElementById('shop-upgrades-container');
     const closeShopBtn = document.getElementById('close-shop-btn');
     
     function showScreen(screenId) { 
@@ -185,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.ascension = {...defaultState.ascension, ...loadedState.ascension};
             gameState.equipment = {...defaultState.equipment, ...(loadedState.equipment || {})};
             gameState.activeBuffs = loadedState.activeBuffs || {};
+            gameState.permanentUpgrades = loadedState.permanentUpgrades || {};
             gameState.achievements = {...JSON.parse(JSON.stringify(achievements)), ...(loadedState.achievements || {})};
             gameState.counters = {...defaultState.counters, ...(loadedState.counters || {})};
             gameState.tutorialCompleted = loadedState.tutorialCompleted === true;
@@ -340,35 +348,22 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { showNotification("Not enough gold!", "You need 50 gold to feed your guardian."); }
     }
     function startExpedition(index) {
-        const expedition = availableExpeditions[index];
-        if (!expedition) return;
-
+        const expedition = availableExpeditions[index]; if (!expedition) return;
         const speedBonus = 1 - (gameState.ascension.perks.expeditionSpeed || 0) * 0.05;
         const finalDuration = expedition.duration * speedBonus;
-
-        gameState.expedition = {
-            active: true,
-            returnTime: Date.now() + finalDuration * 1000,
-            name: expedition.name,
-            modifiers: expedition.modifiers
-        };
-        
+        gameState.expedition = { active: true, returnTime: Date.now() + finalDuration * 1000, name: expedition.name, modifiers: expedition.modifiers };
         showNotification("Expedition Started!", `Your guardian begins to ${expedition.name}.<br><br>They will return in ${(finalDuration / 60).toFixed(0)} minutes.`);
         saveGame(); updateUI(); showScreen('game-screen'); playMusic('expedition');
     }
     function checkExpeditionStatus() {
         if (gameState.expedition.active && Date.now() > gameState.expedition.returnTime) {
             const mods = gameState.expedition.modifiers || {};
-            const goldMod = mods.goldMod || 1;
-            const itemMod = mods.itemMod || 1;
-            const xpMod = mods.xpMod || 1;
-
+            const goldMod = mods.goldMod || 1; const itemMod = mods.itemMod || 1; const xpMod = mods.xpMod || 1;
             gameState.expedition.active = false; playMusic('main');
             const tierMultiplier = Math.pow(1.5, gameState.ascension.tier - 1);
             const xpReward = Math.floor(100 * gameState.level * tierMultiplier * xpMod);
             const goldReward = Math.floor(50 * gameState.level * tierMultiplier * (1 + getTotalStat('goldFind') / 100) * goldMod);
             let rewardText = `Your guardian has returned from ${gameState.expedition.name}!<br><br>+${xpReward} XP<br>+${goldReward} Gold`;
-            
             const itemFindChance = 0.3 + (gameState.ascension.tier * 0.05);
             if (Math.random() < (itemFindChance * itemMod)) {
                 const foundItem = generateItem(); const currentItem = gameState.equipment[foundItem.type];
@@ -387,12 +382,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const item = gameState.equipment[slot];
             if (item && item.stats && item.stats[stat]) { total += item.stats[stat]; }
         }
+        for (const upgradeId in gameState.permanentUpgrades) {
+            const upgradeData = permanentShopUpgrades[upgradeId];
+            if (upgradeData && upgradeData.stat === stat) {
+                total += (gameState.permanentUpgrades[upgradeId] || 0) * upgradeData.bonus;
+            }
+        }
         if (stat === 'goldFind') { total += (gameState.ascension.perks.goldBoost || 0) * 5; }
         return total;
     }
     function ascend() {
         if (gameState.level < ASCENSION_LEVEL) { showNotification("Not Ready", `You must reach Level ${ASCENSION_LEVEL} to Ascend.`); return; }
-        if (confirm(`Are you sure you want to Ascend?\n\nYour Level, Stats, Gold, and Equipment will be reset.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point. Your Perks will remain.`)) {
+        if (confirm(`Are you sure you want to Ascend?\n\nYour Level, Stats, Gold, and Equipment will be reset.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point. Your Perks and Permanent Shop Upgrades will remain.`)) {
             gameState.ascension.tier++; gameState.ascension.points++;
             gameState.counters.ascensionCount = (gameState.counters.ascensionCount || 0) + 1; checkAllAchievements();
             playSound('ascend', 1, 'sawtooth', 100, 1000, 1);
@@ -540,8 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSlot(weaponSlot, gameState.equipment.weapon); updateSlot(armorSlot, gameState.equipment.armor);
     }
     function generateAndShowExpeditions() {
-        availableExpeditions = [];
-        expeditionListContainer.innerHTML = '';
+        availableExpeditions = []; expeditionListContainer.innerHTML = '';
         for (let i = 0; i < 5; i++) {
             const action = expeditionData.actions[Math.floor(Math.random() * expeditionData.actions.length)];
             const location = expeditionData.locations[Math.floor(Math.random() * expeditionData.locations.length)];
@@ -549,25 +549,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const modKey = modKeys[Math.floor(Math.random() * modKeys.length)];
             const modifier = expeditionData.modifiers[modKey];
             const duration = (Math.floor(Math.random() * 10) + 20) * 60; // 20-29 minutes
-            
-            const expedition = {
-                name: `${action} ${location}`,
-                description: modifier.description,
-                duration: duration,
-                modifiers: { goldMod: modifier.goldMod, itemMod: modifier.itemMod, xpMod: modifier.xpMod },
-                index: i
-            };
+            const expedition = { name: `${action} ${location}`, description: modifier.description, duration: duration, modifiers: { goldMod: modifier.goldMod, itemMod: modifier.itemMod, xpMod: modifier.xpMod }, index: i };
             availableExpeditions.push(expedition);
-
-            const itemEl = document.createElement('div');
-            itemEl.className = 'expedition-item';
-            itemEl.innerHTML = `
-                <div class="expedition-info">
-                    <strong>${expedition.name}</strong>
-                    <div class="expedition-desc">${expedition.description} (~${Math.round(expedition.duration / 60)} mins)</div>
-                </div>
-                <button data-index="${i}">Begin</button>
-            `;
+            const itemEl = document.createElement('div'); itemEl.className = 'expedition-item';
+            itemEl.innerHTML = `<div class="expedition-info"><strong>${expedition.name}</strong><div class="expedition-desc">${expedition.description} (~${Math.round(expedition.duration / 60)} mins)</div></div><button data-index="${i}">Begin</button>`;
             itemEl.querySelector('button').onclick = () => startExpedition(expedition.index);
             expeditionListContainer.appendChild(itemEl);
         }
@@ -633,30 +618,50 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameState.ascension.points >= cost) { gameState.ascension.points -= cost; gameState.ascension.perks[perkId] = (gameState.ascension.perks[perkId] || 0) + 1; playSound('levelUp', 0.8, 'sine', 600, 1200, 0.2); updatePerksUI(); updateUI(); saveGame(); }
     }
     function updateShopUI() {
-        shopContainer.innerHTML = '';
+        shopConsumablesContainer.innerHTML = '';
         for (const itemId in shopItems) {
-            const itemData = shopItems[itemId];
-            const shopItem = document.createElement('div'); shopItem.className = 'shop-item';
+            const itemData = shopItems[itemId]; const shopItem = document.createElement('div'); shopItem.className = 'shop-item';
             const infoDiv = document.createElement('div'); infoDiv.className = 'shop-info';
             infoDiv.innerHTML = `<strong>${itemData.name}</strong><div class="shop-desc">${itemData.desc}</div>`;
-            const buyBtn = document.createElement('button');
-            buyBtn.textContent = `Buy (${itemData.cost} G)`;
+            const buyBtn = document.createElement('button'); buyBtn.textContent = `Buy (${itemData.cost} G)`;
             if (gameState.gold < itemData.cost || (itemData.type === 'buff' && gameState.activeBuffs[itemId])) { buyBtn.disabled = true; }
-            buyBtn.onclick = () => buyShopItem(itemId);
-            shopItem.appendChild(infoDiv); shopItem.appendChild(buyBtn); shopContainer.appendChild(shopItem);
+            buyBtn.onclick = () => buyShopItem(itemId, 'consumable'); shopItem.appendChild(infoDiv); shopItem.appendChild(buyBtn); shopConsumablesContainer.appendChild(shopItem);
+        }
+
+        shopUpgradesContainer.innerHTML = '';
+        for (const upgradeId in permanentShopUpgrades) {
+            const upgradeData = permanentShopUpgrades[upgradeId]; const currentLevel = gameState.permanentUpgrades[upgradeId] || 0;
+            const shopItem = document.createElement('div'); shopItem.className = 'shop-item';
+            const infoDiv = document.createElement('div'); infoDiv.className = 'shop-info';
+            infoDiv.innerHTML = `<strong>${upgradeData.name}</strong><div class="shop-desc">${upgradeData.desc} (Lvl ${currentLevel}/${upgradeData.maxLevel})</div>`;
+            const buyBtn = document.createElement('button');
+            if (currentLevel >= upgradeData.maxLevel) { buyBtn.textContent = 'Maxed'; buyBtn.disabled = true; } 
+            else if (gameState.level < upgradeData.levelReq) { buyBtn.textContent = `Req Lvl ${upgradeData.levelReq}`; buyBtn.disabled = true; }
+            else { const cost = upgradeData.cost(currentLevel); buyBtn.textContent = `Upgrade (${cost} G)`; if (gameState.gold < cost) { buyBtn.disabled = true; } buyBtn.onclick = () => buyShopItem(upgradeId, 'permanent'); }
+            shopItem.appendChild(infoDiv); shopItem.appendChild(buyBtn); shopUpgradesContainer.appendChild(shopItem);
         }
     }
-    function buyShopItem(itemId) {
-        const item = shopItems[itemId];
-        if (gameState.gold >= item.cost) {
-            gameState.gold -= item.cost;
-            switch (itemId) {
-                case 'hpPotion': gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + gameState.resources.maxHp * 0.5); break;
-                case 'energyPotion': gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + gameState.resources.maxEnergy * 0.5); break;
-                case 'xpBoost': gameState.activeBuffs[itemId] = { expiry: Date.now() + item.duration * 1000 }; break;
+    function buyShopItem(itemId, type) {
+        if (type === 'permanent') {
+            const upgrade = permanentShopUpgrades[itemId]; const currentLevel = gameState.permanentUpgrades[itemId] || 0;
+            const cost = upgrade.cost(currentLevel);
+            if (gameState.gold >= cost) {
+                gameState.gold -= cost; gameState.permanentUpgrades[itemId] = currentLevel + 1;
+                showToast(`Purchased ${upgrade.name} Level ${currentLevel + 1}!`);
             }
-            showToast(`Purchased ${item.name}!`); updateUI(); updateShopUI(); saveGame();
+        } else {
+            const item = shopItems[itemId];
+            if (gameState.gold >= item.cost) {
+                gameState.gold -= item.cost;
+                switch (itemId) {
+                    case 'hpPotion': gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + gameState.resources.maxHp * 0.5); break;
+                    case 'energyPotion': gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + gameState.resources.maxEnergy * 0.5); break;
+                    case 'xpBoost': gameState.activeBuffs[itemId] = { expiry: Date.now() + item.duration * 1000 }; break;
+                }
+                showToast(`Purchased ${item.name}!`);
+            }
         }
+        updateUI(); updateShopUI(); saveGame();
     }
     function updateBuffs() {
         if (!gameState.activeBuffs) return; let buffsUpdated = false;
@@ -681,16 +686,8 @@ document.addEventListener('DOMContentLoaded', () => {
     characterSprite.addEventListener('click', handleTap); characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
-    battleBtn.addEventListener('click', () => {
-        attackBtn.textContent = "Attack";
-        attackBtn.onclick = playerAttack;
-        startGauntlet();
-    });
-    gauntletActionBtn.addEventListener('click', () => {
-        if (gauntletState.currentWave > 0 && gauntletState.currentWave <= gauntletState.totalWaves) {
-            claimAndFlee();
-        }
-    });
+    battleBtn.addEventListener('click', () => { attackBtn.textContent = "Attack"; attackBtn.onclick = playerAttack; startGauntlet(); });
+    gauntletActionBtn.addEventListener('click', () => { if (gauntletState.currentWave > 0 && gauntletState.currentWave <= gauntletState.totalWaves) { claimAndFlee(); } });
     expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
     shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
     expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
