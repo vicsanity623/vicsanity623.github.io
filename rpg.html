@@ -127,6 +127,22 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     overflow-y: auto; max-height: 90%;
 }
 .modal.visible .modal-content { transform: scale(1); }
+.inventory-slot {
+    margin: 15px 0; font-size: 0.9em; text-align: left;
+    border-left: 4px solid var(--accent-color); padding-left: 10px;
+}
+.inventory-slot .item-name {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+}
+.inventory-slot .item-stats {
+    font-size: 0.9em;
+    padding-left: 10px;
+}
+.inventory-slot .item-stat {
+    display: block;
+}
 #expedition-timer-display, #egg-timer-display {
     display: none; font-size: 2.5em; color: var(--xp-color);
     text-shadow: 0 0 5px var(--xp-color), 0 0 15px var(--xp-color);
@@ -190,6 +206,15 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 .log-player { color: var(--accent-color); }
 .log-enemy { color: var(--health-color); }
 .log-system { color: var(--xp-color); }
+#leaderboard-list { list-style: none; padding: 0; margin-top: 10px; text-align: left; font-size: 0.8em; display: none; }
+#leaderboard-list.active { display: block; }
+#leaderboard-list li { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--input-bg); }
+#leaderboard-list li:nth-child(odd) { background-color: #33364a; }
+#leaderboard-list .rank-name { text-align: left; }
+#leaderboard-list .rank-score { text-align: right; color: var(--xp-color); }
+.leaderboard-tabs { display: flex; border-bottom: 2px solid var(--accent-color); margin-bottom: 10px; }
+.leaderboard-tab { flex-grow: 1; padding: 10px; background: var(--secondary-bg); cursor: pointer; border: none; color: #888; font-family: 'Press Start 2P', cursive; }
+.leaderboard-tab.active { background: #333; color: var(--accent-color); }
 .screen-shake { animation: screen-shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes screen-shake {
     10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); }
@@ -215,6 +240,11 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     0% { opacity: 0; transform: translateY(20px); } 10% { opacity: 1; transform: translateY(0); }
     90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-20px); }
 }
+#achievements-list { list-style: none; padding: 0; margin-top: 20px; text-align: left; max-height: 300px; overflow-y: auto; }
+#achievements-list li { padding: 10px; border-bottom: 1px solid #444; opacity: 0.5; transition: all 0.3s ease; }
+#achievements-list li.unlocked { opacity: 1; color: var(--xp-color); border-left: 4px solid var(--xp-color); }
+#achievements-list li .achievement-desc { font-size: 0.8em; color: var(--text-color); }
+#achievements-list li .achievement-reward { font-size: 0.7em; color: var(--accent-color); margin-top: 5px; }
 .log-crit { color: var(--xp-color); font-weight: bold; text-shadow: 0 0 5px var(--xp-color); animation: pulse 0.5s 2; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 #tutorial-overlay {
@@ -228,6 +258,19 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 #tutorial-text { font-size: 1.2em; color: var(--xp-color); margin-bottom: 20px; text-shadow: 2px 2px 2px black; }
 #tutorial-finger { font-size: 4em; animation: bounce 1s infinite alternate; }
 @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-20px); } }
+.tap-flash-overlay {
+    position: absolute;
+    border-radius: 50%;
+    background-color: white;
+    pointer-events: none;
+    z-index: 10;
+    transform-origin: center;
+    animation: flash-effect 0.2s ease-out;
+}
+@keyframes flash-effect {
+    from { transform: scale(0.5); opacity: 0.7; }
+    to { transform: scale(1.5); opacity: 0; }
+}
 #loading-text { animation: pulse-text 1.5s ease-in-out infinite; }
 @keyframes pulse-text { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 @media (max-width: 600px) {
@@ -235,7 +278,8 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     .screen { padding: 10px 5px; justify-content: flex-start; overflow-y: auto; }
     #game-screen, #partner-screen { justify-content: space-between; padding-top: 15px; padding-bottom: 15px; }
     #battle-screen { justify-content: space-between; }
-    h1 { font-size: 2em; } h2 { font-size: 1.5em; margin-bottom: 10px; }
+    h1 { font-size: 2em; }
+    h2 { font-size: 1.5em; margin-bottom: 10px; }
     button { padding: 10px 15px; font-size: 0.85em; margin: 5px; }
     .stats-area { max-width: 100%; flex-shrink: 0; }
     .stat-bar { height: 18px; }
@@ -257,13 +301,49 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     .core-stats-display { font-size: 0.7em; }
     .battle-character { transform: scale(0.7); margin: 0; } 
 }
-.options-section, .menu-section, #inventory-list, #forge-slots-container { margin-top: 10px; text-align: left; }
-.options-item, .inventory-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #444; }
-.inventory-item-info, .options-item > div { flex-grow: 1; }
-.inventory-item-info strong { color: var(--xp-color); }
-.inventory-item-info .item-stats { font-size: 0.75em; opacity: 0.8; }
-.inventory-item button { padding: 8px 12px; font-size: 0.7em; margin: 0; flex-shrink: 0; }
+@keyframes aura-level-10-anim {
+    0%, 100% { filter: drop-shadow(0 0 6px gold) drop-shadow(0 0 12px orangered); }
+    50% { filter: drop-shadow(0 0 10px gold) drop-shadow(0 0 20px orangered) drop-shadow(0 0 2px yellow); }
+}
+.aura-level-10 { animation: idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite; }
+@keyframes super-aura-anim {
+    0%, 100% { filter: drop-shadow(0 0 15px #ff8000) drop-shadow(0 0 30px #ffff00); }
+    50% { filter: drop-shadow(0 0 25px #ff8000) drop-shadow(0 0 50px #ffff00) drop-shadow(0 0 5px white); }
+}
+.aura-ascended { animation: idle-breathe 2s ease-in-out infinite, super-aura-anim 1s ease-in-out infinite alternate; }
+@keyframes background-glitch-anim {
+    0% { transform: translate(0, 0); }
+    10% { transform: translate(-2px, 2px); }
+    20% { transform: translate(2px, -2px); }
+    30% { transform: translate(0, 0); }
+    100% { transform: translate(0, 0); }
+}
+.background-glitch { animation: background-glitch-anim 3s steps(2, end) infinite; }
+@keyframes lightning-flash-anim {
+    0%, 100% { opacity: 0; transform: scaleY(0); }
+    10% { opacity: 1; transform: scaleY(1); }
+    20% { opacity: 0; }
+}
+.lightning-bolt {
+    position: absolute; width: 4px; height: 100%;
+    background: linear-gradient(white, yellow, white);
+    transform-origin: top;
+    opacity: 0; animation: lightning-flash-anim 0.2s ease-out;
+    pointer-events: none; z-index: 150;
+}
+#perks-container, #shop-consumables-container, #shop-upgrades-container, #expedition-list-container, .menu-section, #inventory-list, #forge-slots-container, .options-section { margin-top: 10px; text-align: left; }
+.perk-item, .shop-item, .expedition-item, .inventory-item, .options-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #444; }
+.perk-info, .shop-info, .expedition-info, .inventory-item-info, .options-item > div { flex-grow: 1; }
+.perk-info strong, .shop-info strong, .expedition-info strong, .inventory-item-info strong { color: var(--xp-color); }
+.perk-info .perk-desc, .shop-info .shop-desc, .expedition-info .expedition-desc, .inventory-item-info .item-stats { font-size: 0.75em; opacity: 0.8; }
+.perk-level { font-size: 0.8em; margin-right: 15px; }
+.perk-item button, .shop-item button, .expedition-item button, .inventory-item button { padding: 8px 12px; font-size: 0.7em; margin: 0; flex-shrink: 0; }
 .menu-section > button { width: 100%; text-align: center; }
+#forge-slots-container { display: flex; justify-content: space-around; align-items: center; margin: 20px 0; }
+.forge-slot { width: 120px; height: 120px; border: 2px dashed #555; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.8em; padding: 5px; cursor: pointer; }
+.forge-slot.filled { border-style: solid; border-color: var(--accent-color); }
+#forge-plus, #forge-equals { font-size: 2em; margin: 0 10px; }
+#inventory-list .inventory-item { cursor: pointer; }
 .slider-container { display: flex; align-items: center; gap: 10px; }
 input[type="range"] { flex-grow: 1; }
 </style>
@@ -274,11 +354,12 @@ input[type="range"] { flex-grow: 1; }
     <div id="toast-container"></div>
     <div id="loading-screen" class="screen active"><h1 id="loading-text">Loading...</h1></div>
     <div id="update-screen" class="screen"><h1 id="update-text">Updating Save...</h1></div>
-    <div id="main-menu-screen" class="screen"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button></div>
+    <div id="main-menu-screen" class="screen"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
     
     <div id="game-screen" class="screen">
         <div id="frenzy-display">x5</div>
-        <div id="stats-area" class="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display" class="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display" class="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display" class="gold-display">Gold: 0</div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" class="sprite" src="player.PNG" alt="Character"><div id="tutorial-overlay"><div id="tutorial-text">Tap to grow stronger!</div><div id="tutorial-finger">👆</div></div></div>
+        <div id="stats-area" class="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display" class="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display" class="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display" class="gold-display">Gold: 0</div><div id="buff-display" class="buff-display"></div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" class="sprite" src="player.PNG" alt="Character"><div id="tutorial-overlay"><div id="tutorial-text">Tap to grow stronger!</div><div id="tutorial-finger">👆</div></div></div>
+        
         <div id="action-buttons">
             <div class="action-button-container"><button id="feed-btn">Feed (50 Gold)</button></div>
             <div class="action-button-container"><button id="battle-btn">Battle</button><span id="battle-unlock-text" class="unlock-text"></span></div>
@@ -287,6 +368,7 @@ input[type="range"] { flex-grow: 1; }
             <div class="action-button-container"><button id="shop-btn">Shop</button></div>
             <div class="action-button-container"><button id="inventory-btn">Inventory</button></div>
             <div class="action-button-container"><button id="ingame-menu-btn">Menu</button></div>
+            <button id="switch-character-btn">Switch to Partner</button>
         </div>
     </div>
     
@@ -317,16 +399,18 @@ input[type="range"] { flex-grow: 1; }
     <div id="expedition-screen" class="screen"><h2>Available Expeditions</h2><div id="expedition-list-container"></div><button id="expedition-cancel-btn">Back</button></div>
     <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
     <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><div id="progression-menu-section" class="menu-section"><h3 class="modal-subtitle">Progression</h3><button id="ascension-btn">Ascension</button><button id="achievements-btn">Achievements</button></div><div id="community-menu-section" class="menu-section"><h3 class="modal-subtitle">Community</h3><button id="leaderboard-btn">Leaderboard</button></div><div id="system-menu-section" class="menu-section"><h3 class="modal-subtitle">System</h3><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button></div><button id="return-to-game-btn">Return to Game</button></div></div>
-    <div id="inventory-modal" class="modal"><div class="modal-content"><h2>Inventory</h2><p>Click an item to equip it.</p><div id="inventory-list"></div><button id="close-inventory-btn">Close</button></div></div>
+    <div id="inventory-modal" class="modal"><div class="modal-content"><h2>Inventory</h2><p>Click an item to equip it or send it to the Forge.</p><div id="inventory-list"></div><button id="close-inventory-btn">Close</button></div></div>
     <div id="leaderboard-modal" class="modal"><div class="modal-content"><h2>Leaderboard</h2><div class="leaderboard-tabs"><button class="leaderboard-tab active" data-type="level">Level</button><button class="leaderboard-tab" data-type="damage">Damage</button></div><ul id="level-leaderboard-list" class="leaderboard-list active"><li>Loading...</li></ul><ul id="damage-leaderboard-list" class="leaderboard-list"><li>Loading...</li></ul><button id="close-leaderboard-btn">Close</button></div></div>
     <div id="achievements-modal" class="modal"><div class="modal-content"><h2>Achievements</h2><ul id="achievements-list"></ul><button id="close-achievements-btn">Close</button></div></div>
     <div id="ascension-modal" class="modal"><div class="modal-content"><h2>Ascension Perks</h2><p>Available Points: <span id="ascension-points-display">0</span></p><div id="perks-container"></div><button id="close-ascension-btn">Close</button></div></div>
     <div id="shop-modal" class="modal"><div class="modal-content"><h2>Item Shop</h2><h3 class="modal-subtitle">Consumables</h3><div id="shop-consumables-container"></div><h3 class="modal-subtitle">Permanent Upgrades</h3><div id="shop-upgrades-container"></div><button id="close-shop-btn">Close</button></div></div>
-    <div id="forge-modal" class="modal"><div class="modal-content"><h2>The Forge</h2><p>Place two items of the same type to merge them.</p><div id="forge-slots-container"><div class="forge-slot" id="forge-slot-1">Slot 1</div><span id="forge-plus">+</span><div class="forge-slot" id="forge-slot-2">Slot 2</div><span id="forge-equals">=</span><div class="forge-slot" id="forge-result-slot">Result</div></div></div>
+    <div id="forge-modal" class="modal"><div class="modal-content"><h2>The Forge</h2><p>Place two items of the same type to merge them. Open your Inventory to select items.</p><div id="forge-slots-container"><div class="forge-slot" id="forge-slot-1">Slot 1</div><span id="forge-plus">+</span><div class="forge-slot" id="forge-slot-2">Slot 2</div><span id="forge-equals">=</span><div class="forge-slot" id="forge-result-slot">Result</div></div><div id="forge-cost-display"></div><button id="forge-btn-action">Forge Items</button><button id="close-forge-btn">Close</button></div></div>
 
+    <!-- NEW OPTIONS MODAL -->
     <div id="options-modal" class="modal">
         <div class="modal-content">
             <h2>Options</h2>
+            
             <div class="options-section">
                 <h3 class="modal-subtitle">Cloud Save</h3>
                 <div id="auth-container">
@@ -334,6 +418,7 @@ input[type="range"] { flex-grow: 1; }
                     <p id="auth-status">Not signed in.</p>
                 </div>
             </div>
+
             <div class="options-section">
                 <h3 class="modal-subtitle">Audio</h3>
                 <div class="options-item">
@@ -349,6 +434,7 @@ input[type="range"] { flex-grow: 1; }
                     <input type="range" id="sfx-volume-slider" min="0" max="1" step="0.05">
                 </div>
             </div>
+            
             <div class="options-section">
                 <h3 class="modal-subtitle">Gameplay</h3>
                 <div class="options-item">
@@ -356,12 +442,15 @@ input[type="range"] { flex-grow: 1; }
                     <input type="checkbox" id="auto-battle-checkbox">
                 </div>
             </div>
+
             <button id="close-options-btn">Close</button>
         </div>
     </div>
 
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- ADDED FIREBASE AUTH SCRIPT -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="game.js" defer></script>
 </body>
