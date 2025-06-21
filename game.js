@@ -652,12 +652,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function submitScoreToLeaderboard() {
-        if (!gameState.playerName || gameState.playerName === "Guardian") return;
-        const score = { name: gameState.playerName, level: gameState.level, tier: gameState.ascension.tier, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
+        // Only submit scores for logged-in users.
+        if (!auth.currentUser || !gameState.playerName || gameState.playerName === "Guardian") return;
+    
+        const score = { 
+            name: gameState.playerName, 
+            level: gameState.level, 
+            tier: gameState.ascension.tier,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+    
         try {
-            // Use player name for public leaderboard, but use UID for personal saves.
-            await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true });
-        } catch (error) { console.error("Error submitting score: ", error); }
+            // Always use the user's UID as the document ID for their score.
+            const docRef = db.collection("leaderboard").doc(auth.currentUser.uid);
+            await docRef.set(score, { merge: true }); // Use set with merge to create or update.
+        } catch (error) { 
+            console.error("Error submitting level score: ", error); 
+        }
     }
 
     async function showLeaderboard(type = 'level') {
@@ -1291,18 +1302,27 @@ document.addEventListener('DOMContentLoaded', () => {
     async function endBattle(playerWon) {
         battleState.isActive = false;
         
-        if (battleState.totalDamage > 0) {
+        // --- REVISED DAMAGE LEADERBOARD LOGIC ---
+        if (battleState.totalDamage > 0 && auth.currentUser) {
             try {
-                // Use player name for the public damage leaderboard
-                const damageRef = db.collection("damageLeaderboard").doc(gameState.playerName);
-                const doc = await damageRef.get();
-                if (!doc.exists || doc.data().totalDamage < battleState.totalDamage) {
-                    await damageRef.set({ name: gameState.playerName, totalDamage: battleState.totalDamage });
-                }
-            } catch(e) { console.error("Failed to submit damage score", e); }
+                const damageRef = db.collection("damageLeaderboard").doc(auth.currentUser.uid);
+                
+                // Atomically increment the total damage on the server.
+                // This is the correct way to update counters and prevents race conditions.
+                await damageRef.set({
+                    name: gameState.playerName, // Also save/update the name for display
+                    totalDamage: firebase.firestore.FieldValue.increment(battleState.totalDamage)
+                }, { merge: true }); // Use merge to create the doc if it doesn't exist, or update it.
+    
+            } catch(e) {
+                console.error("Failed to submit damage score", e);
+            }
         }
+        // --- END REVISED LOGIC ---
         
-        let title = ""; let rewardText = "";
+        let title = "";
+        let rewardText = "";
+    
         if (playerWon) {
             gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
             checkAllAchievements();
@@ -1313,7 +1333,9 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.gold += battleState.totalGold;
             addXP(gameState, battleState.totalXp);
             gameState.inventory.push(bonusItem);
-            if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { equipItem(bonusItem); }
+            if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { 
+                equipItem(bonusItem); 
+            }
         } else {
             playSound('defeat', 1, 'sine', 440, 110, 0.8);
             if (battleState.playerHp <= 0) {
@@ -1327,7 +1349,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         gameState.resources.hp = battleState.playerHp;
-        setTimeout(() => { showScreen('game-screen'); showNotification(title, rewardText); saveGame(); updateUI(); }, 2500);
+    
+        setTimeout(() => {
+            showScreen('game-screen');
+            showNotification(title, rewardText);
+            saveGame();
+            updateUI();
+        }, 2500);
     }
     
     function passiveResourceRegen() {
