@@ -308,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let loadedState = null;
         let fromCloud = false;
 
+        // Step 1: Prioritize loading from the cloud if the user is logged in.
         if (auth.currentUser) {
             try {
                 const docRef = db.collection('playerSaves').doc(auth.currentUser.uid);
@@ -322,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Step 2: If no cloud save was found, fall back to local storage.
         if (!loadedState) {
             const savedData = localStorage.getItem('tapGuardianSave');
             if (savedData) {
@@ -330,22 +332,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
+        // --- THIS IS THE CRITICAL FIX ---
+        // Step 3: If ANY save was found (cloud or local), process it and start the game.
         if (loadedState) {
             loadedState = await migrateSaveData(loadedState);
             gameState = { ...defaultState, ...loadedState };
-            if(fromCloud) showToast("Cloud save loaded!");
+
+            if (fromCloud) {
+                showToast("Cloud save loaded!");
+            }
             
+            // Now run all the necessary setup and show the game screen
             updateSettingsUI();
             checkExpeditionStatus();
             updateUI(); 
             updateAscensionVisuals();
-            showScreen('game-screen');
+            showScreen('game-screen'); // <--- This is the crucial line that was being missed.
             checkWeeklyRewards();
-            await saveGame();
+            await saveGame(); // Save back to sync local/cloud if needed
         } else if (auth.currentUser) {
+            // If logged in but NO save exists anywhere, start a new game for them.
              showToast("No saves found. Starting a new game.");
              startGame();
         }
+        // If not logged in and no local save, do nothing. Wait for user input.
     }
 
     async function saveGame(showToastNotification = false) {
