@@ -11,7 +11,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.5; 
+    const GAME_VERSION = 1.4; 
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
@@ -97,8 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         permanentUpgrades: {},
         activeBuffs: {},
         achievements: JSON.parse(JSON.stringify(achievements)),
-        counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, gauntletsCompleted: 0, itemsForged: 0, legendariesFound: 0 },
-        lastWeeklyRewardClaim: 0
+        counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, gauntletsCompleted: 0, itemsForged: 0, legendariesFound: 0 }
     };
     const ASCENSION_LEVEL = 50;
     const GAUNTLET_UNLOCK_LEVEL = 10;
@@ -152,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const attackBtn = document.getElementById('attack-btn');
     const gauntletActionBtn = document.getElementById('gauntlet-action-btn');
     const gauntletWaveDisplay = document.getElementById('gauntlet-wave-display');
-    const gauntletRankDisplay = document.getElementById('gauntlet-rank-display');
     const battleNpcName = document.getElementById('battle-npc-name');
     const expeditionCancelBtn = document.getElementById('expedition-cancel-btn');
     const expeditionListContainer = document.getElementById('expedition-list-container');
@@ -180,9 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const frenzyDisplay = document.getElementById('frenzy-display');
     const leaderboardBtn = document.getElementById('leaderboard-btn');
     const leaderboardModal = document.getElementById('leaderboard-modal');
-    const leaderboardTabs = document.querySelectorAll('.leaderboard-tab');
-    const levelLeaderboardList = document.getElementById('level-leaderboard-list');
-    const damageLeaderboardList = document.getElementById('damage-leaderboard-list');
+    const leaderboardList = document.getElementById('leaderboard-list');
     const closeLeaderboardBtn = document.getElementById('close-leaderboard-btn');
     const toastContainer = document.getElementById('toast-container');
     const achievementsModal = document.getElementById('achievements-modal');
@@ -229,7 +225,6 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.playerName = playerName;
         localStorage.setItem('tapGuardianLastLogin', new Date().toDateString());
         checkExpeditionStatus(); updateUI(); updateAscensionVisuals(); saveGame(); showScreen('game-screen');
-        checkWeeklyRewards();
     }
 
     async function migrateSaveData(loadedState) {
@@ -250,7 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
             loadedState.counters = { ...defaultCounters, ...(loadedState.counters || {})};
             loadedState.hasEgg = loadedState.hasEgg || false;
             loadedState.partner = loadedState.partner || null;
-            loadedState.lastWeeklyRewardClaim = loadedState.lastWeeklyRewardClaim || 0;
             
             return new Promise(resolve => setTimeout(() => resolve(loadedState), 1500));
         }
@@ -273,7 +267,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             localStorage.setItem('tapGuardianLastLogin', today);
             checkExpeditionStatus(); updateUI(); updateAscensionVisuals(); showScreen('game-screen');
-            checkWeeklyRewards();
             saveGame();
         } else { showNotification("No Save Data Found!", "Starting a new game instead."); startGame(); }
     }
@@ -523,70 +516,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const score = { name: gameState.playerName, level: gameState.level, tier: gameState.ascension.tier, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
         try { await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true }); } catch (error) { console.error("Error submitting score: ", error); }
     }
-    async function showLeaderboard(type = 'level') {
-        const allLists = document.querySelectorAll('.leaderboard-list');
-        allLists.forEach(l => l.classList.remove('active'));
-        
-        let targetList, collectionName, orderByField, orderByDirection;
-
-        if(type === 'damage') {
-            targetList = damageLeaderboardList;
-            collectionName = 'damageLeaderboard';
-            orderByField = 'totalDamage';
-            orderByDirection = 'desc';
-        } else {
-            targetList = levelLeaderboardList;
-            collectionName = 'leaderboard';
-            orderByField = 'level';
-            orderByDirection = 'desc';
-        }
-        
-        targetList.classList.add('active');
-        leaderboardTabs.forEach(t => t.classList.remove('active'));
-        document.querySelector(`.leaderboard-tab[data-type="${type}"]`).classList.add('active');
-        
-        leaderboardModal.classList.add('visible');
-        targetList.innerHTML = "<li>Loading...</li>";
-
+    async function showLeaderboard() {
+        leaderboardList.innerHTML = "<li>Loading...</li>"; leaderboardModal.classList.add('visible');
         try {
-            let query = db.collection(collectionName).orderBy(orderByField, orderByDirection);
-            if (type === 'level') query = query.orderBy('tier', 'desc');
-            const snapshot = await query.limit(10).get();
-
-            if (snapshot.empty) { targetList.innerHTML = "<li>No scores yet. Be the first!</li>"; return; }
-            targetList.innerHTML = "";
-            let rank = 1;
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const li = document.createElement('li');
-                let scoreText;
-                if(type === 'damage') {
-                    scoreText = `Damage: ${data.totalDamage.toLocaleString()}`;
-                } else {
-                    scoreText = `Level ${data.level} (Tier ${data.tier})`;
-                }
-                li.innerHTML = `<span class="rank-name">${rank}. ${data.name}</span> <span class="rank-score">${scoreText}</span>`;
-                targetList.appendChild(li);
-                rank++;
-            });
-        } catch (error) { console.error("Error fetching leaderboard: ", error); targetList.innerHTML = "<li>Error loading scores.</li>"; }
+            const snapshot = await db.collection("leaderboard").orderBy("tier", "desc").orderBy("level", "desc").limit(20).get();
+            if (snapshot.empty) { leaderboardList.innerHTML = "<li>No scores yet. Be the first!</li>"; return; }
+            leaderboardList.innerHTML = ""; let rank = 1;
+            snapshot.forEach(doc => { const data = doc.data(); const li = document.createElement('li'); li.innerHTML = `<span class="rank-name">${rank}. ${data.name} (Tier ${data.tier})</span> <span class="rank-level">Level ${data.level}</span>`; leaderboardList.appendChild(li); rank++; });
+        } catch (error) { console.error("Error fetching leaderboard: ", error); leaderboardList.innerHTML = "<li>Error loading scores.</li>"; }
     }
-    async function startGauntlet() {
-        let rank = 'Unranked';
-        try {
-            const damageDoc = await db.collection("damageLeaderboard").doc(gameState.playerName).get();
-            if(damageDoc.exists) {
-                const snapshot = await db.collection("damageLeaderboard").orderBy("totalDamage", "desc").get();
-                const docs = snapshot.docs;
-                const playerIndex = docs.findIndex(doc => doc.id === gameState.playerName);
-                if (playerIndex > -1) {
-                    rank = `#${playerIndex + 1}`;
-                }
-            }
-        } catch (e) { console.error("Could not fetch rank", e); }
-        gauntletRankDisplay.textContent = `Current Rank: ${rank}`;
-        
-        gauntletState = { currentWave: 0, totalWaves: 5, totalXp: 0, totalGold: 0, totalDamage: 0 };
+    function startGauntlet() {
+        gauntletState = { currentWave: 0, totalWaves: 5, totalXp: 0, totalGold: 0 };
         battlePlayerName.textContent = gameState.playerName;
         battleLog.innerHTML = ""; addBattleLog("The Gauntlet begins! Prepare for battle.", "log-system");
         showScreen('battle-screen');
@@ -620,7 +560,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
         const baseDamage = Math.max(1, getTotalStat('strength') * 2 - currentNpc.fortitude);
         const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
-        gauntletState.totalDamage += damage;
         currentNpc.hp = Math.max(0, currentNpc.hp - damage);
         if (isCrit) { addBattleLog('CRITICAL HIT!', 'log-crit'); playSound('crit', 0.8, 'square', 1000, 500, 0.2); } 
         else { playSound('hit', 0.8, 'square', 400, 100, 0.1); }
@@ -646,7 +585,13 @@ document.addEventListener('DOMContentLoaded', () => {
             addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
             if (gauntletState.currentWave >= gauntletState.totalWaves) {
                 gameState.counters.gauntletsCompleted = (gameState.counters.gauntletsCompleted || 0) + 1; checkAllAchievements();
-                claimAndFlee(true);
+                playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+                let bonusItem = generateItem();
+                let rewardText = `GAUNTLET COMPLETE!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
+                addXP(gameState, gauntletState.totalXp); gameState.gold += gauntletState.totalGold;
+                gameState.inventory.push(bonusItem);
+                if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { equipItem(bonusItem); }
+                setTimeout(() => { showNotification("Victory!", rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
             } else {
                 addBattleLog(`Wave ${gauntletState.currentWave} cleared! Prepare for the next wave...`, 'log-system');
                 setTimeout(() => {
@@ -657,41 +602,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             playSound('defeat', 1, 'sine', 440, 110, 0.8);
             addBattleLog("You have been defeated... The Gauntlet ends.", "log-system");
-            claimAndFlee();
+            setTimeout(() => {
+                showNotification("Defeat", "You black out and wake up back home. You lost half your gold.");
+                gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1;
+                showScreen('game-screen'); saveGame(); updateUI();
+            }, 2000);
         }
     }
-    async function claimAndFlee(gauntletCompleted = false) {
-        if (gauntletState.totalDamage > 0) {
-            try {
-                const damageRef = db.collection("damageLeaderboard").doc(gameState.playerName);
-                const doc = await damageRef.get();
-                if (!doc.exists || doc.data().totalDamage < gauntletState.totalDamage) {
-                    await damageRef.set({ name: gameState.playerName, totalDamage: gauntletState.totalDamage });
-                }
-            } catch(e) { console.error("Failed to submit damage score", e); }
-        }
-
-        let rewardText = `You escaped the Gauntlet with your life!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br>Total Damage: ${gauntletState.totalDamage}`;
-        let title = "Gauntlet Run Over";
-
-        if (gauntletCompleted) {
-            playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-            let bonusItem = generateItem();
-            title = "Gauntlet Complete!";
-            rewardText = `You conquered the Gauntlet!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br>Total Damage: ${gauntletState.totalDamage}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
-            gameState.inventory.push(bonusItem);
-            if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { equipItem(bonusItem); }
-        }
-        
-        addXP(gameState, gauntletState.totalXp); 
-        gameState.gold += gauntletState.totalGold;
-        if (gameState.resources.hp <= 0) {
-            title = "Defeated!";
-            rewardText = "You black out and wake up back home. You lost half your gold.";
-            gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1;
-        }
-
-        setTimeout(() => { showNotification(title, rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
+    function claimAndFlee() {
+        addBattleLog(`You claim your rewards and flee the Gauntlet!`, "log-player");
+        addXP(gameState, gauntletState.totalXp); gameState.gold += gauntletState.totalGold;
+        let rewardText = `You escaped the Gauntlet with your life!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP`;
+        setTimeout(() => { showNotification("Gauntlet Run Over", rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
     }
     function generateItem(forceRarity = null) {
         let chosenRarityKey = forceRarity;
@@ -1139,10 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
     quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
     inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.classList.add('visible'); });
     closeInventoryBtn.addEventListener('click', () => { inventoryModal.classList.remove('visible'); });
-    leaderboardBtn.addEventListener('click', () => showLeaderboard('level'));
-    leaderboardTabs.forEach(tab => {
-        tab.addEventListener('click', () => showLeaderboard(tab.dataset.type));
-    });
+    leaderboardBtn.addEventListener('click', showLeaderboard);
     closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.classList.remove('visible'); });
     achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.classList.add('visible'); });
     closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
