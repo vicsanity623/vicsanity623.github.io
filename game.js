@@ -469,7 +469,7 @@ const firebaseConfig = {
               playSound('tap', 0.5, 'square', 150, 100, 0.05); const now = Date.now();
               if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
               tapCombo.lastTapTime = now;
-              if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.45) { activateFrenzy(); } }
+              if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.55) { activateFrenzy(); } }
               if (Math.random() < 0.1) { triggerScreenShake(150); }
               
               const baseTapXp = 0.25;
