@@ -601,11 +601,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function startNextWave() {
         gauntletState.currentWave++; gauntletWaveDisplay.textContent = `Wave: ${gauntletState.currentWave} / ${gauntletState.totalWaves}`;
         
-        // --- FIX STARTS HERE ---
+        // --- FIX #2 ---
         // Reset the Attack button's text and functionality for the new wave
         attackBtn.textContent = 'Attack';
         attackBtn.onclick = playerAttack;
-        // --- FIX ENDS HERE ---
+        // --- END FIX ---
 
         const tierMultiplier = gameState.ascension.tier; const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
         const waveMultiplier = 1 + (gauntletState.currentWave - 1) * 0.25;
@@ -1156,11 +1156,12 @@ document.addEventListener('DOMContentLoaded', () => {
     partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
-    battleBtn.addEventListener('click', () => { 
-        attackBtn.textContent = "Attack";
-        attackBtn.onclick = playerAttack;
-        startGauntlet(); 
-    });
+
+    // --- FIX #1 ---
+    // Simplified the event listener to fix the primary bug.
+    battleBtn.addEventListener('click', startGauntlet);
+    // --- END FIX ---
+
     gauntletActionBtn.addEventListener('click', () => { if (gauntletState.currentWave > 0 && gauntletState.currentWave <= gauntletState.totalWaves) { claimAndFlee(); } });
     expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
     shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
