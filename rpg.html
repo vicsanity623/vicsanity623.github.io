@@ -352,12 +352,49 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     <div id="loading-screen" class="screen active"><h1 id="loading-text">Loading...</h1></div>
     <div id="update-screen" class="screen"><h1 id="update-text">Updating Save...</h1></div>
     <div id="main-menu-screen" class="screen"><h1>Tap Guardian</h1><button id="start-game-btn">Start New Game</button><button id="load-game-btn">Load Game</button><button onclick="alert('Options not yet implemented!')">Options</button></div>
+    
     <div id="game-screen" class="screen">
         <div id="frenzy-display">x5</div>
-        <div id="stats-area" class="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display" class="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display" class="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display" class="gold-display">Gold: 0</div><div id="buff-display" class="buff-display"></div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" class="sprite" src="player.PNG" alt="Character"><div id="tutorial-overlay"><div id="tutorial-text">Tap to grow stronger!</div><div id="tutorial-finger">👆</div></div></div><div id="action-buttons"><div class="action-button-container"><button id="feed-btn">Feed (50 Gold)</button></div><div class="action-button-container"><button id="battle-btn">Gauntlet</button><span id="gauntlet-unlock-text" class="unlock-text"></span></div><div class="action-button-container"><button id="expedition-btn">Expedition</button></div><div class="action-button-container"><button id="forge-btn">Forge</button><span id="forge-unlock-text" class="unlock-text"></span></div><div class="action-button-container"><button id="shop-btn">Shop</button></div><div class="action-button-container"><button id="inventory-btn">Inventory</button></div><div class="action-button-container"><button id="ingame-menu-btn">Menu</button></div><button id="switch-character-btn">Switch to Partner</button></div></div>
+        <div id="stats-area" class="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display" class="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display" class="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display" class="gold-display">Gold: 0</div><div id="buff-display" class="buff-display"></div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" class="sprite" src="player.PNG" alt="Character"><div id="tutorial-overlay"><div id="tutorial-text">Tap to grow stronger!</div><div id="tutorial-finger">👆</div></div></div>
+        
+        <!-- UPDATED ACTION BUTTONS -->
+        <div id="action-buttons">
+            <div class="action-button-container"><button id="feed-btn">Feed (50 Gold)</button></div>
+            <div class="action-button-container"><button id="battle-btn">Battle</button><span id="battle-unlock-text" class="unlock-text"></span></div>
+            <div class="action-button-container"><button id="expedition-btn">Expedition</button></div>
+            <div class="action-button-container"><button id="forge-btn">Forge</button><span id="forge-unlock-text" class="unlock-text"></span></div>
+            <div class="action-button-container"><button id="shop-btn">Shop</button></div>
+            <div class="action-button-container"><button id="inventory-btn">Inventory</button></div>
+            <div class="action-button-container"><button id="ingame-menu-btn">Menu</button></div>
+            <button id="switch-character-btn">Switch to Partner</button>
+        </div>
+    </div>
+    
     <div id="partner-screen" class="screen">
-        <div id="partner-stats-area" class="stats-area"><h2 id="partner-name-level">Partner Lv. 1</h2><div id="partner-health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="partner-energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="partner-xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="partner-core-stats-display" class="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div></div><div id="partner-character-area"><div id="egg-timer-display">00:00:00</div><img id="partner-sprite" class="sprite" src="egg.png" alt="Partner"></div><div id="partner-action-buttons"><button id="switch-to-main-btn">Switch to Guardian</button></div></div>
-    <div id="battle-screen" class="screen"><h2>The Gauntlet!</h2><div id="gauntlet-wave-display">Wave: 1/5</div><div id="gauntlet-rank-display"></div><div id="battle-arena"><div class="battle-character"><h3 id="battle-player-name">Guardian</h3><img src="player.PNG"><div id="battle-player-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div><div class="battle-character"><h3 id="battle-npc-name">Goblin</h3><img src="player.PNG" style="filter: hue-rotate(180deg);"><div id="battle-npc-hp" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div></div></div><div id="battle-log"></div><div id="battle-actions"><button id="attack-btn">Attack</button><button id="gauntlet-action-btn">Flee</button></div></div>
+        <div id="partner-stats-area" class="stats-area"><h2 id="partner-name-level">Partner Lv. 1</h2><div id="partner-health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="partner-energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="partner-xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="partner-core-stats-display" class="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div></div><div id="partner-character-area"><div id="egg-timer-display">00:00:00</div><img id="partner-sprite" class="sprite" src="egg.png" alt="Partner"></div><div id="partner-action-buttons"><button id="switch-to-main-btn">Switch to Guardian</button></div>
+    </div>
+    
+    <!-- UPDATED BATTLE SCREEN -->
+    <div id="battle-screen" class="screen">
+        <h2 id="battle-title">Battle!</h2>
+        <div id="battle-wave-display">Wave: 1/5</div>
+        <div id="battle-arena">
+            <div class="battle-character">
+                <h3 id="battle-player-name">Guardian</h3><img id="battle-player-sprite" src="player.PNG">
+                <div id="battle-player-hp-bar" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div>
+            </div>
+            <div class="battle-character">
+                <h3 id="battle-enemy-name">Enemy</h3><img id="battle-enemy-sprite" src="player.PNG" style="filter: hue-rotate(180deg);">
+                <div id="battle-enemy-hp-bar" class="stat-bar" style="width:150px"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP</span></div>
+            </div>
+        </div>
+        <div id="battle-log"></div>
+        <div id="battle-actions">
+            <button id="attack-btn">Attack</button>
+            <button id="flee-btn">Flee</button>
+        </div>
+    </div>
+    
     <div id="expedition-screen" class="screen"><h2>Available Expeditions</h2><div id="expedition-list-container"></div><button id="expedition-cancel-btn">Back</button></div>
     <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
     <div id="ingame-menu-modal" class="modal"><div class="modal-content" id="ingame-menu-content"><h2>Menu</h2><div id="progression-menu-section" class="menu-section"><h3 class="modal-subtitle">Progression</h3><button id="ascension-btn">Ascension</button><button id="achievements-btn">Achievements</button></div><div id="community-menu-section" class="menu-section"><h3 class="modal-subtitle">Community</h3><button id="leaderboard-btn">Leaderboard</button></div><div id="system-menu-section" class="menu-section"><h3 class="modal-subtitle">System</h3><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button></div><button id="return-to-game-btn">Return to Game</button></div></div>
