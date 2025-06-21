@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
+    let currentNpc = {};
+    let gauntletState = {};
     const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
     const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
     
@@ -93,7 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const battleLog = document.getElementById('battle-log');
     const battlePlayerName = document.getElementById('battle-player-name');
     const attackBtn = document.getElementById('attack-btn');
-    const runBtn = document.getElementById('run-btn');
+    const gauntletActionBtn = document.getElementById('gauntlet-action-btn');
+    const gauntletWaveDisplay = document.getElementById('gauntlet-wave-display');
     const battleNpcName = document.getElementById('battle-npc-name');
     const expeditionCancelBtn = document.getElementById('expedition-cancel-btn');
     const ingameMenuBtn = document.getElementById('ingame-menu-btn');
@@ -391,34 +394,61 @@ document.addEventListener('DOMContentLoaded', () => {
             snapshot.forEach(doc => { const data = doc.data(); const li = document.createElement('li'); li.innerHTML = `<span class="rank-name">${rank}. ${data.name} (Tier ${data.tier})</span> <span class="rank-level">Level ${data.level}</span>`; leaderboardList.appendChild(li); rank++; });
         } catch (error) { console.error("Error fetching leaderboard: ", error); leaderboardList.innerHTML = "<li>Error loading scores.</li>"; }
     }
-    let currentNpc = {};
-    function addBattleLog(message, type) { battleLog.innerHTML += `<div class="${type}">${message}</div>`; battleLog.scrollTop = battleLog.scrollHeight; }
-    function startBattle() {
+    
+    function startGauntlet() {
+        gauntletState = {
+            currentWave: 0,
+            totalWaves: 5,
+            totalXp: 0,
+            totalGold: 0
+        };
         battlePlayerName.textContent = gameState.playerName;
-        const tierMultiplier = gameState.ascension.tier; const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
+        battleLog.innerHTML = "";
+        addBattleLog("The Gauntlet begins! Prepare for battle.", "log-system");
+        showScreen('battle-screen');
+        startNextWave();
+    }
+
+    function startNextWave() {
+        gauntletState.currentWave++;
+        gauntletWaveDisplay.textContent = `Wave: ${gauntletState.currentWave} / ${gauntletState.totalWaves}`;
+        const tierMultiplier = gameState.ascension.tier;
+        const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
+        const waveMultiplier = 1 + (gauntletState.currentWave - 1) * 0.25;
+
         currentNpc = {
-            name: `Tier ${tierMultiplier} Shadow Goblin`,
-            hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier), maxHp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier),
-            strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier), agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier),
-            fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier),
-            xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier), goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier)
+            name: `Wave ${gauntletState.currentWave} Goblin`,
+            hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier),
+            maxHp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier),
+            strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier),
+            agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
+            fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
+            xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier),
+            goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier)
         };
         battleNpcName.textContent = `${currentNpc.name} Lv. ${levelMultiplier}`;
-        updateBattleUI(); battleLog.innerHTML = ""; addBattleLog(`A wild ${currentNpc.name} appears!`, "log-system");
-        attackBtn.disabled = false; showScreen('battle-screen');
-        if (currentNpc.agility > getTotalStat('agility')) {
-            addBattleLog(`${currentNpc.name} is faster and attacks first!`, "log-enemy");
-            attackBtn.disabled = true; setTimeout(npcAttack, 1500);
-        } else { addBattleLog("You are faster! Your turn.", "log-player"); }
+        updateBattleUI();
+        addBattleLog(`A wild ${currentNpc.name} appears!`, "log-system");
+        
+        attackBtn.disabled = true;
+        gauntletActionBtn.disabled = true;
+        
+        setTimeout(() => {
+            if (currentNpc.agility > getTotalStat('agility')) {
+                addBattleLog(`${currentNpc.name} is faster and attacks first!`, "log-enemy");
+                npcAttack();
+            } else {
+                addBattleLog("You are faster! Your turn.", "log-player");
+                attackBtn.disabled = false;
+                gauntletActionBtn.disabled = false;
+                gauntletActionBtn.textContent = 'Flee';
+            }
+        }, 1000);
     }
-    function updateBattleUI() {
-        document.querySelector('#battle-player-hp .stat-bar-fill').style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
-        document.querySelector('#battle-player-hp .stat-bar-label').textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
-        document.querySelector('#battle-npc-hp .stat-bar-fill').style.width = `${(currentNpc.hp / currentNpc.maxHp) * 100}%`;
-        document.querySelector('#battle-npc-hp .stat-bar-label').textContent = `HP: ${Math.floor(currentNpc.hp)} / ${currentNpc.maxHp}`;
-    }
+
     function playerAttack() {
         attackBtn.disabled = true;
+        gauntletActionBtn.disabled = true;
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
         const baseDamage = Math.max(1, getTotalStat('strength') * 2 - currentNpc.fortitude);
         const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
@@ -427,29 +457,89 @@ document.addEventListener('DOMContentLoaded', () => {
         else { playSound('hit', 0.8, 'square', 400, 100, 0.1); }
         addBattleLog(`You attack for ${damage} damage!`, "log-player");
         createDamageNumber(damage, isCrit, true);
-        updateBattleUI(); if (currentNpc.hp <= 0) { endBattle(true); } else { setTimeout(npcAttack, 1500); }
-    }
-    function npcAttack() {
-        if (Math.random() < (getTotalStat('agility') / 250)) { addBattleLog('You dodged the attack!', 'log-player'); attackBtn.disabled = false; return; }
-        const damage = Math.max(1, currentNpc.strength * 2 - getTotalStat('fortitude'));
-        gameState.resources.hp = Math.max(0, gameState.resources.hp - damage);
-        playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15); triggerScreenShake(200); createDamageNumber(damage, false, false);
-        addBattleLog(`${currentNpc.name} attacks for ${damage} damage!`, "log-enemy");
-        updateBattleUI(); if (gameState.resources.hp <= 0) { endBattle(false); } else { attackBtn.disabled = false; }
-    }
-    function endBattle(playerWon) {
-        attackBtn.disabled = true;
-        if (playerWon) {
-            gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1; checkAllAchievements();
-            const finalGoldReward = Math.floor(currentNpc.goldReward * (1 + getTotalStat('goldFind') / 100));
-            playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-            addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
-            setTimeout(() => { showNotification("Victory!", `You earned ${finalGoldReward} Gold.`); addXP(currentNpc.xpReward); gameState.gold += finalGoldReward; showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
+        updateBattleUI();
+        if (currentNpc.hp <= 0) {
+            endBattle(true);
         } else {
-            playSound('defeat', 1, 'sine', 440, 110, 0.8); addBattleLog("You have been defeated...", "log-system");
-            setTimeout(() => { showNotification("Defeat", "You black out and wake up back home. You lost half your gold."); gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1; showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
+            setTimeout(npcAttack, 1500);
         }
     }
+
+    function npcAttack() {
+        if (Math.random() < (getTotalStat('agility') / 250)) {
+            addBattleLog('You dodged the attack!', 'log-player');
+            attackBtn.disabled = false;
+            gauntletActionBtn.disabled = false;
+            return;
+        }
+        const damage = Math.max(1, currentNpc.strength * 2 - getTotalStat('fortitude'));
+        gameState.resources.hp = Math.max(0, gameState.resources.hp - damage);
+        playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15);
+        triggerScreenShake(200);
+        createDamageNumber(damage, false, false);
+        addBattleLog(`${currentNpc.name} attacks for ${damage} damage!`, "log-enemy");
+        updateBattleUI();
+        if (gameState.resources.hp <= 0) {
+            endBattle(false);
+        } else {
+            attackBtn.disabled = false;
+            gauntletActionBtn.disabled = false;
+        }
+    }
+
+    function endBattle(playerWon) {
+        attackBtn.disabled = true;
+        gauntletActionBtn.disabled = true;
+        if (playerWon) {
+            gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
+            const finalGoldReward = Math.floor(currentNpc.goldReward * (1 + getTotalStat('goldFind') / 100));
+            gauntletState.totalXp += currentNpc.xpReward;
+            gauntletState.totalGold += finalGoldReward;
+
+            addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
+            
+            if (gauntletState.currentWave >= gauntletState.totalWaves) {
+                playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+                let bonusItem = generateItem();
+                let rewardText = `GAUNTLET COMPLETE!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
+                addXP(gauntletState.totalXp);
+                gameState.gold += gauntletState.totalGold;
+                if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) {
+                    gameState.equipment[bonusItem.type] = bonusItem;
+                }
+                setTimeout(() => { showNotification("Victory!", rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
+            } else {
+                addBattleLog(`Wave ${gauntletState.currentWave} cleared! Prepare for the next wave...`, 'log-system');
+                setTimeout(() => {
+                    gauntletActionBtn.textContent = `Claim (${gauntletState.totalGold}G) & Flee`;
+                    gauntletActionBtn.disabled = false;
+                    attackBtn.disabled = false;
+                    attackBtn.textContent = "Next Wave";
+                    attackBtn.onclick = startNextWave;
+                }, 1500);
+            }
+        } else {
+            playSound('defeat', 1, 'sine', 440, 110, 0.8);
+            addBattleLog("You have been defeated... The Gauntlet ends.", "log-system");
+            setTimeout(() => {
+                showNotification("Defeat", "You black out and wake up back home. You lost half your gold.");
+                gameState.gold = Math.floor(gameState.gold / 2);
+                gameState.resources.hp = 1;
+                showScreen('game-screen');
+                saveGame();
+                updateUI();
+            }, 2000);
+        }
+    }
+
+    function claimAndFlee() {
+        addBattleLog(`You claim your rewards and flee the Gauntlet!`, "log-player");
+        addXP(gauntletState.totalXp);
+        gameState.gold += gauntletState.totalGold;
+        let rewardText = `You escaped the Gauntlet with your life!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP`;
+        setTimeout(() => { showNotification("Gauntlet Run Over", rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
+    }
+
     function generateItem() {
         const roll = Math.random() * 100; let chosenRarityKey = 'common'; let cumulativeWeight = 0;
         for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
@@ -566,13 +656,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function updateBuffs() {
-        if (!gameState.activeBuffs) return;
-        let buffsUpdated = false;
+        if (!gameState.activeBuffs) return; let buffsUpdated = false;
         for (const buffId in gameState.activeBuffs) {
             if (Date.now() > gameState.activeBuffs[buffId].expiry) {
-                delete gameState.activeBuffs[buffId];
-                showToast(`${shopItems[buffId].name} has worn off.`);
-                buffsUpdated = true;
+                delete gameState.activeBuffs[buffId]; showToast(`${shopItems[buffId].name} has worn off.`); buffsUpdated = true;
             }
         }
         if (buffsUpdated) { updateUI(); saveGame(); }
@@ -590,19 +677,23 @@ document.addEventListener('DOMContentLoaded', () => {
     startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
     characterSprite.addEventListener('click', handleTap); characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
-    feedBtn.addEventListener('click', feed); battleBtn.addEventListener('click', startBattle);
-    expeditionBtn.addEventListener('click', () => showScreen('expedition-screen')); shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
-    attackBtn.addEventListener('click', playerAttack);
-    runBtn.addEventListener('click', () => {
-        if (Math.random() < 0.5) { addBattleLog("You successfully ran away.", "log-player"); setTimeout(()=>showScreen('game-screen'), 1000); }
-        else { addBattleLog("You failed to run away!", "log-enemy"); attackBtn.disabled = true; setTimeout(npcAttack, 1500); }
+    feedBtn.addEventListener('click', feed); 
+    battleBtn.addEventListener('click', () => {
+        attackBtn.textContent = "Attack";
+        attackBtn.onclick = playerAttack;
+        startGauntlet();
     });
+    gauntletActionBtn.addEventListener('click', () => {
+        if (gauntletState.currentWave > 0 && gauntletState.currentWave <= gauntletState.totalWaves) {
+            claimAndFlee();
+        }
+    });
+    expeditionBtn.addEventListener('click', () => showScreen('expedition-screen')); shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
     expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
     ingameMenuBtn.addEventListener('click', () => {
         let ascendBtn = document.getElementById('ascend-btn');
         if (gameState.level >= ASCENSION_LEVEL && !ascendBtn) {
-            ascendBtn = document.createElement('button'); ascendBtn.id = 'ascend-btn';
-            ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
+            ascendBtn = document.createElement('button'); ascendBtn.id = 'ascend-btn'; ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
             ascendBtn.onclick = ascend; ingameMenuContent.insertBefore(ascendBtn, returnToGameBtn);
         } else if (gameState.level < ASCENSION_LEVEL && ascendBtn) { ascendBtn.remove(); }
         ingameMenuModal.classList.add('visible');
