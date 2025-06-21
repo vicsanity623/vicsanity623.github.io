@@ -11,7 +11,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.3;
+    const GAME_VERSION = 1.4; 
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let gauntletState = {};
     let availableExpeditions = [];
     let forgeSlots = [null, null];
+    let partnerTimerInterval = null;
     const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
     const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
     
@@ -90,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
         resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
         equipment: { weapon: null, armor: null }, 
-        inventory: [], hasEgg: false,
+        inventory: [], hasEgg: false, partner: null,
         expedition: { active: false, returnTime: 0 },
         ascension: { tier: 1, points: 0, perks: {} },
         permanentUpgrades: {},
@@ -127,6 +128,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const shopBtn = document.getElementById('shop-btn');
     const forgeBtn = document.getElementById('forge-btn');
     const forgeUnlockText = document.getElementById('forge-unlock-text');
+    const switchCharacterBtn = document.getElementById('switch-character-btn');
+    const switchToMainBtn = document.getElementById('switch-to-main-btn');
+    const partnerScreen = document.getElementById('partner-screen');
+    const partnerSprite = document.getElementById('partner-sprite');
+    const partnerNameLevel = document.getElementById('partner-name-level');
+    const partnerHealthBarFill = document.querySelector('#partner-health-bar .stat-bar-fill');
+    const partnerHealthBarLabel = document.querySelector('#partner-health-bar .stat-bar-label');
+    const partnerEnergyBarFill = document.querySelector('#partner-energy-bar .stat-bar-fill');
+    const partnerEnergyBarLabel = document.querySelector('#partner-energy-bar .stat-bar-label');
+    const partnerXpBarFill = document.querySelector('#partner-xp-bar .stat-bar-fill');
+    const partnerXpBarLabel = document.querySelector('#partner-xp-bar .stat-bar-label');
+    const partnerCoreStatsDisplay = document.getElementById('partner-core-stats-display');
+    const partnerStatsArea = document.getElementById('partner-stats-area');
+    const eggTimerDisplay = document.getElementById('egg-timer-display');
     const modal = document.getElementById('notification-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalText = document.getElementById('modal-text');
@@ -184,12 +199,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function showScreen(screenId) { 
         screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); 
         if (screenId === 'battle-screen') { playMusic('battle'); } 
-        else if (screenId === 'game-screen' || screenId === 'main-menu-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
+        else if (screenId === 'game-screen' || screenId === 'main-menu-screen' || screenId === 'partner-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
     }
     function init() { 
         createWindEffect(); createStarfield(); startBackgroundAssetLoading();
         setTimeout(() => { showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }, 1500);
         buffInterval = setInterval(updateBuffs, 1000);
+        partnerTimerInterval = setInterval(checkEggHatch, 1000);
     }
     
     async function startGame() {
@@ -215,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!loadedState.version || loadedState.version < GAME_VERSION) {
             showScreen('update-screen');
             loadedState.version = GAME_VERSION;
-            loadedState.equipment = loadedState.equipment || { weapon: null, armor: null };
+            if (!loadedState.equipment) loadedState.equipment = { weapon: null, armor: null };
             if (!loadedState.inventory) { 
                 loadedState.inventory = [];
                 if (loadedState.equipment.weapon) loadedState.inventory.push(loadedState.equipment.weapon);
@@ -228,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const defaultCounters = { taps: 0, enemiesDefeated: 0, ascensionCount: 0, gauntletsCompleted: 0, itemsForged: 0, legendariesFound: 0 };
             loadedState.counters = { ...defaultCounters, ...(loadedState.counters || {})};
             loadedState.hasEgg = loadedState.hasEgg || false;
+            loadedState.partner = loadedState.partner || null;
             
             return new Promise(resolve => setTimeout(() => resolve(loadedState), 1500));
         }
@@ -245,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toDateString();
             if (lastLogin !== today) {
                 const dailyGold = 50 + (gameState.ascension.tier * 25); const dailyXP = 100 + (gameState.ascension.tier * 50);
-                gameState.gold += dailyGold; addXP(dailyXP);
+                gameState.gold += dailyGold; addXP(gameState, dailyXP);
                 showNotification("Welcome Back!", `You received a daily login bonus of:<br><br>+${dailyGold} Gold<br>+${dailyXP} XP`);
             }
             localStorage.setItem('tapGuardianLastLogin', today);
@@ -254,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { showNotification("No Save Data Found!", "Starting a new game instead."); startGame(); }
     }
     function saveGame() { localStorage.setItem('tapGuardianSave', JSON.stringify(gameState)); loadGameBtn.disabled = false; }
-    function getXpForNextLevel() { return Math.floor(100 * Math.pow(1.5, gameState.level - 1)); }
+    function getXpForNextLevel(level) { return Math.floor(100 * Math.pow(1.5, level - 1)); }
 
     function updateExpeditionTimer() {
         if (!gameState.expedition.active) { if (expeditionInterval) clearInterval(expeditionInterval); expeditionInterval = null; return; }
@@ -280,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus;
         playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
         worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
-        const xpForNext = getXpForNextLevel();
+        const xpForNext = getXpForNextLevel(gameState.level);
         healthBarFill.style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
         healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
         energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
@@ -311,23 +328,33 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
         
         if (gameState.tutorialCompleted) { tutorialOverlay.classList.remove('visible'); } else { tutorialOverlay.classList.add('visible'); }
+
+        switchCharacterBtn.style.display = gameState.hasEgg ? 'block' : 'none';
+        updatePartnerUI();
     }
-    function addXP(amount) { if (gameState.expedition.active) return;
+    function addXP(character, amount) { 
+        if(character.isPartner && gameState.expedition.active) return;
         const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
         let finalAmount = amount * tierMultiplier;
         if (gameState.activeBuffs.xpBoost) { finalAmount *= 1.5; }
-        gameState.xp += finalAmount;
-        if (gameState.xp >= getXpForNextLevel()) { levelUp(); }
+        character.xp += finalAmount;
+        if (character.xp >= getXpForNextLevel(character.level)) {
+            levelUp(character);
+        }
         updateUI();
     }
-    function levelUp() {
-        const xpOver = gameState.xp - getXpForNextLevel(); gameState.level++; gameState.xp = xpOver;
-        gameState.stats.strength += 2; gameState.stats.agility += 1; gameState.stats.fortitude += 2; gameState.stats.stamina += 1;
-        gameState.resources.hp = gameState.resources.maxHp; gameState.resources.energy = gameState.resources.maxEnergy;
-        playSound('levelUp', 1, 'triangle', 440, 880); triggerScreenShake(400); checkAllAchievements(); submitScoreToLeaderboard();
-        showNotification("LEVEL UP!", `You are now Level ${gameState.level}!`);
-        updateAscensionVisuals();
-        saveGame();
+    function levelUp(character) {
+        const xpOver = character.xp - getXpForNextLevel(character.level); character.level++; character.xp = xpOver;
+        character.stats.strength += 2; character.stats.agility += 2; character.stats.fortitude += 1; character.stats.stamina += 1;
+        character.resources.maxHp += 10; character.resources.hp = character.resources.maxHp;
+        character.resources.maxEnergy += 5; character.resources.energy = character.resources.maxEnergy;
+        playSound('levelUp', 1, 'triangle', 440, 880); triggerScreenShake(400); 
+        if(!character.isPartner) {
+            checkAllAchievements();
+            submitScoreToLeaderboard();
+            updateAscensionVisuals();
+        }
+        showNotification("LEVEL UP!", `${character.name || 'Partner'} is now Level ${character.level}!`); saveGame();
     }
     function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
     function updateFrenzyVisuals() {
@@ -356,36 +383,52 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(particle); setTimeout(() => { particle.remove(); }, 800);
         }
     }
-    function createXpOrb(event, xpGain) {
+    function createXpOrb(event, xpGain, character) {
         let clientX = event.clientX || (event.touches && event.touches[0].clientX); let clientY = event.clientY || (event.touches && event.touches[0].clientY);
         const orbContainer = document.createElement('div'); orbContainer.className = 'xp-orb-container';
         orbContainer.style.left = `${clientX - 10}px`; orbContainer.style.top = `${clientY - 10}px`;
         orbContainer.innerHTML = `<div class="xp-orb"></div><div class="xp-orb-text">+${xpGain.toFixed(2)}</div>`;
         document.body.appendChild(orbContainer);
-        const xpBarRect = document.querySelector('#xp-bar').getBoundingClientRect();
+        const xpBarEl = character.isPartner ? '#partner-xp-bar' : '#xp-bar';
+        const xpBarRect = document.querySelector(xpBarEl).getBoundingClientRect();
         const targetX = xpBarRect.left + (xpBarRect.width / 2); const targetY = xpBarRect.top + (xpBarRect.height / 2);
         setTimeout(() => { orbContainer.style.left = `${targetX}px`; orbContainer.style.top = `${targetY}px`; orbContainer.style.transform = 'scale(0)'; orbContainer.style.opacity = '0'; }, 50);
-        setTimeout(() => { const xpBar = document.querySelector('#xp-bar'); xpBar.classList.add('bar-pulse'); addXP(xpGain); setTimeout(() => xpBar.classList.remove('bar-pulse'), 300); orbContainer.remove(); }, 850);
+        setTimeout(() => { const xpBar = document.querySelector(xpBarEl); xpBar.classList.add('bar-pulse'); addXP(character, xpGain); setTimeout(() => xpBar.classList.remove('bar-pulse'), 300); orbContainer.remove(); }, 850);
     }
-    function handleTap(event) {
-        if (gameState.expedition.active || gameState.resources.energy <= 0) return;
+    function handleTap(event, isPartnerTap = false) {
+        if (gameState.expedition.active) return;
         initAudio();
         if (gameState.tutorialCompleted === false) { gameState.tutorialCompleted = true; tutorialOverlay.classList.remove('visible'); saveGame(); }
-        gameState.counters.taps = (gameState.counters.taps || 0) + 1; checkAllAchievements();
-        playSound('tap', 0.5, 'square', 150, 100, 0.05); const now = Date.now();
-        if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
-        tapCombo.lastTapTime = now;
-        if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.45) { activateFrenzy(); } }
-        if (Math.random() < 0.1) { triggerScreenShake(150); }
-        let xpGain = 0.25 * tapCombo.currentMultiplier;
-        if (gameState.level >= 30) { xpGain = 1.0 * tapCombo.currentMultiplier; } else if (gameState.level >= 10) { xpGain = 0.75 * tapCombo.currentMultiplier; }
-        const tapXpBonus = 1 + (gameState.ascension.perks.tapXp || 0) * 0.10;
-        xpGain *= tapXpBonus; createXpOrb(event, xpGain); gameState.resources.energy -= 0.1;
-        if (tapCombo.currentMultiplier > 1) { createParticles(event); }
-        characterSprite.style.animation = 'none'; void characterSprite.offsetWidth; characterSprite.classList.add('tapped');
-        setTimeout(() => { 
-            characterSprite.classList.remove('tapped'); updateAscensionVisuals();
-        }, 200); 
+
+        if (isPartnerTap) {
+            const partner = gameState.partner;
+            if (!partner) return;
+            if (partner.hatchTime) {
+                partner.hatchTime -= 500; // Reduce time by 0.5 sec
+                updatePartnerUI();
+            } else {
+                if (partner.resources.energy <= 0) return;
+                partner.resources.energy -= 0.1;
+                createXpOrb(event, 0.5, partner);
+            }
+        } else {
+            if (gameState.resources.energy <= 0) return;
+            gameState.counters.taps = (gameState.counters.taps || 0) + 1; checkAllAchievements();
+            playSound('tap', 0.5, 'square', 150, 100, 0.05); const now = Date.now();
+            if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
+            tapCombo.lastTapTime = now;
+            if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.45) { activateFrenzy(); } }
+            if (Math.random() < 0.1) { triggerScreenShake(150); }
+            let xpGain = 0.25 * tapCombo.currentMultiplier;
+            if (gameState.level >= 30) { xpGain = 1.0 * tapCombo.currentMultiplier; } else if (gameState.level >= 10) { xpGain = 0.75 * tapCombo.currentMultiplier; }
+            const tapXpBonus = 1 + (gameState.ascension.perks.tapXp || 0) * 0.10;
+            xpGain *= tapXpBonus; createXpOrb(event, xpGain, gameState); gameState.resources.energy -= 0.1;
+            if (tapCombo.currentMultiplier > 1) { createParticles(event); }
+            characterSprite.style.animation = 'none'; void characterSprite.offsetWidth; characterSprite.classList.add('tapped');
+            setTimeout(() => { 
+                characterSprite.classList.remove('tapped'); updateAscensionVisuals();
+            }, 200); 
+        }
         updateUI();
     }
     function feed() {
@@ -426,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     rewardText += `<br><br>New item equipped!`;
                 }
             }
-            addXP(xpReward); gameState.gold += goldReward;
+            addXP(gameState, xpReward); gameState.gold += goldReward;
             showNotification("Expedition Complete!", rewardText); saveGame(); updateUI();
         }
     }
@@ -545,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 playSound('victory', 1, 'triangle', 523, 1046, 0.4);
                 let bonusItem = generateItem();
                 let rewardText = `GAUNTLET COMPLETE!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
-                addXP(gauntletState.totalXp); gameState.gold += gauntletState.totalGold;
+                addXP(gameState, gauntletState.totalXp); gameState.gold += gauntletState.totalGold;
                 gameState.inventory.push(bonusItem);
                 if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { equipItem(bonusItem); }
                 setTimeout(() => { showNotification("Victory!", rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
@@ -568,13 +611,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function claimAndFlee() {
         addBattleLog(`You claim your rewards and flee the Gauntlet!`, "log-player");
-        addXP(gauntletState.totalXp); gameState.gold += gauntletState.totalGold;
+        addXP(gameState, gauntletState.totalXp); gameState.gold += gauntletState.totalGold;
         let rewardText = `You escaped the Gauntlet with your life!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP`;
         setTimeout(() => { showNotification("Gauntlet Run Over", rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
     }
-    function generateItem() {
-        const roll = Math.random() * 100; let chosenRarityKey = 'common'; let cumulativeWeight = 0;
-        for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
+    function generateItem(forceRarity = null) {
+        let chosenRarityKey = forceRarity;
+        if (!chosenRarityKey) {
+            const roll = Math.random() * 100; let cumulativeWeight = 0;
+            for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
+        }
         const rarity = itemData.rarities[chosenRarityKey];
         const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor'; const itemType = itemData.types[itemTypeKey];
         const baseName = itemType.base[Math.floor(Math.random() * itemType.base.length)]; const primaryStat = itemType.primary;
@@ -680,10 +726,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'item':
                     const newItem = generateItem(ach.reward.rarity);
                     gameState.inventory.push(newItem);
-                    rewardText = ` (+${newItem.name})`;
+                    rewardText = ` (Received ${newItem.name})`;
                     break;
                 case 'egg':
                     gameState.hasEgg = true;
+                    gameState.partner = {
+                        name: 'Mysterious Egg',
+                        isPartner: true,
+                        isHatched: false,
+                        hatchTime: Date.now() + 7 * 24 * 60 * 60 * 1000,
+                    };
                     rewardText = ' (You found a Mysterious Egg!)';
                     break;
             }
@@ -926,8 +978,66 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUI(); saveGame();
     }
     
+    function checkEggHatch() {
+        if (gameState.partner && gameState.partner.hatchTime && Date.now() > gameState.partner.hatchTime) {
+            gameState.partner.isHatched = true;
+            gameState.partner.hatchTime = null;
+            gameState.partner.name = "Newborn Guardian";
+            gameState.partner.level = 1;
+            gameState.partner.xp = 0;
+            gameState.partner.stats = { strength: 5, agility: 5, fortitude: 5, stamina: 5 };
+            gameState.partner.resources = { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 };
+            
+            showNotification("A Mysterious Egg Hatched!", "A newborn guardian has joined you! You can switch to it from the main screen.");
+            playSound('victory', 1, 'sawtooth', 200, 1000, 1);
+            updatePartnerUI();
+            saveGame();
+        }
+    }
+    
+    function updatePartnerUI() {
+        if (!gameState.hasEgg) return;
+        const partner = gameState.partner;
+        if (!partner) return;
+
+        if (partner.isHatched) {
+            partnerStatsArea.style.display = 'block';
+            eggTimerDisplay.style.display = 'none';
+            partnerSprite.src = 'player.PNG';
+            partnerSprite.classList.add('hatched');
+            partnerNameLevel.textContent = `${partner.name} Lv. ${partner.level}`;
+            const xpForNext = getXpForNextLevel(partner.level);
+            partnerHealthBarFill.style.width = `${(partner.resources.hp / partner.resources.maxHp) * 100}%`;
+            partnerHealthBarLabel.textContent = `HP: ${Math.floor(partner.resources.hp)} / ${partner.resources.maxHp}`;
+            partnerEnergyBarFill.style.width = `${(partner.resources.energy / partner.resources.maxEnergy) * 100}%`;
+            partnerEnergyBarLabel.textContent = `Energy: ${Math.floor(partner.resources.energy)} / ${partner.resources.maxEnergy}`;
+            partnerXpBarFill.style.width = `${(partner.xp / xpForNext) * 100}%`;
+            partnerXpBarLabel.textContent = `XP: ${Math.floor(partner.xp)} / ${xpForNext}`;
+            partnerCoreStatsDisplay.innerHTML = `<span>STR: ${partner.stats.strength}</span><span>AGI: ${partner.stats.agility}</span><span>FOR: ${partner.stats.fortitude}</span><span>STA: ${partner.stats.stamina}</span>`;
+        } else {
+            partnerStatsArea.style.display = 'none';
+            eggTimerDisplay.style.display = 'block';
+            partnerSprite.src = 'egg.png';
+            partnerSprite.classList.remove('hatched');
+            const timeLeft = partner.hatchTime - Date.now();
+            if (timeLeft > 0) {
+                const pad = num => num.toString().padStart(2, '0');
+                const days = pad(Math.floor(timeLeft / (1000 * 60 * 60 * 24)));
+                const hours = pad(Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+                const minutes = pad(Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60)));
+                const seconds = pad(Math.floor((timeLeft % (1000 * 60)) / 1000));
+                eggTimerDisplay.textContent = `${days}:${hours}:${minutes}:${seconds}`;
+            } else {
+                eggTimerDisplay.textContent = "Hatching...";
+            }
+        }
+    }
+
     startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
-    characterSprite.addEventListener('click', handleTap); characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); }, {passive: false});
+    characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
+    characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], false); }, {passive: false});
+    partnerSprite.addEventListener('click', (e) => handleTap(e, true)); 
+    partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
     battleBtn.addEventListener('click', () => { attackBtn.textContent = "Attack"; attackBtn.onclick = playerAttack; startGauntlet(); });
@@ -967,15 +1077,33 @@ document.addEventListener('DOMContentLoaded', () => {
             updateForgeUI();
         });
     });
+    switchCharacterBtn.addEventListener('click', () => showScreen('partner-screen'));
+    switchToMainBtn.addEventListener('click', () => showScreen('game-screen'));
     const handleVisualTap = (e) => {
-        if (gameState.expedition.active || gameState.resources.energy <= 0) return;
-        const characterArea = document.getElementById('character-area'); const spriteRect = characterSprite.getBoundingClientRect(); const areaRect = characterArea.getBoundingClientRect();
-        const flash = document.createElement('div'); flash.className = 'tap-flash-overlay';
+        if (gameState.expedition.active || (e.currentTarget.id === 'character-sprite' && gameState.resources.energy <= 0) || (e.currentTarget.id === 'partner-sprite' && gameState.partner && gameState.partner.isHatched && gameState.partner.resources.energy <= 0)) return;
+        const targetSprite = e.currentTarget;
+        const area = targetSprite.parentElement;
+        const spriteRect = targetSprite.getBoundingClientRect();
+        const areaRect = area.getBoundingClientRect();
+        const flash = document.createElement('div');
+        flash.className = 'tap-flash-overlay';
         flash.style.width = `${spriteRect.width}px`; flash.style.height = `${spriteRect.height}px`;
         flash.style.left = `${spriteRect.left - areaRect.left}px`; flash.style.top = `${spriteRect.top - areaRect.top}px`;
-        characterArea.appendChild(flash); setTimeout(() => { flash.remove(); }, 200);
+        area.appendChild(flash); setTimeout(() => { flash.remove(); }, 200);
     };
-    characterSprite.addEventListener('click', handleVisualTap); characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
-    setInterval(() => { if (gameState.resources && gameState.resources.energy < gameState.resources.maxEnergy && !gameState.expedition.active) { gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.15); updateUI(); } }, 1000);
+    characterSprite.addEventListener('click', handleVisualTap); 
+    characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
+    partnerSprite.addEventListener('click', handleVisualTap);
+    partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
+    setInterval(() => { 
+        if (gameState.resources && gameState.resources.energy < gameState.resources.maxEnergy && !gameState.expedition.active) { 
+            gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.15); 
+            updateUI();
+        } 
+        if (gameState.partner && gameState.partner.isHatched && gameState.partner.resources.energy < gameState.partner.resources.maxEnergy) {
+            gameState.partner.resources.energy = Math.min(gameState.partner.resources.maxEnergy, gameState.partner.resources.energy + 0.15);
+            updatePartnerUI();
+        }
+    }, 1000);
     init();
 });
