@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastWeeklyRewardClaim: 0
     };
     const ASCENSION_LEVEL = 50;
-    const GAUNTLET_UNLOCK_LEVEL = 10;
+    const GAUNTLET_UNLOCK_LEVEL = 20; // Changed as requested
     const FORGE_UNLOCK_LEVEL = 15;
     let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
     let expeditionInterval = null;
@@ -655,8 +655,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 1500);
             }
         } else {
-            playSound('defeat', 1, 'sine', 440, 110, 0.8);
-            addBattleLog("You have been defeated... The Gauntlet ends.", "log-system");
             claimAndFlee();
         }
     }
@@ -686,6 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addXP(gameState, gauntletState.totalXp); 
         gameState.gold += gauntletState.totalGold;
         if (gameState.resources.hp <= 0) {
+            playSound('defeat', 1, 'sine', 440, 110, 0.8);
             title = "Defeated!";
             rewardText = "You black out and wake up back home. You lost half your gold.";
             gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1;
@@ -1111,6 +1110,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function checkWeeklyRewards() {
+        try {
+            const rewardDocRef = db.collection("admin").doc("weeklyReward");
+            const rewardDoc = await rewardDocRef.get();
+            const weekInMs = 7 * 24 * 60 * 60 * 1000;
+            const now = Date.now();
+            
+            if (!rewardDoc.exists || now > rewardDoc.data().nextRewardTime) {
+                // Time to give a reward and reset the timer/leaderboard
+                const snapshot = await db.collection("damageLeaderboard").orderBy("totalDamage", "desc").limit(1).get();
+                if (!snapshot.empty) {
+                    const winner = snapshot.docs[0].data();
+                    if (gameState.playerName === winner.name && now > (gameState.lastWeeklyRewardClaim + weekInMs)) {
+                        const rewardItem = generateItem('legendary');
+                        gameState.inventory.push(rewardItem);
+                        gameState.lastWeeklyRewardClaim = now;
+                        saveGame();
+                        showNotification("Weekly Champion!", `For being #1 on the damage leaderboard, you receive a reward: <strong style="color:var(--rarity-legendary)">${rewardItem.name}</strong>!`);
+                    }
+                }
+                
+                // Reset the leaderboard and timer for everyone
+                const nextTime = now + weekInMs;
+                await rewardDocRef.set({ nextRewardTime: nextTime });
+                // Note: Clearing the leaderboard is a separate admin task, we won't do it from the client.
+            }
+        } catch(e) { console.error("Could not check weekly rewards:", e); }
+    }
+    
     startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
     characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
     characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], false); }, {passive: false});
