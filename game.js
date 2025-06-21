@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let buffInterval = null;
     let lightningInterval = null;
     
-    // NEW: Centralized state for the battle system. This is much cleaner.
+    // Centralized state for the battle system.
     let battleState = {
         isActive: false,
         currentWave: 0,
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
     let expeditionInterval = null;
     
-    // --- ELEMENT SELECTORS (NO CHANGES, JUST LISTING FOR COMPLETENESS) ---
+    // --- ELEMENT SELECTORS ---
     const screens = document.querySelectorAll('.screen');
     const gameScreen = document.getElementById('game-screen');
     const loadGameBtn = document.getElementById('load-game-btn');
@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const shopUpgradesContainer = document.getElementById('shop-upgrades-container');
     const closeShopBtn = document.getElementById('close-shop-btn');
 
-    // --- CORE GAME FUNCTIONS (MOSTLY UNCHANGED) ---
+    // --- CORE GAME FUNCTIONS ---
     function showScreen(screenId) { 
         screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); 
         if (screenId === 'battle-screen') { playMusic('battle'); } 
@@ -259,7 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
             loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
             const defaultCounters = { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 };
             loadedState.counters = { ...defaultCounters, ...(loadedState.counters || {})};
-            // Remove old gauntlet counter if it exists
             if (loadedState.counters.gauntletsCompleted) {
                 loadedState.counters.battlesCompleted = loadedState.counters.battlesCompleted || loadedState.counters.gauntletsCompleted;
                 delete loadedState.counters.gauntletsCompleted;
@@ -354,7 +353,6 @@ document.addEventListener('DOMContentLoaded', () => {
         switchCharacterBtn.style.display = gameState.hasEgg ? 'block' : 'none';
         updatePartnerUI();
     }
-    //... (All other functions like addXP, levelUp, showNotification, etc., remain here, unchanged)
     function addXP(character, amount) { 
         if(character.isPartner && gameState.expedition.active) return;
         const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
@@ -591,7 +589,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (error) { console.error("Error fetching leaderboard: ", error); targetList.innerHTML = "<li>Error loading scores.</li>"; }
     }
-    //... (Other functions like generateItem, equipItem, etc. remain here, unchanged)
     function generateItem(forceRarity = null) {
         let chosenRarityKey = forceRarity;
         if (!chosenRarityKey) {
@@ -1045,14 +1042,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateBattleHud() {
-        // Player
         const playerHpBar = document.querySelector('#battle-player-hp-bar .stat-bar-fill');
         const playerHpLabel = document.querySelector('#battle-player-hp-bar .stat-bar-label');
         playerHpBar.style.width = `${(battleState.playerHp / gameState.resources.maxHp) * 100}%`;
         playerHpLabel.textContent = `HP: ${Math.ceil(battleState.playerHp)} / ${gameState.resources.maxHp}`;
         document.getElementById('battle-player-name').textContent = gameState.playerName;
         
-        // Enemy
         if (battleState.enemy) {
             const enemyHpBar = document.querySelector('#battle-enemy-hp-bar .stat-bar-fill');
             const enemyHpLabel = document.querySelector('#battle-enemy-hp-bar .stat-bar-label');
@@ -1061,26 +1056,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('battle-enemy-name').textContent = battleState.enemy.name;
         }
 
-        // Wave counter
         battleWaveDisplay.textContent = `Wave: ${battleState.currentWave} / ${battleState.totalWaves}`;
     }
 
     function startBattle() {
-        // Reset state from any previous battles
         battleState = {
-            isActive: true,
-            currentWave: 0,
-            totalWaves: 5,
-            playerHp: gameState.resources.hp,
-            enemy: null,
-            totalXp: 0,
-            totalGold: 0,
-            totalDamage: 0
+            isActive: true, currentWave: 0, totalWaves: 5, playerHp: gameState.resources.hp,
+            enemy: null, totalXp: 0, totalGold: 0, totalDamage: 0
         };
-
         battleLog.innerHTML = "";
         addBattleLog("The battle begins!", "log-system");
-        
         showScreen('battle-screen');
         startNextWave();
     }
@@ -1091,7 +1076,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const tierMultiplier = gameState.ascension.tier;
         const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
         const waveMultiplier = 1 + (battleState.currentWave - 1) * 0.2;
-
         let isBoss = battleState.currentWave === battleState.totalWaves;
         let enemy;
         
@@ -1118,10 +1102,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         enemy.maxHp = enemy.hp;
         battleState.enemy = enemy;
-        
         updateBattleHud();
         addBattleLog(`A wild ${battleState.enemy.name} appears!`, "log-system");
-        
         attackBtn.disabled = true;
         fleeBtn.disabled = true;
 
@@ -1144,7 +1126,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
         const baseDamage = Math.max(1, getTotalStat('strength') * 2 - battleState.enemy.fortitude);
         const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
-        
         battleState.totalDamage += damage;
         battleState.enemy.hp = Math.max(0, battleState.enemy.hp - damage);
 
@@ -1156,11 +1137,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         addBattleLog(`You attack for ${damage} damage!`, "log-player");
         createDamageNumber(damage, isCrit, true);
-        
         updateBattleHud();
 
         if (battleState.enemy.hp <= 0) {
-            // Player wins the wave
             gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
             const finalGoldReward = Math.floor(battleState.enemy.goldReward * (1 + getTotalStat('goldFind') / 100));
             battleState.totalXp += battleState.enemy.xpReward;
@@ -1168,13 +1147,12 @@ document.addEventListener('DOMContentLoaded', () => {
             addBattleLog(`You defeated ${battleState.enemy.name}!`, "log-system");
 
             if (battleState.currentWave >= battleState.totalWaves) {
-                endBattle(true); // Player wins the whole battle
+                endBattle(true);
             } else {
                 addBattleLog(`Prepare for the next wave...`, 'log-system');
                 setTimeout(startNextWave, 2000);
             }
         } else {
-            // Enemy survives, their turn
             setTimeout(handleEnemyAttack, 1500);
         }
     }
@@ -1186,19 +1164,15 @@ document.addEventListener('DOMContentLoaded', () => {
             fleeBtn.disabled = false;
             return;
         }
-
         const damage = Math.max(1, battleState.enemy.strength * 2 - getTotalStat('fortitude'));
         battleState.playerHp = Math.max(0, battleState.playerHp - damage);
-        
         playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15);
         triggerScreenShake(200);
         createDamageNumber(damage, false, false);
         addBattleLog(`${battleState.enemy.name} attacks for ${damage} damage!`, "log-enemy");
-
         updateBattleHud();
-
         if (battleState.playerHp <= 0) {
-            endBattle(false); // Player is defeated
+            endBattle(false);
         } else {
             attackBtn.disabled = false;
             fleeBtn.disabled = false;
@@ -1208,6 +1182,18 @@ document.addEventListener('DOMContentLoaded', () => {
     async function endBattle(playerWon) {
         battleState.isActive = false;
         
+        // --- FIX: SUBMIT DAMAGE SCORE TO LEADERBOARD ---
+        if (battleState.totalDamage > 0) {
+            try {
+                const damageRef = db.collection("damageLeaderboard").doc(gameState.playerName);
+                const doc = await damageRef.get();
+                if (!doc.exists || doc.data().totalDamage < battleState.totalDamage) {
+                    await damageRef.set({ name: gameState.playerName, totalDamage: battleState.totalDamage });
+                }
+            } catch(e) { console.error("Failed to submit damage score", e); }
+        }
+        // --- END FIX ---
+        
         let title = "";
         let rewardText = "";
 
@@ -1215,31 +1201,27 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
             checkAllAchievements();
             playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-
             let bonusItem = generateItem();
             title = "Battle Complete!";
             rewardText = `You are victorious!<br><br>Total Rewards:<br>+${battleState.totalGold} Gold<br>+${battleState.totalXp} XP<br>Total Damage: ${battleState.totalDamage}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
-            
             gameState.gold += battleState.totalGold;
             addXP(gameState, battleState.totalXp);
             gameState.inventory.push(bonusItem);
             if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { 
                 equipItem(bonusItem); 
             }
-        } else { // Player fled or was defeated
+        } else {
             playSound('defeat', 1, 'sine', 440, 110, 0.8);
             if (battleState.playerHp <= 0) {
                 title = "Defeated!";
                 rewardText = "You black out and wake up back home. You lost half your current gold.";
                 gameState.gold = Math.floor(gameState.gold / 2);
-                gameState.resources.hp = 1; // Set HP to 1 after defeat
+                gameState.resources.hp = 1;
             } else {
                 title = "Fled from Battle";
                 rewardText = "You escaped with your life, but no rewards were gained.";
             }
         }
-
-        // Apply any damage taken during the battle to the main game state
         gameState.resources.hp = battleState.playerHp;
 
         setTimeout(() => {
@@ -1250,9 +1232,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2500);
     }
     
-    // --- END BATTLE SYSTEM REWRITE ---
-
-
     // --- EVENT LISTENERS ---
     startGameBtn.addEventListener('click', startGame);
     loadGameBtn.addEventListener('click', loadGame);
@@ -1263,12 +1242,10 @@ document.addEventListener('DOMContentLoaded', () => {
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
     
-    // NEW BATTLE SYSTEM LISTENERS
     battleBtn.addEventListener('click', startBattle);
     attackBtn.addEventListener('click', handlePlayerAttack);
     fleeBtn.addEventListener('click', () => endBattle(false));
 
-    // OTHER LISTENERS (UNCHANGED)
     expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
     shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
     expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
