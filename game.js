@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastWeeklyRewardClaim: 0
     };
     const ASCENSION_LEVEL = 50;
-    const GAUNTLET_UNLOCK_LEVEL = 20; // Changed as requested
+    const GAUNTLET_UNLOCK_LEVEL = 20;
     const FORGE_UNLOCK_LEVEL = 15;
     let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
     let expeditionInterval = null;
@@ -527,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const allLists = document.querySelectorAll('.leaderboard-list');
         allLists.forEach(l => l.classList.remove('active'));
         
-        let targetList, collectionName, orderByField, orderByDirection;
+        let targetList, collectionName, orderByField, orderByDirection, secondaryOrderByField, secondaryOrderByDirection;
 
         if(type === 'damage') {
             targetList = damageLeaderboardList;
@@ -537,8 +537,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             targetList = levelLeaderboardList;
             collectionName = 'leaderboard';
-            orderByField = 'level';
+            orderByField = 'tier';
             orderByDirection = 'desc';
+            secondaryOrderByField = 'level';
+            secondaryOrderByDirection = 'desc';
         }
         
         targetList.classList.add('active');
@@ -550,7 +552,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             let query = db.collection(collectionName).orderBy(orderByField, orderByDirection);
-            if (type === 'level') query = query.orderBy('tier', 'desc');
+            if (secondaryOrderByField) {
+                query = query.orderBy(secondaryOrderByField, secondaryOrderByDirection);
+            }
             const snapshot = await query.limit(10).get();
 
             if (snapshot.empty) { targetList.innerHTML = "<li>No scores yet. Be the first!</li>"; return; }
@@ -1118,7 +1122,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const now = Date.now();
             
             if (!rewardDoc.exists || now > rewardDoc.data().nextRewardTime) {
-                // Time to give a reward and reset the timer/leaderboard
                 const snapshot = await db.collection("damageLeaderboard").orderBy("totalDamage", "desc").limit(1).get();
                 if (!snapshot.empty) {
                     const winner = snapshot.docs[0].data();
@@ -1131,10 +1134,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 
-                // Reset the leaderboard and timer for everyone
                 const nextTime = now + weekInMs;
                 await rewardDocRef.set({ nextRewardTime: nextTime });
-                // Note: Clearing the leaderboard is a separate admin task, we won't do it from the client.
             }
         } catch(e) { console.error("Could not check weekly rewards:", e); }
     }
@@ -1146,7 +1147,13 @@ document.addEventListener('DOMContentLoaded', () => {
     partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
-    battleBtn.addEventListener('click', () => { attackBtn.textContent = "Attack"; attackBtn.onclick = playerAttack; startGauntlet(); });
+    battleBtn.addEventListener('click', () => {
+        if (gameState.level >= GAUNTLET_UNLOCK_LEVEL) {
+            attackBtn.textContent = "Attack";
+            attackBtn.onclick = playerAttack;
+            startGauntlet();
+        }
+    });
     gauntletActionBtn.addEventListener('click', () => { if (gauntletState.currentWave > 0 && gauntletState.currentWave <= gauntletState.totalWaves) { claimAndFlee(); } });
     expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
     shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
