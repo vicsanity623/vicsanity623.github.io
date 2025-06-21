@@ -223,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { showScreen('main-menu-screen'); if (!localStorage.getItem('tapGuardianSave')) { loadGameBtn.disabled = true; } }, 1500);
         buffInterval = setInterval(updateBuffs, 1000);
         partnerTimerInterval = setInterval(checkEggHatch, 1000);
-        // Start the passive resource regeneration timer
         setInterval(passiveResourceRegen, 1000);
     }
     async function startGame() {
@@ -1232,35 +1231,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2500);
     }
     
-    // --- NEW: PASSIVE REGENERATION FUNCTION ---
     function passiveResourceRegen() {
         let playerUINeedsUpdate = false;
         let partnerUINeedsUpdate = false;
 
-        // Player Regeneration (if not on expedition and not in battle)
         if (gameState.resources && !gameState.expedition.active && !battleState.isActive) {
-            // HP Regen, scales with Stamina
             if (gameState.resources.hp < gameState.resources.maxHp) {
-                const hpRegenAmount = getTotalStat('stamina') * 0.1; 
+                const hpRegenAmount = getTotalStat('stamina') * 0.05; 
                 gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + hpRegenAmount);
                 playerUINeedsUpdate = true;
             }
-            // Energy Regen
             if (gameState.resources.energy < gameState.resources.maxEnergy) {
                 gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.15);
                 playerUINeedsUpdate = true;
             }
         }
         
-        // Partner Regeneration
         if (gameState.partner && gameState.partner.isHatched) {
-            // Partner HP Regen
             if (gameState.partner.resources.hp < gameState.partner.resources.maxHp) {
-                const partnerHpRegenAmount = gameState.partner.stats.stamina * 0.1;
+                const partnerHpRegenAmount = gameState.partner.stats.stamina * 0.05;
                 gameState.partner.resources.hp = Math.min(gameState.partner.resources.maxHp, gameState.partner.resources.hp + partnerHpRegenAmount);
                 partnerUINeedsUpdate = true;
             }
-            // Partner Energy Regen
             if (gameState.partner.resources.energy < gameState.partner.resources.maxEnergy) {
                 gameState.partner.resources.energy = Math.min(gameState.partner.resources.maxEnergy, gameState.partner.resources.energy + 0.15);
                 partnerUINeedsUpdate = true;
@@ -1293,16 +1285,18 @@ document.addEventListener('DOMContentLoaded', () => {
     expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
     shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
     expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
+    
+    // Corrected Menu Button Listener
     ingameMenuBtn.addEventListener('click', () => {
-        let ascendBtn = document.getElementById('ascension-btn');
-        if (gameState.level >= ASCENSION_LEVEL && !ascendBtn) {
-            ascendBtn = document.createElement('button'); ascendBtn.id = 'ascend-btn';
-            ascendBtn.className = 'ascend-button'; ascendBtn.textContent = 'Ascend';
-            ascendBtn.onclick = ascend;
-            progressionMenuSection.insertBefore(ascendBtn, achievementsBtn);
-        } else if (gameState.level < ASCENSION_LEVEL && ascendBtn) { ascendBtn.remove(); }
+        const ascendBtn = document.getElementById('ascension-btn');
+        if (gameState.level >= ASCENSION_LEVEL) {
+            ascendBtn.style.display = 'block';
+        } else {
+            ascendBtn.style.display = 'none';
+        }
         ingameMenuModal.classList.add('visible');
     });
+
     returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
     saveGameBtn.addEventListener('click', () => { saveGame(); showToast("Game Saved!"); });
     optionsBtn.addEventListener('click', () => { alert('Options not yet implemented!'); });
