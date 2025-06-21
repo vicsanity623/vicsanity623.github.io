@@ -27,7 +27,12 @@ crossorigin="anonymous"></script>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
     width: 100%; height: 100dvh; font-family: 'Press Start 2P', cursive;
+    /* --- Z-INDEX FIX HERE --- */
+    /* The main body background needs a z-index so the stars/wind can appear over it but under the content */
     background: radial-gradient(ellipse at center, #2c3e50 0%, #1a1a1a 100%);
+    position: relative;
+    z-index: -2;
+    /* --- END FIX --- */
     color: var(--text-color); overflow: hidden;
 }
 .screen {
@@ -133,10 +138,9 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     text-shadow: 0 0 5px var(--xp-color), 0 0 15px var(--xp-color);
 }
 #wind-animation-container, #background-stars {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     overflow: hidden; pointer-events: none; z-index: -1;
 }
-#background-stars { display: block; }
 .star {
     position: absolute; background-color: white; border-radius: 50%;
     animation: star-fall linear infinite;
@@ -387,7 +391,7 @@ input[type="range"] { flex-grow: 1; }
         </div>
     </div>
     
-    <!-- --- FIXED/MERGED: Restored all missing modals from here --- -->
+    <!-- --- Restored modals and added new Options modal --- -->
     <div id="expedition-screen" class="screen"><h2>Available Expeditions</h2><div id="expedition-list-container"></div><button id="expedition-cancel-btn">Back</button></div>
     <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
     
@@ -472,7 +476,6 @@ input[type="range"] { flex-grow: 1; }
         </div>
     </div>
 
-    <!-- --- FIXED/MERGED: Included all necessary Firebase scripts --- -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
