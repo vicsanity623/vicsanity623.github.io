@@ -11,13 +11,24 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.5; 
+    const GAME_VERSION = 1.6; // Updated version for the rewrite
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
     let lightningInterval = null;
-    let currentNpc = {};
-    let gauntletState = {};
+    
+    // NEW: Centralized state for the battle system. This is much cleaner.
+    let battleState = {
+        isActive: false,
+        currentWave: 0,
+        totalWaves: 5,
+        playerHp: 0,
+        enemy: null,
+        totalXp: 0,
+        totalGold: 0,
+        totalDamage: 0
+    };
+
     let availableExpeditions = [];
     let forgeSlots = [null, null];
     let partnerTimerInterval = null;
@@ -48,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         defeat500: { name: "Legendary Hunter", desc: "Defeat 500 enemies.", target: 500, unlocked: false, reward: { type: 'item', rarity: 'epic' } },
         ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'gold', amount: 1000 } },
         ascend5: { name: "World Walker", desc: "Reach Ascension Tier 5.", target: 5, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
-        gauntlet1: { name: "Gauntlet Runner", desc: "Complete the Gauntlet once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000 } },
+        battle1: { name: "Battle Runner", desc: "Complete a Battle sequence once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000 } },
         forge1: { name: "Apprentice Blacksmith", desc: "Forge an item once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 750 } },
         findLegendary: { name: "A Glimmer of Power", desc: "Find your first Legendary item.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2500 } },
         masterGuardian: { name: "Master Guardian", desc: "Reach Ascension Tier 5 and Level 50.", target: 1, unlocked: false, reward: { type: 'egg' } }
@@ -97,14 +108,16 @@ document.addEventListener('DOMContentLoaded', () => {
         permanentUpgrades: {},
         activeBuffs: {},
         achievements: JSON.parse(JSON.stringify(achievements)),
-        counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, gauntletsCompleted: 0, itemsForged: 0, legendariesFound: 0 },
+        counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
         lastWeeklyRewardClaim: 0
     };
     const ASCENSION_LEVEL = 50;
-    const GAUNTLET_UNLOCK_LEVEL = 20;
+    const BATTLE_UNLOCK_LEVEL = 20;
     const FORGE_UNLOCK_LEVEL = 15;
     let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
     let expeditionInterval = null;
+    
+    // --- ELEMENT SELECTORS (NO CHANGES, JUST LISTING FOR COMPLETENESS) ---
     const screens = document.querySelectorAll('.screen');
     const gameScreen = document.getElementById('game-screen');
     const loadGameBtn = document.getElementById('load-game-btn');
@@ -124,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startGameBtn = document.getElementById('start-game-btn');
     const feedBtn = document.getElementById('feed-btn');
     const battleBtn = document.getElementById('battle-btn');
-    const gauntletUnlockText = document.getElementById('gauntlet-unlock-text');
+    const battleUnlockText = document.getElementById('battle-unlock-text');
     const expeditionBtn = document.getElementById('expedition-btn');
     const shopBtn = document.getElementById('shop-btn');
     const forgeBtn = document.getElementById('forge-btn');
@@ -148,12 +161,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalText = document.getElementById('modal-text');
     const modalCloseBtn = document.getElementById('modal-close-btn');
     const battleLog = document.getElementById('battle-log');
-    const battlePlayerName = document.getElementById('battle-player-name');
     const attackBtn = document.getElementById('attack-btn');
-    const gauntletActionBtn = document.getElementById('gauntlet-action-btn');
-    const gauntletWaveDisplay = document.getElementById('gauntlet-wave-display');
-    const gauntletRankDisplay = document.getElementById('gauntlet-rank-display');
-    const battleNpcName = document.getElementById('battle-npc-name');
+    const fleeBtn = document.getElementById('flee-btn');
+    const battleWaveDisplay = document.getElementById('battle-wave-display');
+    const battlePlayerName = document.getElementById('battle-player-name');
+    const battleEnemyName = document.getElementById('battle-enemy-name');
     const expeditionCancelBtn = document.getElementById('expedition-cancel-btn');
     const expeditionListContainer = document.getElementById('expedition-list-container');
     const ingameMenuBtn = document.getElementById('ingame-menu-btn');
@@ -199,7 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const shopConsumablesContainer = document.getElementById('shop-consumables-container');
     const shopUpgradesContainer = document.getElementById('shop-upgrades-container');
     const closeShopBtn = document.getElementById('close-shop-btn');
-    
+
+    // --- CORE GAME FUNCTIONS (MOSTLY UNCHANGED) ---
     function showScreen(screenId) { 
         screens.forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); 
         if (screenId === 'battle-screen') { playMusic('battle'); } 
@@ -211,7 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
         buffInterval = setInterval(updateBuffs, 1000);
         partnerTimerInterval = setInterval(checkEggHatch, 1000);
     }
-    
     async function startGame() {
         initAudio();
         let playerName = ""; let isNameValid = false;
@@ -231,7 +243,6 @@ document.addEventListener('DOMContentLoaded', () => {
         checkExpeditionStatus(); updateUI(); updateAscensionVisuals(); saveGame(); showScreen('game-screen');
         checkWeeklyRewards();
     }
-
     async function migrateSaveData(loadedState) {
         if (!loadedState.version || loadedState.version < GAME_VERSION) {
             showScreen('update-screen');
@@ -246,8 +257,13 @@ document.addEventListener('DOMContentLoaded', () => {
             loadedState.permanentUpgrades = loadedState.permanentUpgrades || {};
             loadedState.activeBuffs = loadedState.activeBuffs || {};
             loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
-            const defaultCounters = { taps: 0, enemiesDefeated: 0, ascensionCount: 0, gauntletsCompleted: 0, itemsForged: 0, legendariesFound: 0 };
+            const defaultCounters = { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 };
             loadedState.counters = { ...defaultCounters, ...(loadedState.counters || {})};
+            // Remove old gauntlet counter if it exists
+            if (loadedState.counters.gauntletsCompleted) {
+                loadedState.counters.battlesCompleted = loadedState.counters.battlesCompleted || loadedState.counters.gauntletsCompleted;
+                delete loadedState.counters.gauntletsCompleted;
+            }
             loadedState.hasEgg = loadedState.hasEgg || false;
             loadedState.partner = loadedState.partner || null;
             loadedState.lastWeeklyRewardClaim = loadedState.lastWeeklyRewardClaim || 0;
@@ -256,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return Promise.resolve(loadedState);
     }
-    
     async function loadGame() {
         initAudio();
         const savedData = localStorage.getItem('tapGuardianSave');
@@ -279,7 +294,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function saveGame() { localStorage.setItem('tapGuardianSave', JSON.stringify(gameState)); loadGameBtn.disabled = false; }
     function getXpForNextLevel(level) { return Math.floor(100 * Math.pow(1.5, level - 1)); }
-
     function updateExpeditionTimer() {
         if (!gameState.expedition.active) { if (expeditionInterval) clearInterval(expeditionInterval); expeditionInterval = null; return; }
         const timeLeft = gameState.expedition.returnTime - Date.now();
@@ -294,7 +308,6 @@ document.addEventListener('DOMContentLoaded', () => {
             expeditionTimerDisplay.textContent = `${hours}:${minutes}:${seconds}`;
         }
     }
-
     function updateUI() {
         if (!gameState.stats) return;
         const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
@@ -319,9 +332,9 @@ document.addEventListener('DOMContentLoaded', () => {
         expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
         windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
 
-        const canUseGauntlet = gameState.level >= GAUNTLET_UNLOCK_LEVEL;
-        battleBtn.disabled = onExpedition || !canUseGauntlet;
-        gauntletUnlockText.textContent = canUseGauntlet ? "" : `Unlocks at LVL ${GAUNTLET_UNLOCK_LEVEL}`;
+        const canUseBattle = gameState.level >= BATTLE_UNLOCK_LEVEL;
+        battleBtn.disabled = onExpedition || !canUseBattle;
+        battleUnlockText.textContent = canUseBattle ? "" : `Unlocks at LVL ${BATTLE_UNLOCK_LEVEL}`;
         
         const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
         forgeBtn.disabled = onExpedition || !canUseForge;
@@ -341,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
         switchCharacterBtn.style.display = gameState.hasEgg ? 'block' : 'none';
         updatePartnerUI();
     }
+    //... (All other functions like addXP, levelUp, showNotification, etc., remain here, unchanged)
     function addXP(character, amount) { 
         if(character.isPartner && gameState.expedition.active) return;
         const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
@@ -577,134 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (error) { console.error("Error fetching leaderboard: ", error); targetList.innerHTML = "<li>Error loading scores.</li>"; }
     }
-    async function startGauntlet() {
-        let rank = 'Unranked';
-        try {
-            const damageDoc = await db.collection("damageLeaderboard").doc(gameState.playerName).get();
-            if(damageDoc.exists) {
-                const snapshot = await db.collection("damageLeaderboard").orderBy("totalDamage", "desc").get();
-                const docs = snapshot.docs;
-                const playerIndex = docs.findIndex(doc => doc.id === gameState.playerName);
-                if (playerIndex > -1) {
-                    rank = `#${playerIndex + 1}`;
-                }
-            }
-        } catch (e) { console.error("Could not fetch rank", e); }
-        gauntletRankDisplay.textContent = `Current Rank: ${rank}`;
-        
-        gauntletState = { currentWave: 0, totalWaves: 5, totalXp: 0, totalGold: 0, totalDamage: 0 };
-        battlePlayerName.textContent = gameState.playerName;
-        battleLog.innerHTML = ""; addBattleLog("The Gauntlet begins! Prepare for battle.", "log-system");
-        showScreen('battle-screen');
-        startNextWave();
-    }
-    function startNextWave() {
-        gauntletState.currentWave++; gauntletWaveDisplay.textContent = `Wave: ${gauntletState.currentWave} / ${gauntletState.totalWaves}`;
-        
-        // --- FIX #2 ---
-        // Reset the Attack button's text and functionality for the new wave
-        attackBtn.textContent = 'Attack';
-        attackBtn.onclick = playerAttack;
-        // --- END FIX ---
-
-        const tierMultiplier = gameState.ascension.tier; const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
-        const waveMultiplier = 1 + (gauntletState.currentWave - 1) * 0.25;
-        currentNpc = {
-            name: `Wave ${gauntletState.currentWave} Goblin`,
-            hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier), maxHp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier),
-            strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier), agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
-            fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
-            xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier), goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier)
-        };
-        battleNpcName.textContent = `${currentNpc.name} Lv. ${levelMultiplier}`;
-        updateBattleUI(); addBattleLog(`A wild ${currentNpc.name} appears!`, "log-system");
-        attackBtn.disabled = true; gauntletActionBtn.disabled = true;
-        setTimeout(() => {
-            if (currentNpc.agility > getTotalStat('agility')) {
-                addBattleLog(`${currentNpc.name} is faster and attacks first!`, "log-enemy"); npcAttack();
-            } else {
-                addBattleLog("You are faster! Your turn.", "log-player");
-                attackBtn.disabled = false; gauntletActionBtn.disabled = false; gauntletActionBtn.textContent = 'Flee';
-            }
-        }, 1000);
-    }
-    function playerAttack() {
-        attackBtn.disabled = true; gauntletActionBtn.disabled = true;
-        const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-        const baseDamage = Math.max(1, getTotalStat('strength') * 2 - currentNpc.fortitude);
-        const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
-        gauntletState.totalDamage += damage;
-        currentNpc.hp = Math.max(0, currentNpc.hp - damage);
-        if (isCrit) { addBattleLog('CRITICAL HIT!', 'log-crit'); playSound('crit', 0.8, 'square', 1000, 500, 0.2); } 
-        else { playSound('hit', 0.8, 'square', 400, 100, 0.1); }
-        addBattleLog(`You attack for ${damage} damage!`, "log-player"); createDamageNumber(damage, isCrit, true);
-        updateBattleUI();
-        if (currentNpc.hp <= 0) { endBattle(true); } else { setTimeout(npcAttack, 1500); }
-    }
-    function npcAttack() {
-        if (Math.random() < (getTotalStat('agility') / 250)) { addBattleLog('You dodged the attack!', 'log-player'); attackBtn.disabled = false; gauntletActionBtn.disabled = false; return; }
-        const damage = Math.max(1, currentNpc.strength * 2 - getTotalStat('fortitude'));
-        gameState.resources.hp = Math.max(0, gameState.resources.hp - damage);
-        playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15); triggerScreenShake(200); createDamageNumber(damage, false, false);
-        addBattleLog(`${currentNpc.name} attacks for ${damage} damage!`, "log-enemy");
-        updateBattleUI();
-        if (gameState.resources.hp <= 0) { endBattle(false); } else { attackBtn.disabled = false; gauntletActionBtn.disabled = false; }
-    }
-    function endBattle(playerWon) {
-        attackBtn.disabled = true; gauntletActionBtn.disabled = true;
-        if (playerWon) {
-            gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
-            const finalGoldReward = Math.floor(currentNpc.goldReward * (1 + getTotalStat('goldFind') / 100));
-            gauntletState.totalXp += currentNpc.xpReward; gauntletState.totalGold += finalGoldReward;
-            addBattleLog(`You defeated the ${currentNpc.name}!`, "log-system");
-            if (gauntletState.currentWave >= gauntletState.totalWaves) {
-                gameState.counters.gauntletsCompleted = (gameState.counters.gauntletsCompleted || 0) + 1; checkAllAchievements();
-                claimAndFlee(true);
-            } else {
-                addBattleLog(`Wave ${gauntletState.currentWave} cleared! Prepare for the next wave...`, 'log-system');
-                setTimeout(() => {
-                    gauntletActionBtn.textContent = `Claim (${gauntletState.totalGold}G) & Flee`;
-                    gauntletActionBtn.disabled = false; attackBtn.disabled = false; attackBtn.textContent = "Next Wave"; attackBtn.onclick = startNextWave;
-                }, 1500);
-            }
-        } else {
-            claimAndFlee();
-        }
-    }
-    async function claimAndFlee(gauntletCompleted = false) {
-        if (gauntletState.totalDamage > 0) {
-            try {
-                const damageRef = db.collection("damageLeaderboard").doc(gameState.playerName);
-                const doc = await damageRef.get();
-                if (!doc.exists || doc.data().totalDamage < gauntletState.totalDamage) {
-                    await damageRef.set({ name: gameState.playerName, totalDamage: gauntletState.totalDamage });
-                }
-            } catch(e) { console.error("Failed to submit damage score", e); }
-        }
-
-        let rewardText = `You escaped the Gauntlet with your life!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br>Total Damage: ${gauntletState.totalDamage}`;
-        let title = "Gauntlet Run Over";
-
-        if (gauntletCompleted) {
-            playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-            let bonusItem = generateItem();
-            title = "Gauntlet Complete!";
-            rewardText = `You conquered the Gauntlet!<br><br>Total Rewards:<br>+${gauntletState.totalGold} Gold<br>+${gauntletState.totalXp} XP<br>Total Damage: ${gauntletState.totalDamage}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
-            gameState.inventory.push(bonusItem);
-            if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { equipItem(bonusItem); }
-        }
-        
-        addXP(gameState, gauntletState.totalXp); 
-        gameState.gold += gauntletState.totalGold;
-        if (gameState.resources.hp <= 0) {
-            playSound('defeat', 1, 'sine', 440, 110, 0.8);
-            title = "Defeated!";
-            rewardText = "You black out and wake up back home. You lost half your gold.";
-            gameState.gold = Math.floor(gameState.gold / 2); gameState.resources.hp = 1;
-        }
-
-        setTimeout(() => { showNotification(title, rewardText); showScreen('game-screen'); saveGame(); updateUI(); }, 2000);
-    }
+    //... (Other functions like generateItem, equipItem, etc. remain here, unchanged)
     function generateItem(forceRarity = null) {
         let chosenRarityKey = forceRarity;
         if (!chosenRarityKey) {
@@ -848,7 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (counters.enemiesDefeated >= 500) unlockAchievement('defeat500');
         if (counters.ascensionCount >= 1) unlockAchievement('ascend1');
         if (counters.ascensionCount >= 5) unlockAchievement('ascend5');
-        if (counters.gauntletsCompleted >= 1) unlockAchievement('gauntlet1');
+        if (counters.battlesCompleted >= 1) unlockAchievement('battle1');
         if (counters.itemsForged >= 1) unlockAchievement('forge1');
         if (counters.legendariesFound >= 1) unlockAchievement('findLegendary');
         if (gameState.ascension.tier >= 5 && gameState.level >= 50) unlockAchievement('masterGuardian');
@@ -1148,21 +1035,240 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch(e) { console.error("Could not check weekly rewards:", e); }
     }
+
+
+    // --- BATTLE SYSTEM REWRITE ---
     
-    startGameBtn.addEventListener('click', startGame); loadGameBtn.addEventListener('click', loadGame);
+    function addBattleLog(message, className) {
+        battleLog.innerHTML += `<div class="${className}">${message}</div>`;
+        battleLog.scrollTop = battleLog.scrollHeight;
+    }
+
+    function updateBattleHud() {
+        // Player
+        const playerHpBar = document.querySelector('#battle-player-hp-bar .stat-bar-fill');
+        const playerHpLabel = document.querySelector('#battle-player-hp-bar .stat-bar-label');
+        playerHpBar.style.width = `${(battleState.playerHp / gameState.resources.maxHp) * 100}%`;
+        playerHpLabel.textContent = `HP: ${Math.ceil(battleState.playerHp)} / ${gameState.resources.maxHp}`;
+        document.getElementById('battle-player-name').textContent = gameState.playerName;
+        
+        // Enemy
+        if (battleState.enemy) {
+            const enemyHpBar = document.querySelector('#battle-enemy-hp-bar .stat-bar-fill');
+            const enemyHpLabel = document.querySelector('#battle-enemy-hp-bar .stat-bar-label');
+            enemyHpBar.style.width = `${(battleState.enemy.hp / battleState.enemy.maxHp) * 100}%`;
+            enemyHpLabel.textContent = `HP: ${Math.ceil(battleState.enemy.hp)} / ${battleState.enemy.maxHp}`;
+            document.getElementById('battle-enemy-name').textContent = battleState.enemy.name;
+        }
+
+        // Wave counter
+        battleWaveDisplay.textContent = `Wave: ${battleState.currentWave} / ${battleState.totalWaves}`;
+    }
+
+    function startBattle() {
+        // Reset state from any previous battles
+        battleState = {
+            isActive: true,
+            currentWave: 0,
+            totalWaves: 5,
+            playerHp: gameState.resources.hp,
+            enemy: null,
+            totalXp: 0,
+            totalGold: 0,
+            totalDamage: 0
+        };
+
+        battleLog.innerHTML = "";
+        addBattleLog("The battle begins!", "log-system");
+        
+        showScreen('battle-screen');
+        startNextWave();
+    }
+
+    function startNextWave() {
+        battleState.currentWave++;
+
+        const tierMultiplier = gameState.ascension.tier;
+        const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
+        const waveMultiplier = 1 + (battleState.currentWave - 1) * 0.2;
+
+        let isBoss = battleState.currentWave === battleState.totalWaves;
+        let enemy;
+        
+        if (isBoss) {
+            enemy = {
+                name: "Goblin King",
+                hp: Math.floor((150 + 20 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                strength: Math.floor((10 + 4 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                agility: Math.floor((5 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                fortitude: Math.floor((8 + 3 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                xpReward: Math.floor((100 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                goldReward: Math.floor((75 * levelMultiplier) * tierMultiplier * waveMultiplier)
+            };
+        } else {
+            enemy = {
+                name: `Wave ${battleState.currentWave} Goblin`,
+                hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier),
+                goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier)
+            };
+        }
+        enemy.maxHp = enemy.hp;
+        battleState.enemy = enemy;
+        
+        updateBattleHud();
+        addBattleLog(`A wild ${battleState.enemy.name} appears!`, "log-system");
+        
+        attackBtn.disabled = true;
+        fleeBtn.disabled = true;
+
+        setTimeout(() => {
+            if (battleState.enemy.agility > getTotalStat('agility')) {
+                addBattleLog(`${battleState.enemy.name} is faster and attacks first!`, "log-enemy");
+                handleEnemyAttack();
+            } else {
+                addBattleLog("You are faster! Your turn.", "log-player");
+                attackBtn.disabled = false;
+                fleeBtn.disabled = false;
+            }
+        }, 1000);
+    }
+    
+    function handlePlayerAttack() {
+        attackBtn.disabled = true;
+        fleeBtn.disabled = true;
+
+        const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+        const baseDamage = Math.max(1, getTotalStat('strength') * 2 - battleState.enemy.fortitude);
+        const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
+        
+        battleState.totalDamage += damage;
+        battleState.enemy.hp = Math.max(0, battleState.enemy.hp - damage);
+
+        if (isCrit) { 
+            addBattleLog('CRITICAL HIT!', 'log-crit'); 
+            playSound('crit', 0.8, 'square', 1000, 500, 0.2); 
+        } else { 
+            playSound('hit', 0.8, 'square', 400, 100, 0.1); 
+        }
+        addBattleLog(`You attack for ${damage} damage!`, "log-player");
+        createDamageNumber(damage, isCrit, true);
+        
+        updateBattleHud();
+
+        if (battleState.enemy.hp <= 0) {
+            // Player wins the wave
+            gameState.counters.enemiesDefeated = (gameState.counters.enemiesDefeated || 0) + 1;
+            const finalGoldReward = Math.floor(battleState.enemy.goldReward * (1 + getTotalStat('goldFind') / 100));
+            battleState.totalXp += battleState.enemy.xpReward;
+            battleState.totalGold += finalGoldReward;
+            addBattleLog(`You defeated ${battleState.enemy.name}!`, "log-system");
+
+            if (battleState.currentWave >= battleState.totalWaves) {
+                endBattle(true); // Player wins the whole battle
+            } else {
+                addBattleLog(`Prepare for the next wave...`, 'log-system');
+                setTimeout(startNextWave, 2000);
+            }
+        } else {
+            // Enemy survives, their turn
+            setTimeout(handleEnemyAttack, 1500);
+        }
+    }
+
+    function handleEnemyAttack() {
+        if (Math.random() < (getTotalStat('agility') / 250)) {
+            addBattleLog('You dodged the attack!', 'log-player');
+            attackBtn.disabled = false;
+            fleeBtn.disabled = false;
+            return;
+        }
+
+        const damage = Math.max(1, battleState.enemy.strength * 2 - getTotalStat('fortitude'));
+        battleState.playerHp = Math.max(0, battleState.playerHp - damage);
+        
+        playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15);
+        triggerScreenShake(200);
+        createDamageNumber(damage, false, false);
+        addBattleLog(`${battleState.enemy.name} attacks for ${damage} damage!`, "log-enemy");
+
+        updateBattleHud();
+
+        if (battleState.playerHp <= 0) {
+            endBattle(false); // Player is defeated
+        } else {
+            attackBtn.disabled = false;
+            fleeBtn.disabled = false;
+        }
+    }
+
+    async function endBattle(playerWon) {
+        battleState.isActive = false;
+        
+        let title = "";
+        let rewardText = "";
+
+        if (playerWon) {
+            gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
+            checkAllAchievements();
+            playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+
+            let bonusItem = generateItem();
+            title = "Battle Complete!";
+            rewardText = `You are victorious!<br><br>Total Rewards:<br>+${battleState.totalGold} Gold<br>+${battleState.totalXp} XP<br>Total Damage: ${battleState.totalDamage}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
+            
+            gameState.gold += battleState.totalGold;
+            addXP(gameState, battleState.totalXp);
+            gameState.inventory.push(bonusItem);
+            if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { 
+                equipItem(bonusItem); 
+            }
+        } else { // Player fled or was defeated
+            playSound('defeat', 1, 'sine', 440, 110, 0.8);
+            if (battleState.playerHp <= 0) {
+                title = "Defeated!";
+                rewardText = "You black out and wake up back home. You lost half your current gold.";
+                gameState.gold = Math.floor(gameState.gold / 2);
+                gameState.resources.hp = 1; // Set HP to 1 after defeat
+            } else {
+                title = "Fled from Battle";
+                rewardText = "You escaped with your life, but no rewards were gained.";
+            }
+        }
+
+        // Apply any damage taken during the battle to the main game state
+        gameState.resources.hp = battleState.playerHp;
+
+        setTimeout(() => {
+            showScreen('game-screen');
+            showNotification(title, rewardText);
+            saveGame();
+            updateUI();
+        }, 2500);
+    }
+    
+    // --- END BATTLE SYSTEM REWRITE ---
+
+
+    // --- EVENT LISTENERS ---
+    startGameBtn.addEventListener('click', startGame);
+    loadGameBtn.addEventListener('click', loadGame);
     characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
     characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], false); }, {passive: false});
     partnerSprite.addEventListener('click', (e) => handleTap(e, true)); 
     partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
+    
+    // NEW BATTLE SYSTEM LISTENERS
+    battleBtn.addEventListener('click', startBattle);
+    attackBtn.addEventListener('click', handlePlayerAttack);
+    fleeBtn.addEventListener('click', () => endBattle(false));
 
-    // --- FIX #1 ---
-    // Simplified the event listener to fix the primary bug.
-    battleBtn.addEventListener('click', startGauntlet);
-    // --- END FIX ---
-
-    gauntletActionBtn.addEventListener('click', () => { if (gauntletState.currentWave > 0 && gauntletState.currentWave <= gauntletState.totalWaves) { claimAndFlee(); } });
+    // OTHER LISTENERS (UNCHANGED)
     expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
     shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
     expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
