@@ -13,7 +13,7 @@ const auth = firebase.auth();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = 1.8; // Final polished version
+    const GAME_VERSION = 1.8;
     let gameState = {};
     let audioCtx = null;
     let buffInterval = null;
@@ -96,7 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
         expedition: { active: false, returnTime: 0 },
         ascension: { tier: 1, points: 0, perks: {} },
         permanentUpgrades: {},
-        activeBuffs: {},
         achievements: JSON.parse(JSON.stringify(achievements)),
         counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
         settings: {
@@ -188,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const musicVolumeSlider = document.getElementById('music-volume-slider');
     const sfxVolumeSlider = document.getElementById('sfx-volume-slider');
     const autoBattleCheckbox = document.getElementById('auto-battle-checkbox');
+    const windAnimationContainer = document.getElementById('wind-animation-container');
 
     // --- CORE GAME FUNCTIONS ---
     function showScreen(screenId) { 
@@ -199,6 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function init() { 
         startBackgroundAssetLoading();
+        createWindEffect();
+        createStarfield();
         auth.onAuthStateChanged(user => {
             updateAuthUI(user);
             if (user) { loadGame(); }
@@ -277,7 +279,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     async function saveGame(showToastNotification = false) {
         if (!gameState.playerName) return;
-
         if (auth.currentUser) {
             try {
                 const docRef = db.collection('playerSaves').doc(auth.currentUser.uid);
@@ -351,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showNotification("LEVEL UP!", `${character.name} is now Level ${character.level}!`); saveGame();
     }
     function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
-    function handleTap(event, isPartnerTap = false) {
+    function handleTap(event) {
         if (gameState.expedition.active) return;
         initAudio();
         if (gameState.tutorialCompleted === false) { gameState.tutorialCompleted = true; tutorialOverlay.style.display = 'none'; saveGame(); }
@@ -413,13 +414,13 @@ document.addEventListener('DOMContentLoaded', () => {
         try { await db.collection("leaderboard").doc(auth.currentUser.uid).set(score); } catch (error) { console.error("Error submitting score: ", error); }
     }
     async function showLeaderboard(type = 'level') {
-        // ... unchanged ...
+        // ... (This function remains unchanged)
     }
     function generateItem(forceRarity = null) {
-        // ... unchanged ...
+        // ... (This function remains unchanged)
     }
     function updateInventoryUI() {
-        // ... unchanged ...
+        // ... (This function remains unchanged)
     }
     function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); initMusic(); } }
     function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
@@ -438,25 +439,51 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { num.remove(); }, 800);
     }
     function unlockAchievement(id) {
-        // ... unchanged ...
+        if (!gameState.achievements[id] || gameState.achievements[id].unlocked) return;
+        gameState.achievements[id].unlocked = true;
+        const ach = achievements[id];
+        let rewardText = "";
+        if (ach.reward) {
+            switch (ach.reward.type) {
+                case 'gold':
+                    gameState.gold += ach.reward.amount;
+                    rewardText = ` (+${ach.reward.amount} Gold)`;
+                    break;
+                case 'item':
+                    const newItem = generateItem(ach.reward.rarity);
+                    gameState.inventory.push(newItem);
+                    rewardText = ` (Received ${newItem.name})`;
+                    break;
+            }
+        }
+        showToast(`Achievement: ${ach.name}${rewardText}`);
+        playSound('levelUp', 0.7, 'triangle', 880, 1200, 0.3);
+        updateUI();
     }
     function checkAllAchievements() {
-        // ... unchanged ...
+        if (!gameState.counters) return;
+        const counters = gameState.counters;
+        if (counters.taps >= 100) unlockAchievement('tap100');
+        if (counters.taps >= 1000) unlockAchievement('tap1000');
+        if (gameState.level >= 10) unlockAchievement('level10');
+        if (counters.enemiesDefeated >= 10) unlockAchievement('defeat10');
+        if (counters.ascensionCount >= 1) unlockAchievement('ascend1');
+        if (counters.battlesCompleted >= 1) unlockAchievement('battle1');
     }
     function updateAchievementsUI() {
-        // ... unchanged ...
+        // ... (This function remains unchanged)
     }
     function updatePerksUI() {
-        // ... unchanged ...
+        // ... (This function remains unchanged)
     }
     function buyPerk(perkId) {
-        // ... unchanged ...
+        // ... (This function remains unchanged)
     }
     function updateShopUI() {
-        // ... unchanged ...
+        // ... (This function remains unchanged)
     }
     function buyShopItem(itemId, type) {
-        // ... unchanged ...
+        // ... (This function remains unchanged)
     }
     
     // --- BATTLE SYSTEM ---
@@ -702,6 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- EVENT LISTENERS ---
     startGameBtn.addEventListener('click', startGame);
     loadGameBtn.addEventListener('click', loadGame);
+    characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
     battleBtn.addEventListener('click', startBattle);
