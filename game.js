@@ -319,11 +319,13 @@ document.addEventListener('DOMContentLoaded', () => {
         expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
         windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
 
-        if (gameState.level < GAUNTLET_UNLOCK_LEVEL) { battleBtn.disabled = true; gauntletUnlockText.textContent = `Unlocks at LVL ${GAUNTLET_UNLOCK_LEVEL}`; } 
-        else { battleBtn.disabled = onExpedition; gauntletUnlockText.textContent = ""; }
-
-        if (gameState.level < FORGE_UNLOCK_LEVEL) { forgeBtn.disabled = true; forgeUnlockText.textContent = `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`; }
-        else { forgeBtn.disabled = onExpedition; forgeUnlockText.textContent = ""; }
+        const canUseGauntlet = gameState.level >= GAUNTLET_UNLOCK_LEVEL;
+        battleBtn.disabled = onExpedition || !canUseGauntlet;
+        gauntletUnlockText.textContent = canUseGauntlet ? "" : `Unlocks at LVL ${GAUNTLET_UNLOCK_LEVEL}`;
+        
+        const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
+        forgeBtn.disabled = onExpedition || !canUseForge;
+        forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
 
         feedBtn.disabled = onExpedition; 
         inventoryBtn.disabled = onExpedition; 
@@ -1148,11 +1150,9 @@ document.addEventListener('DOMContentLoaded', () => {
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     feedBtn.addEventListener('click', feed); 
     battleBtn.addEventListener('click', () => { 
-        if (gameState.level >= GAUNTLET_UNLOCK_LEVEL) {
-            attackBtn.textContent = "Attack";
-            attackBtn.onclick = playerAttack;
-            startGauntlet(); 
-        }
+        attackBtn.textContent = "Attack";
+        attackBtn.onclick = playerAttack;
+        startGauntlet(); 
     });
     gauntletActionBtn.addEventListener('click', () => { if (gauntletState.currentWave > 0 && gauntletState.currentWave <= gauntletState.totalWaves) { claimAndFlee(); } });
     expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
