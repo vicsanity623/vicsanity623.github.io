@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(character.isPartner && gameState.expedition.active) return;
         const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
         let finalAmount = amount * tierMultiplier;
-        if (gameState.activeBuffs.xpBoost) { finalAmount *= 1.5; }
+        if (gameState.activeBuffs.xpBoost && !character.isPartner) { finalAmount *= 1.5; }
         character.xp += finalAmount;
         if (character.xp >= getXpForNextLevel(character.level)) {
             levelUp(character);
@@ -404,7 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const partner = gameState.partner;
             if (!partner) return;
             if (partner.hatchTime) {
-                partner.hatchTime -= 500; // Reduce time by 0.5 sec
+                partner.hatchTime -= 500; 
                 updatePartnerUI();
             } else {
                 if (partner.resources.energy <= 0) return;
