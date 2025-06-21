@@ -124,6 +124,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     background-color: var(--secondary-bg); padding: 30px; border: 2px solid var(--accent-color);
     max-width: 90%; width: 500px; text-align: center;
     transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    overflow-y: auto; max-height: 90%;
 }
 .modal.visible .modal-content { transform: scale(1); }
 .inventory-slot {
@@ -330,9 +331,9 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     opacity: 0; animation: lightning-flash-anim 0.2s ease-out;
     pointer-events: none; z-index: 150;
 }
-#perks-container, #shop-consumables-container, #shop-upgrades-container, #expedition-list-container, .menu-section, #inventory-list, #forge-slots-container { margin-top: 10px; text-align: left; }
-.perk-item, .shop-item, .expedition-item, .inventory-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #444; }
-.perk-info, .shop-info, .expedition-info, .inventory-item-info { flex-grow: 1; }
+#perks-container, #shop-consumables-container, #shop-upgrades-container, #expedition-list-container, .menu-section, #inventory-list, #forge-slots-container, .options-section { margin-top: 10px; text-align: left; }
+.perk-item, .shop-item, .expedition-item, .inventory-item, .options-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #444; }
+.perk-info, .shop-info, .expedition-info, .inventory-item-info, .options-item > div { flex-grow: 1; }
 .perk-info strong, .shop-info strong, .expedition-info strong, .inventory-item-info strong { color: var(--xp-color); }
 .perk-info .perk-desc, .shop-info .shop-desc, .expedition-info .expedition-desc, .inventory-item-info .item-stats { font-size: 0.75em; opacity: 0.8; }
 .perk-level { font-size: 0.8em; margin-right: 15px; }
@@ -343,6 +344,8 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 .forge-slot.filled { border-style: solid; border-color: var(--accent-color); }
 #forge-plus, #forge-equals { font-size: 2em; margin: 0 10px; }
 #inventory-list .inventory-item { cursor: pointer; }
+.slider-container { display: flex; align-items: center; gap: 10px; }
+input[type="range"] { flex-grow: 1; }
 </style>
 </head>
 <body>
@@ -357,7 +360,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         <div id="frenzy-display">x5</div>
         <div id="stats-area" class="stats-area"><h2 id="player-name-level">Guardian Lv. 1</h2><div id="world-tier-display" class="world-tier-display">World Tier: 1</div><div id="health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="core-stats-display" class="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div><div id="gold-display" class="gold-display">Gold: 0</div><div id="buff-display" class="buff-display"></div></div><div id="character-area"><div id="expedition-timer-display">00:00:00</div><img id="character-sprite" class="sprite" src="player.PNG" alt="Character"><div id="tutorial-overlay"><div id="tutorial-text">Tap to grow stronger!</div><div id="tutorial-finger">👆</div></div></div>
         
-        <!-- UPDATED ACTION BUTTONS -->
         <div id="action-buttons">
             <div class="action-button-container"><button id="feed-btn">Feed (50 Gold)</button></div>
             <div class="action-button-container"><button id="battle-btn">Battle</button><span id="battle-unlock-text" class="unlock-text"></span></div>
@@ -374,7 +376,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         <div id="partner-stats-area" class="stats-area"><h2 id="partner-name-level">Partner Lv. 1</h2><div id="partner-health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="partner-energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="partner-xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="partner-core-stats-display" class="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div></div><div id="partner-character-area"><div id="egg-timer-display">00:00:00</div><img id="partner-sprite" class="sprite" src="egg.png" alt="Partner"></div><div id="partner-action-buttons"><button id="switch-to-main-btn">Switch to Guardian</button></div>
     </div>
     
-    <!-- UPDATED BATTLE SCREEN -->
     <div id="battle-screen" class="screen">
         <h2 id="battle-title">Battle!</h2>
         <div id="battle-wave-display">Wave: 1/5</div>
@@ -405,8 +406,52 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     <div id="shop-modal" class="modal"><div class="modal-content"><h2>Item Shop</h2><h3 class="modal-subtitle">Consumables</h3><div id="shop-consumables-container"></div><h3 class="modal-subtitle">Permanent Upgrades</h3><div id="shop-upgrades-container"></div><button id="close-shop-btn">Close</button></div></div>
     <div id="forge-modal" class="modal"><div class="modal-content"><h2>The Forge</h2><p>Place two items of the same type to merge them. Open your Inventory to select items.</p><div id="forge-slots-container"><div class="forge-slot" id="forge-slot-1">Slot 1</div><span id="forge-plus">+</span><div class="forge-slot" id="forge-slot-2">Slot 2</div><span id="forge-equals">=</span><div class="forge-slot" id="forge-result-slot">Result</div></div><div id="forge-cost-display"></div><button id="forge-btn-action">Forge Items</button><button id="close-forge-btn">Close</button></div></div>
 
+    <!-- NEW OPTIONS MODAL -->
+    <div id="options-modal" class="modal">
+        <div class="modal-content">
+            <h2>Options</h2>
+            
+            <div class="options-section">
+                <h3 class="modal-subtitle">Cloud Save</h3>
+                <div id="auth-container">
+                    <button id="google-signin-btn">Sign in with Google</button>
+                    <p id="auth-status">Not signed in.</p>
+                </div>
+            </div>
+
+            <div class="options-section">
+                <h3 class="modal-subtitle">Audio</h3>
+                <div class="options-item">
+                    <span>Mute All</span>
+                    <input type="checkbox" id="mute-all-checkbox">
+                </div>
+                <div class="options-item slider-container">
+                    <span>Music</span>
+                    <input type="range" id="music-volume-slider" min="0" max="1" step="0.05">
+                </div>
+                <div class="options-item slider-container">
+                    <span>SFX</span>
+                    <input type="range" id="sfx-volume-slider" min="0" max="1" step="0.05">
+                </div>
+            </div>
+            
+            <div class="options-section">
+                <h3 class="modal-subtitle">Gameplay</h3>
+                <div class="options-item">
+                    <span>Auto-Battle</span>
+                    <input type="checkbox" id="auto-battle-checkbox">
+                </div>
+            </div>
+
+            <button id="close-options-btn">Close</button>
+        </div>
+    </div>
+
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- ADDED FIREBASE AUTH SCRIPT -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="game.js" defer></script>
 </body>
 </html>
