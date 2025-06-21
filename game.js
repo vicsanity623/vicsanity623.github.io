@@ -773,7 +773,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function generateAndShowExpeditions() {
-        availableExpeditions = []; expeditionListContainer.innerHTML = '';
+        availableExpeditions = [];
+        expeditionListContainer.innerHTML = '';
         for (let i = 0; i < 5; i++) {
             const action = expeditionData.actions[Math.floor(Math.random() * expeditionData.actions.length)];
             const location = expeditionData.locations[Math.floor(Math.random() * expeditionData.locations.length)];
@@ -781,9 +782,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const modKey = modKeys[Math.floor(Math.random() * modKeys.length)];
             const modifier = expeditionData.modifiers[modKey];
             const duration = (Math.floor(Math.random() * 10) + 20) * 60;
-            const expedition = { name: `${action} ${location}`, description: modifier.description, duration: duration, modifiers: { goldMod: modifier.goldMod, itemMod: modifier.itemMod, xpMod: modifier.xpMod }, index: i };
+
+            // --- BUG FIX ---
+            // The original code here did not provide default values for the modifiers.
+            // If a `modifier` object was missing `xpMod`, for example, its value would be `undefined`.
+            // Firebase cannot save `undefined` values, causing the game to crash when trying to save.
+            // By using `?? 1`, we ensure that any missing modifier defaults to 1 (a 1x multiplier), which is a valid number.
+            const expedition = {
+                name: `${action} ${location}`,
+                description: modifier.description,
+                duration: duration,
+                modifiers: {
+                    goldMod: modifier.goldMod ?? 1,
+                    itemMod: modifier.itemMod ?? 1,
+                    xpMod: modifier.xpMod ?? 1
+                },
+                index: i
+            };
+
             availableExpeditions.push(expedition);
-            const itemEl = document.createElement('div'); itemEl.className = 'expedition-item';
+            const itemEl = document.createElement('div');
+            itemEl.className = 'expedition-item';
             itemEl.innerHTML = `<div class="expedition-info"><strong>${expedition.name}</strong><div class="expedition-desc">${expedition.description} (~${Math.round(expedition.duration / 60)} mins)</div></div><button data-index="${i}">Begin</button>`;
             itemEl.querySelector('button').onclick = () => startExpedition(expedition.index);
             expeditionListContainer.appendChild(itemEl);
