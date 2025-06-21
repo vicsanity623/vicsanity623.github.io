@@ -1170,12 +1170,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function checkWeeklyRewards() {
         try {
-            const rewardDocRef = db.collection("admin").doc("weeklyReward");
+            // FIX #1: Read from the new, public "gameConfig" collection instead of the protected "admin" collection.
+            const rewardDocRef = db.collection("gameConfig").doc("weeklyReward");
             const rewardDoc = await rewardDocRef.get();
             const weekInMs = 7 * 24 * 60 * 60 * 1000;
             const now = Date.now();
             
-            if (!rewardDoc.exists || now > rewardDoc.data().nextRewardTime) {
+            // This logic now correctly checks if the document exists AND if the reward period has passed.
+            if (rewardDoc.exists && now > rewardDoc.data().nextRewardTime) {
                 const snapshot = await db.collection("damageLeaderboard").orderBy("totalDamage", "desc").limit(1).get();
                 if (!snapshot.empty) {
                     const winner = snapshot.docs[0].data();
@@ -1188,8 +1190,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 
-                const nextTime = now + weekInMs;
-                await rewardDocRef.set({ nextRewardTime: nextTime });
+                // FIX #2: REMOVED the insecure line that tried to write to the database.
+                // The client is no longer allowed to (and shouldn't) reset the timer for everyone.
+                // const nextTime = now + weekInMs;
+                // await rewardDocRef.set({ nextRewardTime: nextTime });
             }
         } catch(e) { console.error("Could not check weekly rewards:", e); }
     }
