@@ -295,17 +295,32 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     0%, 100% { filter: drop-shadow(0 0 6px gold) drop-shadow(0 0 12px orangered); }
     50% { filter: drop-shadow(0 0 10px gold) drop-shadow(0 0 20px orangered) drop-shadow(0 0 2px yellow); }
 }
-@keyframes aura-level-20-anim {
-    0%, 100% { filter: drop-shadow(0 0 10px gold) drop-shadow(0 0 20px orangered) drop-shadow(0 0 3px yellow); }
-    50% { filter: drop-shadow(0 0 16px gold) drop-shadow(0 0 30px orangered) drop-shadow(0 0 6px yellow); }
-}
-@keyframes aura-level-30-anim {
-    0%, 100% { filter: drop-shadow(0 0 15px gold) drop-shadow(0 0 25px orangered) drop-shadow(0 0 8px yellow); }
-    50% { filter: drop-shadow(0 0 25px gold) drop-shadow(0 0 45px orangered) drop-shadow(0 0 12px yellow); }
-}
 .aura-level-10 { animation: idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite; }
-.aura-level-20 { animation: idle-breathe 4s ease-in-out infinite, aura-level-20-anim 1.5s ease-in-out infinite; }
-.aura-level-30 { animation: idle-breathe 4s ease-in-out infinite, aura-level-30-anim 1s ease-in-out infinite; }
+@keyframes super-aura-anim {
+    0%, 100% { filter: drop-shadow(0 0 15px #ff8000) drop-shadow(0 0 30px #ffff00); }
+    50% { filter: drop-shadow(0 0 25px #ff8000) drop-shadow(0 0 50px #ffff00) drop-shadow(0 0 5px white); }
+}
+.aura-ascended { animation: idle-breathe 2s ease-in-out infinite, super-aura-anim 1s ease-in-out infinite alternate; }
+@keyframes background-glitch-anim {
+    0% { transform: translate(0, 0); }
+    10% { transform: translate(-2px, 2px); }
+    20% { transform: translate(2px, -2px); }
+    30% { transform: translate(0, 0); }
+    100% { transform: translate(0, 0); }
+}
+.background-glitch { animation: background-glitch-anim 3s steps(2, end) infinite; }
+@keyframes lightning-flash-anim {
+    0%, 100% { opacity: 0; transform: scaleY(0); }
+    10% { opacity: 1; transform: scaleY(1); }
+    20% { opacity: 0; }
+}
+.lightning-bolt {
+    position: absolute; width: 4px; height: 100%;
+    background: linear-gradient(white, yellow, white);
+    transform-origin: top;
+    opacity: 0; animation: lightning-flash-anim 0.2s ease-out;
+    pointer-events: none; z-index: 150;
+}
 #perks-container, #shop-consumables-container, #shop-upgrades-container, #expedition-list-container { margin-top: 10px; max-height: 60vh; overflow-y: auto; text-align: left; }
 .perk-item, .shop-item, .expedition-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #444; }
 .perk-info, .shop-info, .expedition-info { flex-grow: 1; }
