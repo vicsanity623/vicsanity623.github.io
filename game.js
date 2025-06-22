@@ -692,7 +692,7 @@ const firebaseConfig = {
               playSound('tap', 0.5, 'square', 150, 100, 0.05); const now = Date.now();
               if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
               tapCombo.lastTapTime = now;
-              if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.60) { activateFrenzy(); } }
+              if (tapCombo.counter > 0 && tapCombo.counter % 5 === 0) { if (Math.random() < 0.60) { activateFrenzy(); } }
               if (Math.random() < 0.1) { triggerScreenShake(150); }
               let xpGain = 0.25 * tapCombo.currentMultiplier;
               if (gameState.level >= 30) { xpGain = 1.0 * tapCombo.currentMultiplier; } else if (gameState.level >= 10) { xpGain = 0.75 * tapCombo.currentMultiplier; }
@@ -1007,7 +1007,7 @@ const firebaseConfig = {
         const container = document.getElementById('floating-rewards-container');
         const bubbleEl = document.createElement('div');
         bubbleEl.className = 'xp-bubble';
-        bubbleEl.innerHTML = 'XP';
+        bubbleEl.innerHTML = 'XP<span></span><span></span><span></span><span></span><span></span>';
 
         // Randomize the animation slightly to make it less predictable
         bubbleEl.style.animationDuration = `${12 + Math.random() * 6}s`;
