@@ -101,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultState = {
         version: GAME_VERSION,
         playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 3,
+        highestBattleLevelCompleted: 0,
         stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
         resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
         equipment: { weapon: null, armor: null }, 
@@ -329,6 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadedState.lastWeeklyRewardClaim = loadedState.lastWeeklyRewardClaim || 0;
             const defaultSettings = defaultState.settings;
             loadedState.settings = { ...defaultSettings, ...(loadedState.settings || {})};
+            loadedState.highestBattleLevelCompleted = loadedState.highestBattleLevelCompleted || 0;
             
             await new Promise(resolve => setTimeout(resolve, 1500));
         }
@@ -449,7 +451,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const canUseBattle = gameState.level >= BATTLE_UNLOCK_LEVEL;
         battleBtn.disabled = onExpedition || !canUseBattle;
         battleUnlockText.textContent = canUseBattle ? "" : `Unlocks at LVL ${BATTLE_UNLOCK_LEVEL}`;
-        
+        if (canUseBattle) {
+            battleBtn.textContent = `Battle (Lvl ${gameState.highestBattleLevelCompleted + 1})`;
+        } else {
+            battleBtn.textContent = 'Battle'; // Reset to default if not usable
+        }                
         const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
         forgeBtn.disabled = onExpedition || !canUseForge;
         forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
@@ -1271,12 +1277,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startBattle() {
+        const targetBattleLevel = gameState.highestBattleLevelCompleted + 1;
         battleState = {
-            isActive: true, currentWave: 0, totalWaves: 5, playerHp: gameState.resources.hp,
-            enemy: null, totalXp: 0, totalGold: 0, totalDamage: 0, potionsUsedThisBattle: 0
+            isActive: true,
+            currentWave: 0,
+            totalWaves: 5,
+            playerHp: gameState.resources.hp,
+            enemy: null,
+            totalXp: 0,
+            totalGold: 0,
+            totalDamage: 0,
+            potionsUsedThisBattle: 0,
+            targetBattleLevel: targetBattleLevel // We store the level we are fighting
         };
         battleLog.innerHTML = "";
-        addBattleLog("The battle begins!", "log-system");
+        addBattleLog(`Entering Battle Level ${targetBattleLevel}...`, "log-system");
         showScreen('battle-screen');
         startNextWave();
     }
@@ -1284,16 +1299,36 @@ document.addEventListener('DOMContentLoaded', () => {
     function startNextWave() {
         battleState.currentWave++;
 
+        // --- NEW LOGIC ---
+        // We no longer use the player's level to calculate enemy stats.
+        // Instead, we use the fixed battle level for this entire battle instance.
+        const enemyLevel = battleState.targetBattleLevel;
         const tierMultiplier = gameState.ascension.tier;
-        const levelMultiplier = Math.max(1, gameState.level - 2 + Math.floor(Math.random() * 5));
         const waveMultiplier = 1 + (battleState.currentWave - 1) * 0.2;
         let isBoss = battleState.currentWave === battleState.totalWaves;
         let enemy;
         
+        // The formulas now scale with `enemyLevel`, not the player's level.
         if (isBoss) {
-            enemy = { name: "Goblin King", hp: Math.floor((150 + 20 * levelMultiplier) * tierMultiplier * waveMultiplier), strength: Math.floor((10 + 4 * levelMultiplier) * tierMultiplier * waveMultiplier), agility: Math.floor((5 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier), fortitude: Math.floor((8 + 3 * levelMultiplier) * tierMultiplier * waveMultiplier), xpReward: Math.floor((100 * levelMultiplier) * tierMultiplier * waveMultiplier), goldReward: Math.floor((75 * levelMultiplier) * tierMultiplier * waveMultiplier) };
+            enemy = {
+                name: `Level ${enemyLevel} Goblin King`,
+                hp: Math.floor((150 + 20 * enemyLevel) * tierMultiplier * waveMultiplier),
+                strength: Math.floor((10 + 4 * enemyLevel) * tierMultiplier * waveMultiplier),
+                agility: Math.floor((5 + 2 * enemyLevel) * tierMultiplier * waveMultiplier),
+                fortitude: Math.floor((8 + 3 * enemyLevel) * tierMultiplier * waveMultiplier),
+                xpReward: Math.floor((100 * enemyLevel) * tierMultiplier * waveMultiplier),
+                goldReward: Math.floor((75 * enemyLevel) * tierMultiplier * waveMultiplier)
+            };
         } else {
-            enemy = { name: `Wave ${battleState.currentWave} Goblin`, hp: Math.floor((60 + 8 * levelMultiplier) * tierMultiplier * waveMultiplier), strength: Math.floor((3 + 2 * levelMultiplier) * tierMultiplier * waveMultiplier), agility: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier), fortitude: Math.floor((3 + 1 * levelMultiplier) * tierMultiplier * waveMultiplier), xpReward: Math.floor((25 * levelMultiplier) * tierMultiplier * waveMultiplier), goldReward: Math.floor((15 * levelMultiplier) * tierMultiplier * waveMultiplier) };
+            enemy = {
+                name: `Wave ${battleState.currentWave} Goblin`,
+                hp: Math.floor((60 + 8 * enemyLevel) * tierMultiplier * waveMultiplier),
+                strength: Math.floor((3 + 2 * enemyLevel) * tierMultiplier * waveMultiplier),
+                agility: Math.floor((3 + 1 * enemyLevel) * tierMultiplier * waveMultiplier),
+                fortitude: Math.floor((3 + 1 * enemyLevel) * tierMultiplier * waveMultiplier),
+                xpReward: Math.floor((25 * enemyLevel) * tierMultiplier * waveMultiplier),
+                goldReward: Math.floor((15 * enemyLevel) * tierMultiplier * waveMultiplier)
+            };
         }
         enemy.maxHp = enemy.hp;
         battleState.enemy = enemy;
@@ -1364,7 +1399,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (battleState.totalDamage > 0) {
             try {
-                // Use player name for the public damage leaderboard
                 const damageRef = db.collection("damageLeaderboard").doc(gameState.playerName);
                 const doc = await damageRef.get();
                 if (!doc.exists || doc.data().totalDamage < battleState.totalDamage) {
@@ -1375,11 +1409,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let title = ""; let rewardText = "";
         if (playerWon) {
+            // --- NEW LOGIC ---
+            // On victory, we increase the player's completed battle level.
+            gameState.highestBattleLevelCompleted = battleState.targetBattleLevel;
+            
             gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
             checkAllAchievements();
             playSound('victory', 1, 'triangle', 523, 1046, 0.4);
             let bonusItem = generateItem();
-            title = "Battle Complete!";
+            title = `Battle Level ${battleState.targetBattleLevel} Complete!`;
             rewardText = `You are victorious!<br><br>Total Rewards:<br>+${battleState.totalGold} Gold<br>+${battleState.totalXp} XP<br>Total Damage: ${battleState.totalDamage}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
             gameState.gold += battleState.totalGold;
             addXP(gameState, battleState.totalXp);
