@@ -271,7 +271,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     justify-content: center;
     cursor: pointer;
     pointer-events: all; /* Bubble IS clickable */
-    animation: float-around 15s linear forwards;
+    animation: float-around 15s linear forwards, bubble-radiate 4s ease-in-out infinite;
     transition: transform 0.2s, opacity 0.2s;
     transform: scale(1);
     opacity: 1;
@@ -287,6 +287,68 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     50% { transform: translate(calc(50vw - 50px), 60%); }
     75% { transform: translate(20vw, 10%); }
     100% { transform: translate(calc(100vw + 100px), 30%); }
+}
+@keyframes bubble-radiate {
+    0%, 100% {
+        box-shadow: inset 0 0 15px rgba(255,255,255,0.7), 0 0 10px var(--xp-color);
+    }
+    50% {
+        box-shadow: inset 0 0 15px rgba(255,255,255,0.7), 0 0 25px var(--xp-color), 0 0 40px rgba(255,220,0,0.5);
+    }
+}
+
+.xp-bubble span {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: rgba(255, 255, 204, 0.7);
+    border-radius: 50%;
+    box-shadow: 0 0 5px white, 0 0 2px var(--xp-color);
+    z-index: -1;
+    animation: trickle linear infinite;
+}
+
+@keyframes trickle {
+    0% {
+        transform: translate(0, 0) scale(0);
+        opacity: 0;
+    }
+    10%, 20% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(0, 150px) scale(0);
+        opacity: 0;
+    }
+}
+
+.xp-bubble span:nth-child(1) {
+    width: 12px; height: 12px;
+    animation-duration: 2.5s;
+    animation-delay: 0s;
+}
+.xp-bubble span:nth-child(2) {
+    width: 8px; height: 8px;
+    animation-duration: 3s;
+    animation-delay: 0.5s;
+    transform-origin: -10px 0;
+}
+.xp-bubble span:nth-child(3) {
+    width: 10px; height: 10px;
+    animation-duration: 2s;
+    animation-delay: 1.2s;
+}
+.xp-bubble span:nth-child(4) {
+    width: 6px; height: 6px;
+    animation-duration: 3.5s;
+    animation-delay: 1.8s;
+    transform-origin: 10px 0;
+}
+.xp-bubble span:nth-child(5) {
+    width: 9px; height: 9px;
+    animation-duration: 2.2s;
+    animation-delay: 2.1s;
 }
 #frenzy-display {
     position: absolute; left: 20px; top: 50%; z-index: 120;
