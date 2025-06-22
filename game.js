@@ -617,9 +617,28 @@ const firebaseConfig = {
       }
       
       function activateFrenzy() {
-          if (tapCombo.frenzyTimeout) { clearTimeout(tapCombo.frenzyTimeout); }
-          tapCombo.currentMultiplier = (tapCombo.currentMultiplier === 1) ? 5 : tapCombo.currentMultiplier + 5;
-          updateFrenzyVisuals(); tapCombo.frenzyTimeout = setTimeout(deactivateFrenzy, 7000);
+        if (tapCombo.frenzyTimeout) { clearTimeout(tapCombo.frenzyTimeout); }
+        tapCombo.currentMultiplier = (tapCombo.currentMultiplier === 1) ? 5 : tapCombo.currentMultiplier + 5;
+    
+        // --- NEW ENHANCED VISUALS ---
+        // 1. Scaled Screen Shake: The shake gets longer and more intense with higher combos.
+        const shakeDuration = Math.min(800, 200 + (tapCombo.currentMultiplier * 5));
+        triggerScreenShake(shakeDuration);
+
+        // 2. More Particles: Burst more particles as the combo grows.
+        createParticles({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
+        if (tapCombo.currentMultiplier > 30) {
+            createParticles({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
+        }
+
+        // 3. Screen Flash for huge combos
+        if (tapCombo.currentMultiplier >= 100) {
+            triggerScreenFlash();
+        }
+        // --- END OF ENHANCED VISUALS ---
+
+        updateFrenzyVisuals(); 
+        tapCombo.frenzyTimeout = setTimeout(deactivateFrenzy, 7000);
       }
       
       function deactivateFrenzy() { tapCombo.currentMultiplier = 1; tapCombo.frenzyTimeout = null; updateFrenzyVisuals(); }
@@ -665,12 +684,15 @@ const firebaseConfig = {
                   createXpOrb(event, 0.5, partner);
               }
           } else {
+              if (Math.random() < 0.005) {
+                createXpBubble();
+              }
               if (gameState.resources.energy <= 0) return;
               gameState.counters.taps = (gameState.counters.taps || 0) + 1; checkAllAchievements();
               playSound('tap', 0.5, 'square', 150, 100, 0.05); const now = Date.now();
               if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
               tapCombo.lastTapTime = now;
-              if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.45) { activateFrenzy(); } }
+              if (tapCombo.counter > 0 && tapCombo.counter % 15 === 0) { if (Math.random() < 0.60) { activateFrenzy(); } }
               if (Math.random() < 0.1) { triggerScreenShake(150); }
               let xpGain = 0.25 * tapCombo.currentMultiplier;
               if (gameState.level >= 30) { xpGain = 1.0 * tapCombo.currentMultiplier; } else if (gameState.level >= 10) { xpGain = 0.75 * tapCombo.currentMultiplier; }
@@ -971,6 +993,50 @@ const firebaseConfig = {
       }
       
       function triggerScreenShake(duration = 500) { document.body.classList.add('screen-shake'); setTimeout(() => document.body.classList.remove('screen-shake'), duration); }
+      function triggerScreenFlash() {
+        const flashOverlay = document.getElementById('screen-flash-overlay');
+        flashOverlay.classList.add('flash');
+        // The animation is short, so we use a timeout to remove the class
+        setTimeout(() => {
+            flashOverlay.classList.remove('flash');
+        }, 300);
+      }
+      function createXpBubble() {
+        if (document.querySelector('.xp-bubble')) return; // Only one bubble at a time
+
+        const container = document.getElementById('floating-rewards-container');
+        const bubbleEl = document.createElement('div');
+        bubbleEl.className = 'xp-bubble';
+        bubbleEl.innerHTML = 'XP';
+
+        // Randomize the animation slightly to make it less predictable
+        bubbleEl.style.animationDuration = `${12 + Math.random() * 6}s`;
+
+        bubbleEl.onclick = () => {
+            if (bubbleEl.classList.contains('popped')) return;
+
+            // Grant a large, random amount of XP
+            const reward = Math.floor(getXpForNextLevel(gameState.level) * (Math.random() * 0.15 + 0.05)); // 5% to 20% of next level's XP
+            addXP(gameState, reward);
+            showToast(`+${reward} XP!`);
+            playSound('feed', 1, 'sine', 400, 800, 0.2); // A nice "collect" sound
+
+            // Pop effect and removal
+            bubbleEl.classList.add('popped');
+            setTimeout(() => {
+                if (bubbleEl) bubbleEl.remove();
+            }, 200);
+        };
+
+        container.appendChild(bubbleEl);
+
+        // Remove the bubble if it's ignored after its animation finishes
+        setTimeout(() => {
+            if (bubbleEl && !bubbleEl.classList.contains('popped')) {
+                bubbleEl.remove();
+            }
+        }, parseFloat(bubbleEl.style.animationDuration) * 1000);
+      }
       function showToast(message) { const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; toastContainer.appendChild(toast); setTimeout(() => { toast.remove(); }, 4000); }
       
       function createDamageNumber(amount, isCrit, isPlayerSource) {
