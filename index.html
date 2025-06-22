@@ -11,6 +11,15 @@
     <!-- Your existing V8 SDK Scripts - DO NOT CHANGE THESE -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4686TXHCHN"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-4686TXHCHN');
+    </script>                                                                   
     <style>
         :root {
             --primary-bg: #1e1e2f;
@@ -482,7 +491,8 @@
         });
 
         // Main processing function
-        async function handleSeparation() {
+                // Main processing function
+                async function handleSeparation() {
             if (!selectedFile) { setStatus('Please select an audio file first.', 'error'); addLog('Process attempt failed: No file selected.', 'error'); return; }
             const MAX_FRONTEND_SIZE_MB = 100;
             if (selectedFile.size > MAX_FRONTEND_SIZE_MB * 1024 * 1024) { setStatus(`File is too large (max ${MAX_FRONTEND_SIZE_MB}MB).`, 'error'); addLog(`File too large: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB. Max is ${MAX_FRONTEND_SIZE_MB}MB.`, 'error'); return; }
@@ -494,8 +504,8 @@
             updateProgress(0);
             progressBar.style.backgroundColor = 'var(--accent-color)'; 
 
-            const userType = currentUser ? `user ${currentUser.displayName}` : 'guest';
-            setStatus(`Starting process as ${userType}...`, '');
+            const userType = currentUser ? `user` : 'guest'; // Simplified for analytics
+            setStatus(`Starting process as ${currentUser ? currentUser.displayName : 'guest'}...`, '');
             addLog(`Process initiated by ${userType}.`, 'info');
             processBtn.disabled = true;
             processBtn.textContent = 'Processing...';
@@ -552,6 +562,15 @@
                         setStatus("Processing started! Your file will appear in 'My Files' shortly.", 'success');
                         addLog("File is being processed in the background.", 'success');
                         updateProgress(100);
+
+                        // --- ADDED: EVENT TRACKING FOR SIGNED-IN USER ---
+                        gtag('event', 'separation_success', {
+                          'event_category': 'audio_processing',
+                          'event_label': userType, // 'user'
+                          'value': Math.round(selectedFile.size / 1024 / 1024)
+                        });
+                        // ---------------------------------------------
+
                     } else { throw new Error(result.message || "An unknown error occurred."); }
                 } else {
                     addLog('Receiving file...', 'success');
@@ -577,6 +596,14 @@
                     updateProgress(100); 
                     setStatus(`Stems downloaded as ${downloadFilename}! Check your downloads.`, 'success');
 
+                    // --- ADDED: EVENT TRACKING FOR GUEST USER ---
+                    gtag('event', 'separation_success', {
+                      'event_category': 'audio_processing',
+                      'event_label': userType, // 'guest'
+                      'value': Math.round(selectedFile.size / 1024 / 1024)
+                    });
+                    // ------------------------------------------
+
                     setTimeout(() => { if (downloadUrl) window.URL.revokeObjectURL(downloadUrl); if (a && a.parentElement) a.remove(); }, 3000);
                 }
 
@@ -584,6 +611,14 @@
                 console.error('Separation error:', error);
                 setStatus(`Error: ${error.message}`, 'error');
                 addLog(`Operation failed: ${error.message}`, 'error');
+
+                // --- ADDED: EVENT TRACKING FOR FAILED SEPARATION ---
+                gtag('event', 'separation_failure', {
+                  'event_category': 'audio_processing',
+                  'event_label': error.message.substring(0, 100) // Log first 100 chars of error
+                });
+                // ---------------------------------------------------
+
                 if (progressInterval) clearInterval(progressInterval);
                 if (parseInt(progressBar.style.width, 10) < 100) { progressBar.style.backgroundColor = 'var(--error-color)'; if (parseInt(progressBar.style.width, 10) < 90 ) updateProgress(90); }
             } finally {
