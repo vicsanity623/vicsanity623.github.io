@@ -79,7 +79,15 @@ const firebaseConfig = {
       const permanentShopUpgrades = {
           strTraining: { name: "Strength Training", desc: "Permanently increases base Strength.", stat: 'strength', bonus: 1, levelReq: 10, maxLevel: 10, cost: (level) => 1000 * Math.pow(2, level) },
           forTraining: { name: "Fortitude Training", desc: "Permanently increases base Fortitude.", stat: 'fortitude', bonus: 1, levelReq: 10, maxLevel: 10, cost: (level) => 1000 * Math.pow(2, level) },
-          agiTraining: { name: "Agility Training", desc: "Permanently increases base Agility.", stat: 'agility', levelReq: 20, maxLevel: 5, cost: (level) => 5000 * Math.pow(3, level) }
+          agiTraining: { name: "Agility Training", desc: "Permanently increases base Agility.", stat: 'agility', levelReq: 20, maxLevel: 5, cost: (level) => 5000 * Math.pow(3, level) },
+          energyTraining: { 
+            name: "Energy Discipline", 
+            desc: "Permanently increases Max Energy by 25.", 
+            bonus: 25, 
+            levelReq: 15, 
+            maxLevel: 10, 
+            cost: (level) => 1500 * Math.pow(2.2, level) 
+        }
       };
       const expeditionData = {
           actions: ["Explore", "Patrol", "Scour", "Delve into", "Investigate"],
@@ -450,8 +458,14 @@ const firebaseConfig = {
           const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
           const baseMaxHp = 100 + (gameState.level - 1) * 10;
           const baseMaxEnergy = 100 + (gameState.level - 1) * 5;
+          let energyUpgradeBonus = 0;
+          if (gameState.permanentUpgrades.energyTraining) {
+              const upgradeLevel = gameState.permanentUpgrades.energyTraining;
+              const upgradeData = permanentShopUpgrades.energyTraining;
+              energyUpgradeBonus = upgradeLevel * upgradeData.bonus;
+          }
           gameState.resources.maxHp = baseMaxHp + vigorBonus;
-          gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus;
+          gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus + energyUpgradeBonus;
           playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
           worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
           const xpForNext = getXpForNextLevel(gameState.level);
