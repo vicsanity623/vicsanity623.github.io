@@ -134,8 +134,7 @@ const firebaseConfig = {
       const energyBarLabel = document.querySelector('#energy-bar .stat-bar-label');
       const xpBarFill = document.querySelector('#xp-bar .stat-bar-fill');
       const xpBarLabel = document.querySelector('#xp-bar .stat-bar-label');
-      const coreStatsDisplay = document.getElementById('core-stats-display');
-      const goldDisplay = document.getElementById('gold-display');
+      const playerStatPanel = document.getElementById('player-stat-panel');
       const buffDisplay = document.getElementById('buff-display');
       const worldTierDisplay = document.getElementById('world-tier-display');
       const startGameBtn = document.getElementById('start-game-btn');
@@ -462,48 +461,59 @@ const firebaseConfig = {
           energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
           xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
           xpBarLabel.textContent = `XP: ${Math.floor(gameState.xp)} / ${xpForNext}`;
-         // --- NEW LOGIC: Determine stat colors based on equipment rarity ---
-         const defaultStatColor = 'var(--text-color)';
-         const statColors = {
-             strength: defaultStatColor, fortitude: defaultStatColor, agility: defaultStatColor,
-             stamina: defaultStatColor, critChance: defaultStatColor, goldFind: defaultStatColor
-         };
-         const statSourceRarityIndex = {
-             strength: -1, fortitude: -1, agility: -1,
-             stamina: -1, critChance: -1, goldFind: -1
-         };
+                 // --- NEW, FINAL LOGIC: Build the entire stat panel dynamically ---
+          const defaultStatColor = 'var(--text-color)';
+          const statColors = {};
+          const statSourceRarityIndex = {};
+            
+          const statKeys = ['strength', 'fortitude', 'agility', 'stamina', 'critChance', 'goldFind'];
+          statKeys.forEach(key => {
+              statColors[key] = defaultStatColor;
+              statSourceRarityIndex[key] = -1;
+          });
 
-         for (const slot in gameState.equipment) {
-             const item = gameState.equipment[slot];
-             if (item) {
-                 const itemRarityIndex = RARITY_ORDER.indexOf(item.rarity.key);
-                 for (const statName in item.stats) {
-                     // Only update color if this item's rarity is higher than any other item boosting this stat
-                     if (itemRarityIndex > statSourceRarityIndex[statName]) {
-                         statSourceRarityIndex[statName] = itemRarityIndex;
-                         statColors[statName] = item.rarity.color;
-                     }
-                 }
-             }
-         }
-        
-         // Create stars for equipped weapon and armor
-         let equippedIconsHtml = '';
-         if (gameState.equipment.weapon) { equippedIconsHtml += '<span class="equipped-icon">⭐</span>'; }
-         if (gameState.equipment.armor) { equippedIconsHtml += '<span class="equipped-icon">⭐</span>'; }
+          for (const slot in gameState.equipment) {
+              const item = gameState.equipment[slot];
+              if (item) {
+                  const itemRarityIndex = RARITY_ORDER.indexOf(item.rarity.key);
+                  for (const statName in item.stats) {
+                        if (statSourceRarityIndex.hasOwnProperty(statName) && itemRarityIndex > statSourceRarityIndex[statName]) {
+                            statSourceRarityIndex[statName] = itemRarityIndex;
+                            statColors[statName] = item.rarity.color;
+                        }
+                    }
+              }
+          }
+            
+          let panelHtml = '';
+          const createStatRow = (label, value, statKey) => {
+              const color = statColors[statKey] || defaultStatColor;
+              const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
+              return `
+                  <div class="stat-item">
+                      <span class="stat-label">${label}</span>
+                      <span class="stat-value" style="color: ${color};">${value} ${starIcon}</span>
+                  </div>
+              `;
+          };
 
-         // Build the final HTML for the core stats display with custom colors
-         coreStatsDisplay.innerHTML = `
-             <span style="color: ${statColors.strength};">STR: ${getTotalStat('strength')}</span>
-             <span style="color: ${statColors.fortitude};">FOR: ${getTotalStat('fortitude')}</span>
-             <span class="stat-separator">${equippedIconsHtml}</span>
-             <span style="color: ${statColors.agility};">AGI: ${getTotalStat('agility')}</span>
-             <span style="color: ${statColors.stamina};">STA: ${getTotalStat('stamina')}</span>
-             <span style="color: ${statColors.critChance};">Crit: ${getTotalStat('critChance').toFixed(2)}%</span>
-             <span style="color: ${statColors.goldFind};">Gold: ${getTotalStat('goldFind').toFixed(2)}%</span>
-         `;
-          goldDisplay.textContent = `Gold: ${gameState.gold}`;
-          updateBuffDisplay();
+          panelHtml += createStatRow('STR', getTotalStat('strength'), 'strength');
+          panelHtml += createStatRow('FOR', getTotalStat('fortitude'), 'fortitude');
+          panelHtml += createStatRow('AGI', getTotalStat('agility'), 'agility');
+          panelHtml += createStatRow('STA', getTotalStat('stamina'), 'stamina');
+
+          panelHtml += '<hr class="stat-divider">';
+
+          panelHtml += createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance');
+          panelHtml += createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind');
+            
+           panelHtml += '<hr class="stat-divider">';
+
+          panelHtml += createStatRow('Gold', gameState.gold, 'gold'); // 'gold' key doesn't have a color, so it will be default
+
+          playerStatPanel.innerHTML = panelHtml;
+          // The line that referenced 'goldDisplay' has been removed.
+                    updateBuffDisplay();
           const onExpedition = gameState.expedition.active;
           characterSprite.style.display = onExpedition ? 'none' : 'block';
           expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
