@@ -90,6 +90,14 @@ document.addEventListener('DOMContentLoaded', () => {
             xp: { name: "Dangerous", description: "High XP reward", goldMod: 1, itemMod: 1, xpMod: 1.5 },
         }
     };
+    const reforgeNameData = {
+        prefixes: ["Forged", "Tempered", "Masterwork", "Infused", "Runed", "Shaped"],
+        bases: {
+            weapon: ["Smasher", "Edge", "Cleaver", "Point", "Ripper", "Breaker"],
+            armor: ["Bulwark", "Aegis", "Carapace", "Wall", "Guard", "Bastion"]
+        },
+        suffixes: ["of Power", "of Doom", "of Glory", "of the Forge", "of Titans"]
+    };
     const defaultState = {
         version: GAME_VERSION,
         playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 3,
@@ -1121,7 +1129,11 @@ document.addEventListener('DOMContentLoaded', () => {
             newStats[stat] = Math.ceil((val1 + val2) * 1.1);
         });
 
-        const newName = `Reforged ${item1.type === 'weapon' ? 'Blade' : 'Plate'}`;
+        const randomPrefix = reforgeNameData.prefixes[Math.floor(Math.random() * reforgeNameData.prefixes.length)];
+        const randomBaseList = item1.type === 'weapon' ? reforgeNameData.bases.weapon : reforgeNameData.bases.armor;
+        const randomBase = randomBaseList[Math.floor(Math.random() * randomBaseList.length)];
+        const randomSuffix = reforgeNameData.suffixes[Math.floor(Math.random() * reforgeNameData.suffixes.length)];
+        const newName = `${randomPrefix} ${randomBase} ${randomSuffix}`;
         const newPower = Object.values(newStats).reduce((a, b) => a + b, 0);
         const newItem = {
             type: item1.type, name: newName,
