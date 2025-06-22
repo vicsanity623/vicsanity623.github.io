@@ -514,14 +514,18 @@ const firebaseConfig = {
             
           let panelHtml = '';
           const createStatRow = (label, value, statKey) => {
-              const color = statColors[statKey] || defaultStatColor;
-              const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
-              return `
-                  <div class="stat-item">
-                      <span class="stat-label">${label}</span>
-                      <span class="stat-value" style="color: ${color};">${value} ${starIcon}</span>
-                  </div>
-              `;
+            const color = statColors[statKey] || defaultStatColor;
+            const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
+            
+            // Add our new class ONLY if the statKey is 'gold'
+            const extraClass = (statKey === 'gold') ? 'stat-value-gold' : '';
+
+            return `
+                <div class="stat-item">
+                    <span class="stat-label">${label}</span>
+                    <span class="stat-value ${extraClass}" style="color: ${color};">${value} ${starIcon}</span>
+                </div>
+            `;
           };
 
           panelHtml += createStatRow('STR', getTotalStat('strength'), 'strength');
@@ -534,9 +538,9 @@ const firebaseConfig = {
           panelHtml += createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance');
           panelHtml += createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind');
             
-           panelHtml += '<hr class="stat-divider">';
+          panelHtml += '<hr class="stat-divider">';
 
-          panelHtml += createStatRow('Gold', gameState.gold, 'gold'); // 'gold' key doesn't have a color, so it will be default
+          panelHtml += createStatRow('Gold', Math.floor(gameState.gold), 'gold');
 
           playerStatPanel.innerHTML = panelHtml;
           // The line that referenced 'goldDisplay' has been removed.
@@ -1096,7 +1100,7 @@ const firebaseConfig = {
               const buyBtn = document.createElement('button');
               if (currentLevel >= upgradeData.maxLevel) { buyBtn.textContent = 'Maxed'; buyBtn.disabled = true; } 
               else if (gameState.level < upgradeData.levelReq) { buyBtn.textContent = `Req Lvl ${upgradeData.levelReq}`; buyBtn.disabled = true; }
-              else { const cost = upgradeData.cost(currentLevel); buyBtn.textContent = `Upgrade (${cost} G)`; if (gameState.gold < cost) { buyBtn.disabled = true; } buyBtn.onclick = () => buyShopItem(upgradeId, 'permanent'); }
+              else { const cost = upgradeData.cost(currentLevel); buyBtn.textContent = `Upgrade (${Math.floor(cost)} G)`; if (gameState.gold < cost) { buyBtn.disabled = true; } buyBtn.onclick = () => buyShopItem(upgradeId, 'permanent'); }
               shopItem.appendChild(infoDiv); shopItem.appendChild(buyBtn); shopUpgradesContainer.appendChild(shopItem);
           }
       }
