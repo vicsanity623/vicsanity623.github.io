@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
 
         feedBtn.disabled = onExpedition; 
-        inventoryBtn.disabled = onExpedition; 
+        inventoryBtn.disabled = on_expedition; 
         shopBtn.disabled = onExpedition;
 
         if (onExpedition) {
@@ -1032,15 +1032,39 @@ document.addEventListener('DOMContentLoaded', () => {
         characterSprite.style.animation = newAnimation;
     }
     
+    // ========================================================================
+    // ===== THE FIX IS HERE - REPLACING THE selectItemForForge FUNCTION ======
+    // ========================================================================
     function selectItemForForge(item) {
+        // If the forge is already full, just switch to the forge screen.
         if (forgeSlots[0] && forgeSlots[1]) {
-            showToast("Forge slots are full. Clear one first."); return;
+            showToast("Forge slots are full. Opening the forge.");
+            inventoryModal.classList.remove('visible');
+            forgeModal.classList.add('visible');
+            updateForgeUI();
+            return;
         }
-        const emptySlot = forgeSlots[0] ? 1 : 0;
-        forgeSlots[emptySlot] = item;
-        inventoryModal.classList.remove('visible');
-        forgeModal.classList.add('visible');
-        updateForgeUI();
+
+        // Prevent adding the same item twice
+        if ((forgeSlots[0] && forgeSlots[0].name === item.name) || (forgeSlots[1] && forgeSlots[1].name === item.name)) {
+            showToast("This item is already in a forge slot.");
+            return;
+        }
+        
+        // Find the first available slot and place the item.
+        const targetSlotIndex = forgeSlots[0] ? 1 : 0;
+        forgeSlots[targetSlotIndex] = item;
+        
+        // If we just filled the first slot, stay in the inventory and ask for the second item.
+        if (targetSlotIndex === 0) {
+            showToast(`'${item.name}' added to forge. Please select a second item.`);
+        } 
+        // If we just filled the second slot, automatically switch to the forge screen.
+        else {
+            inventoryModal.classList.remove('visible');
+            forgeModal.classList.add('visible');
+            updateForgeUI();
+        }
     }
     
     function updateForgeUI() {
