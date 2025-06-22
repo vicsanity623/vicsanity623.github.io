@@ -65,11 +65,22 @@ const firebaseConfig = {
           expeditionSpeed: { name: "Expeditionary Leader", desc: "-5% Expedition Duration per level.", maxLevel: 5, cost: [1, 2, 2, 3, 3] }
       };
       const itemData = {
-          rarities: { common: { weight: 70, color: 'var(--rarity-common)', budget: 1, affixes: 1 }, uncommon: { weight: 20, color: 'var(--rarity-uncommon)', budget: 1.4, affixes: 2 }, rare: { weight: 7, color: 'var(--rarity-rare)', budget: 1.9, affixes: 2 }, epic: { weight: 2.5, color: 'var(--rarity-epic)', budget: 2.5, affixes: 3 }, legendary: { weight: 0.5, color: 'var(--rarity-legendary)', budget: 3.5, affixes: 4 } },
-          types: { weapon: { base: ['Sword', 'Axe', 'Mace', 'Dagger'], primary: 'strength' }, armor: { base: ['Cuirass', 'Plate', 'Mail', 'Armor'], primary: 'fortitude' } },
-          prefixes: { strength: 'Mighty', fortitude: 'Sturdy', agility: 'Swift', critChance: 'Deadly', goldFind: 'Gilded' },
-          suffixes: { strength: 'of the Bear', fortitude: 'of the Tortoise', agility: 'of the Viper', critChance: 'of Piercing', goldFind: 'of Greed' },
-          affixes: ['agility', 'critChance', 'goldFind']
+        // We keep the old rarities for weights and affix counts
+        rarities: { 
+            common: { weight: 70, budget: 1, affixes: 1 }, 
+            uncommon: { weight: 20, budget: 1.4, affixes: 2 }, 
+            rare: { weight: 7, budget: 1.9, affixes: 2 }, 
+            epic: { weight: 2.5, budget: 2.5, affixes: 3 }, 
+            legendary: { weight: 0.5, budget: 3.5, affixes: 4 } 
+        },
+        // NEW: Tier-based color schemes
+        rarityTiers: [ 'common', 'uncommon', 'rare', 'epic', 'legendary' ],
+        weaponColors: ['#BDBDBD', '#4CAF50', '#FF9800', '#F44336', '#E91E63'], // Grey, Green, Orange, Red, Pink
+        armorColors: ['#CD7F32', '#2196F3', '#9C27B0', '#FFC107', '#FFFFFF'], // Bronze, Blue, Purple, Gold, White
+        types: { weapon: { base: ['Sword', 'Axe', 'Mace', 'Dagger'], primary: 'strength' }, armor: { base: ['Cuirass', 'Plate', 'Mail', 'Armor'], primary: 'fortitude' } },
+        prefixes: { strength: 'Mighty', fortitude: 'Sturdy', agility: 'Swift', critChance: 'Deadly', goldFind: 'Gilded' },
+        suffixes: { strength: 'of the Bear', fortitude: 'of the Tortoise', agility: 'of the Viper', critChance: 'of Piercing', goldFind: 'of Greed' },
+        affixes: ['agility', 'critChance', 'goldFind']
       };
       const shopItems = {
           storableHealthPotion: { name: "Health Potion", desc: "A storable potion for battle. Restores 50% HP.", cost: 250, type: 'consumable' },
@@ -317,18 +328,20 @@ const firebaseConfig = {
       }
   
       function rehydrateItemRarity(item) {
-          if (item && typeof item.rarity === 'string') {
-              const rarityKey = item.rarity;
-              const fullRarityObject = itemData.rarities[rarityKey];
-              if (fullRarityObject) {
-                  item.rarity = {
-                      key: rarityKey,
-                      color: fullRarityObject.color
-                  };
-              }
-          }
-          return item;
-      }
+        if (!item) return null;
+        // Fix for rarity object structure
+        if (typeof item.rarity === 'string') {
+            const rarityKey = item.rarity;
+            const rarityIndex = itemData.rarityTiers.indexOf(rarityKey);
+            if (rarityIndex > -1) {
+                item.rarity = {
+                    key: rarityKey,
+                    color: item.type === 'weapon' ? itemData.weaponColors[rarityIndex] : itemData.armorColors[rarityIndex]
+                };
+            }
+        }
+        return item;
+    }
       async function migrateSaveData(loadedState) {
           if (!loadedState.version || loadedState.version < GAME_VERSION) {
               showScreen('update-screen');
@@ -822,7 +835,10 @@ const firebaseConfig = {
               for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
           }
           const rarity = itemData.rarities[chosenRarityKey];
-          const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor'; const itemType = itemData.types[itemTypeKey];
+          const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor'; // Define the type first
+          const rarityIndex = itemData.rarityTiers.indexOf(chosenRarityKey);
+          const itemColor = itemTypeKey === 'weapon' ? itemData.weaponColors[rarityIndex] : itemData.armorColors[rarityIndex]; // Now we can use the type to get the color
+          const itemType = itemData.types[itemTypeKey];
           const baseName = itemType.base[Math.floor(Math.random() * itemType.base.length)]; const primaryStat = itemType.primary;
           const stats = {}; let power = 0; const totalBudget = (gameState.level + (gameState.ascension.tier * 5)) * rarity.budget;
           stats[primaryStat] = Math.ceil(totalBudget * 0.6); power += stats[primaryStat];
@@ -834,7 +850,7 @@ const firebaseConfig = {
               else { value = Math.ceil(totalBudget * 0.25 * (Math.random() * 0.5 + 0.75)); power += value; }
               stats[affix] = value; if (i === 1) { nameSuffix = itemData.suffixes[affix]; }
           }
-          return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: rarity.color }, stats: stats, power: power, reforgeCount: 0 };
+          return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: itemColor }, stats: stats, power: power, reforgeCount: 0 };
       }
       
       function equipItem(itemToEquip) {
@@ -845,78 +861,61 @@ const firebaseConfig = {
       }
       
       function updateInventoryUI() {
-          inventoryList.innerHTML = '';
-          if (gameState.inventory.length === 0) {
-              inventoryList.innerHTML = '<p>Your inventory is empty.</p>';
-              return;
-          }
-      
-          // Reset prompt text to default when not selecting for forge
-          if (currentForgeSelectionTarget === null) {
-               document.querySelector("#inventory-modal .modal-content h2 + p").textContent = "Click an item to equip it.";
-          }
-      
-          const sortedInventory = [...gameState.inventory].filter(i => i).sort((a, b) => b.power - a.power);
-      
-          sortedInventory.forEach((item) => {
-              const itemEl = document.createElement('div');
-              itemEl.className = 'inventory-item';
-              let statsHtml = '';
-              for (const stat in item.stats) {
-                  const value = item.stats[stat];
-                  const suffix = (stat === 'critChance' || stat === 'goldFind') ? '%' : '';
-                  statsHtml += `<span>+${value}${suffix} ${stat}</span><br>`;
-              }
-              const infoDiv = document.createElement('div');
-              infoDiv.className = 'inventory-item-info';
-              const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
-              const starIconHtml = isEquipped ? '<span class="equipped-icon inventory-star">⭐</span>' : '';
-  
-              infoDiv.innerHTML = `<strong style="color:${item.rarity.color}">${item.name}</strong> ${starIconHtml} <div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount}/3</div>`;
-              itemEl.appendChild(infoDiv);
-      
-              // --- NEW LOGIC ---
-              if (currentForgeSelectionTarget !== null) {
-                  // We are selecting an item for the forge
-                  itemEl.style.cursor = 'pointer'; // Make it clear the item is clickable
-                  itemEl.onclick = () => {
-                      const otherSlotIndex = currentForgeSelectionTarget === 0 ? 1 : 0;
-                      const otherItem = forgeSlots[otherSlotIndex];
-                      if (otherItem && otherItem.name === item.name) {
-                          showToast("Item is already in the other slot.");
-                          return;
-                      }
-                      if (otherItem && otherItem.type !== item.type) {
-                          showToast("Items must be the same type (weapon/armor).");
-                          return;
-                      }
-      
-                      forgeSlots[currentForgeSelectionTarget] = item;
-                      currentForgeSelectionTarget = null; // Reset state
-                      inventoryModal.classList.remove('visible');
-                      forgeModal.classList.add('visible');
-                      updateForgeUI();
-                  };
-              } else {
-                  // Normal inventory view, add an "Equip" button
-                  const button = document.createElement('button');
-                  const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
-                  if (isEquipped) {
-                      button.textContent = 'Equipped';
-                      button.disabled = true;
-                  } else {
-                      button.textContent = 'Equip';
-                      button.onclick = (e) => {
-                          e.stopPropagation();
-                          equipItem(item);
-                          updateInventoryUI(); // Re-render inventory to show "Equipped"
-                      };
-                  }
-                  itemEl.appendChild(button);
-              }
-              inventoryList.appendChild(itemEl);
-          });
-      }
+        const weaponsContainer = document.getElementById('inventory-weapons');
+        const armorContainer = document.getElementById('inventory-armor');
+        weaponsContainer.innerHTML = '';
+        armorContainer.innerHTML = '';
+    
+        const weapons = gameState.inventory.filter(i => i && i.type === 'weapon').sort((a,b) => b.power - a.power);
+        const armors = gameState.inventory.filter(i => i && i.type === 'armor').sort((a,b) => b.power - a.power);
+
+        const buildItemHtml = (item) => {
+            let statsHtml = '';
+            for (const stat in item.stats) {
+                const value = item.stats[stat];
+                const suffix = (stat === 'critChance' || stat === 'goldFind') ? '%' : '';
+                statsHtml += `<div>+${value}${suffix} ${stat}</div>`;
+            }
+        
+            const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
+            const equipButtonHtml = isEquipped 
+                ? '<button disabled>Equipped</button>' 
+                : `<button onclick="equipItemByName('${item.name}')">Equip</button>`;
+
+            return `
+                <div class="inventory-item">
+                    <div class="inventory-item-info">
+                        <strong style="color:${item.rarity.color}">${item.name}</strong>
+                        <div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount}/3</div>
+                    </div>
+                    ${equipButtonHtml}
+                </div>
+            `;
+        };
+
+        if (weapons.length > 0) {
+            weapons.forEach(item => weaponsContainer.innerHTML += buildItemHtml(item));
+        } else {
+            weaponsContainer.innerHTML = '<p style="text-align:center; opacity: 0.5;">No weapons.</p>';
+        }
+
+        if (armors.length > 0) {
+            armors.forEach(item => armorContainer.innerHTML += buildItemHtml(item));
+        } else {
+            armorContainer.innerHTML = '<p style="text-align:center; opacity: 0.5;">No armor.</p>';
+        }
+    }
+
+    // We need a way to call equipItem from the button's onclick
+    function equipItemByName(itemName) {
+        const itemToEquip = gameState.inventory.find(i => i.name === itemName);
+        if (itemToEquip) {
+            equipItem(itemToEquip);
+            updateInventoryUI(); // Re-render the inventory
+        }
+    }
+    // Make the function globally accessible
+    window.equipItemByName = equipItemByName;
   
       function generateAndShowExpeditions() {
           availableExpeditions = [];
