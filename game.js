@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let availableExpeditions = [];
     let forgeSlots = [null, null];
+    let currentForgeSelectionTarget = null;
     let partnerTimerInterval = null;
     const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
     const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
@@ -748,7 +749,14 @@ document.addEventListener('DOMContentLoaded', () => {
             inventoryList.innerHTML = '<p>Your inventory is empty.</p>';
             return;
         }
-        const sortedInventory = [...gameState.inventory].filter(i => i).sort((a,b) => b.power - a.power);
+    
+        // Reset prompt text to default when not selecting for forge
+        if (currentForgeSelectionTarget === null) {
+             document.querySelector("#inventory-modal .modal-content h2 + p").textContent = "Click an item to equip it.";
+        }
+    
+        const sortedInventory = [...gameState.inventory].filter(i => i).sort((a, b) => b.power - a.power);
+    
         sortedInventory.forEach((item) => {
             const itemEl = document.createElement('div');
             itemEl.className = 'inventory-item';
@@ -761,13 +769,47 @@ document.addEventListener('DOMContentLoaded', () => {
             const infoDiv = document.createElement('div');
             infoDiv.className = 'inventory-item-info';
             infoDiv.innerHTML = `<strong style="color:${item.rarity.color}">${item.name}</strong><div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount}/3</div>`;
-            const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
-            const button = document.createElement('button');
-            if (isEquipped) { button.textContent = 'Equipped'; button.disabled = true; } 
-            else { button.textContent = 'Equip'; button.onclick = (e) => { e.stopPropagation(); equipItem(item); inventoryModal.classList.remove('visible'); }; }
             itemEl.appendChild(infoDiv);
-            itemEl.appendChild(button);
-            itemEl.onclick = () => selectItemForForge(item);
+    
+            // --- NEW LOGIC ---
+            if (currentForgeSelectionTarget !== null) {
+                // We are selecting an item for the forge
+                itemEl.style.cursor = 'pointer'; // Make it clear the item is clickable
+                itemEl.onclick = () => {
+                    const otherSlotIndex = currentForgeSelectionTarget === 0 ? 1 : 0;
+                    const otherItem = forgeSlots[otherSlotIndex];
+                    if (otherItem && otherItem.name === item.name) {
+                        showToast("Item is already in the other slot.");
+                        return;
+                    }
+                    if (otherItem && otherItem.type !== item.type) {
+                        showToast("Items must be the same type (weapon/armor).");
+                        return;
+                    }
+    
+                    forgeSlots[currentForgeSelectionTarget] = item;
+                    currentForgeSelectionTarget = null; // Reset state
+                    inventoryModal.classList.remove('visible');
+                    forgeModal.classList.add('visible');
+                    updateForgeUI();
+                };
+            } else {
+                // Normal inventory view, add an "Equip" button
+                const button = document.createElement('button');
+                const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
+                if (isEquipped) {
+                    button.textContent = 'Equipped';
+                    button.disabled = true;
+                } else {
+                    button.textContent = 'Equip';
+                    button.onclick = (e) => {
+                        e.stopPropagation();
+                        equipItem(item);
+                        updateInventoryUI(); // Re-render inventory to show "Equipped"
+                    };
+                }
+                itemEl.appendChild(button);
+            }
             inventoryList.appendChild(itemEl);
         });
     }
@@ -1032,16 +1074,6 @@ document.addEventListener('DOMContentLoaded', () => {
         characterSprite.style.animation = newAnimation;
     }
     
-    function selectItemForForge(item) {
-        if (forgeSlots[0] && forgeSlots[1]) {
-            showToast("Forge slots are full. Clear one first."); return;
-        }
-        const emptySlot = forgeSlots[0] ? 1 : 0;
-        forgeSlots[emptySlot] = item;
-        inventoryModal.classList.remove('visible');
-        forgeModal.classList.add('visible');
-        updateForgeUI();
-    }
     
     function updateForgeUI() {
         const [item1, item2] = forgeSlots;
@@ -1486,8 +1518,7 @@ document.addEventListener('DOMContentLoaded', () => {
     returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
     saveGameBtn.addEventListener('click', () => saveGame(true));
     quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
-    inventoryBtn.addEventListener('click', () => { updateInventoryUI(); inventoryModal.classList.add('visible'); });
-    closeInventoryBtn.addEventListener('click', () => { inventoryModal.classList.remove('visible'); });
+    inventoryBtn.addEventListener('click', () => { currentForgeSelectionTarget = null; updateInventoryUI(); inventoryModal.classList.add('visible'); });    closeInventoryBtn.addEventListener('click', () => { currentForgeSelectionTarget = null; inventoryModal.classList.remove('visible'); });
     leaderboardBtn.addEventListener('click', () => showLeaderboard('level'));
     leaderboardTabs.forEach(tab => {
         tab.addEventListener('click', () => showLeaderboard(tab.dataset.type));
@@ -1501,10 +1532,25 @@ document.addEventListener('DOMContentLoaded', () => {
     forgeBtn.addEventListener('click', () => { updateForgeUI(); forgeModal.classList.add('visible'); });
     closeForgeBtn.addEventListener('click', () => { forgeSlots = [null, null]; forgeModal.classList.remove('visible'); });
     forgeBtnAction.addEventListener('click', forgeItems);
+    function openInventoryForForgeSelection(slotIndex) {
+        currentForgeSelectionTarget = slotIndex;
+        updateInventoryUI(); // Update inventory to use forge selection logic
+        forgeModal.classList.remove('visible');
+        inventoryModal.classList.add('visible');
+        // Update prompt text in inventory
+        document.querySelector("#inventory-modal .modal-content h2 + p").textContent = `Select an item for Forge Slot ${slotIndex + 1}.`;
+    }
+    
     [forgeSlot1Div, forgeSlot2Div].forEach((slot, index) => {
         slot.addEventListener('click', () => {
-            forgeSlots[index] = null;
-            updateForgeUI();
+            if (forgeSlots[index]) {
+                // If slot is filled, click to clear it
+                forgeSlots[index] = null;
+                updateForgeUI();
+            } else {
+                // If slot is empty, click to open inventory for selection
+                openInventoryForForgeSelection(index);
+            }
         });
     });
     switchCharacterBtn.addEventListener('click', () => showScreen('partner-screen'));
