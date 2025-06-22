@@ -274,6 +274,8 @@ const firebaseConfig = {
   
           if (screenId === 'battle-screen') { playMusic('battle'); } 
           else if (screenId === 'game-screen' || screenId === 'main-menu-screen' || screenId === 'partner-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
+          let virtualPagePath = '/' + screenId.replace('-screen', '');
+          gtag('config', 'G-4686TXHCHN', { 'page_path': virtualPagePath });
       }
       
       // --- FIXED/MERGED ---: Integrated init with Auth logic.
@@ -1726,27 +1728,33 @@ const firebaseConfig = {
           // Apply volume setting immediately
           const currentMusic = musicManager.audio[musicManager.currentTrack];
           if (currentMusic) { currentMusic.volume = gameState.settings.musicVolume; }
-      }
+       }
   
-      // --- EVENT LISTENERS (FIXED/MERGED) ---
-      startGameBtn.addEventListener('click', startGame);
-      loadGameBtn.addEventListener('click', loadGame);
-      characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
-      characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], false); }, {passive: false});
-      partnerSprite.addEventListener('click', (e) => handleTap(e, true)); 
-      partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
-      modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
-      feedBtn.addEventListener('click', feed); 
-      
+       // --- EVENT LISTENERS (Corrected) ---
+       startGameBtn.addEventListener('click', startGame);
+       loadGameBtn.addEventListener('click', loadGame);
+       characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
+       characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], false); }, {passive: false});
+       partnerSprite.addEventListener('click', (e) => handleTap(e, true)); 
+       partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
+       modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
+       feedBtn.addEventListener('click', feed); 
+ 
       battleBtn.addEventListener('click', startBattle);
       attackBtn.addEventListener('click', handlePlayerAttack);
       feedBattleBtn.addEventListener('click', feedInBattle); 
       fleeBtn.addEventListener('click', () => endBattle(false));
-  
+ 
       expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
-      shopBtn.addEventListener('click', () => { updateShopUI(); shopModal.classList.add('visible'); });
+ 
+      shopBtn.addEventListener('click', () => { 
+          updateShopUI(); 
+          shopModal.classList.add('visible'); 
+          gtag('config', 'G-4686TXHCHN', { 'page_path': '/shop' });
+      });
+ 
       expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
-      
+ 
       ingameMenuBtn.addEventListener('click', () => {
           if (gameState.level >= ASCENSION_LEVEL) {
               ascensionBtn.style.display = 'block';
@@ -1754,23 +1762,54 @@ const firebaseConfig = {
               ascensionBtn.style.display = 'none';
           }
           ingameMenuModal.classList.add('visible');
+          gtag('config', 'G-4686TXHCHN', { 'page_path': '/menu' });
       });
-  
+ 
       returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
       saveGameBtn.addEventListener('click', () => saveGame(true));
       quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
-      inventoryBtn.addEventListener('click', () => { currentForgeSelectionTarget = null; updateInventoryUI(); inventoryModal.classList.add('visible'); });    closeInventoryBtn.addEventListener('click', () => { currentForgeSelectionTarget = null; inventoryModal.classList.remove('visible'); });
-      leaderboardBtn.addEventListener('click', () => showLeaderboard('level'));
+ 
+      inventoryBtn.addEventListener('click', () => { 
+          currentForgeSelectionTarget = null; 
+          updateInventoryUI(); 
+          inventoryModal.classList.add('visible'); 
+          gtag('config', 'G-4686TXHCHN', { 'page_path': '/inventory' });
+      });
+      closeInventoryBtn.addEventListener('click', () => { 
+          currentForgeSelectionTarget = null; 
+          inventoryModal.classList.remove('visible'); 
+      });
+  
+      leaderboardBtn.addEventListener('click', () => {
+          showLeaderboard('level');
+          gtag('config', 'G-4686TXHCHN', { 'page_path': '/leaderboard' });
+      });
       leaderboardTabs.forEach(tab => {
           tab.addEventListener('click', () => showLeaderboard(tab.dataset.type));
       });
       closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.classList.remove('visible'); });
-      achievementsBtn.addEventListener('click', () => { updateAchievementsUI(); achievementsModal.classList.add('visible'); });
+  
+      achievementsBtn.addEventListener('click', () => { 
+          updateAchievementsUI(); 
+          achievementsModal.classList.add('visible'); 
+          gtag('config', 'G-4686TXHCHN', { 'page_path': '/achievements' }); 
+      }); 
       closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
-      ascensionBtn.addEventListener('click', () => { updatePerksUI(); ascensionModal.classList.add('visible'); });
+  
+      ascensionBtn.addEventListener('click', () => { 
+          updatePerksUI(); 
+          ascensionModal.classList.add('visible'); 
+          gtag('config', 'G-4686TXHCHN', { 'page_path': '/ascension' });
+      });
       closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
+  
       closeShopBtn.addEventListener('click', () => { shopModal.classList.remove('visible'); });
-      forgeBtn.addEventListener('click', () => { updateForgeUI(); forgeModal.classList.add('visible'); });
+  
+      forgeBtn.addEventListener('click', () => { 
+          updateForgeUI(); 
+          forgeModal.classList.add('visible'); 
+          gtag('config', 'G-4686TXHCHN', { 'page_path': '/forge' });
+      });
       closeForgeBtn.addEventListener('click', () => { forgeSlots = [null, null]; forgeModal.classList.remove('visible'); });
       forgeBtnAction.addEventListener('click', forgeItems);
       function openInventoryForForgeSelection(slotIndex) {
@@ -1798,7 +1837,7 @@ const firebaseConfig = {
       switchToMainBtn.addEventListener('click', () => showScreen('game-screen'));
       
       // Auth and Settings listeners
-      optionsBtn.addEventListener('click', () => { updateSettingsUI(); optionsModal.classList.add('visible'); });
+      optionsBtn.addEventListener('click', () => { updateSettingsUI(); optionsModal.classList.add('visible'); }); gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' });
       closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
       googleSigninBtn.addEventListener('click', () => {
           if(auth.currentUser) { signOut(); }
