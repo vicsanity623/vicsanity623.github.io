@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
         affixes: ['agility', 'critChance', 'goldFind']
     };
     const shopItems = {
-        hpPotion: { name: "Health Potion", desc: "Instantly restores 50% of your Max HP.", cost: 150, type: 'consumable' },
+        storableHealthPotion: { name: "Health Potion", desc: "A storable potion for battle. Restores 50% HP.", cost: 250, type: 'consumable' },
         energyPotion: { name: "Energy Potion", desc: "Instantly restores 50% of your Max Energy.", cost: 100, type: 'consumable' },
         xpBoost: { name: "Scroll of Wisdom", desc: "+50% XP from all sources for 15 minutes.", cost: 500, type: 'buff', duration: 900 }
     };
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const defaultState = {
         version: GAME_VERSION,
-        playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0,
+        playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 3,
         stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
         resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
         equipment: { weapon: null, armor: null }, 
@@ -213,6 +213,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const musicVolumeSlider = document.getElementById('music-volume-slider');
     const sfxVolumeSlider = document.getElementById('sfx-volume-slider');
     const autoBattleCheckbox = document.getElementById('auto-battle-checkbox');
+    const feedBattleBtn = document.getElementById('feed-battle-btn');
+    const potionCountDisplay = document.getElementById('potion-count-display');
 
     // --- FIXED/MERGED ---: Combined music logic with settings from new file.
     function initMusic() { if (musicManager.isInitialized) return; musicManager.isInitialized = true; playMusic('main'); }
@@ -1011,7 +1013,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gameState.gold >= item.cost) {
                 gameState.gold -= item.cost;
                 switch (itemId) {
-                    case 'hpPotion': gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + gameState.resources.maxHp * 0.5); break;
+                    case 'storableHealthPotion': gameState.healthPotions = (gameState.healthPotions || 0) + 1; break;
                     case 'energyPotion': gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + gameState.resources.maxEnergy * 0.5); break;
                     case 'xpBoost': gameState.activeBuffs[itemId] = { expiry: Date.now() + item.duration * 1000 }; break;
                 }
@@ -1253,12 +1255,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         battleWaveDisplay.textContent = `Wave: ${battleState.currentWave} / ${battleState.totalWaves}`;
+        potionCountDisplay.textContent = `Potions: ${(gameState.healthPotions || 0) - battleState.potionsUsedThisBattle}`;
     }
 
     function startBattle() {
         battleState = {
             isActive: true, currentWave: 0, totalWaves: 5, playerHp: gameState.resources.hp,
-            enemy: null, totalXp: 0, totalGold: 0, totalDamage: 0
+            enemy: null, totalXp: 0, totalGold: 0, totalDamage: 0, potionsUsedThisBattle: 0
         };
         battleLog.innerHTML = "";
         addBattleLog("The battle begins!", "log-system");
@@ -1284,7 +1287,7 @@ document.addEventListener('DOMContentLoaded', () => {
         battleState.enemy = enemy;
         updateBattleHud();
         addBattleLog(`A wild ${battleState.enemy.name} appears!`, "log-system");
-        attackBtn.disabled = true; fleeBtn.disabled = true;
+        attackBtn.disabled = true; fleeBtn.disabled = true; feedBattleBtn.disabled = true;
 
         setTimeout(() => {
             if (battleState.enemy.agility > getTotalStat('agility')) {
@@ -1293,14 +1296,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 addBattleLog("You are faster! Your turn.", "log-player");
                 if (gameState.settings && gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); } 
-                else { attackBtn.disabled = false; fleeBtn.disabled = false; }
+                else { attackBtn.disabled = false; fleeBtn.disabled = false; feedBattleBtn.disabled = false; }
             }
         }, 1000);
     }
     
     function handlePlayerAttack() {
         if (!battleState.isActive) return;
-        attackBtn.disabled = true; fleeBtn.disabled = true;
+        attackBtn.disabled = true; fleeBtn.disabled = true; feedBattleBtn.disabled = true;
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
         const baseDamage = Math.max(1, getTotalStat('strength') * 2 - battleState.enemy.fortitude);
         const damage = Math.floor(baseDamage * (isCrit ? 2 : 1));
@@ -1329,7 +1332,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Math.random() < (getTotalStat('agility') / 250)) {
             addBattleLog('You dodged the attack!', 'log-player');
             if (gameState.settings && gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); }
-            else { attackBtn.disabled = false; fleeBtn.disabled = false; }
+            else { attackBtn.disabled = false; fleeBtn.disabled = false; feedBattleBtn.disabled = false; }
             return;
         }
         const damage = Math.max(1, battleState.enemy.strength * 2 - getTotalStat('fortitude'));
@@ -1340,11 +1343,12 @@ document.addEventListener('DOMContentLoaded', () => {
         addBattleLog(`${battleState.enemy.name} attacks for ${damage} damage!`, "log-enemy");
         updateBattleHud();
         if (battleState.playerHp <= 0) { endBattle(false); } 
-        else { if (gameState.settings && gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); } else { attackBtn.disabled = false; fleeBtn.disabled = false; } }
+        else { if (gameState.settings && gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); } else { attackBtn.disabled = false; fleeBtn.disabled = false; feedBattleBtn.disabled = false; } }
     }
 
     async function endBattle(playerWon) {
         battleState.isActive = false;
+        gameState.healthPotions = (gameState.healthPotions || 0) - battleState.potionsUsedThisBattle;
         
         if (battleState.totalDamage > 0) {
             try {
@@ -1383,6 +1387,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         gameState.resources.hp = battleState.playerHp;
         setTimeout(() => { showScreen('game-screen'); showNotification(title, rewardText); saveGame(); updateUI(); }, 2500);
+    }
+
+    function feedInBattle() {
+        if (!battleState.isActive) return;
+    
+        const availablePotions = (gameState.healthPotions || 0) - battleState.potionsUsedThisBattle;
+        if (availablePotions <= 0) {
+            showToast("No potions left!");
+            return;
+        }
+        if (battleState.playerHp >= gameState.resources.maxHp) {
+            showToast("Health is already full!");
+            return;
+        }
+    
+        attackBtn.disabled = true;
+        fleeBtn.disabled = true;
+        feedBattleBtn.disabled = true;
+    
+        battleState.potionsUsedThisBattle++;
+        const healAmount = Math.floor(gameState.resources.maxHp * 0.5);
+        battleState.playerHp = Math.min(gameState.resources.maxHp, battleState.playerHp + healAmount);
+    
+        playSound('feed', 1, 'sine', 200, 600, 0.2);
+        addBattleLog(`You use a potion and heal for ${healAmount} HP!`, 'log-player');
+        updateBattleHud();
+    
+        // The enemy attacks after you heal
+        setTimeout(handleEnemyAttack, 1500);
     }
     
     function passiveResourceRegen() {
@@ -1500,6 +1533,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     battleBtn.addEventListener('click', startBattle);
     attackBtn.addEventListener('click', handlePlayerAttack);
+    feedBattleBtn.addEventListener('click', feedInBattle); 
     fleeBtn.addEventListener('click', () => endBattle(false));
 
     expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
