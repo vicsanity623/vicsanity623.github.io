@@ -567,6 +567,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 #inventory-list .inventory-item { cursor: pointer; }
 .slider-container { display: flex; align-items: center; gap: 10px; }
 input[type="range"] { flex-grow: 1; }
+
 </style>
 </head>
 <body>
@@ -604,6 +605,7 @@ input[type="range"] { flex-grow: 1; }
             <div class="action-button-container"><button id="feed-btn">Feed (50 Gold)</button></div>
             <div class="action-button-container"><button id="battle-btn">Battle</button><span id="battle-unlock-text" class="unlock-text"></span></div>
             <div class="action-button-container"><button id="expedition-btn">Expedition</button></div>
+            <div class="action-button-container"><button id="dojo-btn">Dojo</button></div>
             <div class="action-button-container"><button id="forge-btn">Forge</button><span id="forge-unlock-text" class="unlock-text"></span></div>
             <div class="action-button-container"><button id="shop-btn">Shop</button></div>
             <div class="action-button-container"><button id="inventory-btn">Inventory</button></div>
@@ -636,6 +638,39 @@ input[type="range"] { flex-grow: 1; }
             <button id="feed-battle-btn">Feed (Heal)</button>
             <button id="flee-btn">Flee</button>
             <div id="potion-count-display" style="width: 100%; margin-top: 10px; font-size: 0.9em;"></div>
+        </div>
+    </div>
+    <div id="dojo-screen" class="screen">
+        <h2>Training Dojo</h2>
+        
+        <!-- Displays for scores -->
+        <div class="stats-area">
+            <div id="dojo-personal-best" style="font-size: 1.2em; color: var(--xp-color);">Personal Best: 0</div>
+            <div id="dojo-session-total" style="font-size: 2.2em; font-weight: bold; min-height: 1.2em; margin-top: 10px;"></div>
+        </div>
+
+        <!-- The main area with the training dummy -->
+        <div id="dojo-arena">
+             <img id="dojo-dummy-sprite" class="sprite" src="player.PNG" alt="Training Dummy">
+             <!-- A canvas for the lightning/beam effect -->
+             <canvas id="dojo-lightning-canvas"></canvas>
+             <!-- Damage numbers will be created here by JavaScript -->
+        </div>
+        
+        <!-- Timer bar and instructions -->
+        <div class="stats-area" style="margin-bottom: 10px;">
+            <p id="dojo-instructions" style="margin-bottom: 15px; color: var(--accent-color);">Tap and hold the dummy to test your power!</p>
+            <div id="dojo-timer-bar-container" class="stat-bar-container dojo-timer-bar" style="visibility: hidden;">
+                <div class="stat-bar">
+                    <div class="stat-bar-fill"></div>
+                    <span class="stat-bar-label">7.0s</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exit button -->
+        <div id="action-buttons">
+            <button id="dojo-exit-btn">Exit Dojo</button>
         </div>
     </div>
     
