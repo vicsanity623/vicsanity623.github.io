@@ -694,7 +694,7 @@ const firebaseConfig = {
               playSound('tap', 0.5, 'square', 150, 100, 0.05); const now = Date.now();
               if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
               tapCombo.lastTapTime = now;
-              if (tapCombo.counter > 0 && tapCombo.counter % 5 === 0) { if (Math.random() < 0.60) { activateFrenzy(); } }
+              if (tapCombo.counter > 0 && tapCombo.counter % 5 === 0) { if (Math.random() < 0.50) { activateFrenzy(); } }
               if (Math.random() < 0.1) { triggerScreenShake(150); }
               let xpGain = 0.25 * tapCombo.currentMultiplier;
               if (gameState.level >= 30) { xpGain = 1.0 * tapCombo.currentMultiplier; } else if (gameState.level >= 10) { xpGain = 0.75 * tapCombo.currentMultiplier; }
@@ -897,18 +897,29 @@ const firebaseConfig = {
         const weapons = gameState.inventory.filter(i => i && i.type === 'weapon').sort((a,b) => b.power - a.power);
         const armors = gameState.inventory.filter(i => i && i.type === 'armor').sort((a,b) => b.power - a.power);
 
+        // This helper function now handles both modes
         const buildItemHtml = (item) => {
             let statsHtml = '';
             for (const stat in item.stats) {
                 const value = item.stats[stat];
                 const suffix = (stat === 'critChance' || stat === 'goldFind') ? '%' : '';
-                statsHtml += `<div>+${value}${suffix} ${stat}</div>`;
+                statsHtml += `<div>+${value}${suffix} ${stat.charAt(0).toUpperCase() + stat.slice(1)}</div>`; // Capitalized stat name
             }
         
-            const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
-            const equipButtonHtml = isEquipped 
-                ? '<button disabled>Equipped</button>' 
-                : `<button onclick="equipItemByName('${item.name}')">Equip</button>`;
+            let actionButtonHtml = '';
+
+            // --- NEW LOGIC: Check which mode we're in ---
+            if (currentForgeSelectionTarget !== null) {
+                // --- FORGE SELECTION MODE ---
+                actionButtonHtml = `<button onclick="selectItemForForge('${item.name}')">Select</button>`;
+            } else {
+                // --- NORMAL EQUIP MODE ---
+                const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
+                actionButtonHtml = isEquipped 
+                    ? '<button disabled>Equipped</button>' 
+                    : `<button onclick="equipItemByName('${item.name}')">Equip</button>`;
+            }
+            // --- END OF NEW LOGIC ---
 
             return `
                 <div class="inventory-item">
@@ -916,7 +927,7 @@ const firebaseConfig = {
                         <strong style="color:${item.rarity.color}">${item.name}</strong>
                         <div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount}/3</div>
                     </div>
-                    ${equipButtonHtml}
+                    ${actionButtonHtml}
                 </div>
             `;
         };
@@ -942,8 +953,34 @@ const firebaseConfig = {
             updateInventoryUI(); // Re-render the inventory
         }
     }
+    function selectItemForForge(itemName) {
+        const item = gameState.inventory.find(i => i.name === itemName);
+        if (!item) return;
+
+        // Check if the item is already in the other slot
+        const otherSlotIndex = currentForgeSelectionTarget === 0 ? 1 : 0;
+        const otherItem = forgeSlots[otherSlotIndex];
+        if (otherItem && otherItem.name === item.name) {
+            showToast("Item is already in the other slot.");
+            return;
+        }
+        if (otherItem && otherItem.type !== item.type) {
+            showToast("Items must be the same type (weapon/armor).");
+            return;
+        }
+
+        // Place item in the correct slot
+        forgeSlots[currentForgeSelectionTarget] = item;
+        
+        // Reset the selection state and switch back to the forge modal
+        currentForgeSelectionTarget = null; 
+        inventoryModal.classList.remove('visible');
+        forgeModal.classList.add('visible');
+        updateForgeUI();
+    }
     // Make the function globally accessible
     window.equipItemByName = equipItemByName;
+    window.selectItemForForge = selectItemForForge;
   
       function generateAndShowExpeditions() {
           availableExpeditions = [];
@@ -1837,7 +1874,11 @@ const firebaseConfig = {
       switchToMainBtn.addEventListener('click', () => showScreen('game-screen'));
       
       // Auth and Settings listeners
-      optionsBtn.addEventListener('click', () => { updateSettingsUI(); optionsModal.classList.add('visible'); }); gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' });
+      optionsBtn.addEventListener('click', () => { 
+        updateSettingsUI(); 
+        optionsModal.classList.add('visible'); 
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' });
+      });
       closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
       googleSigninBtn.addEventListener('click', () => {
           if(auth.currentUser) { signOut(); }
