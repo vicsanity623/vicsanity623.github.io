@@ -896,54 +896,73 @@ const firebaseConfig = {
     
         const weapons = gameState.inventory.filter(i => i && i.type === 'weapon').sort((a,b) => b.power - a.power);
         const armors = gameState.inventory.filter(i => i && i.type === 'armor').sort((a,b) => b.power - a.power);
-
+  
         const buildItemHtml = (item) => {
             let statsHtml = '';
             for (const stat in item.stats) {
                 const value = item.stats[stat];
                 const suffix = (stat === 'critChance' || stat === 'goldFind') ? '%' : '';
-                statsHtml += `<div>+${value}${suffix} ${stat}</div>`;
+                statsHtml += `<div>+${value}${suffix} ${stat.charAt(0).toUpperCase() + stat.slice(1)}</div>`;
             }
         
-            const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
-            const equipButtonHtml = isEquipped 
-                ? '<button disabled>Equipped</button>' 
-                : `<button onclick="equipItemByName('${item.name}')">Equip</button>`;
-
+            let actionButtonHtml = '';
+  
+            if (currentForgeSelectionTarget !== null) {
+                actionButtonHtml = `<button onclick="selectItemForForge('${item.name}')">Select</button>`;
+            } else {
+                const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
+                actionButtonHtml = isEquipped 
+                    ? '<button disabled>Equipped</button>' 
+                    : `<button onclick="equipItemByName('${item.name}')">Equip</button>`;
+            }
+  
             return `
                 <div class="inventory-item">
                     <div class="inventory-item-info">
                         <strong style="color:${item.rarity.color}">${item.name}</strong>
                         <div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount}/3</div>
                     </div>
-                    ${equipButtonHtml}
+                    ${actionButtonHtml}
                 </div>
             `;
         };
-
-        if (weapons.length > 0) {
-            weapons.forEach(item => weaponsContainer.innerHTML += buildItemHtml(item));
-        } else {
-            weaponsContainer.innerHTML = '<p style="text-align:center; opacity: 0.5;">No weapons.</p>';
-        }
-
-        if (armors.length > 0) {
-            armors.forEach(item => armorContainer.innerHTML += buildItemHtml(item));
-        } else {
-            armorContainer.innerHTML = '<p style="text-align:center; opacity: 0.5;">No armor.</p>';
-        }
+  
+        weapons.forEach(item => weaponsContainer.innerHTML += buildItemHtml(item));
+        armors.forEach(item => armorContainer.innerHTML += buildItemHtml(item));
     }
-
-    // We need a way to call equipItem from the button's onclick
     function equipItemByName(itemName) {
         const itemToEquip = gameState.inventory.find(i => i.name === itemName);
         if (itemToEquip) {
             equipItem(itemToEquip);
-            updateInventoryUI(); // Re-render the inventory
+            updateInventoryUI(); 
         }
     }
-    // Make the function globally accessible
+
+
+    function selectItemForForge(itemName) {
+        const item = gameState.inventory.find(i => i.name === itemName);
+        if (!item) return;
+
+        const otherSlotIndex = currentForgeSelectionTarget === 0 ? 1 : 0;
+        const otherItem = forgeSlots[otherSlotIndex];
+        if (otherItem && otherItem.name === item.name) {
+            showToast("Item is already in the other slot.");
+            return;
+        }
+        if (otherItem && otherItem.type !== item.type) {
+            showToast("Items must be the same type (weapon/armor).");
+            return;
+        }
+
+        forgeSlots[currentForgeSelectionTarget] = item;
+        currentForgeSelectionTarget = null; 
+        inventoryModal.classList.remove('visible');
+        forgeModal.classList.add('visible');
+        updateForgeUI();
+    }
+
     window.equipItemByName = equipItemByName;
+    window.selectItemForForge = selectItemForForge;
   
       function generateAndShowExpeditions() {
           availableExpeditions = [];
@@ -955,12 +974,7 @@ const firebaseConfig = {
               const modKey = modKeys[Math.floor(Math.random() * modKeys.length)];
               const modifier = expeditionData.modifiers[modKey];
               const duration = (Math.floor(Math.random() * 10) + 20) * 60;
-  
-              // --- BUG FIX ---
-              // The original code here did not provide default values for the modifiers.
-              // If a `modifier` object was missing `xpMod`, for example, its value would be `undefined`.
-              // Firebase cannot save `undefined` values, causing the game to crash when trying to save.
-              // By using `?? 1`, we ensure that any missing modifier defaults to 1 (a 1x multiplier), which is a valid number.
+
               const expedition = {
                   name: `${action} ${location}`,
                   description: modifier.description,
@@ -1837,7 +1851,11 @@ const firebaseConfig = {
       switchToMainBtn.addEventListener('click', () => showScreen('game-screen'));
       
       // Auth and Settings listeners
-      optionsBtn.addEventListener('click', () => { updateSettingsUI(); optionsModal.classList.add('visible'); }); gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' });
+      optionsBtn.addEventListener('click', () => { 
+        updateSettingsUI(); 
+        optionsModal.classList.add('visible'); 
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' }); // <-- Now it's inside
+      });      
       closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
       googleSigninBtn.addEventListener('click', () => {
           if(auth.currentUser) { signOut(); }
