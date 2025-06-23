@@ -13,13 +13,12 @@ const firebaseConfig = {
   const googleProvider = new firebase.auth.GoogleAuthProvider();
   
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = 1.9; // Updated version for new features
+      const GAME_VERSION = 1.9;
       let gameState = {};
       let audioCtx = null;
       let buffInterval = null;
       let lightningInterval = null;
       
-      // Centralized state for the battle system.
       let battleState = {
           isActive: false,
           currentWave: 0,
@@ -39,8 +38,15 @@ const firebaseConfig = {
       const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
       let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
       let expeditionInterval = null;
+      
+      let dojoState = {
+          isActive: false,
+          interval: null,
+          totalDamage: 0,
+          startTime: 0,
+          lightningEl: null
+      };
   
-      // --- FIXED/MERGED ---: Added all missing constant data from the working file.
       const achievements = {
           tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 50 } },
           tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 250 } },
@@ -65,7 +71,6 @@ const firebaseConfig = {
           expeditionSpeed: { name: "Expeditionary Leader", desc: "-5% Expedition Duration per level.", maxLevel: 5, cost: [1, 2, 2, 3, 3] }
       };
       const itemData = {
-        // We keep the old rarities for weights and affix counts
         rarities: { 
             common: { weight: 70, budget: 1, affixes: 1 }, 
             uncommon: { weight: 20, budget: 1.4, affixes: 2 }, 
@@ -73,13 +78,15 @@ const firebaseConfig = {
             epic: { weight: 2.5, budget: 2.5, affixes: 3 }, 
             legendary: { weight: 0.5, budget: 3.5, affixes: 4 } 
         },
-        // NEW: Tier-based color schemes
         rarityTiers: [ 'common', 'uncommon', 'rare', 'epic', 'legendary' ],
-        weaponColors: ['#BDBDBD', '#4CAF50', '#FF9800', '#F44336', '#E91E63'], // Grey, Green, Orange, Red, Pink
-        armorColors: ['#CD7F32', '#2196F3', '#9C27B0', '#FFC107', '#FFFFFF'], // Bronze, Blue, Purple, Gold, White
-        types: { weapon: { base: ['Sword', 'Axe', 'Mace', 'Dagger'], primary: 'strength' }, armor: { base: ['Cuirass', 'Plate', 'Mail', 'Armor'], primary: 'fortitude' } },
+        essenceColors: ['#BDBDBD', '#4CAF50', '#FF9800', '#F44336', '#E91E63'],
+        gemColors: ['#CD7F32', '#2196F3', '#9C27B0', '#FFC107', '#FFFFFF'],
+        types: { 
+            essence: { base: ['Flickering', 'Glowing', 'Pulsing', 'Shining'], primary: 'strength' },
+            gem: { base: ['Shard', 'Stone', 'Crystal', 'Heart'], primary: 'fortitude' }
+        },
         prefixes: { strength: 'Mighty', fortitude: 'Sturdy', agility: 'Swift', critChance: 'Deadly', goldFind: 'Gilded' },
-        suffixes: { strength: 'of the Bear', fortitude: 'of the Tortoise', agility: 'of the Viper', critChance: 'of Piercing', goldFind: 'of Greed' },
+        suffixes: { strength: 'of Power', fortitude: 'of Protection', agility: 'of Haste', critChance: 'of Striking', goldFind: 'of Wealth' },
         affixes: ['agility', 'critChance', 'goldFind']
       };
       const shopItems = {
@@ -112,10 +119,10 @@ const firebaseConfig = {
       const reforgeNameData = {
           prefixes: ["Forged", "Tempered", "Masterwork", "Infused", "Runed", "Shaped"],
           bases: {
-              weapon: ["Smasher", "Edge", "Cleaver", "Point", "Ripper", "Breaker"],
-              armor: ["Bulwark", "Aegis", "Carapace", "Wall", "Guard", "Bastion"]
+              essence: ["Spark", "Core", "Soul", "Focus", "Conduit", "Beacon"],
+              gem: ["Bulwark", "Aegis", "Carapace", "Wall", "Guard", "Bastion"]
           },
-          suffixes: ["of Power", "of Doom", "of Glory", "of the Forge", "of Titans"]
+          suffixes: ["of Annihilation", "of Doom", "of Glory", "of the Creator", "of Titans"]
       };
       const defaultState = {
           version: GAME_VERSION,
@@ -123,13 +130,13 @@ const firebaseConfig = {
           highestBattleLevelCompleted: 0,
           stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
           resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
-          equipment: { weapon: null, armor: null }, 
+          equipment: { essence: null, gem: null }, 
           inventory: [], hasEgg: false, partner: null,
           expedition: { active: false, returnTime: 0 },
           ascension: { tier: 1, points: 0, perks: {} },
           permanentUpgrades: {},
           activeBuffs: {},
-          achievements: JSON.parse(JSON.stringify(achievements)), // Deep copy achievements
+          achievements: JSON.parse(JSON.stringify(achievements)),
           counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
           lastWeeklyRewardClaim: 0,
           settings: { musicVolume: 0.5, sfxVolume: 1.0, isMuted: false, isAutoBattle: false }
@@ -140,7 +147,6 @@ const firebaseConfig = {
       const FORGE_UNLOCK_LEVEL = 15;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
       
-      // --- FIXED/MERGED ---: Added all missing element selectors.
       const screens = document.querySelectorAll('.screen');
       const gameScreen = document.getElementById('game-screen');
       const loadGameBtn = document.getElementById('load-game-btn');
@@ -243,8 +249,14 @@ const firebaseConfig = {
       const autoBattleCheckbox = document.getElementById('auto-battle-checkbox');
       const feedBattleBtn = document.getElementById('feed-battle-btn');
       const potionCountDisplay = document.getElementById('potion-count-display');
+      const dojoBtn = document.getElementById('dojo-btn');
+      const dojoUnlockText = document.getElementById('dojo-unlock-text');
+      const dojoScreen = document.getElementById('dojo-screen');
+      const dojoDummy = document.getElementById('dojo-dummy');
+      const dojoBackBtn = document.getElementById('dojo-back-btn');
+      const dojoResultsDisplay = document.getElementById('dojo-results-display');
+      const dojoArena = document.getElementById('dojo-arena');
   
-      // --- FIXED/MERGED ---: Combined music logic with settings from new file.
       function initMusic() { if (musicManager.isInitialized) return; musicManager.isInitialized = true; playMusic('main'); }
       function playMusic(trackName) {
           if (!musicManager.isInitialized || !musicManager.audio[trackName]) return;
@@ -275,39 +287,33 @@ const firebaseConfig = {
           if (screenId === 'battle-screen') { playMusic('battle'); } 
           else if (screenId === 'game-screen' || screenId === 'main-menu-screen' || screenId === 'partner-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
           let virtualPagePath = '/' + screenId.replace('-screen', '');
-          gtag('config', 'G-4686TXHCHN', { 'page_path': virtualPagePath });
+          gtag('config', 'G-XJRE7YNPZR', { 'page_path': virtualPagePath });
       }
       
-      // --- FIXED/MERGED ---: Integrated init with Auth logic.
       function init() { 
           createWindEffect(); createStarfield(); startBackgroundAssetLoading();
           
           auth.onAuthStateChanged(user => {
               updateAuthUI(user);
               if (user) {
-                  // If user is logged in, try to load their cloud save.
                   loadGame(); 
               } else {
-                  // If not logged in, check for a local save.
                   loadGameBtn.disabled = !localStorage.getItem('tapGuardianSave');
               }
           });
   
           setTimeout(() => { 
-              // After a delay, if still on loading screen (e.g., no auth state change), show main menu.
               const loadingScreen = document.getElementById('loading-screen');
               if (loadingScreen && loadingScreen.classList.contains('active')) {
                   showScreen('main-menu-screen'); 
               }
           }, 1500);
   
-          // Start all game loop intervals
           buffInterval = setInterval(updateBuffs, 1000);
           partnerTimerInterval = setInterval(checkEggHatch, 1000);
           setInterval(passiveResourceRegen, 1000);
       }
       
-      // --- FIXED/MERGED ---: Restored full startGame logic.
       async function startGame() {
           initAudio();
           let playerName = ""; let isNameValid = false;
@@ -331,57 +337,85 @@ const firebaseConfig = {
   
       function rehydrateItemRarity(item) {
         if (!item) return null;
-        // Fix for rarity object structure
         if (typeof item.rarity === 'string') {
             const rarityKey = item.rarity;
             const rarityIndex = itemData.rarityTiers.indexOf(rarityKey);
             if (rarityIndex > -1) {
+                const colorKey = item.type === 'essence' ? 'essenceColors' : 'gemColors';
                 item.rarity = {
                     key: rarityKey,
-                    color: item.type === 'weapon' ? itemData.weaponColors[rarityIndex] : itemData.armorColors[rarityIndex]
+                    color: itemData[colorKey][rarityIndex]
                 };
             }
         }
         return item;
     }
-      async function migrateSaveData(loadedState) {
-          if (!loadedState.version || loadedState.version < GAME_VERSION) {
-              showScreen('update-screen');
-              loadedState.version = GAME_VERSION;
-              if (!loadedState.equipment) loadedState.equipment = { weapon: null, armor: null };
-              if (!loadedState.inventory) { 
-                  loadedState.inventory = [];
-                  if (loadedState.equipment.weapon) loadedState.inventory.push(loadedState.equipment.weapon);
-                  if (loadedState.equipment.armor) loadedState.inventory.push(loadedState.equipment.armor);
-              }
-              loadedState.inventory.forEach(item => { if (item && item.reforgeCount === undefined) item.reforgeCount = 0; });
-              loadedState.permanentUpgrades = loadedState.permanentUpgrades || {};
-              loadedState.activeBuffs = loadedState.activeBuffs || {};
-              loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
-              const defaultCounters = { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 };
-              loadedState.counters = { ...defaultCounters, ...(loadedState.counters || {})};
-              loadedState.hasEgg = loadedState.hasEgg || false;
-              loadedState.partner = loadedState.partner || null;
-              loadedState.lastWeeklyRewardClaim = loadedState.lastWeeklyRewardClaim || 0;
-              const defaultSettings = defaultState.settings;
-              loadedState.settings = { ...defaultSettings, ...(loadedState.settings || {})};
-              loadedState.highestBattleLevelCompleted = loadedState.highestBattleLevelCompleted || 0;
-              if (loadedState.equipment.weapon) {
-                  rehydrateItemRarity(loadedState.equipment.weapon);
-              }
-              if (loadedState.equipment.armor) {
-                  rehydrateItemRarity(loadedState.equipment.armor);
-              }
-              if (loadedState.inventory && Array.isArray(loadedState.inventory)) {
-                  loadedState.inventory = loadedState.inventory.map(item => rehydrateItemRarity(item));
-              }
-              
-              await new Promise(resolve => setTimeout(resolve, 1500));
-          }
-          return loadedState;
-      }
+
+    async function migrateSaveData(loadedState) {
+        if (!loadedState.version || loadedState.version < GAME_VERSION) {
+            showScreen('update-screen');
+            loadedState.version = GAME_VERSION;
+
+            if (!loadedState.equipment) {
+                loadedState.equipment = { essence: null, gem: null };
+            }
+            if (!loadedState.inventory) {
+                loadedState.inventory = [];
+                if (loadedState.equipment.weapon) loadedState.inventory.push(loadedState.equipment.weapon);
+                if (loadedState.equipment.armor) loadedState.inventory.push(loadedState.equipment.armor);
+            }
+
+            if (loadedState.equipment.hasOwnProperty('weapon')) {
+                loadedState.equipment.essence = loadedState.equipment.weapon;
+                delete loadedState.equipment.weapon;
+            }
+            if (loadedState.equipment.hasOwnProperty('armor')) {
+                loadedState.equipment.gem = loadedState.equipment.armor;
+                delete loadedState.equipment.armor;
+            }
+
+            const allItems = [...loadedState.inventory];
+            if (loadedState.equipment.essence) allItems.push(loadedState.equipment.essence);
+            if (loadedState.equipment.gem) allItems.push(loadedState.equipment.gem);
+            
+            const uniqueItems = [...new Set(allItems.filter(item => item))]; 
+
+            uniqueItems.forEach(item => {
+                if (item.type === 'weapon') {
+                    item.type = 'essence';
+                }
+                if (item.type === 'armor') {
+                    item.type = 'gem';
+                }
+                
+                if (!item.id) {
+                    item.id = Date.now() + Math.random();
+                }
+
+                if (item.reforgeCount === undefined) {
+                    item.reforgeCount = 0;
+                }
+
+                rehydrateItemRarity(item);
+            });
+            
+            loadedState.permanentUpgrades = loadedState.permanentUpgrades || {};
+            loadedState.activeBuffs = loadedState.activeBuffs || {};
+            loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
+            const defaultCounters = { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 };
+            loadedState.counters = { ...defaultCounters, ...(loadedState.counters || {})};
+            loadedState.hasEgg = loadedState.hasEgg || false;
+            loadedState.partner = loadedState.partner || null;
+            loadedState.lastWeeklyRewardClaim = loadedState.lastWeeklyRewardClaim || 0;
+            const defaultSettings = defaultState.settings;
+            loadedState.settings = { ...defaultSettings, ...(loadedState.settings || {})};
+            loadedState.highestBattleLevelCompleted = loadedState.highestBattleLevelCompleted || 0;
+            
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+        return loadedState;
+    }
   
-      // --- FIXED/MERGED ---: Robust load game logic with cloud-first approach.
       async function loadGame() {
           initAudio();
           let loadedState = null;
@@ -424,12 +458,9 @@ const firebaseConfig = {
           } else if (auth.currentUser) {
                showToast("No saves found. Starting a new game.");
                startGame();
-          } else {
-               // Do nothing, wait for user to click "Start Game" or "Load Game" (if available)
           }
       }
   
-      // --- FIXED/MERGED ---: Kept the superior save logic from the new file.
       async function saveGame(showToastNotification = false) {
           if (!gameState.playerName || gameState.playerName === "Guardian") return;
           if (auth.currentUser) {
@@ -448,8 +479,6 @@ const firebaseConfig = {
           }
           loadGameBtn.disabled = false;
       }
-  
-      // --- All functions from here are restored from the working file or merged ---
       
       function getXpForNextLevel(level) { return Math.floor(100 * Math.pow(1.5, level - 1)); }
       
@@ -490,7 +519,7 @@ const firebaseConfig = {
           energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
           xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
           xpBarLabel.textContent = `XP: ${Math.floor(gameState.xp)} / ${xpForNext}`;
-                 // --- NEW, FINAL LOGIC: Build the entire stat panel dynamically ---
+          
           const defaultStatColor = 'var(--text-color)';
           const statColors = {};
           const statSourceRarityIndex = {};
@@ -518,10 +547,7 @@ const firebaseConfig = {
           const createStatRow = (label, value, statKey) => {
             const color = statColors[statKey] || defaultStatColor;
             const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
-            
-            // Add our new class ONLY if the statKey is 'gold'
             const extraClass = (statKey === 'gold') ? 'stat-value-gold' : '';
-
             return `
                 <div class="stat-item">
                     <span class="stat-label">${label}</span>
@@ -534,19 +560,41 @@ const firebaseConfig = {
           panelHtml += createStatRow('FOR', getTotalStat('fortitude'), 'fortitude');
           panelHtml += createStatRow('AGI', getTotalStat('agility'), 'agility');
           panelHtml += createStatRow('STA', getTotalStat('stamina'), 'stamina');
-
           panelHtml += '<hr class="stat-divider">';
-
           panelHtml += createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance');
           panelHtml += createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind');
-            
+          panelHtml += '<hr class="stat-divider">';
+          panelHtml += createStatRow('Gold', Math.floor(gameState.gold), 'gold');
           panelHtml += '<hr class="stat-divider">';
 
-          panelHtml += createStatRow('Gold', Math.floor(gameState.gold), 'gold');
+          panelHtml += '<div class="stat-item"><span class="stat-label">Essence</span>';
+          if (gameState.equipment.essence) {
+              const essence = gameState.equipment.essence;
+              panelHtml += `<span class="stat-value" style="color:${essence.rarity.color}; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${essence.name}</span>`;
+          } else {
+              panelHtml += '<span class="stat-value" style="opacity: 0.6;">None</span>';
+          }
+          panelHtml += '</div>';
+
+          panelHtml += '<div class="stat-item"><span class="stat-label">Gem</span>';
+          if (gameState.equipment.gem) {
+              const gem = gameState.equipment.gem;
+              panelHtml += `<span class="stat-value" style="color:${gem.rarity.color}; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${gem.name}</span>`;
+          } else {
+              panelHtml += '<span class="stat-value" style="opacity: 0.6;">None</span>';
+          }
+          panelHtml += '</div>';
+
+          panelHtml += '<hr class="stat-divider">';
+
+          panelHtml += `<div class="stat-item">
+                          <span class="stat-label">Health Potions</span>
+                          <span class="stat-value">🧪 ${(gameState.healthPotions || 0)}</span>
+                        </div>`;
 
           playerStatPanel.innerHTML = panelHtml;
-          // The line that referenced 'goldDisplay' has been removed.
-                    updateBuffDisplay();
+
+          updateBuffDisplay();
           const onExpedition = gameState.expedition.active;
           characterSprite.style.display = onExpedition ? 'none' : 'block';
           expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
@@ -558,12 +606,17 @@ const firebaseConfig = {
           if (canUseBattle) {
               battleBtn.textContent = `Battle (Lvl ${gameState.highestBattleLevelCompleted + 1})`;
           } else {
-              battleBtn.textContent = 'Battle'; // Reset to default if not usable
+              battleBtn.textContent = 'Battle';
           }                
           const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
           forgeBtn.disabled = onExpedition || !canUseForge;
           forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
   
+          const DOJO_UNLOCK_LEVEL = 10;
+          const canUseDojo = gameState.level >= DOJO_UNLOCK_LEVEL;
+          dojoBtn.disabled = onExpedition || !canUseDojo;
+          dojoUnlockText.textContent = canUseDojo ? "" : `Unlocks at LVL ${DOJO_UNLOCK_LEVEL}`;
+
           feedBtn.disabled = onExpedition; 
           inventoryBtn.disabled = onExpedition; 
           shopBtn.disabled = onExpedition;
@@ -622,22 +675,17 @@ const firebaseConfig = {
         if (tapCombo.frenzyTimeout) { clearTimeout(tapCombo.frenzyTimeout); }
         tapCombo.currentMultiplier = (tapCombo.currentMultiplier === 1) ? 5 : tapCombo.currentMultiplier + 5;
     
-        // --- NEW ENHANCED VISUALS ---
-        // 1. Scaled Screen Shake: The shake gets longer and more intense with higher combos.
         const shakeDuration = Math.min(800, 200 + (tapCombo.currentMultiplier * 5));
         triggerScreenShake(shakeDuration);
 
-        // 2. More Particles: Burst more particles as the combo grows.
         createParticles({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
         if (tapCombo.currentMultiplier > 30) {
             createParticles({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
         }
 
-        // 3. Screen Flash for huge combos
         if (tapCombo.currentMultiplier >= 100) {
             triggerScreenFlash();
         }
-        // --- END OF ENHANCED VISUALS ---
 
         updateFrenzyVisuals(); 
         tapCombo.frenzyTimeout = setTimeout(deactivateFrenzy, 7000);
@@ -798,7 +846,6 @@ const firebaseConfig = {
           if (!gameState.playerName || gameState.playerName === "Guardian") return;
           const score = { name: gameState.playerName, level: gameState.level, tier: gameState.ascension.tier, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
           try {
-              // Use player name for public leaderboard, but use UID for personal saves.
               await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true });
           } catch (error) { console.error("Error submitting score: ", error); }
       }
@@ -863,9 +910,9 @@ const firebaseConfig = {
               for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
           }
           const rarity = itemData.rarities[chosenRarityKey];
-          const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor'; // Define the type first
+          const itemTypeKey = Math.random() < 0.5 ? 'essence' : 'gem';
           const rarityIndex = itemData.rarityTiers.indexOf(chosenRarityKey);
-          const itemColor = itemTypeKey === 'weapon' ? itemData.weaponColors[rarityIndex] : itemData.armorColors[rarityIndex]; // Now we can use the type to get the color
+          const itemColor = itemTypeKey === 'essence' ? itemData.essenceColors[rarityIndex] : itemData.gemColors[rarityIndex];
           const itemType = itemData.types[itemTypeKey];
           const baseName = itemType.base[Math.floor(Math.random() * itemType.base.length)]; const primaryStat = itemType.primary;
           const stats = {}; let power = 0; const totalBudget = (gameState.level + (gameState.ascension.tier * 5)) * rarity.budget;
@@ -878,24 +925,26 @@ const firebaseConfig = {
               else { value = Math.ceil(totalBudget * 0.25 * (Math.random() * 0.5 + 0.75)); power += value; }
               stats[affix] = value; if (i === 1) { nameSuffix = itemData.suffixes[affix]; }
           }
-          return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: itemColor }, stats: stats, power: power, reforgeCount: 0 };
+          return { id: Date.now() + Math.random(), type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: itemColor }, stats: stats, power: power, reforgeCount: 0 };
       }
       
       function equipItem(itemToEquip) {
-          const itemIndex = gameState.inventory.findIndex(i => i && i.name === itemToEquip.name);
-          if (itemIndex === -1) return;
+          const itemExists = gameState.inventory.some(i => i && i.id === itemToEquip.id);
+          if (!itemExists) return;
+      
           gameState.equipment[itemToEquip.type] = itemToEquip;
-          updateUI(); saveGame();
+          updateUI();
+          saveGame();
       }
       
       function updateInventoryUI() {
-        const weaponsContainer = document.getElementById('inventory-weapons');
-        const armorContainer = document.getElementById('inventory-armor');
-        weaponsContainer.innerHTML = '';
-        armorContainer.innerHTML = '';
+        const essencesContainer = document.getElementById('inventory-essences');
+        const gemsContainer = document.getElementById('inventory-gems');
+        essencesContainer.innerHTML = '';
+        gemsContainer.innerHTML = '';
     
-        const weapons = gameState.inventory.filter(i => i && i.type === 'weapon').sort((a,b) => b.power - a.power);
-        const armors = gameState.inventory.filter(i => i && i.type === 'armor').sort((a,b) => b.power - a.power);
+        const essences = gameState.inventory.filter(i => i && i.type === 'essence').sort((a,b) => b.power - a.power);
+        const gems = gameState.inventory.filter(i => i && i.type === 'gem').sort((a,b) => b.power - a.power);
   
         const buildItemHtml = (item) => {
             let statsHtml = '';
@@ -906,14 +955,14 @@ const firebaseConfig = {
             }
         
             let actionButtonHtml = '';
-  
+
             if (currentForgeSelectionTarget !== null) {
-                actionButtonHtml = `<button onclick="selectItemForForge('${item.name}')">Select</button>`;
+                actionButtonHtml = `<button onclick="selectItemForForgeById(${item.id})">Select</button>`; 
             } else {
-                const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
+                const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].id === item.id; 
                 actionButtonHtml = isEquipped 
                     ? '<button disabled>Equipped</button>' 
-                    : `<button onclick="equipItemByName('${item.name}')">Equip</button>`;
+                    : `<button onclick="equipItemById(${item.id})">Equip</button>`;
             }
   
             return `
@@ -927,33 +976,33 @@ const firebaseConfig = {
             `;
         };
   
-        weapons.forEach(item => weaponsContainer.innerHTML += buildItemHtml(item));
-        armors.forEach(item => armorContainer.innerHTML += buildItemHtml(item));
+        essences.forEach(item => essencesContainer.innerHTML += buildItemHtml(item));
+        gems.forEach(item => gemsContainer.innerHTML += buildItemHtml(item));
     }
-    function equipItemByName(itemName) {
-        const itemToEquip = gameState.inventory.find(i => i.name === itemName);
+    function equipItemById(itemId) {
+        const itemToEquip = gameState.inventory.find(i => i && i.id === itemId);
         if (itemToEquip) {
             equipItem(itemToEquip);
             updateInventoryUI(); 
         }
     }
 
-
-    function selectItemForForge(itemName) {
-        const item = gameState.inventory.find(i => i.name === itemName);
+    function selectItemForForgeById(itemId) {
+        const item = gameState.inventory.find(i => i && i.id === itemId);
         if (!item) return;
-
+    
         const otherSlotIndex = currentForgeSelectionTarget === 0 ? 1 : 0;
         const otherItem = forgeSlots[otherSlotIndex];
-        if (otherItem && otherItem.name === item.name) {
+
+        if (otherItem && otherItem.id === item.id) { 
             showToast("Item is already in the other slot.");
             return;
         }
         if (otherItem && otherItem.type !== item.type) {
-            showToast("Items must be the same type (weapon/armor).");
+            showToast("Items must be the same type (essence/gem).");
             return;
         }
-
+    
         forgeSlots[currentForgeSelectionTarget] = item;
         currentForgeSelectionTarget = null; 
         inventoryModal.classList.remove('visible');
@@ -961,8 +1010,8 @@ const firebaseConfig = {
         updateForgeUI();
     }
 
-    window.equipItemByName = equipItemByName;
-    window.selectItemForForge = selectItemForForge;
+    window.equipItemById = equipItemById;
+    window.selectItemForForgeById = selectItemForForgeById;
   
       function generateAndShowExpeditions() {
           availableExpeditions = [];
@@ -998,7 +1047,6 @@ const firebaseConfig = {
   
       function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); initMusic(); } }
       
-      // --- FIXED/MERGED ---: Sound function now respects settings.
       function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
           if (!audioCtx || (gameState.settings && gameState.settings.isMuted)) return;
           const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.type = wave;
@@ -1012,32 +1060,28 @@ const firebaseConfig = {
       function triggerScreenFlash() {
         const flashOverlay = document.getElementById('screen-flash-overlay');
         flashOverlay.classList.add('flash');
-        // The animation is short, so we use a timeout to remove the class
         setTimeout(() => {
             flashOverlay.classList.remove('flash');
         }, 300);
       }
       function createXpBubble() {
-        if (document.querySelector('.xp-bubble')) return; // Only one bubble at a time
+        if (document.querySelector('.xp-bubble')) return;
 
         const container = document.getElementById('floating-rewards-container');
         const bubbleEl = document.createElement('div');
         bubbleEl.className = 'xp-bubble';
         bubbleEl.innerHTML = 'XP<span></span><span></span><span></span><span></span><span></span>';
 
-        // Randomize the animation slightly to make it less predictable
         bubbleEl.style.animationDuration = `${12 + Math.random() * 6}s`;
 
         bubbleEl.onclick = () => {
             if (bubbleEl.classList.contains('popped')) return;
 
-            // Grant a large, random amount of XP
-            const reward = Math.floor(getXpForNextLevel(gameState.level) * (Math.random() * 0.15 + 0.05)); // 5% to 20% of next level's XP
+            const reward = Math.floor(getXpForNextLevel(gameState.level) * (Math.random() * 0.15 + 0.05));
             addXP(gameState, reward);
             showToast(`+${reward} XP!`);
-            playSound('feed', 1, 'sine', 400, 800, 0.2); // A nice "collect" sound
+            playSound('feed', 1, 'sine', 400, 800, 0.2);
 
-            // Pop effect and removal
             bubbleEl.classList.add('popped');
             setTimeout(() => {
                 if (bubbleEl) bubbleEl.remove();
@@ -1046,7 +1090,6 @@ const firebaseConfig = {
 
         container.appendChild(bubbleEl);
 
-        // Remove the bubble if it's ignored after its animation finishes
         setTimeout(() => {
             if (bubbleEl && !bubbleEl.classList.contains('popped')) {
                 bubbleEl.remove();
@@ -1058,12 +1101,13 @@ const firebaseConfig = {
       function createDamageNumber(amount, isCrit, isPlayerSource) {
           const num = document.createElement('div'); num.textContent = amount; num.className = 'damage-text';
           if (isPlayerSource) num.classList.add('player-damage'); else num.classList.add('enemy-damage');
-          if (isCrit) num.classList.add('crit'); document.getElementById('battle-arena').appendChild(num);
+          if (isCrit) num.classList.add('crit'); 
+          const targetArena = dojoState.isActive ? dojoArena : document.getElementById('battle-arena');
+          targetArena.appendChild(num);
           setTimeout(() => { num.style.transform = 'translateY(-80px)'; num.style.opacity = '0'; }, 10);
           setTimeout(() => { num.remove(); }, 800);
       }
       
-      // --- FIXED/MERGED ---: Full unlock achievement logic.
       function unlockAchievement(id) {
           if (!gameState.achievements[id] || gameState.achievements[id].unlocked) return;
           gameState.achievements[id].unlocked = true;
@@ -1097,7 +1141,6 @@ const firebaseConfig = {
           updateUI();
       }
       
-      // --- FIXED/MERGED ---: Full achievement check logic.
       function checkAllAchievements() {
           if (!gameState.counters) return;
           const counters = gameState.counters;
@@ -1263,7 +1306,6 @@ const firebaseConfig = {
           characterSprite.style.animation = newAnimation;
       }
       
-      
       function updateForgeUI() {
           const [item1, item2] = forgeSlots;
           const slots = [forgeSlot1Div, forgeSlot2Div];
@@ -1309,26 +1351,27 @@ const firebaseConfig = {
           });
   
           const randomPrefix = reforgeNameData.prefixes[Math.floor(Math.random() * reforgeNameData.prefixes.length)];
-          const randomBaseList = item1.type === 'weapon' ? reforgeNameData.bases.weapon : reforgeNameData.bases.armor;
+          const randomBaseList = item1.type === 'essence' ? reforgeNameData.bases.essence : reforgeNameData.bases.gem;
           const randomBase = randomBaseList[Math.floor(Math.random() * randomBaseList.length)];
           const randomSuffix = reforgeNameData.suffixes[Math.floor(Math.random() * reforgeNameData.suffixes.length)];
           const newName = `${randomPrefix} ${randomBase} ${randomSuffix}`;
           const newPower = Object.values(newStats).reduce((a, b) => a + b, 0);
           const newItem = {
+              id: Date.now() + Math.random(),
               type: item1.type, name: newName,
               rarity: { key: 'epic', color: 'var(--rarity-epic)' },
               stats: newStats, power: newPower,
               reforgeCount: Math.max(item1.reforgeCount, item2.reforgeCount) + 1
           };
   
-          const index1 = gameState.inventory.findIndex(i => i.name === item1.name);
+          const index1 = gameState.inventory.findIndex(i => i && i.id === item1.id);
           if (index1 > -1) gameState.inventory.splice(index1, 1);
-          const index2 = gameState.inventory.findIndex(i => i.name === item2.name);
+          const index2 = gameState.inventory.findIndex(i => i && i.id === item2.id);
           if (index2 > -1) gameState.inventory.splice(index2, 1);
           gameState.inventory.push(newItem);
           
-          if (gameState.equipment[item1.type] && (gameState.equipment[item1.type].name === item1.name || gameState.equipment[item1.type].name === item2.name)) {
-              gameState.equipment[item1.type] = null;
+          if (gameState.equipment[item1.type] && (gameState.equipment[item1.type].id === item1.id || gameState.equipment[item1.type].id === item2.id)) {
+            gameState.equipment[item1.type] = null;
           }
           
           gameState.counters.itemsForged = (gameState.counters.itemsForged || 0) + 1;
@@ -1395,13 +1438,11 @@ const firebaseConfig = {
   
       async function checkWeeklyRewards() {
           try {
-              // FIX #1: Read from the new, public "gameConfig" collection instead of the protected "admin" collection.
               const rewardDocRef = db.collection("gameConfig").doc("weeklyReward");
               const rewardDoc = await rewardDocRef.get();
               const weekInMs = 7 * 24 * 60 * 60 * 1000;
               const now = Date.now();
               
-              // This logic now correctly checks if the document exists AND if the reward period has passed.
               if (rewardDoc.exists && now > rewardDoc.data().nextRewardTime) {
                   const snapshot = await db.collection("damageLeaderboard").orderBy("totalDamage", "desc").limit(1).get();
                   if (!snapshot.empty) {
@@ -1414,16 +1455,112 @@ const firebaseConfig = {
                           showNotification("Weekly Champion!", `For being #1 on the damage leaderboard, you receive a reward: <strong style="color:var(--rarity-legendary)">${rewardItem.name}</strong>!`);
                       }
                   }
-                  
-                  // FIX #2: REMOVED the insecure line that tried to write to the database.
-                  // The client is no longer allowed to (and shouldn't) reset the timer for everyone.
-                  // const nextTime = now + weekInMs;
-                  // await rewardDocRef.set({ nextRewardTime: nextTime });
               }
           } catch(e) { console.error("Could not check weekly rewards:", e); }
       }
-  
-      // --- BATTLE SYSTEM ---
+      
+      function startDojoAttack() {
+        if (dojoState.isActive || gameState.resources.energy < 10) {
+            if (gameState.resources.energy < 10) showToast("Not enough energy to train!");
+            return;
+        }
+    
+        dojoState.isActive = true;
+        dojoState.totalDamage = 0;
+        dojoState.startTime = Date.now();
+        dojoResultsDisplay.textContent = 'Charging...';
+    
+        dojoState.lightningEl = document.createElement('div');
+        dojoState.lightningEl.className = 'dojo-lightning-arc';
+        dojoArena.appendChild(dojoState.lightningEl);
+        
+        dojoDummy.classList.add('hit');
+    
+        dojoState.interval = setInterval(updateDojoAttack, 50);
+    }
+    
+    function updateDojoAttack() {
+        if (!dojoState.isActive) return;
+    
+        const DURATION_MS = 7000;
+        const elapsedTime = Date.now() - dojoState.startTime;
+    
+        if (elapsedTime >= DURATION_MS) {
+            endDojoAttack();
+            return;
+        }
+    
+        const damagePerTick = (getTotalStat('strength') / 10) * (1 + getTotalStat('agility') / 100);
+        const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+        const finalDamage = Math.floor(damagePerTick * (isCrit ? 2 : 1));
+        
+        dojoState.totalDamage += finalDamage;
+        createDamageNumber(finalDamage, isCrit, true);
+    
+        const energyPercent = 1 - (elapsedTime / DURATION_MS);
+        energyBarFill.style.width = `${energyPercent * 100}%`;
+        energyBarLabel.textContent = `Energy: ${Math.floor(energyPercent * gameState.resources.maxEnergy)} / ${gameState.resources.maxEnergy}`;
+        
+        const playerRect = characterSprite.getBoundingClientRect();
+        const dummyRect = dojoDummy.getBoundingClientRect();
+        const arenaRect = dojoArena.getBoundingClientRect();
+    
+        const startX = arenaRect.width / 2;
+        const startY = arenaRect.height + 50; 
+    
+        const endX = (dummyRect.left - arenaRect.left) + (dummyRect.width / 2);
+        const endY = (dummyRect.top - arenaRect.top) + (dummyRect.height / 2);
+    
+        const deltaX = endX - startX;
+        const deltaY = endY - startY;
+        
+        const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+        const distance = Math.hypot(deltaX, deltaY);
+        
+        dojoState.lightningEl.style.width = `${distance}px`;
+        dojoState.lightningEl.style.left = `${startX}px`;
+        dojoState.lightningEl.style.top = `${startY}px`;
+        dojoState.lightningEl.style.transform = `rotate(${angle}deg)`;
+    }
+    
+    function endDojoAttack() {
+        if (!dojoState.isActive) return;
+    
+        clearInterval(dojoState.interval);
+        dojoState.isActive = false;
+    
+        if (dojoState.lightningEl) {
+            dojoState.lightningEl.remove();
+            dojoState.lightningEl = null;
+        }
+        dojoDummy.classList.remove('hit');
+        updateUI();
+    
+        const finalDmg = Math.floor(dojoState.totalDamage);
+        dojoResultsDisplay.innerHTML = `Total Damage: <span style="color: white;">${finalDmg.toLocaleString()}</span>`;
+        showToast(`Dealt ${finalDmg.toLocaleString()} total damage!`);
+    
+        submitDojoScore(finalDmg);
+    }
+    
+    async function submitDojoScore(score) {
+        if (!gameState.playerName || gameState.playerName === "Guardian" || score <= 0) return;
+    
+        try {
+            const damageRef = db.collection("damageLeaderboard").doc(gameState.playerName);
+            const doc = await damageRef.get();
+            
+            let currentBest = 0;
+            if (doc.exists) {
+                currentBest = doc.data().totalDamage || 0;
+            }
+    
+            if (score > currentBest) {
+                await damageRef.set({ name: gameState.playerName, totalDamage: score }, { merge: true });
+                showToast("New High Score on the Damage Leaderboard!");
+            }
+        } catch(e) { console.error("Failed to submit dojo damage score", e); }
+    }
       
       function addBattleLog(message, className) {
           battleLog.innerHTML += `<div class="${className}">${message}</div>`;
@@ -1461,7 +1598,7 @@ const firebaseConfig = {
               totalGold: 0,
               totalDamage: 0,
               potionsUsedThisBattle: 0,
-              targetBattleLevel: targetBattleLevel // We store the level we are fighting
+              targetBattleLevel: targetBattleLevel
           };
           battleLog.innerHTML = "";
           addBattleLog(`Entering Battle Level ${targetBattleLevel}...`, "log-system");
@@ -1472,16 +1609,12 @@ const firebaseConfig = {
       function startNextWave() {
           battleState.currentWave++;
   
-          // --- NEW LOGIC ---
-          // We no longer use the player's level to calculate enemy stats.
-          // Instead, we use the fixed battle level for this entire battle instance.
           const enemyLevel = battleState.targetBattleLevel;
           const tierMultiplier = gameState.ascension.tier;
           const waveMultiplier = 1 + (battleState.currentWave - 1) * 0.2;
           let isBoss = battleState.currentWave === battleState.totalWaves;
           let enemy;
           
-          // The formulas now scale with `enemyLevel`, not the player's level.
           if (isBoss) {
               enemy = {
                   name: `Level ${enemyLevel} Goblin King`,
@@ -1571,19 +1704,11 @@ const firebaseConfig = {
           gameState.healthPotions = (gameState.healthPotions || 0) - battleState.potionsUsedThisBattle;
           
           if (battleState.totalDamage > 0) {
-              try {
-                  const damageRef = db.collection("damageLeaderboard").doc(gameState.playerName);
-                  const doc = await damageRef.get();
-                  if (!doc.exists || doc.data().totalDamage < battleState.totalDamage) {
-                      await damageRef.set({ name: gameState.playerName, totalDamage: battleState.totalDamage });
-                  }
-              } catch(e) { console.error("Failed to submit damage score", e); }
+            submitDojoScore(battleState.totalDamage);
           }
           
           let title = ""; let rewardText = "";
           if (playerWon) {
-              // --- NEW LOGIC ---
-              // On victory, we increase the player's completed battle level.
               gameState.highestBattleLevelCompleted = battleState.targetBattleLevel;
               
               gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
@@ -1637,7 +1762,6 @@ const firebaseConfig = {
           addBattleLog(`You use a potion and heal for ${healAmount} HP!`, 'log-player');
           updateBattleHud();
       
-          // The enemy attacks after you heal
           setTimeout(handleEnemyAttack, 1500);
       }
       
@@ -1677,12 +1801,10 @@ const firebaseConfig = {
           }
       }
   
-      // --- AUTH & SETTINGS ---
       function signInWithGoogle() { 
           auth.signInWithPopup(googleProvider)
               .then(result => {
                   showToast(`Welcome, ${result.user.displayName}!`);
-                  // onAuthStateChanged will handle loading the game
               })
               .catch(error => {
                   console.error("Sign in error", error);
@@ -1692,18 +1814,16 @@ const firebaseConfig = {
       
       function signOut() {
           const localSaveExists = !!localStorage.getItem('tapGuardianSave');
-          const wasLoggedIn = !!auth.currentUser;
           
           auth.signOut().then(() => {
               showToast("Signed Out");
-              // Reset game state to default before deciding what to do next
               gameState = JSON.parse(JSON.stringify(defaultState));
               if (localSaveExists) {
                   if (confirm("You are now signed out. Do you want to load your local save file? (This will not affect your cloud save)")) {
                       loadGame();
                   } else {
                       showScreen('main-menu-screen');
-                      updateUI(); // Update UI to reflect logged-out state
+                      updateUI();
                   }
               } else {
                   showScreen('main-menu-screen');
@@ -1716,7 +1836,7 @@ const firebaseConfig = {
           if (user) {
               authStatus.textContent = `Signed in as ${user.displayName || user.email}`;
               googleSigninBtn.textContent = 'Sign Out';
-              loadGameBtn.disabled = false; // Enable load game button when logged in
+              loadGameBtn.disabled = false;
           } else {
               authStatus.textContent = 'Sign in for Cloud Saves & Leaderboards';
               googleSigninBtn.textContent = 'Sign in with Google';
@@ -1732,19 +1852,16 @@ const firebaseConfig = {
           muteAllCheckbox.checked = gameState.settings.isMuted;
           autoBattleCheckbox.checked = gameState.settings.isAutoBattle;
   
-          // Apply mute setting immediately
           if (gameState.settings.isMuted) {
                for(const key in musicManager.audio) { if(musicManager.audio[key] && !musicManager.audio[key].paused) musicManager.audio[key].pause(); }
           } else {
               if(musicManager.currentTrack) playMusic(musicManager.currentTrack);
           }
   
-          // Apply volume setting immediately
           const currentMusic = musicManager.audio[musicManager.currentTrack];
           if (currentMusic) { currentMusic.volume = gameState.settings.musicVolume; }
        }
   
-       // --- EVENT LISTENERS (Corrected) ---
        startGameBtn.addEventListener('click', startGame);
        loadGameBtn.addEventListener('click', loadGame);
        characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
@@ -1764,7 +1881,7 @@ const firebaseConfig = {
       shopBtn.addEventListener('click', () => { 
           updateShopUI(); 
           shopModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/shop' });
+          gtag('config', 'G-XJRE7YNPZR', { 'page_path': '/shop' });
       });
  
       expeditionCancelBtn.addEventListener('click', () => showScreen('game-screen'));
@@ -1776,7 +1893,7 @@ const firebaseConfig = {
               ascensionBtn.style.display = 'none';
           }
           ingameMenuModal.classList.add('visible');
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/menu' });
+          gtag('config', 'G-XJRE7YNPZR', { 'page_path': '/menu' });
       });
  
       returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
@@ -1787,7 +1904,7 @@ const firebaseConfig = {
           currentForgeSelectionTarget = null; 
           updateInventoryUI(); 
           inventoryModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/inventory' });
+          gtag('config', 'G-XJRE7YNPZR', { 'page_path': '/inventory' });
       });
       closeInventoryBtn.addEventListener('click', () => { 
           currentForgeSelectionTarget = null; 
@@ -1796,7 +1913,7 @@ const firebaseConfig = {
   
       leaderboardBtn.addEventListener('click', () => {
           showLeaderboard('level');
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/leaderboard' });
+          gtag('config', 'G-XJRE7YNPZR', { 'page_path': '/leaderboard' });
       });
       leaderboardTabs.forEach(tab => {
           tab.addEventListener('click', () => showLeaderboard(tab.dataset.type));
@@ -1806,14 +1923,14 @@ const firebaseConfig = {
       achievementsBtn.addEventListener('click', () => { 
           updateAchievementsUI(); 
           achievementsModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/achievements' }); 
+          gtag('config', 'G-XJRE7YNPZR', { 'page_path': '/achievements' }); 
       }); 
       closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
   
       ascensionBtn.addEventListener('click', () => { 
           updatePerksUI(); 
           ascensionModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/ascension' });
+          gtag('config', 'G-XJRE7YNPZR', { 'page_path': '/ascension' });
       });
       closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
   
@@ -1822,27 +1939,24 @@ const firebaseConfig = {
       forgeBtn.addEventListener('click', () => { 
           updateForgeUI(); 
           forgeModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/forge' });
+          gtag('config', 'G-XJRE7YNPZR', { 'page_path': '/forge' });
       });
       closeForgeBtn.addEventListener('click', () => { forgeSlots = [null, null]; forgeModal.classList.remove('visible'); });
       forgeBtnAction.addEventListener('click', forgeItems);
       function openInventoryForForgeSelection(slotIndex) {
           currentForgeSelectionTarget = slotIndex;
-          updateInventoryUI(); // Update inventory to use forge selection logic
+          updateInventoryUI();
           forgeModal.classList.remove('visible');
           inventoryModal.classList.add('visible');
-          // Update prompt text in inventory
           document.querySelector("#inventory-modal .modal-content h2 + p").textContent = `Select an item for Forge Slot ${slotIndex + 1}.`;
       }
       
       [forgeSlot1Div, forgeSlot2Div].forEach((slot, index) => {
           slot.addEventListener('click', () => {
               if (forgeSlots[index]) {
-                  // If slot is filled, click to clear it
                   forgeSlots[index] = null;
                   updateForgeUI();
               } else {
-                  // If slot is empty, click to open inventory for selection
                   openInventoryForForgeSelection(index);
               }
           });
@@ -1850,11 +1964,10 @@ const firebaseConfig = {
       switchCharacterBtn.addEventListener('click', () => showScreen('partner-screen'));
       switchToMainBtn.addEventListener('click', () => showScreen('game-screen'));
       
-      // Auth and Settings listeners
       optionsBtn.addEventListener('click', () => { 
         updateSettingsUI(); 
         optionsModal.classList.add('visible'); 
-        gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' }); // <-- Now it's inside
+        gtag('config', 'G-XJRE7YNPZR', { 'page_path': '/options' });
       });      
       closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
       googleSigninBtn.addEventListener('click', () => {
@@ -1863,11 +1976,11 @@ const firebaseConfig = {
       });
       muteAllCheckbox.addEventListener('change', (e) => {
           gameState.settings.isMuted = e.target.checked;
-          updateSettingsUI(); // Re-apply settings
+          updateSettingsUI();
       });
       musicVolumeSlider.addEventListener('input', (e) => {
           gameState.settings.musicVolume = parseFloat(e.target.value);
-          updateSettingsUI(); // Re-apply settings
+          updateSettingsUI();
       });
       sfxVolumeSlider.addEventListener('input', (e) => { 
           gameState.settings.sfxVolume = parseFloat(e.target.value); 
@@ -1876,6 +1989,24 @@ const firebaseConfig = {
           gameState.settings.isAutoBattle = e.target.checked; 
       });
       
+      dojoBtn.addEventListener('click', () => {
+        dojoResultsDisplay.textContent = '';
+        showScreen('dojo-screen');
+      });
+      dojoBackBtn.addEventListener('click', () => {
+          endDojoAttack();
+          showScreen('game-screen');
+      });
+      
+      dojoDummy.addEventListener('mousedown', startDojoAttack);
+      dojoDummy.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          startDojoAttack();
+      }, { passive: false });
+      
+      window.addEventListener('mouseup', endDojoAttack);
+      window.addEventListener('touchend', endDojoAttack);
+
       const handleVisualTap = (e) => {
           if (gameState.expedition.active || (e.currentTarget.id === 'character-sprite' && gameState.resources.energy <= 0) || (e.currentTarget.id === 'partner-sprite' && gameState.partner && gameState.partner.isHatched && gameState.partner.resources.energy <= 0)) return;
           const targetSprite = e.currentTarget;
@@ -1896,4 +2027,4 @@ const firebaseConfig = {
       partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
       
       init();
-  });
+  }
