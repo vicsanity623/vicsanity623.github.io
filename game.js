@@ -2027,4 +2027,4 @@ const firebaseConfig = {
       partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
       
       init();
-  }
+  });
