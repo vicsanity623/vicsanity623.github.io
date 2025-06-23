@@ -896,43 +896,43 @@ const firebaseConfig = {
     
         const weapons = gameState.inventory.filter(i => i && i.type === 'weapon').sort((a,b) => b.power - a.power);
         const armors = gameState.inventory.filter(i => i && i.type === 'armor').sort((a,b) => b.power - a.power);
-  
+
         const buildItemHtml = (item) => {
             let statsHtml = '';
             for (const stat in item.stats) {
                 const value = item.stats[stat];
                 const suffix = (stat === 'critChance' || stat === 'goldFind') ? '%' : '';
-                statsHtml += `<div>+${value}${suffix} ${stat.charAt(0).toUpperCase() + stat.slice(1)}</div>`;
+                statsHtml += `<div>+${value}${suffix} ${stat}</div>`;
             }
         
-            let actionButtonHtml = '';
-  
-            // This logic correctly checks if we are in forge mode
-            if (currentForgeSelectionTarget !== null) {
-                // In forge selection mode, create a "Select" button
-                actionButtonHtml = `<button onclick="selectItemForForge('${item.name}')">Select</button>`;
-            } else {
-                // In normal inventory mode, create an "Equip" button
-                const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
-                actionButtonHtml = isEquipped 
-                    ? '<button disabled>Equipped</button>' 
-                    : `<button onclick="equipItemByName('${item.name}')">Equip</button>`;
-            }
-  
+            const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
+            const equipButtonHtml = isEquipped 
+                ? '<button disabled>Equipped</button>' 
+                : `<button onclick="equipItemByName('${item.name}')">Equip</button>`;
+
             return `
                 <div class="inventory-item">
                     <div class="inventory-item-info">
                         <strong style="color:${item.rarity.color}">${item.name}</strong>
                         <div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount}/3</div>
                     </div>
-                    ${actionButtonHtml}
+                    ${equipButtonHtml}
                 </div>
             `;
         };
-  
-        weapons.forEach(item => weaponsContainer.innerHTML += buildItemHtml(item));
-        armors.forEach(item => armorContainer.innerHTML += buildItemHtml(item));
-     }
+
+        if (weapons.length > 0) {
+            weapons.forEach(item => weaponsContainer.innerHTML += buildItemHtml(item));
+        } else {
+            weaponsContainer.innerHTML = '<p style="text-align:center; opacity: 0.5;">No weapons.</p>';
+        }
+
+        if (armors.length > 0) {
+            armors.forEach(item => armorContainer.innerHTML += buildItemHtml(item));
+        } else {
+            armorContainer.innerHTML = '<p style="text-align:center; opacity: 0.5;">No armor.</p>';
+        }
+    }
 
     // We need a way to call equipItem from the button's onclick
     function equipItemByName(itemName) {
@@ -942,34 +942,8 @@ const firebaseConfig = {
             updateInventoryUI(); // Re-render the inventory
         }
     }
-
-    // --- THIS IS THE MISSING FUNCTION ---
-    function selectItemForForge(itemName) {
-        const item = gameState.inventory.find(i => i.name === itemName);
-        if (!item) return;
-
-        const otherSlotIndex = currentForgeSelectionTarget === 0 ? 1 : 0;
-        const otherItem = forgeSlots[otherSlotIndex];
-        if (otherItem && otherItem.name === item.name) {
-            showToast("Item is already in the other slot.");
-            return;
-        }
-        if (otherItem && otherItem.type !== item.type) {
-            showToast("Items must be the same type (weapon/armor).");
-            return;
-        }
-
-        forgeSlots[currentForgeSelectionTarget] = item;
-        currentForgeSelectionTarget = null; 
-        inventoryModal.classList.remove('visible');
-        forgeModal.classList.add('visible');
-        updateForgeUI();
-    }
-    // --- END OF MISSING FUNCTION ---
-
-    // Make the functions globally accessible
+    // Make the function globally accessible
     window.equipItemByName = equipItemByName;
-    window.selectItemForForge = selectItemForForge;
   
       function generateAndShowExpeditions() {
           availableExpeditions = [];
