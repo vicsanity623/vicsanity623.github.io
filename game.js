@@ -517,7 +517,7 @@ const firebaseConfig = {
           let panelHtml = '';
           const createStatRow = (label, value, statKey) => {
             const color = statColors[statKey] || defaultStatColor;
-            const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">â­</span>' : '';
+            const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
             
             // Add our new class ONLY if the statKey is 'gold'
             const extraClass = (statKey === 'gold') ? 'stat-value-gold' : '';
