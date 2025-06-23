@@ -1482,6 +1482,7 @@ function startDojoSession() {
     dojoTimerBarContainer.style.visibility = 'visible';
     dojoSessionTotalDisplay.textContent = "0";
     playSound('ascend', 0.5, 'sawtooth', 100, 500, 0.5); // Power-up sound
+    dojoDummySprite.classList.add('zapped');
 
     // Start the visual beam
     startDojoBeam();
@@ -1520,6 +1521,7 @@ async function stopDojoSession() {
     // Stop all intervals and animations
     clearInterval(dojoState.timerId);
     clearInterval(dojoState.damageIntervalId);
+    dojoDummySprite.classList.remove('zapped');
     stopDojoBeam();
 
     dojoState.isActive = false;
@@ -1568,68 +1570,84 @@ function createDojoDamageNumber(amount, isCrit) {
     setTimeout(() => { num.remove(); }, 800);
 }
 
-// --- Beam/Lightning Canvas Animation ---
-function startDojoBeam() {
-    if (dojoState.beamAnimationId) cancelAnimationFrame(dojoState.beamAnimationId);
+        // REPLACE the entire old beam/lightning block with this new one
 
-    function drawBeam() {
-        const canvas = dojoLightningCanvas;
-        const ctx = dojoCanvasCtx;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // --- Beam/Lightning Canvas Animation ---
+        function startDojoBeam() {
+            if (dojoState.beamAnimationId) cancelAnimationFrame(dojoState.beamAnimationId);
 
-        // Start point is bottom center, end point is middle of the dummy sprite
-        const startX = canvas.width / 2;
-        const startY = canvas.height;
-        const endX = canvas.width / 2;
-        const endY = canvas.height / 2 - 50; // Aim slightly above center
+            // This is the main animation loop that redraws the beam every frame
+            function drawBeam() {
+                const canvas = dojoLightningCanvas;
+                const ctx = dojoCanvasCtx;
+                
+                // We need the positions of both the canvas and the dummy
+                const canvasRect = canvas.getBoundingClientRect();
+                const dummyRect = dojoDummySprite.getBoundingClientRect();
 
-        drawLightning(ctx, startX, startY, endX, endY);
-        dojoState.beamAnimationId = requestAnimationFrame(drawBeam);
-    }
-    drawBeam();
-}
+                // Calculate the beam's start and end points relative to the canvas
+                // Start point is bottom center of the screen (or close to it)
+                const startX = canvas.width / 2;
+                const startY = canvas.height;
+                // End point is the absolute center of the dummy sprite
+                const endX = (dummyRect.left + dummyRect.width / 2) - canvasRect.left;
+                const endY = (dummyRect.top + dummyRect.height / 2) - canvasRect.top;
 
-function stopDojoBeam() {
-    if (dojoState.beamAnimationId) {
-        cancelAnimationFrame(dojoState.beamAnimationId);
-        dojoState.beamAnimationId = null;
-    }
-    // Clear the canvas one last time
-    dojoCanvasCtx.clearRect(0, 0, dojoLightningCanvas.width, dojoLightningCanvas.height);
-}
+                // Clear the canvas for the new frame
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    function drawLightning(ctx, x1, y1, x2, y2) {
-        const segments = 20;
-        const dx = (x2 - x1) / segments;
-        const dy = (y2 - y1) / segments;
-        const jaggedness = 20;
+                // --- NEW: Draw the beam in layers for a better effect ---
+                // Layer 1: A wide, faint outer glow
+                drawLightningSegment(ctx, startX, startY, endX, endY, 'rgba(0, 255, 255, 0.2)', 30, 25);
+                // Layer 2: A medium, brighter core
+                drawLightningSegment(ctx, startX, startY, endX, endY, 'rgba(255, 255, 255, 0.5)', 15, 20);
+                // Layer 3: A thin, solid white inner line for crispness
+                drawLightningSegment(ctx, startX, startY, endX, endY, '#FFFFFF', 5, 15);
 
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-
-        for (let i = 1; i < segments; i++) {
-            const midX = x1 + dx * i;
-            const midY = y1 + dy * i;
-            const offsetX = (Math.random() - 0.5) * jaggedness;
-            ctx.lineTo(midX + offsetX, midY);
+                // Request the next frame
+                dojoState.beamAnimationId = requestAnimationFrame(drawBeam);
+            }
+            drawBeam();
         }
-        ctx.lineTo(x2, y2);
 
-        // Main beam
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 5 + Math.random() * 4;
-        ctx.shadowColor = 'cyan';
-        ctx.shadowBlur = 20;
-        ctx.stroke();
-        
-        // Inner core
-        ctx.strokeStyle = 'cyan';
-        ctx.lineWidth = 2 + Math.random() * 2;
-        ctx.shadowBlur = 10;
-        ctx.stroke();
+        function stopDojoBeam() {
+            if (dojoState.beamAnimationId) {
+                cancelAnimationFrame(dojoState.beamAnimationId);
+                dojoState.beamAnimationId = null;
+            }
+            // Clear the canvas one last time
+            dojoCanvasCtx.clearRect(0, 0, dojoLightningCanvas.width, dojoLightningCanvas.height);
+        }
 
-        ctx.shadowBlur = 0; // Reset shadow for other drawings
-    }
+        // This function draws a single, jagged segment of the lightning bolt. We call it multiple times to layer the effect.
+        function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness) {
+            const segments = 20;
+            const dx = (x2 - x1) / segments;
+            const dy = (y2 - y1) / segments;
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+
+            // Create the jagged path
+            for (let i = 1; i < segments; i++) {
+                const midX = x1 + dx * i;
+                const midY = y1 + dy * i;
+                const offsetX = (Math.random() - 0.5) * jaggedness * (1 - (i/segments)); // Jaggedness decreases towards the target
+                const offsetY = (Math.random() - 0.5) * jaggedness * (1 - (i/segments));
+                ctx.lineTo(midX + offsetX, midY + offsetY);
+            }
+            ctx.lineTo(x2, y2);
+
+            // Style and draw the path
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.shadowColor = 'cyan';
+            ctx.shadowBlur = 20;
+            ctx.stroke();
+            
+            // Reset shadow for the next layer
+            ctx.shadowBlur = 0; 
+        }
   
       // --- BATTLE SYSTEM ---
       
