@@ -942,7 +942,32 @@ const firebaseConfig = {
             updateInventoryUI(); // Re-render the inventory
         }
     }
-    // Make the function globally accessible
+
+    // --- THIS IS THE MISSING FUNCTION ---
+    function selectItemForForge(itemName) {
+        const item = gameState.inventory.find(i => i.name === itemName);
+        if (!item) return;
+
+        const otherSlotIndex = currentForgeSelectionTarget === 0 ? 1 : 0;
+        const otherItem = forgeSlots[otherSlotIndex];
+        if (otherItem && otherItem.name === item.name) {
+            showToast("Item is already in the other slot.");
+            return;
+        }
+        if (otherItem && otherItem.type !== item.type) {
+            showToast("Items must be the same type (weapon/armor).");
+            return;
+        }
+
+        forgeSlots[currentForgeSelectionTarget] = item;
+        currentForgeSelectionTarget = null; 
+        inventoryModal.classList.remove('visible');
+        forgeModal.classList.add('visible');
+        updateForgeUI();
+    }
+    // --- END OF MISSING FUNCTION ---
+
+    // Make the functions globally accessible
     window.equipItemByName = equipItemByName;
     window.selectItemForForge = selectItemForForge;
   
