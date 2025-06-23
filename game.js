@@ -1437,8 +1437,9 @@ const firebaseConfig = {
               }
           } catch(e) { console.error("Could not check weekly rewards:", e); }
       }
-      // =======================================================
-// --- DOJO SYSTEM ---
+
+// =======================================================
+// --- DOJO SYSTEM (FINAL, CORRECTED VERSION) ---
 // =======================================================
 
 function enterDojo() {
@@ -1482,7 +1483,7 @@ function startDojoSession() {
     dojoTimerBarContainer.style.visibility = 'visible';
     dojoSessionTotalDisplay.textContent = "0";
     playSound('ascend', 0.5, 'sawtooth', 100, 500, 0.5); // Power-up sound
-    dojoDummySprite.classList.add('zapped');
+    dojoDummySprite.classList.add('zapped'); // Apply zapped effect
 
     // Start the visual beam
     startDojoBeam();
@@ -1503,7 +1504,6 @@ function startDojoSession() {
     // Start the damage dealer (ticks faster than the timer for rapid numbers)
     dojoState.damageIntervalId = setInterval(() => {
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-        // Damage formula: Use STR, but add variance for more dynamic numbers
         const baseDamage = getTotalStat('strength') * (Math.random() * 0.4 + 0.8); // 80% to 120% of STR
         const damage = Math.floor(baseDamage * (isCrit ? 2.5 : 1)); // Crits do 2.5x
         
@@ -1521,8 +1521,8 @@ async function stopDojoSession() {
     // Stop all intervals and animations
     clearInterval(dojoState.timerId);
     clearInterval(dojoState.damageIntervalId);
-    dojoDummySprite.classList.remove('zapped');
     stopDojoBeam();
+    dojoDummySprite.classList.remove('zapped'); // Remove zapped effect
 
     dojoState.isActive = false;
     dojoTimerBarContainer.style.visibility = 'hidden';
@@ -1570,86 +1570,61 @@ function createDojoDamageNumber(amount, isCrit) {
     setTimeout(() => { num.remove(); }, 800);
 }
 
-        // REPLACE the entire old beam/lightning block with this new one
+// --- Beam/Lightning Canvas Animation (UPGRADED) ---
+function startDojoBeam() {
+    if (dojoState.beamAnimationId) cancelAnimationFrame(dojoState.beamAnimationId);
 
-        // --- Beam/Lightning Canvas Animation ---
-        function startDojoBeam() {
-            if (dojoState.beamAnimationId) cancelAnimationFrame(dojoState.beamAnimationId);
+    function drawBeam() {
+        const canvas = dojoLightningCanvas;
+        const ctx = dojoCanvasCtx;
+        const canvasRect = canvas.getBoundingClientRect();
+        const dummyRect = dojoDummySprite.getBoundingClientRect();
+        const startX = canvas.width / 2;
+        const startY = canvas.height;
+        const endX = (dummyRect.left + dummyRect.width / 2) - canvasRect.left;
+        const endY = (dummyRect.top + dummyRect.height / 2) - canvasRect.top;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawLightningSegment(ctx, startX, startY, endX, endY, 'rgba(0, 255, 255, 0.2)', 30, 25);
+        drawLightningSegment(ctx, startX, startY, endX, endY, 'rgba(255, 255, 255, 0.5)', 15, 20);
+        drawLightningSegment(ctx, startX, startY, endX, endY, '#FFFFFF', 5, 15);
+        dojoState.beamAnimationId = requestAnimationFrame(drawBeam);
+    }
+    drawBeam();
+}
 
-            // This is the main animation loop that redraws the beam every frame
-            function drawBeam() {
-                const canvas = dojoLightningCanvas;
-                const ctx = dojoCanvasCtx;
-                
-                // We need the positions of both the canvas and the dummy
-                const canvasRect = canvas.getBoundingClientRect();
-                const dummyRect = dojoDummySprite.getBoundingClientRect();
+function stopDojoBeam() {
+    if (dojoState.beamAnimationId) {
+        cancelAnimationFrame(dojoState.beamAnimationId);
+        dojoState.beamAnimationId = null;
+    }
+    dojoCanvasCtx.clearRect(0, 0, dojoLightningCanvas.width, dojoLightningCanvas.height);
+}
 
-                // Calculate the beam's start and end points relative to the canvas
-                // Start point is bottom center of the screen (or close to it)
-                const startX = canvas.width / 2;
-                const startY = canvas.height;
-                // End point is the absolute center of the dummy sprite
-                const endX = (dummyRect.left + dummyRect.width / 2) - canvasRect.left;
-                const endY = (dummyRect.top + dummyRect.height / 2) - canvasRect.top;
+function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness) {
+    const segments = 20;
+    const dx = (x2 - x1) / segments;
+    const dy = (y2 - y1) / segments;
 
-                // Clear the canvas for the new frame
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
 
-                // --- NEW: Draw the beam in layers for a better effect ---
-                // Layer 1: A wide, faint outer glow
-                drawLightningSegment(ctx, startX, startY, endX, endY, 'rgba(0, 255, 255, 0.2)', 30, 25);
-                // Layer 2: A medium, brighter core
-                drawLightningSegment(ctx, startX, startY, endX, endY, 'rgba(255, 255, 255, 0.5)', 15, 20);
-                // Layer 3: A thin, solid white inner line for crispness
-                drawLightningSegment(ctx, startX, startY, endX, endY, '#FFFFFF', 5, 15);
+    for (let i = 1; i < segments; i++) {
+        const midX = x1 + dx * i;
+        const midY = y1 + dy * i;
+        const offsetX = (Math.random() - 0.5) * jaggedness * (1 - (i/segments));
+        const offsetY = (Math.random() - 0.5) * jaggedness * (1 - (i/segments));
+        ctx.lineTo(midX + offsetX, midY + offsetY);
+    }
+    ctx.lineTo(x2, y2);
 
-                // Request the next frame
-                dojoState.beamAnimationId = requestAnimationFrame(drawBeam);
-            }
-            drawBeam();
-        }
-
-        function stopDojoBeam() {
-            if (dojoState.beamAnimationId) {
-                cancelAnimationFrame(dojoState.beamAnimationId);
-                dojoState.beamAnimationId = null;
-            }
-            // Clear the canvas one last time
-            dojoCanvasCtx.clearRect(0, 0, dojoLightningCanvas.width, dojoLightningCanvas.height);
-        }
-
-        // This function draws a single, jagged segment of the lightning bolt. We call it multiple times to layer the effect.
-        function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness) {
-            const segments = 20;
-            const dx = (x2 - x1) / segments;
-            const dy = (y2 - y1) / segments;
-
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-
-            // Create the jagged path
-            for (let i = 1; i < segments; i++) {
-                const midX = x1 + dx * i;
-                const midY = y1 + dy * i;
-                const offsetX = (Math.random() - 0.5) * jaggedness * (1 - (i/segments)); // Jaggedness decreases towards the target
-                const offsetY = (Math.random() - 0.5) * jaggedness * (1 - (i/segments));
-                ctx.lineTo(midX + offsetX, midY + offsetY);
-            }
-            ctx.lineTo(x2, y2);
-
-            // Style and draw the path
-            ctx.strokeStyle = color;
-            ctx.lineWidth = lineWidth;
-            ctx.shadowColor = 'cyan';
-            ctx.shadowBlur = 20;
-            ctx.stroke();
-            
-            // Reset shadow for the next layer
-            ctx.shadowBlur = 0; 
-        }
-  
-      // --- BATTLE SYSTEM ---
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.shadowColor = 'cyan';
+    ctx.shadowBlur = 20;
+    ctx.stroke();
+    
+    ctx.shadowBlur = 0; 
+}
       
       function addBattleLog(message, className) {
           battleLog.innerHTML += `<div class="${className}">${message}</div>`;
