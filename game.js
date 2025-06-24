@@ -1974,7 +1974,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 speed: 8,
                 width: 80,
                 height: 80,
-                attackRange: 10,
+                attackRange: 70,
                 //attackCooldown: 300, //
                 lastAttackTime: 0,
                 target: null,
