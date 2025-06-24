@@ -11,9 +11,11 @@ const firebaseConfig = {
   const db = firebase.firestore();
   const auth = firebase.auth();
   const googleProvider = new firebase.auth.GoogleAuthProvider();
-  
+
+
   document.addEventListener('DOMContentLoaded', () => {
       const GAME_VERSION = 1.9; // Updated version for new features
+      
       let gameState = {};
       let audioCtx = null;
       let buffInterval = null;
@@ -40,7 +42,28 @@ const firebaseConfig = {
       let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
       let expeditionInterval = null;
       let dojoState = { isActive: false, timerId: null, damageIntervalId: null, beamAnimationId: null, totalSessionDamage: 0 };
-
+      // --- GENESIS ARENA STATE ---
+      let genesisState = {
+        isActive: false,
+        gameLoopId: null,
+        player: null,
+        enemies: [],
+        lootOrbs: [],
+        
+        // Endless Mode state
+        lastEnemySpawn: 0,
+        difficultyLevel: 1,
+        lastDifficultyIncrease: 0,
+        
+        // NEW: Battle Mode state
+        isBattleMode: false,
+        currentWave: 0,
+        totalWaves: 20,
+        enemiesToSpawnThisWave: 0,
+        enemiesSpawnedThisWave: 0,
+        boss: null
+      };
+      
   
       // --- FIXED/MERGED ---: Added all missing constant data from the working file.
       const achievements = {
@@ -139,7 +162,8 @@ const firebaseConfig = {
   
       const ASCENSION_LEVEL = 50;
       const BATTLE_UNLOCK_LEVEL = 20;
-      const FORGE_UNLOCK_LEVEL = 15;
+      const MAX_ENEMIES = 15;
+      const FORGE_UNLOCK_LEVEL = 10;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
       
       // --- FIXED/MERGED ---: Added all missing element selectors.
@@ -159,6 +183,7 @@ const firebaseConfig = {
       const buffDisplay = document.getElementById('buff-display');
       const worldTierDisplay = document.getElementById('world-tier-display');
       const startGameBtn = document.getElementById('start-game-btn');
+      const growBtn = document.getElementById('grow-btn');
       const feedBtn = document.getElementById('feed-btn');
       const battleBtn = document.getElementById('battle-btn');
       const battleUnlockText = document.getElementById('battle-unlock-text');
@@ -257,7 +282,11 @@ const firebaseConfig = {
       const dojoTimerBarLabel = document.querySelector('#dojo-timer-bar-container .stat-bar-label');
       const dojoLightningCanvas = document.getElementById('dojo-lightning-canvas');
       const dojoCanvasCtx = dojoLightningCanvas.getContext('2d');
-  
+      const genesisArena = document.getElementById('genesis-arena');
+      const genesisWaveDisplay = document.getElementById('genesis-wave-display');
+      const bossHealthContainer = document.getElementById('boss-health-container');
+      const bossNameDisplay = document.getElementById('boss-name');
+      const bossHealthFill = document.getElementById('boss-health-fill');
       // --- FIXED/MERGED ---: Combined music logic with settings from new file.
       function initMusic() { if (musicManager.isInitialized) return; musicManager.isInitialized = true; playMusic('main'); }
       function playMusic(trackName) {
@@ -279,21 +308,97 @@ const firebaseConfig = {
           for (const key in musicFileUrls) { if (musicFileUrls[key]) { const audio = new Audio(musicFileUrls[key]); audio.loop = true; audio.preload = 'auto'; musicManager.audio[key] = audio; } }
       }
       function createWindEffect() { for(let i=0; i<20; i++) { const streak = document.createElement('div'); streak.className = 'wind-streak'; streak.style.top = `${Math.random() * 100}%`; streak.style.width = `${Math.random() * 150 + 50}px`; streak.style.animationDuration = `${Math.random() * 3 + 2}s`; streak.style.animationDelay = `${Math.random() * 5}s`; windAnimationContainer.appendChild(streak); } }
-      function createStarfield() { const container = document.getElementById('background-stars'); for(let i=0; i<100; i++) { const star = document.createElement('div'); star.className = 'star'; const size = Math.random() * 2 + 1; star.style.width = `${size}px`; star.style.height = `${size}px`; star.style.top = `${Math.random() * 100}%`; star.style.left = `${Math.random() * 100}%`; star.style.animationDuration = `${Math.random() * 50 + 25}s`; star.style.animationDelay = `${Math.random() * 50}s`; container.appendChild(star); } }
-  
-      function showScreen(screenId) { 
-          screens.forEach(s => s.classList.remove('active')); 
-          const screenToShow = document.getElementById(screenId);
-          if(screenToShow) screenToShow.classList.add('active'); 
-  
-          if (screenId === 'battle-screen') { playMusic('battle'); } 
-          else if (screenId === 'game-screen' || screenId === 'main-menu-screen' || screenId === 'partner-screen') { if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } }
-          let virtualPagePath = '/' + screenId.replace('-screen', '');
-          gtag('config', 'G-4686TXHCHN', { 'page_path': virtualPagePath });
-      }
+      function createStarfield() { 
+        const container = document.getElementById('background-stars'); 
+        for(let i=0; i<100; i++) { 
+            const star = document.createElement('div'); 
+            star.className = 'star'; 
+            const size = Math.random() * 2 + 1; 
+            star.style.width = `${size}px`; 
+            star.style.height = `${size}px`; 
+            star.style.top = `${Math.random() * 100}%`; 
+            star.style.left = `${Math.random() * 100}%`; 
+            star.style.animationDuration = `${Math.random() * 50 + 25}s`; 
+            star.style.animationDelay = `${Math.random() * 50}s`; 
+            container.appendChild(star); 
+        } 
+    } // <--- This brace ENDS the createStarfield function.
+    
+    // The new function starts on a new line, AFTER createStarfield is finished.
+    async function displayTopPlayersOnMenu() {
+        const loadingText = document.getElementById('leaderboard-loading-text');
+        try {
+            const query = db.collection("leaderboard")
+                .orderBy("tier", "desc")
+                .limit(10);
+            
+            const snapshot = await query.get();
+    
+            if (snapshot.empty) {
+                loadingText.textContent = "No Legends Have Risen Yet.";
+                return;
+            }
+    
+            let players = snapshot.docs.map(doc => doc.data());
+    
+            players.sort((a, b) => {
+                if (a.tier > b.tier) return -1;
+                if (a.tier < b.tier) return 1;
+                return b.level - a.level;
+            });
+    
+            const top3Players = players.slice(0, 3);
+    
+            top3Players.forEach((data, index) => {
+                const rank = index + 1;
+                const container = document.getElementById(`top-player-${rank}-container`);
+                const sprite = document.getElementById(`top-player-${rank}-sprite`);
+                const nameEl = document.getElementById(`top-player-${rank}-name`);
+    
+                if (container && sprite && nameEl) {
+                    nameEl.textContent = data.name;
+                    sprite.classList.remove('aura-level-10', 'aura-ascended');
+                    let newAnimation = 'idle-breathe 4s ease-in-out infinite';
+                    if (data.tier >= 3) {
+                        sprite.classList.add('aura-ascended');
+                        newAnimation = 'idle-breathe 2s ease-in-out infinite, super-aura-anim 1s ease-in-out infinite alternate';
+                    } else if (data.level >= 10) {
+                        sprite.classList.add('aura-level-10');
+                        newAnimation = 'idle-breathe 4s ease-in-out infinite, aura-level-10-anim 2s ease-in-out infinite';
+                    }
+                    sprite.style.animation = newAnimation;
+                    container.classList.add('visible');
+                }
+            });
+            
+            loadingText.style.display = 'none';
+    
+        } catch (error) {
+            console.error("Error fetching top players:", error);
+            loadingText.textContent = "Could not load leaderboard.";
+        }
+    } // <--- This brace ENDS the displayTopPlayersOnMenu function.
+    
+    function showScreen(screenId) { 
+        screens.forEach(s => s.classList.remove('active')); 
+        const screenToShow = document.getElementById(screenId);
+        if(screenToShow) screenToShow.classList.add('active'); 
+    
+        if (screenId !== 'game-screen' && genesisState.isActive) {
+            stopGameGenesis();
+        }
+    
+        if (screenId === 'battle-screen') { playMusic('battle'); } 
+        else if (screenId === 'game-screen' || screenId === 'main-menu-screen' || screenId === 'partner-screen') { 
+            if (!gameState.expedition || !gameState.expedition.active) { playMusic('main'); } 
+        }
+        let virtualPagePath = '/' + screenId.replace('-screen', '');
+        gtag('config', 'G-4686TXHCHN', { 'page_path': virtualPagePath });
+    }
       
       // --- FIXED/MERGED ---: Integrated init with Auth logic.
       function init() { 
+          displayTopPlayersOnMenu();
           createWindEffect(); createStarfield(); startBackgroundAssetLoading();
           
           auth.onAuthStateChanged(user => {
@@ -339,6 +444,7 @@ const firebaseConfig = {
           updateUI(); 
           updateAscensionVisuals();
           showScreen('game-screen');
+          startGameGenesis();
           checkWeeklyRewards();
           await saveGame(); 
       }
@@ -434,6 +540,7 @@ const firebaseConfig = {
               updateUI(); 
               updateAscensionVisuals();
               showScreen('game-screen');
+              startGameGenesis(); 
               checkWeeklyRewards();
               await saveGame();
           } else if (auth.currentUser) {
@@ -607,17 +714,44 @@ const firebaseConfig = {
       }
   
       function levelUp(character) {
-          const xpOver = character.xp - getXpForNextLevel(character.level); character.level++; character.xp = xpOver;
-          character.stats.strength += 2; character.stats.agility += 2; character.stats.fortitude += 1; character.stats.stamina += 1;
-          character.resources.maxHp += 10; character.resources.hp = character.resources.maxHp;
-          character.resources.maxEnergy += 5; character.resources.energy = character.resources.maxEnergy;
-          playSound('levelUp', 1, 'triangle', 440, 880); triggerScreenShake(400); 
-          if(!character.isPartner) {
-              checkAllAchievements();
-              submitScoreToLeaderboard();
-              updateAscensionVisuals();
-          }
-          showNotification("LEVEL UP!", `${character.name || 'Partner'} is now Level ${character.level}!`); saveGame();
+        const xpOver = character.xp - getXpForNextLevel(character.level);
+        character.level++;
+        character.xp = xpOver;
+        character.stats.strength += 2;
+        character.stats.agility += 2;
+        character.stats.fortitude += 1;
+        character.stats.stamina += 1;
+        character.resources.maxHp += 10;
+        character.resources.hp = character.resources.maxHp;
+        character.resources.maxEnergy += 5;
+        character.resources.energy = character.resources.maxEnergy;
+        
+        playSound('levelUp', 1, 'triangle', 440, 880);
+        triggerScreenShake(400);
+    
+        if (!character.isPartner) {
+            checkAllAchievements();
+            submitScoreToLeaderboard();
+            updateAscensionVisuals();
+    
+            if (genesisState.isActive && genesisState.player) {
+                const arenaRect = genesisArena.getBoundingClientRect();
+                const screenX = arenaRect.left + genesisState.player.x;
+                const screenY = arenaRect.top + genesisState.player.y;
+                
+                createFloatingText('LEVEL UP!', screenX, screenY - 50, { 
+                    color: 'var(--accent-color)',
+                    fontSize: '2.5em',
+                    duration: 2500
+                });
+            } else {
+                showNotification("LEVEL UP!", `Your guardian is now Level ${character.level}!`);
+            }
+        } else {
+            showNotification("LEVEL UP!", `${character.name || 'Partner'} is now Level ${character.level}!`);
+        }
+        
+        saveGame();
       }
   
       function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
@@ -1068,6 +1202,28 @@ const firebaseConfig = {
             }
         }, parseFloat(bubbleEl.style.animationDuration) * 1000);
       }
+      function createFloatingText(text, x, y, options = {}) {
+        // Set default values for options if they aren't provided
+        const { color = 'white', fontSize = '1.2em', duration = 1500 } = options;
+    
+        const textEl = document.createElement('div');
+        textEl.className = 'floating-text';
+        textEl.textContent = text;
+        
+        // Apply styles
+        textEl.style.left = `${x}px`;
+        textEl.style.top = `${y}px`;
+        textEl.style.color = color;
+        textEl.style.fontSize = fontSize;
+        
+        // Add the element to the page
+        document.body.appendChild(textEl);
+    
+        // Automatically remove the element after its animation is done
+        setTimeout(() => {
+            textEl.remove();
+        }, duration);
+    }
       function showToast(message) { const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; toastContainer.appendChild(toast); setTimeout(() => { toast.remove(); }, 4000); }
       
       function createDamageNumber(amount, isCrit, isPlayerSource) {
@@ -1649,26 +1805,824 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           battleWaveDisplay.textContent = `Wave: ${battleState.currentWave} / ${battleState.totalWaves}`;
           potionCountDisplay.textContent = `Potions: ${(gameState.healthPotions || 0) - battleState.potionsUsedThisBattle}`;
       }
+        // =======================================================
+        // --- GENESIS ARENA SYSTEM (FINAL, ROCK-SOLID FIX) ---
+        // =======================================================
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(value, max));
+        }
+
+        function startGameGenesis() {
+            if (genesisState.isActive) return;
+
+            genesisArena.style.display = 'block';
+            characterArea.style.display = 'none';
+
+            console.log("Starting Genesis Arena...");
+            genesisState.isActive = true;
+
+            const playerEl = document.createElement('img');
+            playerEl.src = 'player.PNG';
+            playerEl.className = 'genesis-player';
+            genesisArena.appendChild(playerEl);
+
+            genesisState.player = {
+                element: playerEl,
+                x: 0, 
+                y: 0,
+                isInitialized: false,
+                speed: 8,
+                width: 80,
+                height: 80,
+                attackRange: 120,
+                attackCooldown: 50,
+                lastAttackTime: 0,
+                target: null,
+                manualDestination: null,
+                isDashing: false,
+                dashTarget: null,
+                dashDuration: 300,
+                dashCooldown: 1500,
+                lastDashTime: 0,
+                thunderStrikeCooldown: 7000,
+                lastThunderStrikeTime: 0,
+                lastDamagedTime: 0,
+            };
+
+            // --- THIS LOGIC IS NEW/MODIFIED ---
+            // It now handles starting positions for both game modes.
+            if (genesisState.isBattleMode) {
+                const arenaRect = genesisArena.getBoundingClientRect();
+                // Player starts on the left for battles
+                genesisState.player.x = 100;
+                genesisState.player.y = arenaRect.height / 2;
+
+                // Define the patrol zone parameters for the player
+                genesisState.player.patrolCenterX = 150; // Center of the patrol zone (X-axis)
+                genesisState.player.patrolCenterY = arenaRect.height / 2;
+                genesisState.player.patrolRadius = 120; // The radius the player can move in
+            }
+            // Endless mode is handled inside the gameLoop's initialization check
+
+            characterArea.style.display = 'none';
+            genesisState.gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        function stopGameGenesis() {
+            if (!genesisState.isActive) return;
+            genesisState.isActive = false;
+            if (genesisState.gameLoopId) {
+                cancelAnimationFrame(genesisState.gameLoopId);
+                genesisState.gameLoopId = null;
+            }
+            genesisArena.innerHTML = '';
+            genesisState.player = null;
+            genesisState.enemies = [];
+            if(genesisState.lootOrbs) genesisState.lootOrbs = [];
+            genesisWaveDisplay.style.display = 'none';
+            bossHealthContainer.style.display = 'none';
+            genesisState.isBattleMode = false;
+            characterArea.style.display = 'flex';
+        }
+
+        function toggleGrowthMode() {
+            // Check if the Genesis Arena is currently active
+            if (genesisState.isActive) {
+                // If it is, stop it and show the static character
+                stopGameGenesis();
+                characterArea.style.display = 'flex'; // Show static tap area
+                genesisArena.style.display = 'none';  // Hide the arena
+                growBtn.textContent = 'Endless'; // Change button text
+            } else {
+                // If it's not active, start it up again
+                genesisArena.style.display = 'block'; // Show the arena
+                characterArea.style.display = 'none'; // Hide static tap area
+                startGameGenesis(); // Start the endless mode
+                growBtn.textContent = 'Grow'; // Change button text back
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!genesisState.isActive || !genesisState.player) return;
+
+            // --- Player Damage Flash Reset ---
+            if (timestamp - genesisState.player.lastDamagedTime > 200) {
+                genesisState.player.element.style.filter = '';
+            }
+
+            // --- ENDLESS MODE: Difficulty Scaling ---
+            if (!genesisState.isBattleMode) {
+                const DIFFICULTY_INTERVAL = 15000;
+                if (timestamp - genesisState.lastDifficultyIncrease > DIFFICULTY_INTERVAL) {
+                    if (genesisState.lastDifficultyIncrease !== 0) {
+                        genesisState.difficultyLevel++;
+                        showToast(`Challenge Level ${genesisState.difficultyLevel}!`);
+                        playSound('levelUp', 0.5, 'sawtooth', 300, 400, 0.2);
+                    }
+                    genesisState.lastDifficultyIncrease = timestamp;
+                }
+            }
+
+            // --- BATTLE MODE: Wave Completion Check ---
+            if (genesisState.isBattleMode && genesisState.enemies.length === 0 && genesisState.enemiesSpawnedThisWave >= genesisState.enemiesToSpawnThisWave) {
+                startNextBattleWave();
+            }
+
+            // --- Core Updates ---
+            updatePlayerTarget();
+            movePlayer();
+            moveEnemies();
+            moveLootOrbs();
+
+            // --- Attacks ---
+            handleGenesisPlayerAttack(timestamp);
+            handleGenesisPlayerDash(timestamp);
+            handleGenesisThunderStrike(timestamp);
+            if(genesisState.isBattleMode) handleEnemyAttacks(timestamp);
+
+            // --- Post-action updates ---
+            handleLootCollection();
+            if(genesisState.boss) updateBossHealthBar();
+            
+            // --- Update Positions ---
+            genesisState.player.element.style.left = `${genesisState.player.x}px`;
+            genesisState.player.element.style.top = `${genesisState.player.y}px`;
+            genesisState.enemies.forEach(enemy => {
+                enemy.element.style.left = `${enemy.x}px`;
+                enemy.element.style.top = `${enemy.y}px`;
+            });
+            genesisState.lootOrbs.forEach(orb => {
+                const orbTranslateX = orb.x - (orb.element.offsetWidth / 2);
+                const orbTranslateY = orb.y - (orb.element.offsetHeight / 2);
+                orb.element.style.transform = `translate(${orbTranslateX}px, ${orbTranslateY}px)`;
+            });
+
+            spawnEnemies(timestamp);
+            
+            // --- Loss Condition ---
+            if (gameState.resources.hp <= 0) {
+                endBattle(false);
+                return; // Stop the loop
+            }
+            
+            genesisState.gameLoopId = requestAnimationFrame(gameLoop);
+        }
+        function spawnEnemies(timestamp) {
+            if (genesisState.isBattleMode) {
+                // --- BATTLE MODE SPAWNING ---
+                const waveSpawnInterval = 100; // Spawn battle enemies quickly
+                if (genesisState.enemiesSpawnedThisWave < genesisState.enemiesToSpawnThisWave && timestamp - genesisState.lastEnemySpawn > waveSpawnInterval) {
+                    genesisState.lastEnemySpawn = timestamp;
+                    genesisState.enemiesSpawnedThisWave++;
+                    
+                    const arenaRect = genesisArena.getBoundingClientRect();
+                    const difficulty = gameState.highestBattleLevelCompleted + 1;
+                    const waveMultiplier = 1 + (genesisState.currentWave / genesisState.totalWaves);
+
+                    const enemy = {
+                        element: document.createElement('img'),
+                        x: arenaRect.width + 50, // Spawn from the right edge
+                        y: Math.random() * arenaRect.height,
+                        speed: (1.5 + Math.random()) * waveMultiplier,
+                        width: 40, height: 40,
+                        maxHp: (40 + (10 * difficulty)) * waveMultiplier,
+                        hp: (40 + (10 * difficulty)) * waveMultiplier,
+                        id: Date.now() + Math.random(),
+                        attackRange: 45,
+                        attackCooldown: 2000,
+                        lastAttackTime: 0
+                    };
+                    
+                    enemy.element.src = 'player.PNG';
+                    enemy.element.className = 'genesis-enemy';
+                    enemy.element.style.filter = `hue-rotate(${Math.random() * 360}deg) saturate(1.5)`;
+                    genesisArena.appendChild(enemy.element);
+                    genesisState.enemies.push(enemy);
+                }
+            } else {
+                // --- ENDLESS MODE SPAWNING (Your existing performance-fixed code) ---
+                if (genesisState.enemies.length >= MAX_ENEMIES) return;
+
+                const baseSpawnInterval = 1500;
+                const minSpawnInterval = 200;
+                const dynamicSpawnInterval = Math.max(minSpawnInterval, baseSpawnInterval / genesisState.difficultyLevel);
+                const arenaRect = genesisArena.getBoundingClientRect();
+
+                if (timestamp - genesisState.lastEnemySpawn > dynamicSpawnInterval && arenaRect.width > 0) {
+                    // ... (The rest of your endless mode spawn logic goes here, it's correct)
+                    genesisState.lastEnemySpawn = timestamp;
+                    const difficulty = genesisState.difficultyLevel;
+                    const enemyHp = Math.floor((10 * gameState.level * gameState.ascension.tier) * (1 + (difficulty - 1) * 0.5));
+                    
+                    const baseSpeed = 1.5 + Math.random();
+                    const speedMultiplier = 1 + (difficulty - 1) * 0.25;
+                    const enemySpeed = baseSpeed * speedMultiplier;
+            
+                    const enemy = {
+                        element: document.createElement('img'),
+                        x: 0, y: 0,
+                        speed: enemySpeed,
+                        width: 40, height: 40,
+                        maxHp: enemyHp,
+                        hp: enemyHp,
+                        id: Date.now() + Math.random(),
+                        attackRange: 45,
+                        attackCooldown: 2000, // Give them an attack cooldown too
+                        lastAttackTime: 0,
+                    };
+                    const side = Math.floor(Math.random() * 4);
+                    const buffer = 50;
+                    if (side === 0) { enemy.x = Math.random() * arenaRect.width; enemy.y = -buffer; } 
+                    else if (side === 1) { enemy.x = arenaRect.width + buffer; enemy.y = Math.random() * arenaRect.height; } 
+                    else if (side === 2) { enemy.x = Math.random() * arenaRect.width; enemy.y = arenaRect.height + buffer; } 
+                    else { enemy.x = -buffer; enemy.y = Math.random() * arenaRect.height; }
+
+                    enemy.element.src = 'player.PNG';
+                    enemy.element.className = 'genesis-enemy';
+                    enemy.element.style.filter = `hue-rotate(${Math.random() * 360}deg) saturate(1.5)`;
+                    genesisArena.appendChild(enemy.element);
+                    genesisState.enemies.push(enemy);
+                }
+            }
+        }
+
+        function moveEnemies() {
+            if (!genesisState.player) return;
+            genesisState.enemies.forEach(enemy => {
+                const dx = genesisState.player.x - enemy.x;
+                const dy = genesisState.player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance > enemy.attackRange) {
+                    enemy.x += (dx / distance) * enemy.speed;
+                    enemy.y += (dy / distance) * enemy.speed;
+                }
+            });
+        }
+        function handleEnemyAttacks(timestamp) {
+            const player = genesisState.player;
+            if (!player || player.isDashing) return; // Enemies can't hit a dashing player
+
+            genesisState.enemies.forEach(enemy => {
+                // Check if the player is in range AND the enemy's attack is off cooldown
+                if (timestamp - enemy.lastAttackTime > enemy.attackCooldown) {
+                    const dx = player.x - enemy.x;
+                    const dy = player.y - enemy.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance <= enemy.attackRange) {
+                        enemy.lastAttackTime = timestamp;
+                        const damage = Math.max(1, (enemy.isBoss ? 20 : 5) * (gameState.highestBattleLevelCompleted + 1) - getTotalStat('fortitude'));
+                        
+                        gameState.resources.hp -= damage;
+                        
+                        // Visual feedback for getting hit
+                        player.lastDamagedTime = timestamp;
+                        player.element.style.filter = 'brightness(3) drop-shadow(0 0 5px red)';
+                        
+                        createImpactEffect(player.x, player.y);
+                        updateUI();
+                    }
+                }
+            });
+        }
+
+        function updatePlayerTarget() {
+            const player = genesisState.player;
+            if (!player) return;
+
+            let closestEnemy = null;
+            let minDistance = Infinity;
+
+            genesisState.enemies.forEach(enemy => {
+                const dx = player.x - enemy.x;
+                const dy = player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestEnemy = enemy;
+                }
+            });
+            player.target = closestEnemy;
+        }
+
+        function movePlayer() {
+            const player = genesisState.player;
+            if (!player) return;
+        
+            let targetX = null;
+            let targetY = null;
+            let currentSpeed = player.speed;
+
+            // --- NEW: Check if we are in Battle Mode and NOT dashing ---
+            if (genesisState.isBattleMode && !player.isDashing && player.target) {
+                // --- BATTLE MODE PATROL LOGIC ---
+                let enemyTargetX = player.target.x;
+                let enemyTargetY = player.target.y;
+
+                // Calculate the vector from the patrol center to the enemy
+                const vectorX = enemyTargetX - player.patrolCenterX;
+                const vectorY = enemyTargetY - player.patrolCenterY;
+                const distance = Math.sqrt(vectorX * vectorX + vectorY * vectorY);
+
+                // If the enemy is OUTSIDE the patrol radius...
+                if (distance > player.patrolRadius) {
+                    // ...clamp the player's destination to the EDGE of the patrol circle.
+                    const normalizedX = vectorX / distance;
+                    const normalizedY = vectorY / distance;
+                    targetX = player.patrolCenterX + normalizedX * player.patrolRadius;
+                    targetY = player.patrolCenterY + normalizedY * player.patrolRadius;
+                } else {
+                    // ...otherwise, the player is free to move to the enemy's exact position.
+                    targetX = enemyTargetX;
+                    targetY = enemyTargetY;
+                }
+
+            } else {
+                // --- ENDLESS MODE & DASH LOGIC (Your existing code) ---
+                if (player.isDashing && player.dashTarget) {
+                    targetX = player.dashTarget.x;
+                    targetY = player.dashTarget.y;
+                    currentSpeed = player.speed * 5;
+                    createDashTrailEffect(player);
+                } else if (player.manualDestination) {
+                    targetX = player.manualDestination.x;
+                    targetY = player.manualDestination.y;
+                    const dx = targetX - player.x;
+                    const dy = targetY - player.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < 10) {
+                        player.manualDestination = null;
+                    }
+                } else if (player.target) {
+                    const dx = player.target.x - player.x;
+                    const dy = player.target.y - player.y;
+                    const distanceToTarget = Math.sqrt(dx * dx + dy * dy);
+                    if (distanceToTarget > player.attackRange * 0.8) {
+                        targetX = player.target.x;
+                        targetY = player.target.y;
+                    }
+                }
+            }
+        
+            // Common movement physics (this part doesn't need to change)
+            if (targetX !== null && targetY !== null) {
+                const moveDx = targetX - player.x;
+                const moveDy = targetY - player.y;
+                const moveDistance = Math.sqrt(moveDx * moveDx + moveDy * moveDy);
+                
+                if (moveDistance > 0) {
+                    player.x += (moveDx / moveDistance) * currentSpeed;
+                    player.y += (moveDy / moveDistance) * currentSpeed;
+                }
+            }
+        
+            // Clamp player position to stay within the arena bounds
+            const arenaRect = genesisArena.getBoundingClientRect();
+            player.x = clamp(player.x, player.width / 2, arenaRect.width - player.width / 2);
+            player.y = clamp(player.y, player.height / 2, arenaRect.height - player.height / 2);
+        }
+        function handleGenesisPlayerDash(timestamp) {
+            const player = genesisState.player;
+            // Can't dash if already dashing, no enemies exist, or the skill is on cooldown.
+            if (!player || player.isDashing || genesisState.enemies.length === 0) return;
+            if (timestamp - player.lastDashTime < player.dashCooldown) return;
+        
+            // --- Smart Targeting: Find the most populated area of enemies to dash to! ---
+            let bestTarget = { x: 0, y: 0, count: 0 };
+            const clusterRadius = 150;
+
+            genesisState.enemies.forEach(potentialTarget => {
+                let nearbyCount = 0;
+                genesisState.enemies.forEach(otherEnemy => {
+                    const dx = potentialTarget.x - otherEnemy.x;
+                    const dy = potentialTarget.y - otherEnemy.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < clusterRadius) {
+                        nearbyCount++;
+                    }
+                });
+                if (nearbyCount > bestTarget.count) {
+                    bestTarget = { x: potentialTarget.x, y: potentialTarget.y, count: nearbyCount };
+                }
+            });
+
+            // If no suitable cluster found, just target the closest enemy
+            if (bestTarget.count === 0) {
+                bestTarget = { x: player.target.x, y: player.target.y, count: 1 };
+            }
+        
+            // --- Start the Dash ---
+            player.isDashing = true;
+            player.lastDashTime = timestamp;
+            player.dashTarget = { x: bestTarget.x, y: bestTarget.y };
+            playSound('hit', 1, 'sawtooth', 800, 200, 0.2); // A "whoosh" sound
+        
+            // Set a timeout to end the dash and trigger the explosion
+            setTimeout(() => {
+                if (!genesisState.player) return; // Safety check if game ended mid-dash
+        
+                player.isDashing = false;
+                const explosionX = player.x;
+                const explosionY = player.y;
+        
+                createDashExplosionEffect(explosionX, explosionY);
+                playSound('crit', 1, 'square', 400, 50, 0.4); // A big "boom" sound
+                triggerScreenShake(300);
+        
+                // Deal massive AoE damage at the point of impact
+                const explosionRadius = 150;
+                const dashDamage = getTotalStat('strength') * 5; // Dash does 5x STR damage!
+                let enemiesWereDefeated = false;
+        
+                genesisState.enemies.forEach(enemy => {
+                    const dx = explosionX - enemy.x;
+                    const dy = explosionY - enemy.y;
+                    if (Math.sqrt(dx * dx + dy * dy) <= explosionRadius) {
+                        const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+                        const finalDamage = Math.floor(dashDamage * (isCrit ? 2 : 1));
+                        enemy.hp -= finalDamage;
+                        createImpactEffect(enemy.x, enemy.y);
+        
+                        if (enemy.hp <= 0) {
+                            enemiesWereDefeated = true;
+                            addXP(gameState, 5 * gameState.level);
+                            createLootOrb(enemy.x, enemy.y);
+                        }
+                    }
+                });
+                
+                // Clean up defeated enemies
+                if (enemiesWereDefeated) {
+                    genesisState.enemies.forEach(enemy => { if (enemy.hp <= 0) enemy.element.remove(); });
+                    genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
+                }
+        
+            }, player.dashDuration);
+        }
+        function createChainLightningEffect(targets) {
+            const canvas = document.createElement('canvas');
+            canvas.className = 'genesis-chain-lightning';
+            const arenaRect = genesisArena.getBoundingClientRect();
+            canvas.width = arenaRect.width;
+            canvas.height = arenaRect.height;
+            genesisArena.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+
+            for (let i = 0; i < targets.length - 1; i++) {
+                const start = targets[i];
+                const end = targets[i+1];
+                // Reuse the lightning drawing logic from the Dojo
+                drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(0, 255, 255, 0.2)', 20, 15);
+                drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(255, 255, 255, 0.5)', 10, 12);
+                drawLightningSegment(ctx, start.x, start.y, end.x, end.y, '#FFFFFF', 4, 10);
+            }
+
+            // Clean up the canvas element after the animation
+            setTimeout(() => canvas.remove(), 400);
+        }
+
+        // --- ADD THIS NEW FUNCTION (Part 2 of 2) ---
+        function handleGenesisThunderStrike(timestamp) {
+            const player = genesisState.player;
+            if (!player || genesisState.enemies.length === 0) return;
+            if (timestamp - player.lastThunderStrikeTime < player.thunderStrikeCooldown) return;
+
+            // --- Find Targets for the Chain Lightning ---
+            let potentialTargets = [...genesisState.enemies];
+            let chainTargets = [player]; // The player is always the start of the chain
+            const maxChain = 50; // Player + 49 enemies = 50 total targets
+
+            for (let i = 0; i < maxChain && potentialTargets.length > 0; i++) {
+                const lastTarget = chainTargets[chainTargets.length - 1];
+                let closestEnemy = null;
+                let minDistance = Infinity;
+
+                // Find the enemy closest to the LAST target in our chain
+                potentialTargets.forEach(enemy => {
+                    const dx = lastTarget.x - enemy.x;
+                    const dy = lastTarget.y - enemy.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestEnemy = enemy;
+                    }
+                });
+
+                if (closestEnemy) {
+                    chainTargets.push(closestEnemy);
+                    // Remove the chosen enemy from the potential pool so it can't be picked again
+                    potentialTargets = potentialTargets.filter(e => e.id !== closestEnemy.id);
+                }
+            }
+
+            // Only fire if we found at least one enemy to chain to
+            if (chainTargets.length > 1) {
+                player.lastThunderStrikeTime = timestamp;
+                playSound('ascend', 0.8, 'sawtooth', 100, 800, 0.3); // A powerful charging sound
+                triggerScreenShake(200);
+
+                // Create the visual effect using the chain we just built
+                createChainLightningEffect(chainTargets);
+
+                // --- Deal Massive Damage to Chained Enemies ---
+                const thunderDamage = getTotalStat('strength') * 20; // Thunder Strike does 10x STR damage!
+                let enemiesWereDefeated = false;
+
+                // We damage every target in the chain except the player (who is at index 0)
+                for (let i = 1; i < chainTargets.length; i++) {
+                    const enemy = chainTargets[i];
+                    const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+                    const finalDamage = Math.floor(thunderDamage * (isCrit ? 2 : 1));
+                    enemy.hp -= finalDamage;
+
+                    createImpactEffect(enemy.x, enemy.y);
+                    createFloatingText(finalDamage, enemy.x, enemy.y, { color: 'cyan', fontSize: '1.8em' });
+
+                    if (enemy.hp <= 0) {
+                        enemiesWereDefeated = true;
+                        addXP(gameState, 5 * gameState.level);
+                        createLootOrb(enemy.x, enemy.y);
+                    }
+                }
+                
+                // Clean up any defeated enemies
+                if (enemiesWereDefeated) {
+                    genesisState.enemies.forEach(enemy => { if (enemy.hp <= 0) enemy.element.remove(); });
+                    genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
+                }
+            }
+        }
+
+        function handleGenesisPlayerAttack(timestamp) {
+            const player = genesisState.player;
+            if (!player) return;
+
+            if (timestamp - player.lastAttackTime < player.attackCooldown) return;
+
+            const isEnemyInRange = genesisState.enemies.some(enemy => {
+                const dx = player.x - enemy.x;
+                const dy = player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance <= player.attackRange;
+            });
+        
+            if (!isEnemyInRange) {
+                return;
+            }
+        
+            player.lastAttackTime = timestamp;
+        
+
+            createAoeSlashEffect(player.x, player.y, player.attackRange);
+            
+            let enemiesWereDefeated = false;
+        
+            genesisState.enemies.forEach(enemy => {
+                const dx = player.x - enemy.x;
+                const dy = player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+        
+                if (distance <= player.attackRange) {
+                    const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+                    const damage = Math.floor(getTotalStat('strength') * (isCrit ? 2 : 1));
+                    enemy.hp -= damage;
+        
+                    createImpactEffect(enemy.x, enemy.y);
+        
+                    if (enemy.hp <= 0) {
+                        enemiesWereDefeated = true;
+                        addXP(gameState, 5 * gameState.level);
+                        createLootOrb(enemy.x, enemy.y);
+                    }
+                }
+            });
+            if (enemiesWereDefeated) {
+                genesisState.enemies.forEach(enemy => {
+                    if (enemy.hp <= 0) {
+                        enemy.element.remove();
+                    }
+                });
+                genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
+            }
+        }
+
+        function createSlashEffect(source, target) {
+            const slashEl = document.createElement('div');
+            slashEl.className = 'genesis-slash';
+            genesisArena.appendChild(slashEl);
+        
+            const midX = (source.x + target.x) / 2;
+            const midY = (source.y + target.y) / 2;
+            const angle = Math.atan2(target.y - source.y, target.x - source.x) * (180 / Math.PI);
+        
+            slashEl.style.left = `${midX}px`;
+            slashEl.style.top = `${midY}px`;
+            slashEl.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+            setTimeout(() => slashEl.remove(), 200);
+        }
+        function createAoeSlashEffect(x, y, range) {
+            const pulseEl = document.createElement('div');
+            pulseEl.className = 'genesis-aoe-pulse';
+            
+            // The pulse diameter should match the attack range
+            pulseEl.style.width = `${range * 2}px`;
+            pulseEl.style.height = `${range * 2}px`;
+        
+            pulseEl.style.left = `${x}px`;
+            pulseEl.style.top = `${y}px`;
+            genesisArena.appendChild(pulseEl);
+            setTimeout(() => pulseEl.remove(), 300);
+        }
+
+        function createImpactEffect(x, y) {
+            const impactEl = document.createElement('div');
+            impactEl.className = 'genesis-impact';
+            genesisArena.appendChild(impactEl);
+            
+            impactEl.style.left = `${x}px`;
+            impactEl.style.top = `${y}px`;
+            impactEl.style.transform = `translate(-50%, -50%)`;
+            setTimeout(() => impactEl.remove(), 300);
+        }
+        function createDashTrailEffect(player) {
+            if (!player || !player.element) return;
+            // Clone the player's sprite to create a "ghost" image
+            const trailEl = player.element.cloneNode(); 
+            trailEl.className = 'genesis-player genesis-dash-ghost'; // Add our new class
+            
+            trailEl.style.position = 'absolute';
+            trailEl.style.left = `${player.x}px`;
+            trailEl.style.top = `${player.y}px`;
+        
+            genesisArena.appendChild(trailEl);
+        
+            // This starts the fade-out defined in the CSS
+            requestAnimationFrame(() => {
+                trailEl.style.opacity = '0';
+            });
+            
+            // Clean up the element after the fade is complete
+            setTimeout(() => trailEl.remove(), 400);
+        }
+
+        function createDashExplosionEffect(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'genesis-dash-explosion';
+            const explosionRadius = 150; // The visual and damage radius of the explosion
+            explosion.style.width = `${explosionRadius * 2}px`;
+            explosion.style.height = `${explosionRadius * 2}px`;
+            explosion.style.left = `${x}px`;
+            explosion.style.top = `${y}px`;
+            genesisArena.appendChild(explosion);
+            setTimeout(() => explosion.remove(), 500);
+        }
+
+        function createLootOrb(x, y) {
+            const orb = {
+                element: document.createElement('div'),
+                x: x, y: y, type: 'gold',
+                amount: Math.floor(5 + (Math.random() * 5 * gameState.level)),
+                collectionRadius: 90,
+                magnetRadius: 1650,
+                magnetSpeed: 6
+            };
+            orb.element.className = 'genesis-loot-orb';
+            genesisArena.appendChild(orb.element);
+            
+            if (!genesisState.lootOrbs) genesisState.lootOrbs = [];
+            genesisState.lootOrbs.push(orb);
+        }
+        function moveLootOrbs() {
+            const player = genesisState.player;
+            if (!player || !genesisState.lootOrbs) return;
+        
+            genesisState.lootOrbs.forEach(orb => {
+                const dx = player.x - orb.x;
+                const dy = player.y - orb.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+        
+                // If the player is within the magnet radius, pull the orb
+                if (distance < orb.magnetRadius && distance > 1) { 
+                    orb.x += (dx / distance) * orb.magnetSpeed;
+                    orb.y += (dy / distance) * orb.magnetSpeed;
+                }
+            });
+        }
+
+        function handleLootCollection() {
+            const player = genesisState.player;
+            if (!player || !genesisState.lootOrbs) return;
+        
+            // Get the position of the arena on the screen ONCE for efficiency
+            const arenaRect = genesisArena.getBoundingClientRect();
+        
+            genesisState.lootOrbs = genesisState.lootOrbs.filter(orb => {
+                const dx = player.x - orb.x;
+                const dy = player.y - orb.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+        
+                if (distance <= orb.collectionRadius) {
+                    gameState.gold += orb.amount;
+        
+                    // --- THIS IS THE FIX ---
+                    // Calculate the absolute screen position for the text
+                    const screenX = arenaRect.left + player.x;
+                    const screenY = arenaRect.top + player.y;
+                    
+                    // Create the floating gold text at the player's location
+                    createFloatingText(`+${orb.amount} Gold`, screenX, screenY, { color: 'var(--xp-color)' });
+        
+                    playSound('feed', 0.5, 'sine', 600, 800, 0.1);
+                    orb.element.remove();
+                    return false;
+                }
+                return true;
+            });
+        }
+
   
-      function startBattle() {
-          const targetBattleLevel = gameState.highestBattleLevelCompleted + 1;
-          battleState = {
-              isActive: true,
-              currentWave: 0,
-              totalWaves: 5,
-              playerHp: gameState.resources.hp,
-              enemy: null,
-              totalXp: 0,
-              totalGold: 0,
-              totalDamage: 0,
-              potionsUsedThisBattle: 0,
-              targetBattleLevel: targetBattleLevel // We store the level we are fighting
-          };
-          battleLog.innerHTML = "";
-          addBattleLog(`Entering Battle Level ${targetBattleLevel}...`, "log-system");
-          showScreen('battle-screen');
-          startNextWave();
-      }
+        function startBattle() {
+            // Stop any existing endless mode
+            stopGameGenesis(); 
+            
+            // Set up the state for Battle Mode
+            genesisState.isBattleMode = true;
+            genesisState.currentWave = 0;
+            genesisState.boss = null;
+            
+            // Start the Genesis Arena engine
+            startGameGenesis();
+            
+            // Begin the first wave
+            startNextBattleWave();
+        }
+
+        function startNextBattleWave() {
+            genesisState.currentWave++;
+            genesisState.enemiesSpawnedThisWave = 0;
+            
+            if (genesisState.currentWave > genesisState.totalWaves) {
+                endBattle(true); // Player won the entire battle
+                return;
+            }
+            
+            genesisWaveDisplay.textContent = `Wave ${genesisState.currentWave} / ${genesisState.totalWaves}`;
+            genesisWaveDisplay.style.display = 'block';
+
+            if (genesisState.currentWave === genesisState.totalWaves) {
+                // It's the Boss Wave!
+                genesisState.enemiesToSpawnThisWave = 30; // Minions for the boss
+                spawnBoss();
+            } else {
+                // Regular wave: 5 enemies on wave 1, scaling up to 100 on wave 19
+                const baseEnemies = 5;
+                const enemiesPerWave = (100 - baseEnemies) / (genesisState.totalWaves - 2); // Calculate scaling factor
+                genesisState.enemiesToSpawnThisWave = Math.floor(baseEnemies + (enemiesPerWave * (genesisState.currentWave - 1)));
+            }
+        }
+        
+        function spawnBoss() {
+            const arenaRect = genesisArena.getBoundingClientRect();
+            const difficulty = gameState.highestBattleLevelCompleted + 1;
+            
+            const boss = {
+                element: document.createElement('img'),
+                x: arenaRect.width - 100,
+                y: arenaRect.height / 2,
+                speed: 1,
+                width: 160, height: 160, // Much larger
+                maxHp: 500 * difficulty * gameState.ascension.tier,
+                hp: 500 * difficulty * gameState.ascension.tier,
+                id: 'BOSS',
+                isBoss: true,
+                attackRange: 80,
+                attackCooldown: 1000,
+                lastAttackTime: 0
+            };
+            
+            boss.element.src = 'player.PNG';
+            boss.element.className = 'genesis-enemy';
+            boss.element.style.width = `${boss.width}px`;
+            boss.element.style.height = `${boss.height}px`;
+            boss.element.style.filter = 'grayscale(1) sepia(1) hue-rotate(320deg) saturate(5)';
+            
+            genesisArena.appendChild(boss.element);
+            genesisState.enemies.push(boss);
+            genesisState.boss = boss;
+
+            // Show and update the boss health bar
+            bossHealthContainer.style.display = 'block';
+            bossNameDisplay.textContent = `Level ${difficulty} Goblin King`;
+            updateBossHealthBar();
+        }
+
+        function updateBossHealthBar() {
+            if (genesisState.boss) {
+                const percent = (genesisState.boss.hp / genesisState.boss.maxHp) * 100;
+                bossHealthFill.style.width = `${percent}%`;
+            }
+        }
   
       function startNextWave() {
           battleState.currentWave++;
@@ -1783,34 +2737,44 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           
           let title = ""; let rewardText = "";
           if (playerWon) {
-              // --- NEW LOGIC ---
-              // On victory, we increase the player's completed battle level.
-              gameState.highestBattleLevelCompleted = battleState.targetBattleLevel;
-              
-              gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
-              checkAllAchievements();
-              playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-              let bonusItem = generateItem();
-              title = `Battle Level ${battleState.targetBattleLevel} Complete!`;
-              rewardText = `You are victorious!<br><br>Total Rewards:<br>+${battleState.totalGold} Gold<br>+${battleState.totalXp} XP<br>Total Damage: ${battleState.totalDamage}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
-              gameState.gold += battleState.totalGold;
-              addXP(gameState, battleState.totalXp);
-              gameState.inventory.push(bonusItem);
-              if (!gameState.equipment[bonusItem.type] || bonusItem.power > gameState.equipment[bonusItem.type].power) { equipItem(bonusItem); }
-          } else {
+              // If this was a battle mode win
+              if (genesisState.isBattleMode) {
+                  gameState.highestBattleLevelCompleted = gameState.highestBattleLevelCompleted + 1;
+                  gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
+                  checkAllAchievements();
+                  playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+                  let bonusItem = generateItem();
+                  title = `Battle Level ${gameState.highestBattleLevelCompleted} Complete!`;
+                  // Simplified rewards for battle mode
+                  const goldReward = 100 * gameState.highestBattleLevelCompleted;
+                  const xpReward = 200 * gameState.highestBattleLevelCompleted;
+                  gameState.gold += goldReward;
+                  addXP(gameState, xpReward);
+                  rewardText = `You are victorious!<br><br>Total Rewards:<br>+${goldReward} Gold<br>+${xpReward} XP<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
+                  gameState.inventory.push(bonusItem);
+              }
+          } else { // Player lost
               playSound('defeat', 1, 'sine', 440, 110, 0.8);
-              if (battleState.playerHp <= 0) {
+              if (gameState.resources.hp <= 0) {
                   title = "Defeated!";
                   rewardText = "You black out and wake up back home. You lost half your current gold.";
                   gameState.gold = Math.floor(gameState.gold / 2);
                   gameState.resources.hp = 1;
               } else {
+                  // This case is for fleeing, which isn't possible in genesis mode, but we keep it
                   title = "Fled from Battle";
-                  rewardText = "You escaped with your life, but no rewards were gained.";
+                  rewardText = "You escaped, but gained no rewards.";
               }
           }
-          gameState.resources.hp = battleState.playerHp;
-          setTimeout(() => { showScreen('game-screen'); showNotification(title, rewardText); saveGame(); updateUI(); }, 2500);
+          
+          stopGameGenesis(); // Stop the arena
+          setTimeout(() => { 
+              showScreen('game-screen'); 
+              // Only show a notification if there's something to report
+              if (title) showNotification(title, rewardText);
+              saveGame(); 
+              updateUI(); 
+          }, 500); // Shorter delay
       }
   
       function feedInBattle() {
@@ -2109,6 +3073,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
       partnerSprite.addEventListener('click', handleVisualTap);
       partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
-      
+      growBtn.addEventListener('click', toggleGrowthMode);
+      genesisArena.addEventListener('click', (e) => {
+        if (!genesisState.isActive || !genesisState.player) return;
+    
+        const arenaRect = genesisArena.getBoundingClientRect();
+        const clickX = e.clientX - arenaRect.left;
+        const clickY = e.clientY - arenaRect.top;
+    
+        genesisState.player.manualDestination = { x: clickX, y: clickY };
+      });
       init();
   });
