@@ -63,6 +63,7 @@ const firebaseConfig = {
         enemiesSpawnedThisWave: 0,
         boss: null,
         waveTransitionActive: false,
+        totalDamageDealtThisBattle: 0, // --- FIX: Added variable to track damage in battles.
       };
       
   
@@ -1974,7 +1975,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 width: 80,
                 height: 80,
                 attackRange: 120,
-                attackCooldown: 300,
+                //attackCooldown: 300, //
                 lastAttackTime: 0,
                 target: null,
                 manualDestination: null,
@@ -2009,7 +2010,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
 
         function stopGameGenesis() {
-            if (!genesisState.isActive) return;
             genesisState.isActive = false;
             if (genesisState.gameLoopId) {
                 cancelAnimationFrame(genesisState.gameLoopId);
@@ -2074,7 +2074,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 genesisState.enemies.length === 0 &&
                 genesisState.enemiesSpawnedThisWave >= genesisState.enemiesToSpawnThisWave &&
                 !genesisState.waveTransitionActive &&
-                genesisState.currentWave < genesisState.totalWaves // <-- ADD THIS CONDITION
+                genesisState.currentWave < genesisState.totalWaves // <-- This condition is correct
             ) {
                 genesisState.waveTransitionActive = true;
             
@@ -2085,28 +2085,22 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             
                 // 2. After 1.5 seconds, update the text to prepare the player for the next wave.
                 setTimeout(() => {
-                    // Safety check in case the battle ended during the pause
                     if (!genesisState.isActive || !genesisState.waveTransitionActive) return;
             
-                    // --- NEW CONDITIONAL LOGIC ---
                     // Check if the NEXT wave is the final (boss) wave
                     if (genesisState.currentWave + 1 === genesisState.totalWaves) {
                         genesisWaveDisplay.textContent = 'BOSS INCOMING!';
-                        // Optional: Add a more dramatic sound for the boss warning
                         playSound('ascend', 0.7, 'sawtooth', 500, 100, 0.4);
                     } else {
                         genesisWaveDisplay.textContent = 'Next Wave Incoming...';
                     }
-                    // --- END OF NEW LOGIC ---
             
                 }, 1500);
             
                 // 3. After a total of 3 seconds, start the actual next wave.
                 setTimeout(() => {
                     if (!genesisState.isActive) return;
-            
                     startNextBattleWave(); 
-            
                     if (genesisState.isActive) {
                         genesisState.waveTransitionActive = false;
                     }
@@ -2121,24 +2115,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
             // --- Attacks ---
             let actionTaken = false;
-
-            // Priority 1: Thunder Strike (longest cooldown)
             actionTaken = handleGenesisThunderStrike(timestamp);
-
-            // Priority 2: Dash
-            if (!actionTaken) {
-                actionTaken = handleGenesisPlayerDash(timestamp);
-            }
-
-            // Priority 3: Basic Attack (only if no special moves were used)
-            if (!actionTaken) {
-                handleGenesisPlayerAttack(timestamp);
-            }
-
-            // Enemy attacks are independent
-            if (genesisState.isBattleMode) {
-                handleEnemyAttacks(timestamp);
-            }
+            if (!actionTaken) actionTaken = handleGenesisPlayerDash(timestamp);
+            if (!actionTaken) handleGenesisPlayerAttack(timestamp);
+            if (genesisState.isBattleMode) handleEnemyAttacks(timestamp);
 
             // --- Post-action updates ---
             handleLootCollection();
@@ -2159,8 +2139,17 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
             spawnEnemies(timestamp);
             
-            // --- Loss Condition ---
-            if (gameState.resources.hp <= 0) {
+            // --- FIX: WIN/LOSS CONDITIONS ---
+            // Win Condition: The boss exists, is defeated, and the game is still active.
+            if (genesisState.isBattleMode && genesisState.boss && genesisState.boss.hp <= 0 && genesisState.isActive) {
+                genesisState.isActive = false; // Prevent this from firing multiple times
+                endBattle(true);
+                return; // Stop the loop
+            }
+            
+            // Loss Condition
+            if (gameState.resources.hp <= 0 && genesisState.isActive) {
+                genesisState.isActive = false; // Prevent multiple calls
                 endBattle(false);
                 return; // Stop the loop
             }
@@ -2498,6 +2487,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     if (Math.sqrt(dx * dx + dy * dy) <= explosionRadius) {
                         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
                         const finalDamage = Math.floor(dashDamage * (isCrit ? 2 : 1));
+                        genesisState.totalDamageDealtThisBattle += finalDamage; // --- FIX: Track damage ---
                         enemy.hp -= finalDamage;
                         createImpactEffect(enemy.x, enemy.y);
         
@@ -2516,7 +2506,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
         
             }, player.dashDuration);
-            return
+            return true; // The dash action was taken
         }
         function createChainLightningEffect(targets) {
             const canvas = document.createElement('canvas');
@@ -2593,6 +2583,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     const enemy = chainTargets[i];
                     const isCrit = Math.random() < (getTotalStat('critChance') / 100);
                     const finalDamage = Math.floor(thunderDamage * (isCrit ? 2 : 1));
+                    genesisState.totalDamageDealtThisBattle += finalDamage; // --- FIX: Track damage ---
                     enemy.hp -= finalDamage;
 
                     createImpactEffect(enemy.x, enemy.y);
@@ -2617,35 +2608,32 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
         function handleGenesisPlayerAttack(timestamp) {
             const player = genesisState.player;
+            const baseCooldown = 300;      // The cooldown at 0 Agility (in ms).
+            const reductionPerAgi = 4;     // How many ms are removed per point of Agility.
+            const minimumCooldown = 65;    // The fastest possible attack speed (prevents zero/negative cooldown).
+
+            const agility = getTotalStat('agility');
+            const dynamicAttackCooldown = Math.max(minimumCooldown, baseCooldown - (agility * reductionPerAgi));
+            // --- END NEW CALCULATION ---
+
             // No attack if no player, attack is on cooldown, or if dashing.
-            if (!player || player.isDashing || (timestamp - player.lastAttackTime < player.attackCooldown)) {
+            // We now use our new 'dynamicAttackCooldown' variable in the check.
+            if (!player || player.isDashing || (timestamp - player.lastAttackTime < dynamicAttackCooldown)) {
                 return;
             }
-
-            // --- THE KEY FIX ---
-            // 1. We only proceed if a valid target has been assigned.
-            //    (Our updatePlayerTarget function ensures this only happens for enemies past the halfway mark).
-            if (!player.target) {
-                return; // No valid target, so we idle.
-            }
+            if (!player.target) return;
             
-            // 2. We check if that specific target is actually within our attack range.
             const dx = player.x - player.target.x;
             const dy = player.y - player.target.y;
             const distanceToTarget = Math.sqrt(dx * dx + dy * dy);
 
-            // If our assigned target is too far away, we move towards it but don't attack yet.
-            if (distanceToTarget > player.attackRange) {
-                return;
-            }
+            if (distanceToTarget > player.attackRange) return;
             
-            // --- If we've passed all checks, THEN we can perform the AOE attack. ---
             player.lastAttackTime = timestamp;
             createAoeSlashEffect(player.x, player.y, player.attackRange);
             
             let enemiesWereDefeated = false;
         
-            // The attack itself still hits all enemies in the physical radius.
             genesisState.enemies.forEach(enemy => {
                 const d_enemy_x = player.x - enemy.x;
                 const d_enemy_y = player.y - enemy.y;
@@ -2654,25 +2642,21 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 if (distance_to_enemy <= player.attackRange) {
                     const isCrit = Math.random() < (getTotalStat('critChance') / 100);
                     const damage = Math.floor(getTotalStat('strength') * (isCrit ? 2 : 1));
+                    genesisState.totalDamageDealtThisBattle += damage; // --- FIX: Track damage ---
                     enemy.hp -= damage;
         
                     createImpactEffect(enemy.x, enemy.y);
         
                     if (enemy.hp <= 0) {
-                        enemiesWereDefeated = true; // Mark that we need to clean up the list
+                        enemiesWereDefeated = true;
                         addXP(gameState, 5 * gameState.level);
                         createLootOrb(enemy.x, enemy.y);
                     }
                 }
             });
 
-            // If any enemies were defeated, remove them from the game.
             if (enemiesWereDefeated) {
-                genesisState.enemies.forEach(enemy => {
-                    if (enemy.hp <= 0) {
-                        enemy.element.remove();
-                    }
-                });
+                genesisState.enemies.forEach(enemy => { if (enemy.hp <= 0) enemy.element.remove(); });
                 genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
             }
         }
@@ -2695,7 +2679,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const pulseEl = document.createElement('div');
             pulseEl.className = 'genesis-aoe-pulse';
             
-            // The pulse diameter should match the attack range
             pulseEl.style.width = `${range * 2}px`;
             pulseEl.style.height = `${range * 2}px`;
         
@@ -2717,9 +2700,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         function createDashTrailEffect(player) {
             if (!player || !player.element) return;
-            // Clone the player's sprite to create a "ghost" image
             const trailEl = player.element.cloneNode(); 
-            trailEl.className = 'genesis-player genesis-dash-ghost'; // Add our new class
+            trailEl.className = 'genesis-player genesis-dash-ghost';
             
             trailEl.style.position = 'absolute';
             trailEl.style.left = `${player.x}px`;
@@ -2727,19 +2709,17 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         
             genesisArena.appendChild(trailEl);
         
-            // This starts the fade-out defined in the CSS
             requestAnimationFrame(() => {
                 trailEl.style.opacity = '0';
             });
             
-            // Clean up the element after the fade is complete
             setTimeout(() => trailEl.remove(), 400);
         }
 
         function createDashExplosionEffect(x, y) {
             const explosion = document.createElement('div');
             explosion.className = 'genesis-dash-explosion';
-            const explosionRadius = 150; // The visual and damage radius of the explosion
+            const explosionRadius = 150; 
             explosion.style.width = `${explosionRadius * 2}px`;
             explosion.style.height = `${explosionRadius * 2}px`;
             explosion.style.left = `${x}px`;
@@ -2773,7 +2753,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 const dy = player.y - orb.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
         
-                // If the player is within the magnet radius, pull the orb
                 if (distance < orb.magnetRadius && distance > 1) { 
                     orb.x += (dx / distance) * orb.magnetSpeed;
                     orb.y += (dy / distance) * orb.magnetSpeed;
@@ -2785,7 +2764,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const player = genesisState.player;
             if (!player || !genesisState.lootOrbs) return;
         
-            // Get the position of the arena on the screen ONCE for efficiency
             const arenaRect = genesisArena.getBoundingClientRect();
         
             genesisState.lootOrbs = genesisState.lootOrbs.filter(orb => {
@@ -2796,12 +2774,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 if (distance <= orb.collectionRadius) {
                     gameState.gold += orb.amount;
         
-                    // --- THIS IS THE FIX ---
-                    // Calculate the absolute screen position for the text
                     const screenX = arenaRect.left + player.x;
                     const screenY = arenaRect.top + player.y;
                     
-                    // Create the floating gold text at the player's location
                     createFloatingText(`+${orb.amount} Gold`, screenX, screenY, { color: 'var(--xp-color)' });
         
                     playSound('feed', 0.5, 'sine', 600, 800, 0.1);
@@ -2818,7 +2793,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             genesisState.isBattleMode = true;
             genesisState.currentWave = 0;
             genesisState.boss = null;
+            genesisState.totalDamageDealtThisBattle = 0; // --- FIX: Reset damage counter for the new battle.
             genesisWaveDisplay.style.display = 'block';
+            gameState.resources.hp = gameState.resources.maxHp;
+            updateUI();
 
             startGameGenesis();
 
@@ -2830,6 +2808,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             genesisState.enemiesSpawnedThisWave = 0;
             
             if (genesisState.currentWave > genesisState.totalWaves) {
+                // This case should be handled by the win condition in the game loop, but as a fallback:
                 endBattle(true);
                 return;
             }
@@ -2989,35 +2968,54 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       }
   
       async function endBattle(playerWon) {
+          // --- FIX: This block now handles damage submission for the new Genesis battle system. ---
+          if (genesisState.isBattleMode && genesisState.totalDamageDealtThisBattle > gameState.dojoPersonalBest) {
+              gameState.dojoPersonalBest = genesisState.totalDamageDealtThisBattle;
+              showToast("New Personal Damage Record!");
+              playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+              updateDojoUI(); // This will update the text on the dojo screen for next time
+      
+              // Submit the new high score to the damage leaderboard
+              try {
+                  await db.collection("damageLeaderboard").doc(gameState.playerName).set({
+                      name: gameState.playerName,
+                      totalDamage: Math.floor(gameState.dojoPersonalBest)
+                  }, { merge: true });
+                  showToast("New damage score submitted to leaderboard!");
+              } catch(e) {
+                  console.error("Failed to submit damage score", e);
+              }
+          }
+      
+          // This part handles the old turn-based battle system state
           battleState.isActive = false;
           gameState.healthPotions = (gameState.healthPotions || 0) - battleState.potionsUsedThisBattle;
           
-          if (battleState.totalDamage > 0) {
-              try {
-                  const damageRef = db.collection("damageLeaderboard").doc(gameState.playerName);
-                  const doc = await damageRef.get();
-                  if (!doc.exists || doc.data().totalDamage < battleState.totalDamage) {
-                      await damageRef.set({ name: gameState.playerName, totalDamage: battleState.totalDamage });
-                  }
-              } catch(e) { console.error("Failed to submit damage score", e); }
-          }
-          
-          let title = ""; let rewardText = "";
+          let title = ""; 
+          let rewardText = "";
+      
           if (playerWon) {
-              // If this was a battle mode win
+              // This is the logic path for winning a Genesis Arena battle
               if (genesisState.isBattleMode) {
-                  gameState.highestBattleLevelCompleted = gameState.highestBattleLevelCompleted + 1;
+                  const battleLevel = gameState.highestBattleLevelCompleted + 1;
+                  gameState.highestBattleLevelCompleted = battleLevel;
                   gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
                   checkAllAchievements();
                   playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+                  
                   let bonusItem = generateItem();
-                  title = `Battle Level ${gameState.highestBattleLevelCompleted} Complete!`;
-                  // Simplified rewards for battle mode
-                  const goldReward = 100 * gameState.highestBattleLevelCompleted;
-                  const xpReward = 200 * gameState.highestBattleLevelCompleted;
+                  title = `Battle Level ${battleLevel} Complete!`;
+                  
+                  const goldReward = 100 * battleLevel;
+                  const xpReward = 200 * battleLevel;
                   gameState.gold += goldReward;
                   addXP(gameState, xpReward);
-                  rewardText = `You are victorious!<br><br>Total Rewards:<br>+${goldReward} Gold<br>+${xpReward} XP<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
+                  
+                  const totalDamageDealt = Math.floor(genesisState.totalDamageDealtThisBattle);
+                  
+                  // --- FIX: The reward prompt now includes the total damage dealt. ---
+                  rewardText = `You are victorious!<br><br>Total Rewards:<br>+${goldReward.toLocaleString()} Gold<br>+${xpReward.toLocaleString()} XP<br>Total Damage Dealt: ${totalDamageDealt.toLocaleString()}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
+                  
                   gameState.inventory.push(bonusItem);
               }
           } else { // Player lost
@@ -3026,23 +3024,21 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                   title = "Defeated!";
                   rewardText = "You black out and wake up back home. You lost half your current gold.";
                   gameState.gold = Math.floor(gameState.gold / 2);
-                  gameState.resources.hp = 1;
+                  gameState.resources.hp = 1; // Restore 1 HP so the player isn't stuck
               } else {
-                  // This case is for fleeing, which isn't possible in genesis mode, but we keep it
                   title = "Fled from Battle";
                   rewardText = "You escaped, but gained no rewards.";
               }
           }
           
-          stopGameGenesis(); // Stop the arena
+          stopGameGenesis(); // Stop the arena visualization
           setTimeout(() => { 
               showScreen('game-screen');
-              startGameGenesis(); 
-              // Only show a notification if there's something to report
+              startGameGenesis(); // Restart in endless mode
               if (title) showNotification(title, rewardText);
               saveGame(); 
               updateUI(); 
-          }, 500); // Shorter delay
+          }, 500); // A short delay before showing the results
       }
   
       function feedInBattle() {
