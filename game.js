@@ -1982,7 +1982,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 isDashing: false,
                 dashTarget: null,
                 dashDuration:280,
-                dashCooldown: 8000,
+                dashCooldown: 1000,
                 lastDashTime: 0,
                 thunderStrikeCooldown: 1800,
                 lastThunderStrikeTime: 0,
