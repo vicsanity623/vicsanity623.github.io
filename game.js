@@ -269,6 +269,7 @@ const firebaseConfig = {
       const closeAscensionBtn = document.getElementById('close-ascension-btn');
       const ascensionPointsDisplay = document.getElementById('ascension-points-display');
       const perksContainer = document.getElementById('perks-container');
+      const confirmAscensionBtn = document.getElementById('confirm-ascension-btn');
       const shopModal = document.getElementById('shop-modal');
       const shopConsumablesContainer = document.getElementById('shop-consumables-container');
       const shopUpgradesContainer = document.getElementById('shop-upgrades-container');
@@ -1358,6 +1359,9 @@ const firebaseConfig = {
               if (currentLevel >= perkData.maxLevel) { buyBtn.textContent = 'Maxed'; buyBtn.disabled = true; } 
               else { const cost = perkData.cost[currentLevel]; buyBtn.textContent = `Up (${cost} AP)`; if (gameState.ascension.points < cost) { buyBtn.disabled = true; } buyBtn.onclick = () => buyPerk(perkId); }
               perkItem.appendChild(infoDiv); perkItem.appendChild(levelSpan); perkItem.appendChild(buyBtn); perksContainer.appendChild(perkItem);
+          if (confirmAscensionBtn) {
+              confirmAscensionBtn.textContent = `Ascend to World Tier ${gameState.ascension.tier + 1} (1 AP)`;
+              confirmAscensionBtn.disabled = gameState.level < ASCENSION_LEVEL; }
           }
       }
       
@@ -3274,7 +3278,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           ascensionModal.classList.add('visible'); 
           gtag('config', 'G-4686TXHCHN', { 'page_path': '/ascension' });
       });
-      closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); });
+      closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); }); confirmAscensionBtn.addEventListener('click', ascend);
   
       closeShopBtn.addEventListener('click', () => { shopModal.classList.remove('visible'); });
   
