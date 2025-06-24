@@ -1974,17 +1974,17 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 speed: 8,
                 width: 80,
                 height: 80,
-                attackRange: 120,
+                attackRange: 10,
                 //attackCooldown: 300, //
                 lastAttackTime: 0,
                 target: null,
                 manualDestination: null,
                 isDashing: false,
                 dashTarget: null,
-                dashDuration:250,
-                dashCooldown: 2500,
+                dashDuration:280,
+                dashCooldown: 8000,
                 lastDashTime: 0,
-                thunderStrikeCooldown: 4000,
+                thunderStrikeCooldown: 1800,
                 lastThunderStrikeTime: 0,
                 lastDamagedTime: 0,
                 
@@ -2177,7 +2177,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         maxHp: (40 + (10 * difficulty)) * waveMultiplier,
                         hp: (40 + (10 * difficulty)) * waveMultiplier,
                         id: Date.now() + Math.random(),
-                        attackRange: 45,
+                        attackRange: 25,
                         attackCooldown: 2000,
                         lastAttackTime: 0
                     };
@@ -2215,7 +2215,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         maxHp: enemyHp,
                         hp: enemyHp,
                         id: Date.now() + Math.random(),
-                        attackRange: 45,
+                        attackRange: 25,
                         attackCooldown: 2000, // Give them an attack cooldown too
                         lastAttackTime: 0,
                     };
@@ -2386,7 +2386,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                          const dx = player.target.x - player.x;
                          const dy = player.target.y - player.y;
                          const distanceToTarget = Math.sqrt(dx*dx + dy*dy);
-                         if (distanceToTarget > player.attackRange * 0.8) {
+                         if (distanceToTarget > player.attackRange * 0.4) {
                             targetX = player.target.x;
                             targetY = player.target.y;
                          }
@@ -2575,7 +2575,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 createChainLightningEffect(chainTargets);
 
                 // --- Deal Massive Damage to Chained Enemies ---
-                const thunderDamage = getTotalStat('strength') * 8; // Thunder Strike does 10x STR damage!
+                const thunderDamage = getTotalStat('strength') * 5.5; // Thunder Strike does 10x STR damage!
                 let enemiesWereDefeated = false;
 
                 // We damage every target in the chain except the player (who is at index 0)
