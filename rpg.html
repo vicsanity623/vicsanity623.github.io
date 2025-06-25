@@ -79,13 +79,22 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 }
 
 /* 2. Make the playable area (BLUE BOX) grow to fill all available space */
-#genesis-arena, #character-area, #partner-character-area {
+#genesis-arena {
     flex-grow: 1;
     min-height: 0;
     width: 100%;
     position: relative;
-    display: block; /* Change from 'flex' to 'block' */
-    /* All other flex-related properties are no longer needed */
+    display: block;
+}
+#character-area, #partner-character-area {
+    flex-grow: 1;
+    min-height: 0;
+    width: 100%;
+    position: relative;
+    /* --- THESE ARE THE KEY FIXES --- */
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* 3. Make the stat panel thinner (GREEN BOX) by reducing its padding */
@@ -233,7 +242,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 .action-button-container .unlock-text { font-size: 0.6em; color: #888; margin-top: -5px; height: 1em; }
 #switch-character-btn { display: none; margin-top: 15px; width: 80%; padding: 10px; font-size: 0.8em; }
 .modal {
-    display: none; position: fixed; z-index: 100; left: 0; top: 0;
+    display: none; position: fixed; z-index: 300; left: 0; top: 0;
     width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
     flex-direction: column; align-items: center; justify-content: center;
     opacity: 0; transition: opacity 0.3s ease;
@@ -361,7 +370,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     background: rgba(255, 255, 204, 0.7);
     border-radius: 50%;
     box-shadow: 0 0 5px white, 0 0 2px var(--xp-color);
-    z-index: -1;
+    z-index: 220;
     animation: trickle linear infinite;
 }
 
@@ -408,7 +417,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     animation-delay: 2.1s;
 }
 #frenzy-display {
-    position: absolute; left: 20px; top: 50%; z-index: 120;
+    position: absolute; left: 20px; top: 50%; z-index: 90;
     transform: translateY(-50%) scale(0); font-size: 2.5em; font-weight: bold;
     opacity: 0; transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
     text-shadow: 0 0 5px black, 0 0 10px var(--frenzy-glow-color); pointer-events: none;
@@ -462,7 +471,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 .damage-text.crit { font-size: 2.2em; color: var(--xp-color); font-weight: bold; transform: scale(1.2); animation: pulse 0.5s; }
 #toast-container {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    z-index: 200; display: flex; flex-direction: column-reverse; gap: 10px; pointer-events: none;
+    z-index: 120; display: flex; flex-direction: column-reverse; gap: 10px; pointer-events: none;
 }
 .toast {
     padding: 12px 20px; background-color: var(--secondary-bg); color: var(--xp-color);
@@ -484,7 +493,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%); display: none;
     flex-direction: column; align-items: center;
-    pointer-events: none; z-index: 50;
+    pointer-events: none; z-index: 150;
     opacity: 0; transition: opacity 0.5s ease;
 }
 #tutorial-overlay.visible { display: flex; opacity: 1; }
@@ -562,7 +571,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     background: linear-gradient(white, yellow, white);
     transform-origin: top;
     opacity: 0; animation: lightning-flash-anim 0.2s ease-out;
-    pointer-events: none; z-index: 150;
+    pointer-events: none; z-index: 100;
 }
 #perks-container, #shop-consumables-container, #shop-upgrades-container, #expedition-list-container, .menu-section, #inventory-list, #forge-slots-container, .options-section { margin-top: 10px; text-align: left; }
 .perk-item, .shop-item, .expedition-item, .inventory-item, .options-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #444; }
@@ -785,6 +794,7 @@ input[type="range"] { flex-grow: 1; }
 .genesis-enemy {
     width: 40px; /* Enemies are smaller */
     height: 40px;
+    animation: enemy-fade-in 0.5s ease-out;
 }
 /* Slash Impact */
 .genesis-slash {
@@ -846,9 +856,9 @@ input[type="range"] { flex-grow: 1; }
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* For readability */
     pointer-events: none; /* So it doesn't block clicks */
     user-select: none;
-    z-index: 200;
+    z-index: 100;
     transform: translateX(-50%); /* Center the text on its x-coordinate */
-    animation: float-up-fade-out 1.5s ease-out forwards;
+    animation: float-up-fade-out 2.5s ease-out forwards;
 }
 
 @keyframes float-up-fade-out {
@@ -869,7 +879,7 @@ input[type="range"] { flex-grow: 1; }
     opacity: 0.5;
     transition: opacity 0.4s ease-out; /* Controls the fade-out speed */
     pointer-events: none;
-    z-index: 1; /* Make sure it's behind the actual player */
+    z-index: -1; /* Make sure it's behind the actual player */
 }
 
 /* The powerful explosion at the end of the dash */
@@ -925,11 +935,20 @@ input[type="range"] { flex-grow: 1; }
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 150; /* Make sure it appears on top */
+    z-index: 120; /* Make sure it appears on top */
     opacity: 0;
     animation: lightning-fade-in-out 0.4s ease-out;
 }
-
+@keyframes enemy-fade-in {
+    from { 
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5); /* Start small and invisible */
+    }
+    to { 
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1); /* End at full size and visible */
+    }
+}
 @keyframes lightning-fade-in-out {
     0% { opacity: 0; }
     25% { opacity: 1; }
@@ -957,7 +976,7 @@ input[type="range"] { flex-grow: 1; }
     bottom: 20px;
     left: 10%;
     right: 10%;
-    z-index: 100;
+    z-index: 200;
 }
 
 #boss-name {
