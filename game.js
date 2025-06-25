@@ -175,7 +175,7 @@ const firebaseConfig = {
   
       const ASCENSION_LEVEL = 50;
       const BATTLE_UNLOCK_LEVEL = 20;
-      const MAX_ENEMIES = 15;
+      const MAX_ENEMIES = 45;
       const FORGE_UNLOCK_LEVEL = 10;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
       
@@ -2008,12 +2008,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 manualDestination: null,
                 isDashing: false,
                 dashTarget: null,
-                dashDuration:380,
+                dashDuration:280,
                 dashCooldown: 1500,
                 lastDashTime: 0,
-                thunderStrikeCooldown: 1000,
+                thunderStrikeCooldown: 4000,
                 lastThunderStrikeTime: 0,
                 lastDamagedTime: 0,
+                havocRageCooldown: 6000,
+                lastHavocRageTime: 0,
                 
             };
 
@@ -2139,10 +2141,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             movePlayer();
             moveEnemies();
             moveLootOrbs();
+            handleBurnDamage(timestamp);
 
             // --- Attacks ---
             let actionTaken = false;
             actionTaken = handleGenesisThunderStrike(timestamp);
+            if (!actionTaken) {
+                actionTaken = handleGenesisHavocRage(timestamp);
+            }
             if (!actionTaken) actionTaken = initiateGenesisPlayerDash(timestamp);
             if (!actionTaken) handleGenesisPlayerAttack(timestamp);
             if (genesisState.isBattleMode) handleEnemyAttacks(timestamp);
@@ -2186,7 +2192,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         function spawnEnemies(timestamp) {
             if (genesisState.isBattleMode) {
                 // --- BATTLE MODE SPAWNING ---
-                const waveSpawnInterval = 100; // Spawn battle enemies quickly
+                const waveSpawnInterval = 400; // Spawn battle enemies quickly
                 if (genesisState.enemiesSpawnedThisWave < genesisState.enemiesToSpawnThisWave && timestamp - genesisState.lastEnemySpawn > waveSpawnInterval) {
                     genesisState.lastEnemySpawn = timestamp;
                     genesisState.enemiesSpawnedThisWave++;
@@ -2199,7 +2205,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         element: document.createElement('img'),
                         x: arenaRect.width + 50, // Spawn from the right edge
                         y: Math.random() * arenaRect.height,
-                        speed: (1.5 + Math.random()) * waveMultiplier,
+                        speed: (0.5 + Math.random() * 2.0) * waveMultiplier,
                         width: 40, height: 40,
                         maxHp: (40 + (10 * difficulty)) * waveMultiplier,
                         hp: (40 + (10 * difficulty)) * waveMultiplier,
@@ -2222,8 +2228,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 // --- ENDLESS MODE SPAWNING (Your existing performance-fixed code) ---
                 if (genesisState.enemies.length >= MAX_ENEMIES) return;
 
-                const baseSpawnInterval = 1500;
-                const minSpawnInterval = 200;
+                const baseSpawnInterval = 2000;
+                const minSpawnInterval = 300;
                 const dynamicSpawnInterval = Math.max(minSpawnInterval, baseSpawnInterval / genesisState.difficultyLevel);
                 const arenaRect = genesisArena.getBoundingClientRect();
 
@@ -2233,7 +2239,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     const difficulty = genesisState.difficultyLevel;
                     const enemyHp = Math.floor((10 * gameState.level * gameState.ascension.tier) * (1 + (difficulty - 1) * 0.5));
                     
-                    const baseSpeed = 1.5 + Math.random();
+                    const baseSpeed = 0.5 + Math.random() * 2.0;
                     const speedMultiplier = 1 + (difficulty - 1) * 0.25;
                     const enemySpeed = baseSpeed * speedMultiplier;
             
@@ -2329,21 +2335,19 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const player = genesisState.player;
             if (!player) return;
         
-            const arenaRect = genesisArena.getBoundingClientRect();
-            let validTargets = [];
-
-            // In Battle Mode, only consider enemies that have crossed the halfway point.
-            if (genesisState.isBattleMode) {
-                validTargets = genesisState.enemies.filter(enemy => enemy.x < arenaRect.width / 2);
-            } else {
-                // In Endless Mode, all enemies are valid targets.
-                validTargets = genesisState.enemies;
-            }
+            // We no longer need the arenaRect for this function
+            // const arenaRect = genesisArena.getBoundingClientRect(); 
+            
+            // --- THIS IS THE ACTUAL CHANGE ---
+            // We remove the entire if/else block that filtered targets.
+            // The player should always consider all enemies on screen as potential targets.
+            let validTargets = genesisState.enemies;
+            // --- END OF ACTUAL CHANGE ---
 
             let closestEnemy = null;
             let minDistance = Infinity;
         
-            // Now, find the closest enemy ONLY from the list of valid targets.
+            // Find the closest enemy from the (now unfiltered) list of valid targets.
             validTargets.forEach(enemy => {
                 const dx = player.x - enemy.x;
                 const dy = player.y - enemy.y;
@@ -2354,7 +2358,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             });
 
-            // Set the player's target. If no valid targets were found, this will be null.
+            // Set the player's target.
             player.target = closestEnemy;
         }
         function movePlayer() {
@@ -2456,85 +2460,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 player.y = clamp(player.y, player.height / 2, arenaRect.height - player.height / 2);
             }
         }
-        /*function handleGenesisPlayerDash(timestamp) {
-            const player = genesisState.player;
-            // Can't dash if already dashing, no enemies exist, or the skill is on cooldown.
-            if (!player || player.isDashing || genesisState.enemies.length === 0) return;
-            if (timestamp - player.lastDashTime < player.dashCooldown) return false;
         
-            // --- Smart Targeting: Find the most populated area of enemies to dash to! ---
-            let bestTarget = { x: 0, y: 0, count: 0 };
-            const clusterRadius = 150;
-
-            genesisState.enemies.forEach(potentialTarget => {
-                let nearbyCount = 0;
-                genesisState.enemies.forEach(otherEnemy => {
-                    const dx = potentialTarget.x - otherEnemy.x;
-                    const dy = potentialTarget.y - otherEnemy.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < clusterRadius) {
-                        nearbyCount++;
-                    }
-                });
-                if (nearbyCount > bestTarget.count) {
-                    bestTarget = { x: potentialTarget.x, y: potentialTarget.y, count: nearbyCount };
-                }
-            });
-
-            // If no suitable cluster found, just target the closest enemy
-            if (bestTarget.count === 0) {
-                bestTarget = { x: player.target.x, y: player.target.y, count: 1 };
-            }
-        
-            // --- Start the Dash ---
-            player.isDashing = true;
-            player.lastDashTime = timestamp;
-            player.dashTarget = { x: bestTarget.x, y: bestTarget.y };
-            playSound('hit', 1, 'sawtooth', 800, 200, 0.2); // A "whoosh" sound
-        
-            // Set a timeout to end the dash and trigger the explosion
-            setTimeout(() => {
-                if (!genesisState.player) return; // Safety check if game ended mid-dash
-        
-                player.isDashing = false;
-                const explosionX = player.x;
-                const explosionY = player.y;
-        
-                createDashExplosionEffect(explosionX, explosionY);
-                playSound('crit', 1, 'square', 400, 50, 0.4); // A big "boom" sound
-                triggerScreenShake(300);
-        
-                // Deal massive AoE damage at the point of impact
-                const explosionRadius = 150;
-                const dashDamage = getTotalStat('strength') * 5; // Dash does 5x STR damage!
-                let enemiesWereDefeated = false;
-        
-                genesisState.enemies.forEach(enemy => {
-                    const dx = explosionX - enemy.x;
-                    const dy = explosionY - enemy.y;
-                    if (Math.sqrt(dx * dx + dy * dy) <= explosionRadius) {
-                        const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-                        const finalDamage = Math.floor(dashDamage * (isCrit ? 2 : 1));
-                        genesisState.totalDamageDealtThisBattle += finalDamage; // --- FIX: Track damage ---
-                        enemy.hp -= finalDamage;
-                        createImpactEffect(enemy.x, enemy.y);
-        
-                        if (enemy.hp <= 0) {
-                            enemiesWereDefeated = true;
-                            addXP(gameState, 5 * gameState.level);
-                            createLootOrb(enemy.x, enemy.y);
-                        }
-                    }
-                });
-                
-                // Clean up defeated enemies
-                if (enemiesWereDefeated) {
-                    genesisState.enemies.forEach(enemy => { if (enemy.hp <= 0) enemy.element.remove(); });
-                    genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
-                }
-        
-            }, player.dashDuration);
-            return true; // The dash action was taken
-        }*/
         function initiateGenesisPlayerDash(timestamp) {
             const player = genesisState.player;
             if (!player || player.isDashing || genesisState.enemies.length === 0) return false;
@@ -2653,6 +2579,39 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
             }, player.dashDuration);
         }
+        function createHavocShockwaveEffect(x, y, range) {
+            const container = document.createElement('div');
+            container.className = 'havoc-lightning-container';
+            container.style.width = `${range * 2}px`;
+            container.style.height = `${range * 2}px`;
+            container.style.left = `${x}px`;
+            container.style.top = `${y}px`;
+
+            // Create 3 lightning bolts inside the container
+            for (let i = 1; i <= 3; i++) {
+                const bolt = document.createElement('div');
+                bolt.className = `havoc-lightning-bolt bolt-${i}`;
+                container.appendChild(bolt);
+            }
+            
+            genesisArena.appendChild(container);
+            setTimeout(() => container.remove(), 800);
+        }
+
+        function createBurnParticles(enemy) {
+            if (!enemy || !enemy.element) return;
+            const particle = document.createElement('div');
+            particle.className = 'enemy-fire-particle';
+            
+            // Randomize position slightly around the enemy
+            const offsetX = (Math.random() - 0.5) * enemy.width;
+            const offsetY = (Math.random() - 0.5) * enemy.height;
+            particle.style.left = `${enemy.x + offsetX}px`;
+            particle.style.top = `${enemy.y + offsetY}px`;
+            
+            genesisArena.appendChild(particle);
+            setTimeout(() => particle.remove(), 500);
+        }
         function createChainLightningEffect(targets) {
             const canvas = document.createElement('canvas');
             canvas.className = 'genesis-chain-lightning';
@@ -2681,7 +2640,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const player = genesisState.player;
             if (!player || genesisState.enemies.length === 0) return;
             if (timestamp - player.lastThunderStrikeTime < player.thunderStrikeCooldown) return false;
-            const thunderStrikeProximity = 80; // The range required to activate the skill
+            const thunderStrikeProximity = 50; // The range required to activate the skill
             let isEnemyClose = false;
             for (const enemy of genesisState.enemies) {
                 const dx = player.x - enemy.x;
@@ -2698,7 +2657,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             // --- Find Targets for the Chain Lightning ---
             let potentialTargets = [...genesisState.enemies];
             let chainTargets = [player]; // The player is always the start of the chain
-            const maxChain = 18; 
+            const maxChain = 7; 
 
             for (let i = 0; i < maxChain && potentialTargets.length > 0; i++) {
                 const lastTarget = chainTargets[chainTargets.length - 1];
@@ -2733,7 +2692,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 createChainLightningEffect(chainTargets);
 
                 // --- Deal Massive Damage to Chained Enemies ---
-                const thunderDamage = getTotalStat('strength') * 20.5; // Thunder Strike does 20.5x STR damage!
+                const thunderDamage = getTotalStat('strength') * 4.5; // Thunder Strike does 4.5x STR damage!
                 let enemiesWereDefeated = false;
 
                 // We damage every target in the chain except the player (who is at index 0)
@@ -2762,6 +2721,96 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 return true;
             }
             return false;
+        }
+        
+
+        function handleGenesisHavocRage(timestamp) {
+            const player = genesisState.player;
+            if (!player || genesisState.enemies.length === 0) return false;
+            if (timestamp - player.lastHavocRageTime < player.havocRageCooldown) return false;
+            
+            let closestDistance = Infinity;
+            genesisState.enemies.forEach(enemy => {
+                const dx = player.x - enemy.x;
+                const dy = player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                }
+            });
+
+            if (closestDistance > 250) return false;
+
+            // --- ALL CHECKS PASSED, EXECUTE THE ABILITY ---
+            player.lastHavocRageTime = timestamp;
+
+            // --- NEW: CHARGE-UP VISUAL AND SOUND ---
+            playSound('hit', 0.8, 'sine', 100, 50, 0.3); // Deep charging sound
+            player.element.style.filter = 'brightness(2) drop-shadow(0 0 15px red)'; // Flash red
+            triggerScreenShake(200);
+            // --- END NEW ---
+
+            // Use a timeout to delay the explosion, making it feel more powerful
+            setTimeout(() => {
+                if (!genesisState.player) return; // Safety check in case game ended
+
+                playSound('crit', 1, 'sawtooth', 300, 50, 0.5); // The explosion sound
+                player.element.style.filter = ''; // Reset player filter
+                triggerScreenShake(400);
+
+                const effectRadius = 200;
+                createHavocShockwaveEffect(player.x, player.y, effectRadius);
+
+                genesisState.enemies.forEach(enemy => {
+                    const dx = player.x - enemy.x;
+                    const dy = player.y - enemy.y;
+                    if (Math.sqrt(dx * dx + dy * dy) <= effectRadius) {
+                        enemy.burn = {
+                            expiryTime: timestamp + 5000,
+                            damagePerTick: getTotalStat('strength') * 0.25,
+                            lastTickTime: timestamp
+                        };
+                        enemy.element.classList.add('burning');
+                    }
+                });
+            }, 300); // 300ms charge-up time
+
+            return true;
+        }
+        function handleBurnDamage(timestamp) {
+            if (genesisState.enemies.length === 0) return;
+
+            // Use a reverse loop so we can safely remove dead enemies
+            for (let i = genesisState.enemies.length - 1; i >= 0; i--) {
+                const enemy = genesisState.enemies[i];
+                
+                if (enemy && enemy.burn) {
+                    // Check if the burn has expired
+                    if (timestamp > enemy.burn.expiryTime) {
+                        delete enemy.burn;
+                        enemy.element.classList.remove('burning');
+                        continue; // Move to the next enemy
+                    }
+
+                    // Apply damage every 250ms (4 times a second)
+                    if (timestamp - enemy.burn.lastTickTime > 250) {
+                        const tickDamage = Math.floor(enemy.burn.damagePerTick / 4);
+                        enemy.hp -= tickDamage;
+                        genesisState.totalDamageDealtThisBattle += tickDamage;
+                        enemy.burn.lastTickTime = timestamp;
+
+                        createBurnParticles(enemy); // Create a fire particle
+                        
+                        // Check if the enemy died from the burn
+                        if (enemy.hp <= 0) {
+                            addXP(gameState, 5 * gameState.level);
+                            createLootOrb(enemy.x, enemy.y);
+                            enemy.element.remove();
+                            genesisState.enemies.splice(i, 1); // Safely remove from array
+                        }
+                    }
+                }
+            }
         }
 
         function handleGenesisPlayerAttack(timestamp) {
@@ -2894,7 +2943,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 element: document.createElement('div'),
                 x: x, y: y, type: 'gold',
                 amount: Math.floor(5 + (Math.random() * 5 * gameState.level)),
-                collectionRadius: 30,
+                collectionRadius: 90,
                 magnetRadius: 2550,
                 magnetSpeed: 3
 
@@ -2983,9 +3032,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 spawnBoss();
             } else {
                 // Regular wave: 5 enemies on wave 1, scaling up to 100 on wave 19
-                const baseEnemies = 5;
-                const enemiesPerWave = (100 - baseEnemies) / (genesisState.totalWaves - 2); // Calculate scaling factor
-                genesisState.enemiesToSpawnThisWave = Math.floor(baseEnemies + (enemiesPerWave * (genesisState.currentWave - 1)));
+                const baseMinEnemies = 3;
+                const baseMaxEnemies = 8;
+                const waveBonus = Math.floor(genesisState.currentWave * 1.5);
+                const minEnemies = baseMinEnemies + waveBonus;
+                const maxEnemies = baseMaxEnemies + waveBonus;
+                genesisState.enemiesToSpawnThisWave = Math.floor(Math.random() * (maxEnemies - minEnemies + 1)) + minEnemies;
             }
         }
         
