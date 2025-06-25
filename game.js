@@ -3547,35 +3547,43 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         pvpOpponentListContainer.innerHTML = '<p>Searching for opponents...</p>';
 
         try {
+            // --- CORRECTED QUERY: Ask for a broader list of players ---
+            // We query for players who are at least the minimum PVP level.
+            // This uses only ONE range filter, which is valid.
             const snapshot = await db.collection('playerSaves')
-                .where('level', '>=', gameState.level - 10)
-                .where('level', '<=', gameState.level + 10)
                 .where('level', '>=', PVP_UNLOCK_LEVEL)
-                .limit(10)
+                .limit(50) // Get a larger pool of potential opponents
                 .get();
             
-            let opponents = [];
+            let allEligiblePlayers = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
+                // Don't include the current player in the list
                 if (data.playerName !== gameState.playerName) {
-                    opponents.push(data);
+                    allEligiblePlayers.push(data);
                 }
             });
 
-            if (opponents.length < 4) {
-                 const anySnapshot = await db.collection('playerSaves').limit(10).get();
-                 anySnapshot.forEach(doc => {
-                     const data = doc.data();
-                     if (data.playerName !== gameState.playerName && !opponents.some(o => o.playerName === data.playerName) && data.level >= PVP_UNLOCK_LEVEL) {
-                        opponents.push(data);
-                     }
-                 });
+            // --- NOW, FILTER THE RESULTS ON THE CLIENT-SIDE ---
+            const lowerBound = gameState.level - 10;
+            const upperBound = gameState.level + 10;
+            
+            let opponents = allEligiblePlayers.filter(player => {
+                return player.level >= lowerBound && player.level <= upperBound;
+            });
+
+            // Fallback: If no one is in our level range, just use any eligible players.
+            if (opponents.length < 1) {
+                opponents = allEligiblePlayers;
             }
             
             if (opponents.length === 0) {
                 pvpOpponentListContainer.innerHTML = '<p>Could not find any eligible opponents. Please try again later.</p>';
                 return;
             }
+
+            // Shuffle the opponents for variety
+            opponents.sort(() => 0.5 - Math.random());
 
             pvpOpponentListContainer.innerHTML = '';
             opponents.slice(0, 4).forEach(opponent => {
@@ -3594,9 +3602,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
         } catch (error) {
             console.error("Error fetching PvP opponents:", error);
-            pvpOpponentListContainer.innerHTML = '<p>Could not find opponents. Please try again later.</p>';
+            // Now, this catch block MIGHT contain the "Create Index" link if Firebase needs it for the single range query.
+            if (error.message.includes('index')) {
+                 pvpOpponentListContainer.innerHTML = `<p>Database requires an index. Please check the developer console (F12) for a link to create it.</p>`;
+            } else {
+                 pvpOpponentListContainer.innerHTML = '<p>Could not find opponents. Please try again later.</p>';
+            }
         }
-       }
+    }
 
        // --- Function to start the 15-second battle ---
        function startPvpBattle(opponentData) {
