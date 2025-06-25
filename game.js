@@ -2845,32 +2845,41 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         function createChainLightningEffect(targets) {
             const canvas = document.createElement('canvas');
             canvas.className = 'genesis-chain-lightning';
-            const arena = document.getElementById('pvp-arena') || document.getElementById('genesis-arena');
-            const arenaRect = arena.getBoundingClientRect();
+            const arenaRect = genesisArena.getBoundingClientRect();
             canvas.width = arenaRect.width;
             canvas.height = arenaRect.height;
-            arena.appendChild(canvas);
+            genesisArena.appendChild(canvas);
 
             const ctx = canvas.getContext('2d');
 
-            if (targets.length === 2 && targets[0].offsetLeft !== undefined) {
-                // Handle PvP case where we pass sprite elements
-                const start = { x: targets[0].offsetLeft, y: targets[0].offsetTop };
-                const end = { x: targets[1].offsetLeft, y: targets[1].offsetTop };
+            for (let i = 0; i < targets.length - 1; i++) {
+                const start = targets[i];
+                const end = targets[i+1];
                 drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(0, 255, 255, 0.2)', 20, 15);
                 drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(255, 255, 255, 0.5)', 10, 12);
                 drawLightningSegment(ctx, start.x, start.y, end.x, end.y, '#FFFFFF', 4, 10);
-           } else {
-                // Handle main game case where we pass coordinate objects
-               for (let i = 0; i < targets.length - 1; i++) {
-                   const start = targets[i];
-                   const end = targets[i+1];
-                   drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(0, 255, 255, 0.2)', 20, 15);
-                   drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(255, 255, 255, 0.5)', 10, 12);
-                   drawLightningSegment(ctx, start.x, start.y, end.x, end.y, '#FFFFFF', 4, 10);
-               }
-           }
+            }
 
+            setTimeout(() => canvas.remove(), 400);
+        }
+        function createPvpChainLightningEffect(playerSprite, opponentSprite) {
+            const canvas = document.createElement('canvas');
+            canvas.className = 'genesis-chain-lightning';
+            const arenaRect = pvpArena.getBoundingClientRect();
+            canvas.width = arenaRect.width;
+            canvas.height = arenaRect.height;
+            pvpArena.appendChild(canvas);
+        
+            const ctx = canvas.getContext('2d');
+            
+            // Get positions relative to the pvp-arena
+            const start = { x: playerSprite.offsetLeft + playerSprite.offsetWidth / 2, y: playerSprite.offsetTop + playerSprite.offsetHeight / 2 };
+            const end = { x: opponentSprite.offsetLeft + opponentSprite.offsetWidth / 2, y: opponentSprite.offsetTop + opponentSprite.offsetHeight / 2 };
+        
+            drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(0, 255, 255, 0.2)', 20, 15);
+            drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(255, 255, 255, 0.5)', 10, 12);
+            drawLightningSegment(ctx, start.x, start.y, end.x, end.y, '#FFFFFF', 4, 10);
+        
             setTimeout(() => canvas.remove(), 400);
         }
 
@@ -3712,7 +3721,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
             const finalDamage = damage * (isCrit ? 2.5 : 1);
             
-            createChainLightningEffect([combatantSprite, targetSprite]);
+            createPvpChainLightningEffect(combatantSprite, targetSprite);
             createFloatingText("Thunder Strike!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#00ffff', fontSize: '1.5em' });
             if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
             createPvpDamageNumber(finalDamage, isPlayer);
