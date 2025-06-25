@@ -769,26 +769,30 @@ const firebaseConfig = {
         playSound('levelUp', 1, 'triangle', 440, 880);
         triggerScreenShake(400);
     
-        if (!character.isPartner) {
+        if (character.isPartner) {
+            showToast(`${character.name || 'Partner'} is now Level ${character.level}!`);
+        }
+        else {
             checkAllAchievements();
             submitScoreToLeaderboard();
             updateAscensionVisuals();
     
+            let screenX, screenY;
             if (genesisState.isActive && genesisState.player) {
                 const arenaRect = genesisArena.getBoundingClientRect();
-                const screenX = arenaRect.left + genesisState.player.x;
-                const screenY = arenaRect.top + genesisState.player.y;
-                
-                createFloatingText('LEVEL UP!', screenX, screenY - 50, { 
-                    color: 'var(--accent-color)',
-                    fontSize: '2.5em',
-                    duration: 2500
-                });
-            } else {
-                showNotification("LEVEL UP!", `Your guardian is now Level ${character.level}!`);
+                screenX = arenaRect.left + genesisState.player.x;
+                screenY = arenaRect.top + genesisState.player.y - 50;
             }
-        } else {
-            showNotification("LEVEL UP!", `${character.name || 'Partner'} is now Level ${character.level}!`);
+            else {
+                const spriteRect = characterSprite.getBoundingClientRect();
+                screenX = spriteRect.left + (spriteRect.width / 2);
+                screenY = spriteRect.top; // Position it at the top of the sprite
+            }
+            createFloatingText('LEVEL UP!', screenX, screenY, { 
+                color: 'var(--accent-color)',
+                fontSize: '2.5em',
+                duration: 2500
+            });
         }
         
         saveGame();
