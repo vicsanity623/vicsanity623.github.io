@@ -3642,6 +3642,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                playerDamage: 0,
                opponentDamage: 0,
                opponentData: opponentData,
+               playerCooldowns: { lastDashTime: 0, lastThunderStrikeTime: 0, lastHavocRageTime: 0, lastAttackTime: 0 },
+               opponentCooldowns: { lastDashTime: 0, lastThunderStrikeTime: 0, lastHavocRageTime: 0, lastAttackTime: 0 }
            };
 
            showScreen('pvp-battle-screen');
@@ -3671,6 +3673,83 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
            // Start the battle timer
            pvpState.timerId = setInterval(pvpTick, 100);
        }
+       function executePvpTurn(isPlayer, timestamp) {
+        const combatant = isPlayer ? gameState : pvpState.opponentData;
+        const combatantSprite = pvpArena.querySelectorAll('.genesis-player')[isPlayer ? 0 : 1];
+        const targetSprite = pvpArena.querySelectorAll('.genesis-player')[isPlayer ? 1 : 0];
+        const cooldowns = isPlayer ? pvpState.playerCooldowns : pvpState.opponentCooldowns;
+
+        // --- Re-usable function to get total stats for player OR opponent ---
+        const getCombatantStat = (stat) => {
+            if (isPlayer) return getTotalStat(stat);
+            
+            let total = combatant.stats[stat] || 0;
+            for (const slot in combatant.equipment) {
+                if (combatant.equipment[slot] && combatant.equipment[slot].stats) {
+                    total += combatant.equipment[slot].stats[stat] || 0;
+                }
+            }
+            return total;
+        };
+
+        // Ability Priority Check (identical logic to the main game)
+        
+        // 1. Thunder Strike
+        if (timestamp - cooldowns.lastThunderStrikeTime > 4000) {
+            cooldowns.lastThunderStrikeTime = timestamp;
+            const damage = getCombatantStat('strength') * 4.5;
+            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
+            const finalDamage = damage * (isCrit ? 2.5 : 1);
+            
+            createChainLightningEffect([combatantSprite, targetSprite]);
+            createFloatingText("Thunder Strike!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#00ffff', fontSize: '1.5em' });
+            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
+            createPvpDamageNumber(finalDamage, isPlayer);
+            return;
+        }
+
+        // 2. Havoc Rage
+        if (timestamp - cooldowns.lastHavocRageTime > 12000) {
+            cooldowns.lastHavocRageTime = timestamp;
+            createHavocShockwaveEffect(combatantSprite.offsetLeft, combatantSprite.offsetTop, 100);
+            createFloatingText("Havoc Rage!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#dc143c', fontSize: '1.5em' });
+            
+            // For simplicity in PvP, Havoc Rage does instant damage instead of a DoT
+            const damage = getCombatantStat('strength') * 3;
+            if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
+            createPvpDamageNumber(damage, isPlayer);
+            return;
+        }
+        
+        // 3. Dash
+        if (timestamp - cooldowns.lastDashTime > 3200) {
+            cooldowns.lastDashTime = timestamp;
+            const shouldChain = Math.random() < 0.30;
+            createDashExplosionEffect(targetSprite.offsetLeft, targetSprite.offsetTop);
+            createFloatingText(shouldChain ? "Dash Chain!" : "Dash!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#ff8c00', fontSize: '1.5em' });
+
+            const damage = getCombatantStat('strength') * 5 * (shouldChain ? 2 : 1); // Chain dash does double damage
+            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
+            const finalDamage = damage * (isCrit ? 2.5 : 1);
+            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
+            createPvpDamageNumber(finalDamage, isPlayer);
+            return;
+        }
+
+        // 4. Basic Attack
+        const agility = getCombatantStat('agility');
+        const dynamicAttackCooldown = Math.max(95, 300 - (agility * 1));
+        if (timestamp - cooldowns.lastAttackTime > dynamicAttackCooldown) {
+            cooldowns.lastAttackTime = timestamp;
+            const damage = getCombatantStat('strength');
+            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
+            const finalDamage = damage * (isCrit ? 2.5 : 1);
+
+            createAoeSlashEffect(targetSprite.offsetLeft, targetSprite.offsetTop, 50);
+            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
+            createPvpDamageNumber(finalDamage, isPlayer);
+        }
+       }
 
        // --- Function that runs every 100ms during the PvP battle ---
        function pvpTick() {
@@ -3682,7 +3761,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         // Update timer
         pvpState.timeLeft -= 0.1;
 
-        // Check for end of battle
         if (pvpState.timeLeft <= 0) {
             pvpTimerDisplay.textContent = "0.0";
             endPvpBattle();
@@ -3691,29 +3769,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         
         pvpTimerDisplay.textContent = pvpState.timeLeft.toFixed(1);
 
-        // --- SIMULATE ATTACKS FOR BOTH SIDES ---
+        const timestamp = Date.now();
         
-        // Player's Attack
-        const playerPower = getTotalStat('strength') + getTotalStat('agility');
-        const playerTickDamage = playerPower * (Math.random() * 0.2 + 0.9); // Damage range: 90%-110% of power
-        pvpState.playerDamage += playerTickDamage;
-        createPvpDamageNumber(playerTickDamage, true); // True means it's from the player
-
-        // Opponent's Attack
-        // We need to re-calculate opponent stats here as they are not in the global scope
-        const opponent = pvpState.opponentData;
-        let opponentStr = opponent.stats.strength;
-        let opponentAgi = opponent.stats.agility;
-        for(const slot in opponent.equipment) {
-            if(opponent.equipment[slot] && opponent.equipment[slot].stats) {
-                opponentStr += opponent.equipment[slot].stats.strength || 0;
-                opponentAgi += opponent.equipment[slot].stats.agility || 0;
-            }
-        }
-        const opponentPower = opponentStr + opponentAgi;
-        const opponentTickDamage = opponentPower * (Math.random() * 0.2 + 0.9);
-        pvpState.opponentDamage += opponentTickDamage;
-        createPvpDamageNumber(opponentTickDamage, false); // False means it's from the opponent
+        // --- EXECUTE ATTACK TURNS FOR BOTH SIDES ---
+        executePvpTurn(true, timestamp);  // Player's turn
+        executePvpTurn(false, timestamp); // Opponent's turn
 
         // Update the tug-of-war bar
         const totalDamage = pvpState.playerDamage + pvpState.opponentDamage;
@@ -3722,25 +3782,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             pvpPlayerDamageFill.style.width = `${playerPct}%`;
             pvpOpponentDamageFill.style.width = `${100 - playerPct}%`;
         }
-
-        // --- VISUAL FLAIR ---
-        // Re-use the cool slash effect for both players
-        const sprites = pvpArena.querySelectorAll('.genesis-player');
-        if (sprites.length === 2) {
-            if (Math.random() < 0.4) {
-                const playerSpriteEl = sprites[0];
-                const opponentSpriteEl = sprites[1];
-                // Create a slash effect from player to opponent
-                createAoeSlashEffect(opponentSpriteEl.offsetLeft, opponentSpriteEl.offsetTop, 50);
-            }
-            if (Math.random() < 0.4) {
-                 const playerSpriteEl = sprites[0];
-                const opponentSpriteEl = sprites[1];
-                // Create a slash effect from opponent to player
-                createAoeSlashEffect(playerSpriteEl.offsetLeft, playerSpriteEl.offsetTop, 50);
-            }
-        }
-    }
+       }
        
        // --- Function to end the battle and show results ---
        async function endPvpBattle() {
