@@ -1994,7 +1994,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 dashDuration:380,
                 dashCooldown: 4000,
                 lastDashTime: 0,
-                thunderStrikeCooldown: 1800,
+                thunderStrikeCooldown: 1000,
                 lastThunderStrikeTime: 0,
                 lastDamagedTime: 0,
                 
@@ -2713,7 +2713,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 createChainLightningEffect(chainTargets);
 
                 // --- Deal Massive Damage to Chained Enemies ---
-                const thunderDamage = getTotalStat('strength') * 10.5; // Thunder Strike does 10x STR damage!
+                const thunderDamage = getTotalStat('strength') * 20.5; // Thunder Strike does 20.5x STR damage!
                 let enemiesWereDefeated = false;
 
                 // We damage every target in the chain except the player (who is at index 0)
