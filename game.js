@@ -69,16 +69,16 @@ const firebaseConfig = {
   
       // --- FIXED/MERGED ---: Added all missing constant data from the working file.
       const achievements = {
-          tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 50 } },
-          tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 250 } },
-          tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false, reward: { type: 'gold', amount: 1000 } },
+          tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 500 } },
+          tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 2500 } },
+          tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false, reward: { type: 'gold', amount: 10000 } },
           level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'uncommon' } },
-          level25: { name: "Seasoned Guardian", desc: "Reach level 25.", target: 25, unlocked: false, reward: { type: 'item', rarity: 'rare' } },
-          level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false, reward: { type: 'gold', amount: 5000 } },
-          defeat10: { name: "Goblin Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100 } },
+          level25: { name: "Seasoned Guardian", desc: "Reach level 15.", target: 15, unlocked: false, reward: { type: 'item', rarity: 'rare' } },
+          level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false, reward: { type: 'gold', amount: 50000 } },
+          defeat10: { name: "Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100 } },
           defeat100: { name: "Monster Hunter", desc: "Defeat 100 enemies.", target: 100, unlocked: false, reward: { type: 'gold', amount: 500 } },
-          defeat500: { name: "Legendary Hunter", desc: "Defeat 500 enemies.", target: 500, unlocked: false, reward: { type: 'item', rarity: 'epic' } },
-          ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'gold', amount: 1000 } },
+          defeat500: { name: "Death Bringer", desc: "Defeat 500 enemies.", target: 500, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
+          ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
           ascend5: { name: "World Walker", desc: "Reach Ascension Tier 5.", target: 5, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
           battle1: { name: "Battle Runner", desc: "Complete a Battle sequence once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000 } },
           forge1: { name: "Apprentice Blacksmith", desc: "Forge an item once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 750 } },
@@ -86,10 +86,10 @@ const firebaseConfig = {
           masterGuardian: { name: "Master Guardian", desc: "Reach Ascension Tier 5 and Level 50.", target: 1, unlocked: false, reward: { type: 'egg' } }
       };
       const perks = {
-          vigor: { name: "Guardian's Vigor", desc: "+10 Max HP & Energy per level.", maxLevel: 5, cost: [1, 1, 2, 2, 3] },
-          tapXp: { name: "Tapper's Insight", desc: "+10% XP from Taps per level.", maxLevel: 5, cost: [1, 1, 2, 2, 3] },
-          goldBoost: { name: "Fortune's Favor", desc: "+5% Gold from all sources per level.", maxLevel: 10, cost: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4] },
-          expeditionSpeed: { name: "Expeditionary Leader", desc: "-5% Expedition Duration per level.", maxLevel: 5, cost: [1, 2, 2, 3, 3] }
+          vigor: { name: "Guardian's Vigor", desc: "+10 Max HP & Energy per level.", maxLevel: 1000, cost: [1, 1, 2, 2, 3] },
+          tapXp: { name: "Tapper's Insight", desc: "+10% XP from Taps per level.", maxLevel: 1000, cost: [1, 1, 2, 2, 3] },
+          goldBoost: { name: "Fortune's Favor", desc: "+5% Gold from all sources per level.", maxLevel: 1000, cost: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4] },
+          expeditionSpeed: { name: "Expeditionary Leader", desc: "-5% Expedition Duration per level.", maxLevel: 1000, cost: [1, 2, 2, 3, 3] }
       };
       const itemData = {
         // We keep the old rarities for weights and affix counts
@@ -104,26 +104,26 @@ const firebaseConfig = {
         rarityTiers: [ 'common', 'uncommon', 'rare', 'epic', 'legendary' ],
         weaponColors: ['#BDBDBD', '#4CAF50', '#FF9800', '#F44336', '#E91E63'], // Grey, Green, Orange, Red, Pink
         armorColors: ['#CD7F32', '#2196F3', '#9C27B0', '#FFC107', '#FFFFFF'], // Bronze, Blue, Purple, Gold, White
-        types: { weapon: { base: ['Sword', 'Axe', 'Mace', 'Dagger'], primary: 'strength' }, armor: { base: ['Cuirass', 'Plate', 'Mail', 'Armor'], primary: 'fortitude' } },
-        prefixes: { strength: 'Mighty', fortitude: 'Sturdy', agility: 'Swift', critChance: 'Deadly', goldFind: 'Gilded' },
-        suffixes: { strength: 'of the Bear', fortitude: 'of the Tortoise', agility: 'of the Viper', critChance: 'of Piercing', goldFind: 'of Greed' },
+        types: { weapon: { base: ['Katana', 'Hammer', 'Axe', 'Knife'], primary: 'strength' }, armor: { base: ['Helmet', 'Jacket', 'Boots', 'Armor'], primary: 'fortitude' } },
+        prefixes: { strength: 'Rusty', fortitude: 'Sturdy', agility: 'Swift', critChance: 'Deadly', goldFind: 'Lucky' },
+        suffixes: { strength: 'of Death', fortitude: 'of the tank', agility: 'of the Viper', critChance: 'of Piercing', goldFind: 'of Greed' },
         affixes: ['agility', 'critChance', 'goldFind']
       };
       const shopItems = {
-          storableHealthPotion: { name: "Health Potion", desc: "A storable potion for battle. Restores 50% HP.", cost: 250, type: 'consumable' },
-          energyPotion: { name: "Energy Potion", desc: "Instantly restores 50% of your Max Energy.", cost: 100, type: 'consumable' },
+          storableHealthPotion: { name: "Health Potion", desc: "A storable potion for battle. Restores 50% HP.", cost: 550, type: 'consumable' },
+          energyPotion: { name: "Energy Potion", desc: "Instantly restores 50% of your Max Energy.", cost: 500, type: 'consumable' },
           xpBoost: { name: "Scroll of Wisdom", desc: "+50% XP from all sources for 15 minutes.", cost: 500, type: 'buff', duration: 900 }
       };
       const permanentShopUpgrades = {
-          strTraining: { name: "Strength Training", desc: "Permanently increases base Strength.", stat: 'strength', bonus: 1, levelReq: 10, maxLevel: 10, cost: (level) => 1000 * Math.pow(2, level) },
-          forTraining: { name: "Fortitude Training", desc: "Permanently increases base Fortitude.", stat: 'fortitude', bonus: 1, levelReq: 10, maxLevel: 10, cost: (level) => 1000 * Math.pow(2, level) },
-          agiTraining: { name: "Agility Training", desc: "Permanently increases base Agility.", stat: 'agility', bonus: 1, levelReq: 20, maxLevel: 5, cost: (level) => 5000 * Math.pow(3, level) },
+          strTraining: { name: "Strength Training", desc: "Permanently increases base Strength.", stat: 'strength', bonus: 1, levelReq: 10, maxLevel: 10000, cost: (level) => 1000 * Math.pow(2, level) },
+          forTraining: { name: "Fortitude Training", desc: "Permanently increases base Fortitude.", stat: 'fortitude', bonus: 1, levelReq: 10, maxLevel: 10000, cost: (level) => 1000 * Math.pow(2, level) },
+          agiTraining: { name: "Agility Training", desc: "Permanently increases base Agility.", stat: 'agility', bonus: 1, levelReq: 10, maxLevel: 5000, cost: (level) => 5000 * Math.pow(3, level) },
           energyTraining: { 
             name: "Energy Discipline", 
             desc: "Permanently increases Max Energy by 25.", 
             bonus: 25, 
             levelReq: 15, 
-            maxLevel: 10, 
+            maxLevel: 1000, 
             cost: (level) => 1500 * Math.pow(2.2, level) 
         }
       };
@@ -2195,6 +2195,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         attackCooldown: 2000,
                         lastAttackTime: 0
                     };
+                    const padding = 50; // How far from the edge they can spawn
+                    enemy.x = padding + (Math.random() * (arenaRect.width - padding * 2));
+                    enemy.y = padding + (Math.random() * (arenaRect.height - padding * 2));
                     
                     enemy.element.src = 'player.PNG';
                     enemy.element.className = 'genesis-enemy';
@@ -2233,8 +2236,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         attackCooldown: 2000, // Give them an attack cooldown too
                         lastAttackTime: 0,
                     };
-                    const padding = 50; // How far from the edge they can spawn
-                    enemy.x = padding + (Math.random() * (arenaRect.width - padding * 2));
+                    const padding = 50;
+                    enemy.x = (arenaRect.width * 0.66) + (Math.random() * (arenaRect.width * 0.33 - padding));
                     enemy.y = padding + (Math.random() * (arenaRect.height - padding * 2));
 
                     enemy.element.src = 'player.PNG';
@@ -2527,14 +2530,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             player.lastDashTime = timestamp;
 
             // --- NEW: Chain Dash Logic ---
-            const chainChance = 0.10; // 10% chance
+            const chainChance = 0.30; // 10% chance
             const shouldChain = Math.random() < chainChance;
-            const maxChains = shouldChain ? 3 : 1;
+            const maxChains = shouldChain ? 4 : 1;
             
             // Find the first target (always the densest cluster)
             let bestTarget = null;
             let maxCount = 0;
-            const clusterRadius = 150;
+            const clusterRadius = 350;
 
             genesisState.enemies.forEach(potentialTarget => {
                 let nearbyCount = 0;
@@ -2665,7 +2668,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const player = genesisState.player;
             if (!player || genesisState.enemies.length === 0) return;
             if (timestamp - player.lastThunderStrikeTime < player.thunderStrikeCooldown) return false;
-            const thunderStrikeProximity = 50; // The range required to activate the skill
+            const thunderStrikeProximity = 80; // The range required to activate the skill
             let isEnemyClose = false;
             for (const enemy of genesisState.enemies) {
                 const dx = player.x - enemy.x;
@@ -2871,11 +2874,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
 
         function createLootOrb(x, y) {
+            if (genesisState.isBattleMode) {
+                return; 
+            }
             const orb = {
                 element: document.createElement('div'),
                 x: x, y: y, type: 'gold',
                 amount: Math.floor(5 + (Math.random() * 5 * gameState.level)),
-                collectionRadius: 20,
+                collectionRadius: 30,
                 magnetRadius: 2550,
                 magnetSpeed: 3
 
