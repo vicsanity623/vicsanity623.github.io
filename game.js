@@ -3132,6 +3132,28 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (!genesisState.lootOrbs) genesisState.lootOrbs = [];
             genesisState.lootOrbs.push(orb);
         }
+        function createPvpDamageNumber(amount, isPlayerSource) {
+            const numEl = document.createElement('div');
+            numEl.className = 'enemy-damage-text'; // Reuse the same style
+            numEl.textContent = formatNumber(Math.floor(amount));
+
+            // Position based on who is attacking
+            if (isPlayerSource) {
+                // Damage appears over the opponent (on the right)
+                numEl.style.left = '75%';
+                numEl.style.color = 'var(--accent-color)'; // Green for player damage
+            } else {
+                // Damage appears over the player (on the left)
+                numEl.style.left = '25%';
+                numEl.style.color = 'var(--health-color)'; // Red for opponent damage
+            }
+            
+            // Randomize vertical position for a spray effect
+            numEl.style.top = `${40 + Math.random() * 20}%`;
+            
+            pvpArena.appendChild(numEl);
+            setTimeout(() => numEl.remove(), 1200);
+        }
         function moveLootOrbs() {
             const player = genesisState.player;
             if (!player || !genesisState.lootOrbs) return;
@@ -3652,41 +3674,73 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
        // --- Function that runs every 100ms during the PvP battle ---
        function pvpTick() {
-           if (!pvpState.isActive) return;
+        if (!pvpState.isActive) {
+            clearInterval(pvpState.timerId);
+            return;
+        }
 
-           // Update timer
-           pvpState.timeLeft -= 0.1;
-           pvpTimerDisplay.textContent = pvpState.timeLeft.toFixed(1);
+        // Update timer
+        pvpState.timeLeft -= 0.1;
 
-           // Calculate damage for this tick
-           const playerTickDamage = (getTotalStat('strength') + getTotalStat('agility')) * (Math.random() * 0.5 + 0.8);
-           pvpState.playerDamage += playerTickDamage;
-           
-           // Simulate opponent's damage based on their saved stats
-           const opponentStr = opponentData.stats.strength + (Object.values(opponentData.equipment).reduce((sum, item) => sum + (item?.stats?.strength || 0), 0));
-           const opponentAgi = opponentData.stats.agility + (Object.values(opponentData.equipment).reduce((sum, item) => sum + (item?.stats?.agility || 0), 0));
-           const opponentTickDamage = (opponentStr + opponentAgi) * (Math.random() * 0.5 + 0.8);
-           pvpState.opponentDamage += opponentTickDamage;
+        // Check for end of battle
+        if (pvpState.timeLeft <= 0) {
+            pvpTimerDisplay.textContent = "0.0";
+            endPvpBattle();
+            return;
+        }
+        
+        pvpTimerDisplay.textContent = pvpState.timeLeft.toFixed(1);
 
-           // Update the tug-of-war bar
-           const totalDamage = pvpState.playerDamage + pvpState.opponentDamage;
-           const playerPct = totalDamage > 0 ? (pvpState.playerDamage / totalDamage) * 100 : 50;
-           const opponentPct = 100 - playerPct;
+        // --- SIMULATE ATTACKS FOR BOTH SIDES ---
+        
+        // Player's Attack
+        const playerPower = getTotalStat('strength') + getTotalStat('agility');
+        const playerTickDamage = playerPower * (Math.random() * 0.2 + 0.9); // Damage range: 90%-110% of power
+        pvpState.playerDamage += playerTickDamage;
+        createPvpDamageNumber(playerTickDamage, true); // True means it's from the player
 
-           pvpPlayerDamageFill.style.width = `${playerPct}%`;
-           pvpOpponentDamageFill.style.width = `${opponentPct}%`;
+        // Opponent's Attack
+        // We need to re-calculate opponent stats here as they are not in the global scope
+        const opponent = pvpState.opponentData;
+        let opponentStr = opponent.stats.strength;
+        let opponentAgi = opponent.stats.agility;
+        for(const slot in opponent.equipment) {
+            if(opponent.equipment[slot] && opponent.equipment[slot].stats) {
+                opponentStr += opponent.equipment[slot].stats.strength || 0;
+                opponentAgi += opponent.equipment[slot].stats.agility || 0;
+            }
+        }
+        const opponentPower = opponentStr + opponentAgi;
+        const opponentTickDamage = opponentPower * (Math.random() * 0.2 + 0.9);
+        pvpState.opponentDamage += opponentTickDamage;
+        createPvpDamageNumber(opponentTickDamage, false); // False means it's from the opponent
 
-           // Create some visual flair
-           if (Math.random() < 0.3) {
-               createImpactEffect(parseInt(pvpArena.querySelector('.genesis-player').style.left), parseInt(pvpArena.querySelector('.genesis-player').style.top));
-               createImpactEffect(parseInt(pvpArena.querySelectorAll('.genesis-player')[1].style.left), parseInt(pvpArena.querySelectorAll('.genesis-player')[1].style.top));
-           }
+        // Update the tug-of-war bar
+        const totalDamage = pvpState.playerDamage + pvpState.opponentDamage;
+        if (totalDamage > 0) {
+            const playerPct = (pvpState.playerDamage / totalDamage) * 100;
+            pvpPlayerDamageFill.style.width = `${playerPct}%`;
+            pvpOpponentDamageFill.style.width = `${100 - playerPct}%`;
+        }
 
-           // Check for end of battle
-           if (pvpState.timeLeft <= 0) {
-               endPvpBattle();
-           }
-       }
+        // --- VISUAL FLAIR ---
+        // Re-use the cool slash effect for both players
+        const sprites = pvpArena.querySelectorAll('.genesis-player');
+        if (sprites.length === 2) {
+            if (Math.random() < 0.4) {
+                const playerSpriteEl = sprites[0];
+                const opponentSpriteEl = sprites[1];
+                // Create a slash effect from player to opponent
+                createAoeSlashEffect(opponentSpriteEl.offsetLeft, opponentSpriteEl.offsetTop, 50);
+            }
+            if (Math.random() < 0.4) {
+                 const playerSpriteEl = sprites[0];
+                const opponentSpriteEl = sprites[1];
+                // Create a slash effect from opponent to player
+                createAoeSlashEffect(playerSpriteEl.offsetLeft, playerSpriteEl.offsetTop, 50);
+            }
+        }
+    }
        
        // --- Function to end the battle and show results ---
        async function endPvpBattle() {
