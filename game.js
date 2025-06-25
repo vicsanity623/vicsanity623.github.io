@@ -65,6 +65,13 @@ const firebaseConfig = {
         waveTransitionActive: false,
         totalDamageDealtThisBattle: 0, // --- FIX: Added variable to track damage in battles.
       };
+      let pvpState = {
+        isActive: false,
+        timerId: null,
+        playerDamage: 0,
+        opponentDamage: 0,
+        opponentData: null,
+      };
       
   
       // --- FIXED/MERGED ---: Added all missing constant data from the working file.
@@ -169,6 +176,7 @@ const firebaseConfig = {
           counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
           lastWeeklyRewardClaim: 0,
           settings: { musicVolume: 0.5, sfxVolume: 1.0, isMuted: false, isAutoBattle: false }, dojoPersonalBest: 0,
+          pvpPersonalBest: 0,
           lastDailyClaim: 0,
           dailyStreak: 0,
           lastLogin: Date.now() 
@@ -201,6 +209,19 @@ const firebaseConfig = {
       const feedBtn = document.getElementById('feed-btn');
       const battleBtn = document.getElementById('battle-btn');
       const battleUnlockText = document.getElementById('battle-unlock-text');
+      const pvpBtn = document.getElementById('pvp-btn');
+      const pvpUnlockText = document.getElementById('pvp-unlock-text');
+      const pvpSelectionScreen = document.getElementById('pvp-selection-screen');
+      const pvpOpponentListContainer = document.getElementById('pvp-opponent-list-container');
+      const pvpSelectionBackBtn = document.getElementById('pvp-selection-back-btn');
+      const pvpBattleScreen = document.getElementById('pvp-battle-screen');
+      const pvpArena = document.getElementById('pvp-arena');
+      const pvpTimerDisplay = document.getElementById('pvp-timer-display');
+      const pvpPlayerName = document.getElementById('pvp-player-name');
+      const pvpOpponentName = document.getElementById('pvp-opponent-name');
+      const pvpPlayerDamageFill = document.getElementById('pvp-player-damage-fill');
+      const pvpOpponentDamageFill = document.getElementById('pvp-opponent-damage-fill');
+      const pvpLeaderboardList = document.getElementById('pvp-leaderboard-list');
       const expeditionBtn = document.getElementById('expedition-btn');
       const shopBtn = document.getElementById('shop-btn');
       const forgeBtn = document.getElementById('forge-btn');
@@ -740,6 +761,9 @@ const firebaseConfig = {
               ascensionBtn.style.display = 'none';
           }
         }
+        const canUsePvp = gameState.level >= PVP_UNLOCK_LEVEL;
+        pvpBtn.disabled = onExpedition || !canUsePvp;
+        pvpUnlockText.textContent = canUsePvp ? "" : `Unlocks at LVL ${PVP_UNLOCK_LEVEL}`;
         feedBtn.disabled = onExpedition; 
         inventoryBtn.disabled = onExpedition; 
         shopBtn.disabled = onExpedition;
@@ -1021,6 +1045,11 @@ const firebaseConfig = {
               collectionName = 'damageLeaderboard';
               orderByField = 'totalDamage';
               orderByDirection = 'desc';
+            } else if (type === 'pvp') { // --- ADD THIS ELSE IF BLOCK ---
+                targetList = pvpLeaderboardList;
+                collectionName = 'pvpLeaderboard';
+                orderByField = 'maxDamage';
+                orderByDirection = 'desc';
           } else {
               targetList = levelLeaderboardList;
               collectionName = 'leaderboard';
@@ -1028,6 +1057,7 @@ const firebaseConfig = {
               orderByDirection = 'desc';
               secondaryOrderByField = 'level';
               secondaryOrderByDirection = 'desc';
+              
           }
           
           targetList.classList.add('active');
@@ -1053,6 +1083,8 @@ const firebaseConfig = {
                   let scoreText;
                   if(type === 'damage') {
                       scoreText = `Damage: ${formatNumber(data.totalDamage)}`;
+                  } else if (type === 'pvp') {
+                      scoreText = `Max Damage: ${formatNumber(data.maxDamage)}`;
                   } else {
                       scoreText = `Level ${data.level} (Tier ${data.tier})`;
                   }
@@ -1112,24 +1144,34 @@ const firebaseConfig = {
                 statsHtml += `<div>+${value}${suffix} ${stat.charAt(0).toUpperCase() + stat.slice(1)}</div>`;
             }
         
-            let actionButtonHtml = '';
+            let actionButtonsHtml = ''; 
   
+            // --- THIS IS THE CORRECTED LOGIC ---
             if (currentForgeSelectionTarget !== null) {
-                actionButtonHtml = `<button onclick="selectItemForForge('${item.name}')">Select</button>`;
+                // We are in FORGE MODE - show the "Select" button
+                actionButtonsHtml = `<button onclick="selectItemForForge('${item.name}')">Select</button>`;
             } else {
+                // We are in normal INVENTORY MODE - show Equip/Sell buttons
                 const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
-                actionButtonHtml = isEquipped 
+                
+                const equipButton = isEquipped 
                     ? '<button disabled>Equipped</button>' 
                     : `<button onclick="equipItemByName('${item.name}')">Equip</button>`;
+
+                const sellValue = calculateSellValue(item);
+                const sellButton = `<button class="sell-button" onclick="sellItemByName('${item.name}')">Sell (${formatNumber(sellValue)} G)</button>`;
+
+                actionButtonsHtml = `<div class="inventory-button-group">${equipButton}${sellButton}</div>`;
             }
+            // --- END OF CORRECTION ---
   
             return `
                 <div class="inventory-item">
                     <div class="inventory-item-info">
                         <strong style="color:${item.rarity.color}">${item.name}</strong>
-                        <div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount}/3</div>
+                        <div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount || 0}/3</div>
                     </div>
-                    ${actionButtonHtml}
+                    ${actionButtonsHtml}
                 </div>
             `;
         };
@@ -1170,6 +1212,7 @@ const firebaseConfig = {
 
     window.equipItemByName = equipItemByName;
     window.selectItemForForge = selectItemForForge;
+    window.sellItemByName = sellItemByName;
   
       function generateAndShowExpeditions() {
           availableExpeditions = [];
@@ -1569,6 +1612,40 @@ const firebaseConfig = {
           showToast("Items successfully forged!");
           updateUI(); saveGame();
       }
+      function sellItemByName(itemName) {
+        const itemIndex = gameState.inventory.findIndex(i => i && i.name === itemName);
+        if (itemIndex === -1) {
+            console.error("Item to sell not found:", itemName);
+            return;
+        }
+    
+        const itemToSell = gameState.inventory[itemIndex];
+    
+        // Prevent selling equipped items
+        if (gameState.equipment[itemToSell.type] && gameState.equipment[itemToSell.type].name === itemToSell.name) {
+            showToast("Cannot sell an equipped item!");
+            return;
+        }
+    
+        const sellValue = calculateSellValue(itemToSell);
+    
+        if (confirm(`Are you sure you want to sell ${itemToSell.name} for ${formatNumber(sellValue)} Gold?`)) {
+            // Add gold to the player
+            gameState.gold += sellValue;
+            
+            // Remove the item from inventory
+            gameState.inventory.splice(itemIndex, 1);
+    
+            // Give feedback
+            playSound('feed', 0.8, 'sine', 600, 800, 0.1);
+            showToast(`Sold ${itemToSell.name} for ${formatNumber(sellValue)} Gold!`);
+    
+            // Refresh the UI
+            updateInventoryUI();
+            updateUI();
+            saveGame();
+        }
+      }
       
       function checkEggHatch() {
           if (gameState.partner && gameState.partner.hatchTime && Date.now() > gameState.partner.hatchTime) {
@@ -1821,6 +1898,22 @@ const firebaseConfig = {
     
         // 3. Show the modal
         rewardsModal.classList.add('visible');
+    }
+    function calculateSellValue(item) {
+        if (!item) return 0;
+    
+        const rarityMultiplier = {
+            common: 1,
+            uncommon: 2.5,
+            rare: 5,
+            epic: 10,
+            legendary: 25
+        };
+    
+        const baseValue = item.power * 2; // Base value is twice its power
+        const rarityMod = rarityMultiplier[item.rarity.key] || 1;
+    
+        return Math.floor(baseValue * rarityMod);
     }
 
 // =======================================================
@@ -3442,7 +3535,179 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           const currentMusic = musicManager.audio[musicManager.currentTrack];
           if (currentMusic) { currentMusic.volume = gameState.settings.musicVolume; }
        }
-  
+       const PVP_UNLOCK_LEVEL = 25; // Or whatever level you choose
+
+       // --- Function to fetch opponents and show the selection screen ---
+       async function enterPvpSelection() {
+           if (gameState.level < PVP_UNLOCK_LEVEL) {
+               showToast(`PvP unlocks at Level ${PVP_UNLOCK_LEVEL}`);
+               return;
+           }
+           showScreen('pvp-selection-screen');
+           pvpOpponentListContainer.innerHTML = '<p>Searching for opponents...</p>';
+
+           try {
+               // Fetch players around the current player's power level
+               // NOTE: This is a simplified query. For a real game, this would be more complex.
+               const playerPower = gameState.level + gameState.ascension.tier * 50;
+               const lowerBound = playerPower * 0.8;
+               const upperBound = playerPower * 1.2;
+
+               const snapshot = await db.collection('playerSaves')
+                   .where('level', '>=', gameState.level - 10)
+                   .where('level', '<=', gameState.level + 10)
+                   .limit(10)
+                   .get();
+               
+               let opponents = [];
+               snapshot.forEach(doc => {
+                   const data = doc.data();
+                   // Don't list the player as their own opponent
+                   if (data.playerName !== gameState.playerName) {
+                       opponents.push(data);
+                   }
+               });
+
+               // If not enough opponents found, widen the search (this is a fallback)
+               if(opponents.length < 4) {
+                    const anySnapshot = await db.collection('playerSaves').limit(10).get();
+                    anySnapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.playerName !== gameState.playerName && !opponents.some(o => o.playerName === data.playerName)) {
+                           opponents.push(data);
+                        }
+                    });
+               }
+               
+               pvpOpponentListContainer.innerHTML = '';
+               opponents.slice(0, 4).forEach(opponent => {
+                   const itemEl = document.createElement('div');
+                   itemEl.className = 'pvp-opponent-item';
+                   itemEl.innerHTML = `
+                       <img src="player.PNG" class="pvp-opponent-avatar" style="filter: hue-rotate(${Math.random() * 360}deg);">
+                       <div class="pvp-opponent-info">
+                           <div class="pvp-opponent-name">${opponent.playerName} (Lv. ${opponent.level})</div>
+                           <div class="pvp-opponent-stats">Tier: ${opponent.ascension.tier}</div>
+                       </div>
+                   `;
+                   itemEl.onclick = () => startPvpBattle(opponent);
+                   pvpOpponentListContainer.appendChild(itemEl);
+               });
+
+           } catch (error) {
+               console.error("Error fetching PvP opponents:", error);
+               pvpOpponentListContainer.innerHTML = '<p>Could not find opponents. Please try again later.</p>';
+           }
+       }
+
+       // --- Function to start the 15-second battle ---
+       function startPvpBattle(opponentData) {
+           pvpState = {
+               isActive: true,
+               timerId: null,
+               timeLeft: 15.0,
+               playerDamage: 0,
+               opponentDamage: 0,
+               opponentData: opponentData,
+           };
+
+           showScreen('pvp-battle-screen');
+           pvpArena.innerHTML = ''; // Clear previous battle
+
+           // Create player and opponent visuals
+           const playerSprite = document.createElement('img');
+           playerSprite.src = 'player.PNG';
+           playerSprite.className = 'genesis-player';
+           playerSprite.style.left = '25%';
+           playerSprite.style.top = '50%';
+
+           const opponentSprite = document.createElement('img');
+           opponentSprite.src = 'player.PNG';
+           opponentSprite.className = 'genesis-player'; // Use same class for style
+           opponentSprite.style.filter = 'hue-rotate(180deg)';
+           opponentSprite.style.left = '75%';
+           opponentSprite.style.top = '50%';
+           
+           pvpArena.appendChild(playerSprite);
+           pvpArena.appendChild(opponentSprite);
+
+           // Set names on the tug-of-war bar
+           pvpPlayerName.textContent = gameState.playerName;
+           pvpOpponentName.textContent = opponentData.playerName;
+
+           // Start the battle timer
+           pvpState.timerId = setInterval(pvpTick, 100);
+       }
+
+       // --- Function that runs every 100ms during the PvP battle ---
+       function pvpTick() {
+           if (!pvpState.isActive) return;
+
+           // Update timer
+           pvpState.timeLeft -= 0.1;
+           pvpTimerDisplay.textContent = pvpState.timeLeft.toFixed(1);
+
+           // Calculate damage for this tick
+           const playerTickDamage = (getTotalStat('strength') + getTotalStat('agility')) * (Math.random() * 0.5 + 0.8);
+           pvpState.playerDamage += playerTickDamage;
+           
+           // Simulate opponent's damage based on their saved stats
+           const opponentStr = opponentData.stats.strength + (Object.values(opponentData.equipment).reduce((sum, item) => sum + (item?.stats?.strength || 0), 0));
+           const opponentAgi = opponentData.stats.agility + (Object.values(opponentData.equipment).reduce((sum, item) => sum + (item?.stats?.agility || 0), 0));
+           const opponentTickDamage = (opponentStr + opponentAgi) * (Math.random() * 0.5 + 0.8);
+           pvpState.opponentDamage += opponentTickDamage;
+
+           // Update the tug-of-war bar
+           const totalDamage = pvpState.playerDamage + pvpState.opponentDamage;
+           const playerPct = totalDamage > 0 ? (pvpState.playerDamage / totalDamage) * 100 : 50;
+           const opponentPct = 100 - playerPct;
+
+           pvpPlayerDamageFill.style.width = `${playerPct}%`;
+           pvpOpponentDamageFill.style.width = `${opponentPct}%`;
+
+           // Create some visual flair
+           if (Math.random() < 0.3) {
+               createImpactEffect(parseInt(pvpArena.querySelector('.genesis-player').style.left), parseInt(pvpArena.querySelector('.genesis-player').style.top));
+               createImpactEffect(parseInt(pvpArena.querySelectorAll('.genesis-player')[1].style.left), parseInt(pvpArena.querySelectorAll('.genesis-player')[1].style.top));
+           }
+
+           // Check for end of battle
+           if (pvpState.timeLeft <= 0) {
+               endPvpBattle();
+           }
+       }
+       
+       // --- Function to end the battle and show results ---
+       async function endPvpBattle() {
+           clearInterval(pvpState.timerId);
+           pvpState.isActive = false;
+
+           const playerWon = pvpState.playerDamage > pvpState.opponentDamage;
+           let title = playerWon ? "VICTORY!" : "DEFEAT!";
+           let text = `You dealt ${formatNumber(pvpState.playerDamage)} damage.<br>${pvpState.opponentData.playerName} dealt ${formatNumber(pvpState.opponentDamage)} damage.`;
+
+           if (playerWon) {
+               playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+               // Submit score to leaderboard if it's a new personal best
+               const pvpBest = gameState.pvpPersonalBest || 0;
+               if (pvpState.playerDamage > pvpBest) {
+                   gameState.pvpPersonalBest = pvpState.playerDamage;
+                   text += "<br><br><b>New PvP Damage Record!</b> Score submitted to leaderboard.";
+                   try {
+                       await db.collection("pvpLeaderboard").doc(gameState.playerName).set({
+                           name: gameState.playerName,
+                           maxDamage: Math.floor(gameState.pvpPersonalBest)
+                       }, { merge: true });
+                   } catch(e) { console.error("Failed to submit PvP score", e); }
+               }
+           } else {
+               playSound('defeat', 1, 'sine', 440, 110, 0.8);
+           }
+           
+           showNotification(title, text);
+           saveGame();
+           showScreen('game-screen');
+       }
        // --- EVENT LISTENERS (Corrected) ---
        startGameBtn.addEventListener('click', startGame);
        loadGameBtn.addEventListener('click', loadGame);
@@ -3483,6 +3748,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       attackBtn.addEventListener('click', handlePlayerAttack);
       feedBattleBtn.addEventListener('click', feedInBattle); 
       fleeBtn.addEventListener('click', () => endBattle(false));
+      pvpBtn.addEventListener('click', enterPvpSelection);
+      pvpSelectionBackBtn.addEventListener('click', () => showScreen('game-screen'));
  
       expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
  
