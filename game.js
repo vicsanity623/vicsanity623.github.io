@@ -170,7 +170,8 @@ const firebaseConfig = {
           lastWeeklyRewardClaim: 0,
           settings: { musicVolume: 0.5, sfxVolume: 1.0, isMuted: false, isAutoBattle: false }, dojoPersonalBest: 0,
           lastDailyClaim: 0,
-          dailyStreak: 0 
+          dailyStreak: 0,
+          lastLogin: Date.now() 
       };
   
       const ASCENSION_LEVEL = 50;
@@ -509,6 +510,7 @@ const firebaseConfig = {
               loadedState.dojoPersonalBest = loadedState.dojoPersonalBest || 0;
               loadedState.lastDailyClaim = loadedState.lastDailyClaim || 0;
               loadedState.dailyStreak = loadedState.dailyStreak || 0;
+              loadedState.lastLogin = loadedState.lastLogin || Date.now();
               if (loadedState.equipment.weapon) {
                   rehydrateItemRarity(loadedState.equipment.weapon);
               }
@@ -555,6 +557,7 @@ const firebaseConfig = {
           if (loadedState) {
               loadedState = await migrateSaveData(loadedState);
               gameState = { ...defaultState, ...loadedState };
+              checkOfflineRewards();
               if(fromCloud) showToast("Cloud save loaded!");
               
               updateSettingsUI();
@@ -577,6 +580,7 @@ const firebaseConfig = {
       // --- FIXED/MERGED ---: Kept the superior save logic from the new file.
       async function saveGame(showToastNotification = false) {
           if (!gameState.playerName || gameState.playerName === "Guardian") return;
+          gameState.lastLogin = Date.now();
           if (auth.currentUser) {
               try {
                   const docRef = db.collection('playerSaves').doc(auth.currentUser.uid);
@@ -1661,6 +1665,67 @@ const firebaseConfig = {
         return now.getFullYear() > lastClaim.getFullYear() ||
                now.getMonth() > lastClaim.getMonth() ||
                now.getDate() > lastClaim.getDate();
+      }
+      function checkOfflineRewards() {
+        const now = Date.now();
+        const lastLogin = gameState.lastLogin || now;
+        const offlineTimeInSeconds = (now - lastLogin) / 1000;
+
+        // Only grant rewards if offline for at least 5 minutes
+        if (offlineTimeInSeconds < 60) {
+            return;
+        }
+
+        // Cap the rewards at a maximum of 24 hours
+        const maxOfflineTimeInSeconds = 24 * 60 * 60;
+        const effectiveOfflineTime = Math.min(offlineTimeInSeconds, maxOfflineTimeInSeconds);
+        
+        // --- Reward Calculations (Highly scalable and tweakable) ---
+        const playerPower = gameState.level + (gameState.ascension.tier * 10);
+
+        // Gold per second
+        const goldPerSecond = 0.1 * playerPower;
+        const totalGold = Math.floor(goldPerSecond * effectiveOfflineTime);
+        
+        // XP per second
+        const xpPerSecond = 0.2 * playerPower;
+        const totalXp = Math.floor(xpPerSecond * effectiveOfflineTime);
+        
+        // Enemies defeated (e.g., one enemy every 30 seconds)
+        const enemiesDefeated = Math.floor(effectiveOfflineTime / 30);
+        
+        // Item drops (e.g., a chance for one item every 10 minutes)
+        const minutesOffline = effectiveOfflineTime / 60;
+        let itemsFound = [];
+        for (let i = 0; i < minutesOffline / 10; i++) {
+            if (Math.random() < 0.75) { // 75% chance per 10-minute block
+                itemsFound.push(generateItem());
+            }
+        }
+        const weaponsFound = itemsFound.filter(item => item.type === 'weapon').length;
+        const armorsFound = itemsFound.filter(item => item.type === 'armor').length;
+
+        // --- Apply Rewards to Game State ---
+        gameState.gold += totalGold;
+        addXP(gameState, totalXp);
+        gameState.counters.enemiesDefeated += enemiesDefeated;
+        itemsFound.forEach(item => gameState.inventory.push(item));
+        
+        // --- Format Time for Display ---
+        const hours = Math.floor(effectiveOfflineTime / 3600);
+        const minutes = Math.floor((effectiveOfflineTime % 3600) / 60);
+
+        // --- Create the Reward Notification ---
+        let rewardText = `You were away for ${hours}h ${minutes}m.<br><br>Here's what you found:`;
+        rewardText += `<br>+${formatNumber(totalGold)} Gold`;
+        rewardText += `<br>+${formatNumber(totalXp)} XP`;
+        rewardText += `<br>Defeated ${enemiesDefeated} enemies`;
+        if (weaponsFound > 0) rewardText += `<br>Found ${weaponsFound} weapon(s)`;
+        if (armorsFound > 0) rewardText += `<br>Found ${armorsFound} armor piece(s)`;
+
+        showNotification("Welcome Back, Guardian!", rewardText);
+        
+        // Important: We don't save the game here, as it will be saved shortly after loadGame finishes.
       }
 
       function checkDailyRewards() {
