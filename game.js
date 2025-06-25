@@ -2260,42 +2260,121 @@ const PVP_UNLOCK_LEVEL = 25; // Or whatever level you choose
            pvpState.timerId = setInterval(pvpTick, 100);
        }
 
+       function executePvpTurn(isPlayer, timestamp) {
+        const combatantData = isPlayer ? gameState : pvpState.opponentData;
+        if (!combatantData) return;
+
+        const combatantSprite = pvpArena.querySelectorAll('.genesis-player')[isPlayer ? 0 : 1];
+        const targetSprite = pvpArena.querySelectorAll('.genesis-player')[isPlayer ? 1 : 0];
+        const cooldowns = isPlayer ? pvpState.playerCooldowns : pvpState.opponentCooldowns;
+
+        const getCombatantStat = (stat) => {
+            if (isPlayer) return getTotalStat(stat);
+            let total = combatantData.stats[stat] || 0;
+            for (const slot in combatantData.equipment) {
+                if (combatantData.equipment[slot] && combatantData.equipment[slot].stats) {
+                    total += combatantData.equipment[slot].stats[stat] || 0;
+                }
+            }
+            return total;
+        };
+
+        // 1. Thunder Strike
+        if (timestamp - cooldowns.lastThunderStrikeTime > 4000) {
+            cooldowns.lastThunderStrikeTime = timestamp;
+            const damage = getCombatantStat('strength') * 4.5;
+            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
+            const finalDamage = damage * (isCrit ? 2.5 : 1);
+            
+            createChainLightningEffect([combatantSprite, targetSprite]);
+            createFloatingText("Thunder Strike!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#00ffff', fontSize: '1.5em' });
+            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
+            createPvpDamageNumber(finalDamage, isPlayer);
+            return;
+        }
+
+        // 2. Havoc Rage
+        if (timestamp - cooldowns.lastHavocRageTime > 12000) {
+            cooldowns.lastHavocRageTime = timestamp;
+            createHavocShockwaveEffect(combatantSprite.offsetLeft, combatantSprite.offsetTop, 100);
+            createFloatingText("Havoc Rage!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#dc143c', fontSize: '1.5em' });
+            
+            const damage = getCombatantStat('strength') * 3;
+            if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
+            createPvpDamageNumber(damage, isPlayer);
+            return;
+        }
+        
+        // 3. Dash
+        if (timestamp - cooldowns.lastDashTime > 3200) {
+            cooldowns.lastDashTime = timestamp;
+            const shouldChain = Math.random() < 0.30;
+            createDashExplosionEffect(targetSprite.offsetLeft, targetSprite.offsetTop);
+            createFloatingText(shouldChain ? "Dash Chain!" : "Dash!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#ff8c00', fontSize: '1.5em' });
+
+            const damage = getCombatantStat('strength') * 5 * (shouldChain ? 2 : 1);
+            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
+            const finalDamage = damage * (isCrit ? 2.5 : 1);
+            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
+            createPvpDamageNumber(finalDamage, isPlayer);
+            return;
+        }
+
+        // 4. Basic Attack
+        const agility = getCombatantStat('agility');
+        const dynamicAttackCooldown = Math.max(95, 300 - (agility * 1));
+        if (timestamp - cooldowns.lastAttackTime > dynamicAttackCooldown) {
+            cooldowns.lastAttackTime = timestamp;
+            const damage = getCombatantStat('strength');
+            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
+            const finalDamage = damage * (isCrit ? 2.5 : 1);
+
+            createAoeSlashEffect(targetSprite.offsetLeft, targetSprite.offsetTop, 50);
+            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
+            createPvpDamageNumber(finalDamage, isPlayer);
+        }
+       }
+
        // --- Function that runs every 100ms during the PvP battle ---
        function pvpTick() {
-           if (!pvpState.isActive) return;
+        if (!pvpState.isActive) {
+            clearInterval(pvpState.timerId);
+            return;
+        }
 
-           // Update timer
-           pvpState.timeLeft -= 0.1;
-           pvpTimerDisplay.textContent = pvpState.timeLeft.toFixed(1);
+        pvpState.timeLeft -= 0.1;
 
-           // Calculate damage for this tick
-           const playerTickDamage = (getTotalStat('strength') + getTotalStat('agility')) * (Math.random() * 0.5 + 0.8);
-           pvpState.playerDamage += playerTickDamage;
-           
-           // Simulate opponent's damage based on their saved stats
-           const opponentStr = opponentData.stats.strength + (Object.values(opponentData.equipment).reduce((sum, item) => sum + (item?.stats?.strength || 0), 0));
-           const opponentAgi = opponentData.stats.agility + (Object.values(opponentData.equipment).reduce((sum, item) => sum + (item?.stats?.agility || 0), 0));
-           const opponentTickDamage = (opponentStr + opponentAgi) * (Math.random() * 0.5 + 0.8);
-           pvpState.opponentDamage += opponentTickDamage;
+        if (pvpState.timeLeft <= 0) {
+            pvpTimerDisplay.textContent = "0.0";
+            endPvpBattle();
+            return;
+        }
+        
+        pvpTimerDisplay.textContent = pvpState.timeLeft.toFixed(1);
 
-           // Update the tug-of-war bar
-           const totalDamage = pvpState.playerDamage + pvpState.opponentDamage;
-           const playerPct = totalDamage > 0 ? (pvpState.playerDamage / totalDamage) * 100 : 50;
-           const opponentPct = 100 - playerPct;
+        const timestamp = Date.now();
+        const sprites = pvpArena.querySelectorAll('.genesis-player');
+         if (sprites.length === 2) {
+             const playerSprite = sprites[0];
+             const opponentSprite = sprites[1];
 
-           pvpPlayerDamageFill.style.width = `${playerPct}%`;
-           pvpOpponentDamageFill.style.width = `${opponentPct}%`;
+             const distance = opponentSprite.offsetLeft - playerSprite.offsetLeft;
 
-           // Create some visual flair
-           if (Math.random() < 0.3) {
-               createImpactEffect(parseInt(pvpArena.querySelector('.genesis-player').style.left), parseInt(pvpArena.querySelector('.genesis-player').style.top));
-               createImpactEffect(parseInt(pvpArena.querySelectorAll('.genesis-player')[1].style.left), parseInt(pvpArena.querySelectorAll('.genesis-player')[1].style.top));
-           }
+             if (distance > 100) { // Keep a bit more distance
+                 playerSprite.style.left = `${playerSprite.offsetLeft + 3}px`;
+                 opponentSprite.style.left = `${opponentSprite.offsetLeft - 3}px`;
+             }
+         }
+     
+        executePvpTurn(true, timestamp);
+        executePvpTurn(false, timestamp);
 
-           // Check for end of battle
-           if (pvpState.timeLeft <= 0) {
-               endPvpBattle();
-           }
+        const totalDamage = pvpState.playerDamage + pvpState.opponentDamage;
+        if (totalDamage > 0) {
+            const playerPct = (pvpState.playerDamage / totalDamage) * 100;
+            pvpPlayerDamageFill.style.width = `${playerPct}%`;
+            pvpOpponentDamageFill.style.width = `${100 - playerPct}%`;
+        }
        }
        
        // --- Function to end the battle and show results ---
@@ -2422,6 +2501,7 @@ const PVP_UNLOCK_LEVEL = 25; // Or whatever level you choose
         }
 
         function stopGameGenesis() {
+            if(pvpState.isActive) return;
             genesisState.isActive = false;
             if (genesisState.gameLoopId) {
                 cancelAnimationFrame(genesisState.gameLoopId);
@@ -2486,7 +2566,7 @@ const PVP_UNLOCK_LEVEL = 25; // Or whatever level you choose
             });
         }
         function gameLoop(timestamp) {
-            if (!genesisState.isActive || !genesisState.player) return;
+            if (!genesisState.isActive || !genesisState.player || pvpState.isActive) return;
 
             // --- Player Damage Flash Reset ---
             if (timestamp - genesisState.player.lastDamagedTime > 200) {
