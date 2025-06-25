@@ -645,8 +645,13 @@ const firebaseConfig = {
           healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
           energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
           energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
+          
+          // --- THIS LINE WAS MISSING ---
+          xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
+          // --- END OF FIX ---
+
           xpBarLabel.textContent = `XP: ${formatNumber(Math.floor(gameState.xp))} / ${formatNumber(xpForNext)}`;
-                 // --- NEW, FINAL LOGIC: Build the entire stat panel dynamically ---
+          
           const defaultStatColor = 'var(--text-color)';
           const statColors = {};
           const statSourceRarityIndex = {};
@@ -674,8 +679,6 @@ const firebaseConfig = {
           const createStatRow = (label, value, statKey) => {
             const color = statColors[statKey] || defaultStatColor;
             const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
-            
-            // Add our new class ONLY if the statKey is 'gold'
             const extraClass = (statKey === 'gold') ? 'stat-value-gold' : '';
 
             return `
@@ -690,12 +693,9 @@ const firebaseConfig = {
           panelHtml += createStatRow('FOR', getTotalStat('fortitude'), 'fortitude');
           panelHtml += createStatRow('AGI', getTotalStat('agility'), 'agility');
           panelHtml += createStatRow('STA', getTotalStat('stamina'), 'stamina');
-
           panelHtml += '<hr class="stat-divider">';
-
           panelHtml += createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance');
           panelHtml += createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind');
-        
           panelHtml += '<hr class="stat-divider">';
           panelHtml += `
           <div class="stat-item">
@@ -712,44 +712,43 @@ const firebaseConfig = {
         `;
 
         playerStatPanel.innerHTML = panelHtml;
-          // The line that referenced 'goldDisplay' has been removed.
-                    updateBuffDisplay();
-          const onExpedition = gameState.expedition.active;
-          characterSprite.style.display = onExpedition ? 'none' : 'block';
-          expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
-          windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
+        updateBuffDisplay();
+        const onExpedition = gameState.expedition.active;
+        characterSprite.style.display = onExpedition ? 'none' : 'block';
+        expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
+        windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
   
-          const canUseBattle = gameState.level >= BATTLE_UNLOCK_LEVEL;
-          battleBtn.disabled = onExpedition || !canUseBattle;
-          battleUnlockText.textContent = canUseBattle ? "" : `Unlocks at LVL ${BATTLE_UNLOCK_LEVEL}`;
-          if (canUseBattle) {
-              battleBtn.textContent = `Battle (Lvl ${gameState.highestBattleLevelCompleted + 1})`;
+        const canUseBattle = gameState.level >= BATTLE_UNLOCK_LEVEL;
+        battleBtn.disabled = onExpedition || !canUseBattle;
+        battleUnlockText.textContent = canUseBattle ? "" : `Unlocks at LVL ${BATTLE_UNLOCK_LEVEL}`;
+        if (canUseBattle) {
+            battleBtn.textContent = `Battle (Lvl ${gameState.highestBattleLevelCompleted + 1})`;
+        } else {
+            battleBtn.textContent = 'Battle';
+        }                
+        const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
+        forgeBtn.disabled = onExpedition || !canUseForge;
+        forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
+        if (ascensionBtn) {
+          if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
+              ascensionBtn.style.display = 'block';
           } else {
-              battleBtn.textContent = 'Battle'; // Reset to default if not usable
-          }                
-          const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
-          forgeBtn.disabled = onExpedition || !canUseForge;
-          forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
-          if (ascensionBtn) { // Safety check to ensure the button element exists
-            if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
-                ascensionBtn.style.display = 'block';
-            } else {
-                ascensionBtn.style.display = 'none';
-            }
+              ascensionBtn.style.display = 'none';
           }
-          feedBtn.disabled = onExpedition; 
-          inventoryBtn.disabled = onExpedition; 
-          shopBtn.disabled = onExpedition;
+        }
+        feedBtn.disabled = onExpedition; 
+        inventoryBtn.disabled = onExpedition; 
+        shopBtn.disabled = onExpedition;
   
-          if (onExpedition) {
-              expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
-              if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
-          } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
-          
-          if (gameState.tutorialCompleted) { tutorialOverlay.classList.remove('visible'); } else { tutorialOverlay.classList.add('visible'); }
+        if (onExpedition) {
+            expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
+            if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
+        } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
+        
+        if (gameState.tutorialCompleted) { tutorialOverlay.classList.remove('visible'); } else { tutorialOverlay.classList.add('visible'); }
   
-          switchCharacterBtn.style.display = gameState.hasEgg ? 'block' : 'none';
-          updatePartnerUI();
+        switchCharacterBtn.style.display = gameState.hasEgg ? 'block' : 'none';
+        updatePartnerUI();
       }
       
       function addXP(character, amount) { 
@@ -1870,6 +1869,47 @@ async function stopDojoSession() {
         saveGame();
     }
 }
+function applyDamageToEnemy(enemy, damageAmount, isCrit = false) {
+    if (!enemy || enemy.hp <= 0) return false; // Don't damage already dead enemies
+
+    const finalDamage = Math.floor(damageAmount);
+    enemy.hp -= finalDamage;
+    genesisState.totalDamageDealtThisBattle += finalDamage;
+
+    const hpPercent = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
+    if (enemy.healthBarFill) enemy.healthBarFill.style.width = `${hpPercent}%`;
+
+    const textEl = document.createElement('div');
+    textEl.className = 'enemy-damage-text';
+    textEl.textContent = formatNumber(finalDamage);
+    textEl.style.left = `${enemy.x}px`;
+    textEl.style.top = `${enemy.y - 20}px`;
+    textEl.style.color = isCrit ? 'var(--xp-color)' : '#ff4136';
+
+    if (isCrit) {
+        textEl.style.fontSize = '1.8em';
+        textEl.style.fontWeight = '900';
+    } else {
+        textEl.style.fontSize = '1.2em';
+    }
+
+    genesisArena.appendChild(textEl);
+    setTimeout(() => textEl.remove(), 1200);
+
+    // --- NEW UNIFIED DEATH LOGIC ---
+    if (enemy.hp <= 0) {
+        addXP(gameState, 5 * (genesisState.isBattleMode ? (gameState.highestBattleLevelCompleted + 1) : gameState.level));
+        createLootOrb(enemy.x, enemy.y); // This function correctly handles not dropping loot in battle mode
+        
+        // Remove the visuals from the game
+        if (enemy.element) enemy.element.remove();
+        if (enemy.healthBarContainer) enemy.healthBarContainer.remove();
+
+        return true; // The enemy was defeated
+    }
+    
+    return false; // The enemy survived
+}
 
 function createDojoDamageNumber(amount, isCrit) {
     const num = document.createElement('div');
@@ -2009,13 +2049,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 isDashing: false,
                 dashTarget: null,
                 dashDuration:280,
-                dashCooldown: 1500,
+                dashCooldown: 3200,
                 lastDashTime: 0,
-                thunderStrikeCooldown: 4000,
+                thunderStrikeCooldown: 4500,
                 lastThunderStrikeTime: 0,
                 lastDamagedTime: 0,
-                havocRageCooldown: 6000,
+                havocRageCooldown: 10000,
                 lastHavocRageTime: 0,
+                isChargingHavoc: false,
                 
             };
 
@@ -2076,7 +2117,32 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 growBtn.textContent = 'Grow'; // Change button text back
             }
         }
-
+        function handleLootCollection() {
+            const player = genesisState.player;
+            if (!player || !genesisState.lootOrbs) return;
+        
+            const arenaRect = genesisArena.getBoundingClientRect();
+        
+            genesisState.lootOrbs = genesisState.lootOrbs.filter(orb => {
+                const dx = player.x - orb.x;
+                const dy = player.y - orb.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+        
+                if (distance <= orb.collectionRadius) {
+                    gameState.gold += orb.amount;
+        
+                    const screenX = arenaRect.left + player.x;
+                    const screenY = arenaRect.top + player.y;
+                    
+                    createFloatingText(`+${formatNumber(orb.amount)} Gold`, screenX, screenY, { color: 'var(--xp-color)' });
+        
+                    playSound('feed', 0.5, 'sine', 600, 800, 0.1);
+                    orb.element.remove();
+                    return false;
+                }
+                return true;
+            });
+        }
         function gameLoop(timestamp) {
             if (!genesisState.isActive || !genesisState.player) return;
 
@@ -2191,8 +2257,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         function spawnEnemies(timestamp) {
             if (genesisState.isBattleMode) {
-                // --- BATTLE MODE SPAWNING ---
-                const waveSpawnInterval = 400; // Spawn battle enemies quickly
+                const waveSpawnInterval = 200;
                 if (genesisState.enemiesSpawnedThisWave < genesisState.enemiesToSpawnThisWave && timestamp - genesisState.lastEnemySpawn > waveSpawnInterval) {
                     genesisState.lastEnemySpawn = timestamp;
                     genesisState.enemiesSpawnedThisWave++;
@@ -2203,8 +2268,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
                     const enemy = {
                         element: document.createElement('img'),
-                        x: arenaRect.width + 50, // Spawn from the right edge
-                        y: Math.random() * arenaRect.height,
+                        healthBarContainer: document.createElement('div'),
+                        healthBarFill: document.createElement('div'),
+                        x: 0,
+                        y: 0,
                         speed: (0.5 + Math.random() * 2.0) * waveMultiplier,
                         width: 40, height: 40,
                         maxHp: (40 + (10 * difficulty)) * waveMultiplier,
@@ -2214,30 +2281,35 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         attackCooldown: 2000,
                         lastAttackTime: 0
                     };
-                    const padding = 50; // How far from the edge they can spawn
+                    
+                    const padding = 50;
                     enemy.x = padding + (Math.random() * (arenaRect.width - padding * 2));
                     enemy.y = padding + (Math.random() * (arenaRect.height - padding * 2));
+
+                    enemy.healthBarContainer.className = 'enemy-health-bar-container';
+                    enemy.healthBarFill.className = 'enemy-health-bar-fill';
+                    enemy.healthBarContainer.appendChild(enemy.healthBarFill);
                     
                     enemy.element.src = 'player.PNG';
                     enemy.element.className = 'genesis-enemy';
                     enemy.element.style.filter = `hue-rotate(${Math.random() * 360}deg) saturate(1.5)`;
+
                     genesisArena.appendChild(enemy.element);
+                    genesisArena.appendChild(enemy.healthBarContainer);
                     genesisState.enemies.push(enemy);
                 }
             } else {
-                // --- ENDLESS MODE SPAWNING (Your existing performance-fixed code) ---
                 if (genesisState.enemies.length >= MAX_ENEMIES) return;
 
-                const baseSpawnInterval = 2000;
-                const minSpawnInterval = 300;
+                const baseSpawnInterval = 700;
+                const minSpawnInterval = 200;
                 const dynamicSpawnInterval = Math.max(minSpawnInterval, baseSpawnInterval / genesisState.difficultyLevel);
                 const arenaRect = genesisArena.getBoundingClientRect();
 
                 if (timestamp - genesisState.lastEnemySpawn > dynamicSpawnInterval && arenaRect.width > 0) {
-                    // ... (The rest of your endless mode spawn logic goes here, it's correct)
                     genesisState.lastEnemySpawn = timestamp;
                     const difficulty = genesisState.difficultyLevel;
-                    const enemyHp = Math.floor((10 * gameState.level * gameState.ascension.tier) * (1 + (difficulty - 1) * 0.5));
+                    const enemyHp = Math.floor((5 * gameState.level * gameState.ascension.tier) + (difficulty * 5));
                     
                     const baseSpeed = 0.5 + Math.random() * 2.0;
                     const speedMultiplier = 1 + (difficulty - 1) * 0.25;
@@ -2245,6 +2317,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             
                     const enemy = {
                         element: document.createElement('img'),
+                        healthBarContainer: document.createElement('div'),
+                        healthBarFill: document.createElement('div'),
                         x: 0, y: 0,
                         speed: enemySpeed,
                         width: 40, height: 40,
@@ -2252,17 +2326,24 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         hp: enemyHp,
                         id: Date.now() + Math.random(),
                         attackRange: 25,
-                        attackCooldown: 2000, // Give them an attack cooldown too
+                        attackCooldown: 2000,
                         lastAttackTime: 0,
                     };
+
                     const padding = 50;
-                    enemy.x = (arenaRect.width * 0.66) + (Math.random() * (arenaRect.width * 0.33 - padding));
+                    enemy.x = padding + (Math.random() * (arenaRect.width - padding * 2));
                     enemy.y = padding + (Math.random() * (arenaRect.height - padding * 2));
+
+                    enemy.healthBarContainer.className = 'enemy-health-bar-container';
+                    enemy.healthBarFill.className = 'enemy-health-bar-fill';
+                    enemy.healthBarContainer.appendChild(enemy.healthBarFill);
 
                     enemy.element.src = 'player.PNG';
                     enemy.element.className = 'genesis-enemy';
                     enemy.element.style.filter = `hue-rotate(${Math.random() * 360}deg) saturate(1.5)`;
+
                     genesisArena.appendChild(enemy.element);
+                    genesisArena.appendChild(enemy.healthBarContainer);
                     genesisState.enemies.push(enemy);
                 }
             }
@@ -2369,50 +2450,40 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             let targetY = null;
             let currentSpeed = player.speed;
         
-            // --- Movement Priority ---
-            // 1. Dashing: Overrides all other automatic movement.
             if (player.isDashing && player.dashTarget) {
                 targetX = player.dashTarget.x;
                 targetY = player.dashTarget.y;
-                currentSpeed = player.speed * 5; // Much faster for the dash
+                currentSpeed = player.speed * 5;
                 createDashTrailEffect(player);
             } 
-            // 2. Manual Click: Player-commanded movement.
             else if (player.manualDestination) {
                 targetX = player.manualDestination.x;
                 targetY = player.manualDestination.y;
                 const dx = targetX - player.x;
                 const dy = targetY - player.y;
                 if (Math.sqrt(dx * dx + dy * dy) < 10) {
-                    player.manualDestination = null; // Clear destination when we arrive
+                    player.manualDestination = null;
                 }
             } 
-            // 3. Automatic Targeting: Chasing enemies or returning to position.
             else {
-                // If there's an enemy to target...
                 if (player.target) {
-                    // ...and we're in BATTLE MODE, respect the patrol zone.
                     if (genesisState.isBattleMode) {
                         const enemyTargetX = player.target.x;
                         const enemyTargetY = player.target.y;
-        
                         const vectorX = enemyTargetX - player.patrolCenterX;
                         const vectorY = enemyTargetY - player.patrolCenterY;
                         const distFromPatrolCenter = Math.sqrt(vectorX * vectorX + vectorY * vectorY);
         
-                        // If enemy is outside our zone, move to the edge of the zone towards them.
                         if (distFromPatrolCenter > player.patrolRadius) {
                             const normX = vectorX / distFromPatrolCenter;
                             const normY = vectorY / distFromPatrolCenter;
                             targetX = player.patrolCenterX + normX * player.patrolRadius;
                             targetY = player.patrolCenterY + normY * player.patrolRadius;
                         } else {
-                            // Otherwise, the enemy is in our zone, go get 'em.
                             targetX = enemyTargetX;
                             targetY = enemyTargetY;
                         }
                     }
-                    // ...otherwise (in ENDLESS MODE), chase them freely.
                     else {
                          const dx = player.target.x - player.x;
                          const dy = player.target.y - player.y;
@@ -2423,29 +2494,23 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                          }
                     }
                 }
-                // If there are NO enemies to target...
                 else {
-                    // ...in BATTLE MODE, return to the resting position.
                     if (genesisState.isBattleMode) {
                         const dx = player.patrolCenterX - player.x;
                         const dy = player.patrolCenterY - player.y;
-                        // Only move if we are not already at the resting position
                         if (Math.sqrt(dx * dx + dy * dy) > 5) {
                             targetX = player.patrolCenterX;
                             targetY = player.patrolCenterY;
                         }
                     }
-                    // In endless mode with no target, targetX/Y remain null, so the player stops.
                 }
             }
         
-            // --- Execute Movement ---
             if (targetX !== null && targetY !== null) {
                 const moveDx = targetX - player.x;
                 const moveDy = targetY - player.y;
                 const moveDistance = Math.sqrt(moveDx * moveDx + moveDy * moveDy);
                 
-                // Move towards the target, but don't overshoot.
                 if (moveDistance > 1) {
                     const moveAmount = Math.min(currentSpeed, moveDistance);
                     player.x += (moveDx / moveDistance) * moveAmount;
@@ -2453,9 +2518,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             }
         
-            // --- Final Position Clamping (always do this) ---
             const arenaRect = genesisArena.getBoundingClientRect();
-            if (arenaRect.width > 0) { // Ensure arena is rendered
+            if (arenaRect.width > 0) {
                 player.x = clamp(player.x, player.width / 2, arenaRect.width - player.width / 2);
                 player.y = clamp(player.y, player.height / 2, arenaRect.height - player.height / 2);
             }
@@ -2466,14 +2530,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (!player || player.isDashing || genesisState.enemies.length === 0) return false;
             if (timestamp - player.lastDashTime < player.dashCooldown) return false;
 
-            player.lastDashTime = timestamp;
-
-            // --- NEW: Chain Dash Logic ---
-            const chainChance = 0.30; // 10% chance
-            const shouldChain = Math.random() < chainChance;
-            const maxChains = shouldChain ? 4 : 1;
-            
-            // Find the first target (always the densest cluster)
             let bestTarget = null;
             let maxCount = 0;
             const clusterRadius = 350;
@@ -2493,24 +2549,48 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             });
             
-            // If no cluster found, default to the closest enemy
             if (!bestTarget) {
                  bestTarget = player.target;
             }
 
             if (bestTarget) {
-                if (shouldChain) showToast("Dash Chain!");
-                performDash(bestTarget, 1, maxChains); // Start the first dash
-                return true; // The dash action was taken
+                const dx = player.x - bestTarget.x;
+                const dy = player.y - bestTarget.y;
+                const distanceToTarget = Math.sqrt(dx * dx + dy * dy);
+                const maxDashRange = 600; 
+
+                if (distanceToTarget > maxDashRange) {
+                    return false; 
+                }
+
+                player.lastDashTime = timestamp;
+
+                const chainChance = 0.30;
+                const shouldChain = Math.random() < chainChance;
+                const maxChains = shouldChain ? 4 : 1;
+                
+                const arenaRect = genesisArena.getBoundingClientRect();
+                const screenX = arenaRect.left + player.x;
+                const screenY = arenaRect.top + player.y - 80;
+                
+                if (shouldChain) {
+                    createFloatingText("Dash Chain!", screenX, screenY, { color: '#ff8c00', fontSize: '2.2em' });
+                } else {
+                    createFloatingText("Dash!", screenX, screenY, { color: '#ff8c00', fontSize: '1.8em' });
+                }
+                
+                performDash(bestTarget, 1, maxChains);
+                
+                return true;
             }
+            
             return false;
         }
 
-        // This function performs a single dash and then calls itself if the chain continues.
         function performDash(target, currentChain, maxChains) {
             const player = genesisState.player;
             if (!player || !target) {
-                player.isDashing = false;
+                if(player) player.isDashing = false;
                 return;
             };
 
@@ -2519,9 +2599,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             playSound('hit', 1, 'sawtooth', 800, 200, 0.2);
 
             setTimeout(() => {
-                if (!genesisState.player) return; // Safety check
+                if (!genesisState.player) return;
 
-                // Explosion and Damage at the end of the dash
                 const explosionX = player.x;
                 const explosionY = player.y;
                 createDashExplosionEffect(explosionX, explosionY);
@@ -2530,29 +2609,20 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
                 const explosionRadius = 150;
                 const dashDamage = getTotalStat('strength') * 5;
-                let enemiesWereDefeated = false;
 
                 genesisState.enemies.forEach(enemy => {
                     const dx = explosionX - enemy.x;
                     const dy = explosionY - enemy.y;
                     if (Math.sqrt(dx * dx + dy * dy) <= explosionRadius) {
                         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-                        const finalDamage = Math.floor(dashDamage * (isCrit ? 2 : 1));
-                        genesisState.totalDamageDealtThisBattle += finalDamage;
-                        enemy.hp -= finalDamage;
-                        createImpactEffect(enemy.x, enemy.y);
-                        if (enemy.hp <= 0) enemiesWereDefeated = true;
+                        const finalDamage = dashDamage * (isCrit ? 2.5 : 1);
+                        applyDamageToEnemy(enemy, finalDamage, isCrit);
                     }
                 });
 
-                if (enemiesWereDefeated) {
-                    genesisState.enemies.forEach(e => { if (e.hp <= 0) e.element.remove(); });
-                    genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
-                }
+                genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
 
-                // --- Chain Logic: Find the next target and continue ---
                 if (currentChain < maxChains && genesisState.enemies.length > 0) {
-                    // Subsequent chains target the FURTHEST enemy to clear the screen
                     let furthestEnemy = null;
                     let maxDistance = -1;
                     genesisState.enemies.forEach(enemy => {
@@ -2566,36 +2636,38 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     });
 
                     if (furthestEnemy) {
-                        // Call the function again for the next link in the chain
                         performDash(furthestEnemy, currentChain + 1, maxChains);
                     } else {
-                        // No enemies left to chain to
                         player.isDashing = false;
                     }
                 } else {
-                    // Chain is finished
                     player.isDashing = false;
                 }
 
             }, player.dashDuration);
         }
-        function createHavocShockwaveEffect(x, y, range) {
-            const container = document.createElement('div');
-            container.className = 'havoc-lightning-container';
-            container.style.width = `${range * 2}px`;
-            container.style.height = `${range * 2}px`;
-            container.style.left = `${x}px`;
-            container.style.top = `${y}px`;
 
-            // Create 3 lightning bolts inside the container
-            for (let i = 1; i <= 3; i++) {
+        function createHavocShockwaveEffect(x, y, range) {
+            const numberOfBolts = 8;
+
+            for (let i = 0; i < numberOfBolts; i++) {
                 const bolt = document.createElement('div');
-                bolt.className = `havoc-lightning-bolt bolt-${i}`;
-                container.appendChild(bolt);
+                bolt.className = 'havoc-starburst-bolt';
+                
+                bolt.style.left = `${x}px`;
+                bolt.style.top = `${y}px`;
+
+                const angle = (360 / numberOfBolts) * i;
+                bolt.style.transform = `rotate(${angle}deg)`;
+                
+                bolt.style.animationDelay = `${Math.random() * 0.15}s`;
+                
+                genesisArena.appendChild(bolt);
+
+                setTimeout(() => {
+                    if (bolt) bolt.remove();
+                }, 600);
             }
-            
-            genesisArena.appendChild(container);
-            setTimeout(() => container.remove(), 800);
         }
 
         function createBurnParticles(enemy) {
@@ -2603,7 +2675,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const particle = document.createElement('div');
             particle.className = 'enemy-fire-particle';
             
-            // Randomize position slightly around the enemy
             const offsetX = (Math.random() - 0.5) * enemy.width;
             const offsetY = (Math.random() - 0.5) * enemy.height;
             particle.style.left = `${enemy.x + offsetX}px`;
@@ -2612,6 +2683,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             genesisArena.appendChild(particle);
             setTimeout(() => particle.remove(), 500);
         }
+
         function createChainLightningEffect(targets) {
             const canvas = document.createElement('canvas');
             canvas.className = 'genesis-chain-lightning';
@@ -2625,46 +2697,43 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             for (let i = 0; i < targets.length - 1; i++) {
                 const start = targets[i];
                 const end = targets[i+1];
-                // Reuse the lightning drawing logic from the Dojo
                 drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(0, 255, 255, 0.2)', 20, 15);
                 drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(255, 255, 255, 0.5)', 10, 12);
                 drawLightningSegment(ctx, start.x, start.y, end.x, end.y, '#FFFFFF', 4, 10);
             }
 
-            // Clean up the canvas element after the animation
             setTimeout(() => canvas.remove(), 400);
         }
 
-        // --- ADD THIS NEW FUNCTION (Part 2 of 2) ---
         function handleGenesisThunderStrike(timestamp) {
             const player = genesisState.player;
-            if (!player || genesisState.enemies.length === 0) return;
+            if (!player || player.isChargingHavoc || genesisState.enemies.length === 0) return false;
             if (timestamp - player.lastThunderStrikeTime < player.thunderStrikeCooldown) return false;
-            const thunderStrikeProximity = 50; // The range required to activate the skill
+
+            const thunderStrikeProximity = 50;
             let isEnemyClose = false;
             for (const enemy of genesisState.enemies) {
                 const dx = player.x - enemy.x;
                 const dy = player.y - enemy.y;
                 if (Math.sqrt(dx * dx + dy * dy) <= thunderStrikeProximity) {
                     isEnemyClose = true;
-                    break; // Found a close enemy, no need to check further
+                    break;
                 }
             }
             if (!isEnemyClose) {
                 return false;
             }
 
-            // --- Find Targets for the Chain Lightning ---
+            // --- THIS IS THE FIX: MOVE THIS BLOCK UP ---
             let potentialTargets = [...genesisState.enemies];
-            let chainTargets = [player]; // The player is always the start of the chain
-            const maxChain = 7; 
+            let chainTargets = [player];
+            const maxChain = 17; 
 
             for (let i = 0; i < maxChain && potentialTargets.length > 0; i++) {
                 const lastTarget = chainTargets[chainTargets.length - 1];
                 let closestEnemy = null;
                 let minDistance = Infinity;
 
-                // Find the enemy closest to the LAST target in our chain
                 potentialTargets.forEach(enemy => {
                     const dx = lastTarget.x - enemy.x;
                     const dy = lastTarget.y - enemy.y;
@@ -2677,154 +2746,119 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
                 if (closestEnemy) {
                     chainTargets.push(closestEnemy);
-                    // Remove the chosen enemy from the potential pool so it can't be picked again
                     potentialTargets = potentialTargets.filter(e => e.id !== closestEnemy.id);
                 }
             }
+            // --- END OF MOVED BLOCK ---
 
-            // Only fire if we found at least one enemy to chain to
             if (chainTargets.length > 1) {
                 player.lastThunderStrikeTime = timestamp;
-                playSound('ascend', 0.8, 'sawtooth', 100, 800, 0.3); // A powerful charging sound
+                playSound('ascend', 0.8, 'sawtooth', 100, 800, 0.3);
                 triggerScreenShake(200);
 
-                // Create the visual effect using the chain we just built
-                createChainLightningEffect(chainTargets);
+                const arenaRect = genesisArena.getBoundingClientRect();
+                const screenX = arenaRect.left + player.x;
+                const screenY = arenaRect.top + player.y - 80;
+                createFloatingText("Thunder Strike!", screenX, screenY, {
+                    color: '#00ffff',
+                    fontSize: '2.2em'
+                });
 
-                // --- Deal Massive Damage to Chained Enemies ---
-                const thunderDamage = getTotalStat('strength') * 4.5; // Thunder Strike does 4.5x STR damage!
-                let enemiesWereDefeated = false;
+                // Now this line will work correctly because chainTargets is defined
+                createChainLightningEffect(chainTargets); 
 
-                // We damage every target in the chain except the player (who is at index 0)
+                const thunderDamage = getTotalStat('strength') * 4.5;
+
                 for (let i = 1; i < chainTargets.length; i++) {
                     const enemy = chainTargets[i];
                     const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-                    const finalDamage = Math.floor(thunderDamage * (isCrit ? 2 : 1));
-                    genesisState.totalDamageDealtThisBattle += finalDamage; // --- FIX: Track damage ---
-                    enemy.hp -= finalDamage;
-
-                    createImpactEffect(enemy.x, enemy.y);
-                    createFloatingText(finalDamage, enemy.x, enemy.y, { color: 'cyan', fontSize: '1.8em' });
-
-                    if (enemy.hp <= 0) {
-                        enemiesWereDefeated = true;
-                        addXP(gameState, 5 * gameState.level);
-                        createLootOrb(enemy.x, enemy.y);
-                    }
+                    const finalDamage = thunderDamage * (isCrit ? 2.5 : 1);
+                    applyDamageToEnemy(enemy, finalDamage, isCrit);
                 }
                 
-                // Clean up any defeated enemies
-                if (enemiesWereDefeated) {
-                    genesisState.enemies.forEach(enemy => { if (enemy.hp <= 0) enemy.element.remove(); });
-                    genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
-                }
+                genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
                 return true;
             }
             return false;
         }
         
-
         function handleGenesisHavocRage(timestamp) {
             const player = genesisState.player;
             if (!player || genesisState.enemies.length === 0) return false;
             if (timestamp - player.lastHavocRageTime < player.havocRageCooldown) return false;
-            
-            let closestDistance = Infinity;
-            genesisState.enemies.forEach(enemy => {
-                const dx = player.x - enemy.x;
-                const dy = player.y - enemy.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                }
-            });
-
-            if (closestDistance > 250) return false;
-
-            // --- ALL CHECKS PASSED, EXECUTE THE ABILITY ---
+        
             player.lastHavocRageTime = timestamp;
-
-            // --- NEW: CHARGE-UP VISUAL AND SOUND ---
-            playSound('hit', 0.8, 'sine', 100, 50, 0.3); // Deep charging sound
-            player.element.style.filter = 'brightness(2) drop-shadow(0 0 15px red)'; // Flash red
-            triggerScreenShake(200);
-            // --- END NEW ---
-
-            // Use a timeout to delay the explosion, making it feel more powerful
+        
+            playSound('crit', 1, 'sawtooth', 300, 50, 0.5); 
+            triggerScreenShake(400);
+        
+            const arenaRect = genesisArena.getBoundingClientRect();
+            const screenX = arenaRect.left + player.x;
+            const screenY = arenaRect.top + player.y - 80;
+            createFloatingText("Havoc Rage!", screenX, screenY, {
+                color: '#dc143c',
+                fontSize: '2.2em'
+            });
+        
+            player.element.style.filter = 'invert(1)';
             setTimeout(() => {
-                if (!genesisState.player) return; // Safety check in case game ended
-
-                playSound('crit', 1, 'sawtooth', 300, 50, 0.5); // The explosion sound
-                player.element.style.filter = ''; // Reset player filter
-                triggerScreenShake(400);
-
-                const effectRadius = 200;
-                createHavocShockwaveEffect(player.x, player.y, effectRadius);
-
-                genesisState.enemies.forEach(enemy => {
-                    const dx = player.x - enemy.x;
-                    const dy = player.y - enemy.y;
-                    if (Math.sqrt(dx * dx + dy * dy) <= effectRadius) {
-                        enemy.burn = {
-                            expiryTime: timestamp + 5000,
-                            damagePerTick: getTotalStat('strength') * 0.25,
-                            lastTickTime: timestamp
-                        };
-                        enemy.element.classList.add('burning');
-                    }
-                });
-            }, 300); // 300ms charge-up time
-
+                if (player && player.element) {
+                    player.element.style.filter = '';
+                }
+            }, 250);
+        
+            const effectRadius = 200;
+            createHavocShockwaveEffect(player.x, player.y, effectRadius);
+        
+            genesisState.enemies.forEach(enemy => {
+                enemy.burn = {
+                    expiryTime: timestamp + 5000,
+                    damagePerTick: getTotalStat('strength') * 0.25,
+                    lastTickTime: timestamp
+                };
+                enemy.element.classList.add('burning');
+            });
+            
             return true;
         }
+
         function handleBurnDamage(timestamp) {
             if (genesisState.enemies.length === 0) return;
 
-            // Use a reverse loop so we can safely remove dead enemies
             for (let i = genesisState.enemies.length - 1; i >= 0; i--) {
                 const enemy = genesisState.enemies[i];
                 
                 if (enemy && enemy.burn) {
-                    // Check if the burn has expired
                     if (timestamp > enemy.burn.expiryTime) {
                         delete enemy.burn;
-                        enemy.element.classList.remove('burning');
-                        continue; // Move to the next enemy
+                        if(enemy.element) enemy.element.classList.remove('burning');
+                        continue;
                     }
 
-                    // Apply damage every 250ms (4 times a second)
                     if (timestamp - enemy.burn.lastTickTime > 250) {
-                        const tickDamage = Math.floor(enemy.burn.damagePerTick / 4);
-                        enemy.hp -= tickDamage;
-                        genesisState.totalDamageDealtThisBattle += tickDamage;
-                        enemy.burn.lastTickTime = timestamp;
-
-                        createBurnParticles(enemy); // Create a fire particle
+                        const tickDamage = enemy.burn.damagePerTick / 4;
+                        createBurnParticles(enemy);
                         
-                        // Check if the enemy died from the burn
-                        if (enemy.hp <= 0) {
-                            addXP(gameState, 5 * gameState.level);
-                            createLootOrb(enemy.x, enemy.y);
-                            enemy.element.remove();
-                            genesisState.enemies.splice(i, 1); // Safely remove from array
+                        applyDamageToEnemy(enemy, tickDamage, false);
+                        
+                        if (enemy.hp > 0) {
+                            enemy.burn.lastTickTime = timestamp;
                         }
                     }
                 }
             }
+            genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
         }
 
         function handleGenesisPlayerAttack(timestamp) {
             const player = genesisState.player;
-            const baseCooldown = 300;      // The cooldown at 0 Agility (in ms).
-            const reductionPerAgi = 4;     // How many ms are removed per point of Agility.
-            const minimumCooldown = 65;    // The fastest possible attack speed (prevents zero/negative cooldown).
-
+            const baseCooldown = 300;
+            const reductionPerAgi = 1;
+            const minimumCooldown = 95;
+            
             const agility = getTotalStat('agility');
             const dynamicAttackCooldown = Math.max(minimumCooldown, baseCooldown - (agility * reductionPerAgi));
-            // --- END NEW CALCULATION ---
 
-            // No attack if no player, attack is on cooldown, or if dashing.
-            // We now use our new 'dynamicAttackCooldown' variable in the check.
             if (!player || player.isDashing || (timestamp - player.lastAttackTime < dynamicAttackCooldown)) {
                 return;
             }
@@ -2839,8 +2873,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             player.lastAttackTime = timestamp;
             createAoeSlashEffect(player.x, player.y, player.attackRange);
             
-            let enemiesWereDefeated = false;
-        
             genesisState.enemies.forEach(enemy => {
                 const d_enemy_x = player.x - enemy.x;
                 const d_enemy_y = player.y - enemy.y;
@@ -2848,24 +2880,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         
                 if (distance_to_enemy <= player.attackRange) {
                     const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-                    const damage = Math.floor(getTotalStat('strength') * (isCrit ? 2 : 1));
-                    genesisState.totalDamageDealtThisBattle += damage; // --- FIX: Track damage ---
-                    enemy.hp -= damage;
-        
-                    createImpactEffect(enemy.x, enemy.y);
-        
-                    if (enemy.hp <= 0) {
-                        enemiesWereDefeated = true;
-                        addXP(gameState, 5 * gameState.level);
-                        createLootOrb(enemy.x, enemy.y);
-                    }
+                    const damage = getTotalStat('strength') * (isCrit ? 2.5 : 1);
+                    applyDamageToEnemy(enemy, damage, isCrit);
                 }
             });
 
-            if (enemiesWereDefeated) {
-                genesisState.enemies.forEach(enemy => { if (enemy.hp <= 0) enemy.element.remove(); });
-                genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
-            }
+            genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
         }
 
         function createSlashEffect(source, target) {
@@ -2943,9 +2963,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 element: document.createElement('div'),
                 x: x, y: y, type: 'gold',
                 amount: Math.floor(5 + (Math.random() * 5 * gameState.level)),
-                collectionRadius: 90,
+                collectionRadius: 690,
                 magnetRadius: 2550,
-                magnetSpeed: 3
+                magnetSpeed: 13
 
             };
             orb.element.className = 'genesis-loot-orb';
@@ -2969,34 +2989,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             });
         }
-
-        function handleLootCollection() {
-            const player = genesisState.player;
-            if (!player || !genesisState.lootOrbs) return;
-        
-            const arenaRect = genesisArena.getBoundingClientRect();
-        
-            genesisState.lootOrbs = genesisState.lootOrbs.filter(orb => {
-                const dx = player.x - orb.x;
-                const dy = player.y - orb.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-        
-                if (distance <= orb.collectionRadius) {
-                    gameState.gold += orb.amount;
-        
-                    const screenX = arenaRect.left + player.x;
-                    const screenY = arenaRect.top + player.y;
-                    
-                    createFloatingText(`+${orb.amount} Gold`, screenX, screenY, { color: 'var(--xp-color)' });
-        
-                    playSound('feed', 0.5, 'sine', 600, 800, 0.1);
-                    orb.element.remove();
-                    return false;
-                }
-                return true;
-            });
-        }
-
   
         function startBattle() {
             stopGameGenesis(); 
@@ -3033,7 +3025,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             } else {
                 // Regular wave: 5 enemies on wave 1, scaling up to 100 on wave 19
                 const baseMinEnemies = 3;
-                const baseMaxEnemies = 8;
+                const baseMaxEnemies = 18;
                 const waveBonus = Math.floor(genesisState.currentWave * 1.5);
                 const minEnemies = baseMinEnemies + waveBonus;
                 const maxEnemies = baseMaxEnemies + waveBonus;
