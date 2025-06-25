@@ -595,7 +595,19 @@ const firebaseConfig = {
       }
   
       // --- All functions from here are restored from the working file or merged ---
-      
+      function formatNumber(num) {
+        if (num < 1000) return num.toString(); // Return as is if less than 1000
+        const suffixes = ["", "K", "M", "B", "T"]; // K for thousand, M for million, etc.
+        const i = Math.floor(Math.log(num) / Math.log(1000));
+        let formattedNum = (num / Math.pow(1000, i)).toFixed(2);
+        
+        // Remove trailing .00 if it exists
+        if (formattedNum.endsWith('.00')) {
+          formattedNum = formattedNum.slice(0, -3);
+        }
+        
+        return formattedNum + suffixes[i];
+      }
       function getXpForNextLevel(level) { return Math.floor(100 * Math.pow(1.5, level - 1)); }
       
       function updateExpeditionTimer() {
@@ -633,8 +645,7 @@ const firebaseConfig = {
           healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
           energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
           energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
-          xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
-          xpBarLabel.textContent = `XP: ${(gameState.xp).toFixed(3)} / ${xpForNext}`;
+          xpBarLabel.textContent = `XP: ${formatNumber(Math.floor(gameState.xp))} / ${formatNumber(xpForNext)}`;
                  // --- NEW, FINAL LOGIC: Build the entire stat panel dynamically ---
           const defaultStatColor = 'var(--text-color)';
           const statColors = {};
@@ -690,7 +701,7 @@ const firebaseConfig = {
           <div class="stat-item">
               <span class="stat-label">Gold</span>
               <div class="gold-rewards-row">
-                  <span class="stat-value stat-value-gold">${Math.floor(gameState.gold).toLocaleString()}</span>
+                  <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
                   <span class="potion-display">
                       <span>🧪</span>
                       <span>${gameState.healthPotions || 0}</span>
@@ -853,7 +864,7 @@ const firebaseConfig = {
           let clientX = event.clientX || (event.touches && event.touches[0].clientX); let clientY = event.clientY || (event.touches && event.touches[0].clientY);
           const orbContainer = document.createElement('div'); orbContainer.className = 'xp-orb-container';
           orbContainer.style.left = `${clientX - 10}px`; orbContainer.style.top = `${clientY - 10}px`;
-          orbContainer.innerHTML = `<div class="xp-orb"></div><div class="xp-orb-text">+${xpGain.toFixed(3)}</div>`;
+          orbContainer.innerHTML = `<div class="xp-orb"></div><div class="xp-orb-text">+${formatNumber(xpGain)}</div>`;
           document.body.appendChild(orbContainer);
           const xpBarEl = character.isPartner ? '#partner-xp-bar' : '#xp-bar';
           const xpBarRect = document.querySelector(xpBarEl).getBoundingClientRect();
@@ -1038,7 +1049,7 @@ const firebaseConfig = {
                   const li = document.createElement('li');
                   let scoreText;
                   if(type === 'damage') {
-                      scoreText = `Damage: ${data.totalDamage.toLocaleString()}`;
+                      scoreText = `Damage: ${formatNumber(data.totalDamage)}`;
                   } else {
                       scoreText = `Level ${data.level} (Tier ${data.tier})`;
                   }
@@ -1387,7 +1398,7 @@ const firebaseConfig = {
               const itemData = shopItems[itemId]; const shopItem = document.createElement('div'); shopItem.className = 'shop-item';
               const infoDiv = document.createElement('div'); infoDiv.className = 'shop-info';
               infoDiv.innerHTML = `<strong>${itemData.name}</strong><div class="shop-desc">${itemData.desc}</div>`;
-              const buyBtn = document.createElement('button'); buyBtn.textContent = `Buy (${itemData.cost} G)`;
+              const buyBtn = document.createElement('button'); buyBtn.textContent = `Buy (${formatNumber(itemData.cost)} G)`;
               if (gameState.gold < itemData.cost || (itemData.type === 'buff' && gameState.activeBuffs[itemId])) { buyBtn.disabled = true; }
               buyBtn.onclick = () => buyShopItem(itemId, 'consumable'); shopItem.appendChild(infoDiv); shopItem.appendChild(buyBtn); shopConsumablesContainer.appendChild(shopItem);
           }
@@ -1400,7 +1411,7 @@ const firebaseConfig = {
               const buyBtn = document.createElement('button');
               if (currentLevel >= upgradeData.maxLevel) { buyBtn.textContent = 'Maxed'; buyBtn.disabled = true; } 
               else if (gameState.level < upgradeData.levelReq) { buyBtn.textContent = `Req Lvl ${upgradeData.levelReq}`; buyBtn.disabled = true; }
-              else { const cost = upgradeData.cost(currentLevel); buyBtn.textContent = `Upgrade (${Math.floor(cost)} G)`; if (gameState.gold < cost) { buyBtn.disabled = true; } buyBtn.onclick = () => buyShopItem(upgradeId, 'permanent'); }
+              else { const cost = upgradeData.cost(currentLevel); buyBtn.textContent = `Upgrade (${formatNumber(Math.floor(cost))} G)`; if (gameState.gold < cost) { buyBtn.disabled = true; } buyBtn.onclick = () => buyShopItem(upgradeId, 'permanent'); }
               shopItem.appendChild(infoDiv); shopItem.appendChild(buyBtn); shopUpgradesContainer.appendChild(shopItem);
           }
       }
@@ -1586,11 +1597,13 @@ const firebaseConfig = {
               partnerNameLevel.textContent = `${partner.name} Lv. ${partner.level}`;
               const xpForNext = getXpForNextLevel(partner.level);
               partnerHealthBarFill.style.width = `${(partner.resources.hp / partner.resources.maxHp) * 100}%`;
-              partnerHealthBarLabel.textContent = `HP: ${Math.floor(partner.resources.hp)} / ${partner.resources.maxHp}`;
+              partnerHealthBarLabel.textContent = `HP: ${formatNumber(Math.floor(partner.resources.hp))} / ${formatNumber(partner.resources.maxHp)}`;
+
               partnerEnergyBarFill.style.width = `${(partner.resources.energy / partner.resources.maxEnergy) * 100}%`;
-              partnerEnergyBarLabel.textContent = `Energy: ${Math.floor(partner.resources.energy)} / ${partner.resources.maxEnergy}`;
+              partnerEnergyBarLabel.textContent = `Energy: ${formatNumber(Math.floor(partner.resources.energy))} / ${formatNumber(partner.resources.maxEnergy)}`;
+              
               partnerXpBarFill.style.width = `${(partner.xp / xpForNext) * 100}%`;
-              partnerXpBarLabel.textContent = `XP: ${(partner.xp).toFixed(3)} / ${xpForNext}`;
+              partnerXpBarLabel.textContent = `XP: ${formatNumber(Math.floor(partner.xp))} / ${formatNumber(xpForNext)}`;
               partnerCoreStatsDisplay.innerHTML = `<span>STR: ${partner.stats.strength}</span><span>AGI: ${partner.stats.agility}</span><span>FOR: ${partner.stats.fortitude}</span><span>STA: ${partner.stats.stamina}</span>`;
           } else {
               partnerStatsArea.style.display = 'none';
@@ -1773,7 +1786,7 @@ function exitDojo() {
 }
 
 function updateDojoUI() {
-    dojoPersonalBestDisplay.textContent = `Personal Best: ${Math.floor(gameState.dojoPersonalBest).toLocaleString()}`;
+    dojoPersonalBestDisplay.textContent = `Personal Best: ${formatNumber(Math.floor(gameState.dojoPersonalBest))}`;
 }
 
 function startDojoSession() {
@@ -1790,7 +1803,7 @@ function startDojoSession() {
 
     // Reset and show UI
     dojoTimerBarContainer.style.visibility = 'visible';
-    dojoSessionTotalDisplay.textContent = "0";
+    dojoSessionTotalDisplay.textContent = formatNumber(0);
     playSound('ascend', 0.5, 'sawtooth', 100, 500, 0.5); // Power-up sound
     dojoDummySprite.classList.add('zapped'); // Apply zapped effect
 
@@ -1819,7 +1832,7 @@ function startDojoSession() {
         dojoState.totalSessionDamage += damage;
         
         createDojoDamageNumber(damage, isCrit);
-        dojoSessionTotalDisplay.textContent = Math.floor(dojoState.totalSessionDamage).toLocaleString();
+        dojoSessionTotalDisplay.textContent = formatNumber(Math.floor(dojoState.totalSessionDamage));
         playSound('tap', 0.3, 'square', 200, 150, 0.05); // Rapid hit sound
     }, 150);
 }
