@@ -1749,7 +1749,7 @@ const firebaseConfig = {
 // =======================================================
 // --- DOJO SYSTEM (FINAL, CORRECTED VERSION) ---
 // =======================================================
-
+const DOJO_DAMAGE_MULTIPLIER = 233;
 function enterDojo() {
     showScreen('dojo-screen');
     dojoSessionTotalDisplay.textContent = "";
@@ -1777,7 +1777,7 @@ function updateDojoUI() {
 }
 
 function startDojoSession() {
-    if (dojoState.isActive) return; // Prevent starting multiple times
+    if (dojoState.isActive) return;
 
     dojoState = {
         isActive: true,
@@ -1814,7 +1814,7 @@ function startDojoSession() {
     dojoState.damageIntervalId = setInterval(() => {
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
         const baseDamage = getTotalStat('strength') * (Math.random() * 0.4 + 0.8); // 80% to 120% of STR
-        const damage = Math.floor(baseDamage * (isCrit ? 2.5 : 1)); // Crits do 2.5x
+        const damage = Math.floor(baseDamage * (isCrit ? 2.5 : 1) * DOJO_DAMAGE_MULTIPLIER); // Crits do 2.5x
         
         dojoState.totalSessionDamage += damage;
         
