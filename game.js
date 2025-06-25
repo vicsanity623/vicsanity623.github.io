@@ -3233,7 +3233,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       });
  
       ingameMenuBtn.addEventListener('click', () => {
-          if (gameState.level >= ASCENSION_LEVEL) {
+          if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
               ascensionBtn.style.display = 'block';
           } else {
               ascensionBtn.style.display = 'none';
