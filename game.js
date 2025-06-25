@@ -14,14 +14,13 @@ const firebaseConfig = {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = 1.9; // Updated version for new features
+      const GAME_VERSION = 1.9;
       
       let gameState = {};
       let audioCtx = null;
       let buffInterval = null;
       let lightningInterval = null;
       
-      // Centralized state for the battle system.
       let battleState = {
           isActive: false,
           currentWave: 0,
@@ -42,20 +41,16 @@ const firebaseConfig = {
       let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
       let expeditionInterval = null;
       let dojoState = { isActive: false, timerId: null, damageIntervalId: null, beamAnimationId: null, totalSessionDamage: 0 };
-      // --- GENESIS ARENA STATE ---
+      
       let genesisState = {
         isActive: false,
         gameLoopId: null,
         player: null,
         enemies: [],
         lootOrbs: [],
-        
-        // Endless Mode state
         lastEnemySpawn: 0,
         difficultyLevel: 1,
         lastDifficultyIncrease: 0,
-        
-        // NEW: Battle Mode state
         isBattleMode: false,
         currentWave: 0,
         totalWaves: 20,
@@ -63,7 +58,7 @@ const firebaseConfig = {
         enemiesSpawnedThisWave: 0,
         boss: null,
         waveTransitionActive: false,
-        totalDamageDealtThisBattle: 0, // --- FIX: Added variable to track damage in battles.
+        totalDamageDealtThisBattle: 0,
       };
       let pvpState = {
         isActive: false,
@@ -71,10 +66,10 @@ const firebaseConfig = {
         playerDamage: 0,
         opponentDamage: 0,
         opponentData: null,
+        playerCooldowns: { lastDashTime: 0, lastThunderStrikeTime: 0, lastHavocRageTime: 0, lastAttackTime: 0 },
+        opponentCooldowns: { lastDashTime: 0, lastThunderStrikeTime: 0, lastHavocRageTime: 0, lastAttackTime: 0 }
       };
       
-  
-      // --- FIXED/MERGED ---: Added all missing constant data from the working file.
       const achievements = {
           tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 500 } },
           tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 2500 } },
@@ -99,7 +94,6 @@ const firebaseConfig = {
           expeditionSpeed: { name: "Expeditionary Leader", desc: "-5% Expedition Duration per level.", maxLevel: 1000, cost: [1, 2, 2, 3, 3] }
       };
       const itemData = {
-        // We keep the old rarities for weights and affix counts
         rarities: { 
             common: { weight: 70, budget: 1, affixes: 1 }, 
             uncommon: { weight: 20, budget: 1.4, affixes: 2 }, 
@@ -107,10 +101,9 @@ const firebaseConfig = {
             epic: { weight: 2.5, budget: 2.5, affixes: 3 }, 
             legendary: { weight: 0.5, budget: 3.5, affixes: 4 } 
         },
-        // NEW: Tier-based color schemes
         rarityTiers: [ 'common', 'uncommon', 'rare', 'epic', 'legendary' ],
-        weaponColors: ['#BDBDBD', '#4CAF50', '#FF9800', '#F44336', '#E91E63'], // Grey, Green, Orange, Red, Pink
-        armorColors: ['#CD7F32', '#2196F3', '#9C27B0', '#FFC107', '#FFFFFF'], // Bronze, Blue, Purple, Gold, White
+        weaponColors: ['#BDBDBD', '#4CAF50', '#FF9800', '#F44336', '#E91E63'],
+        armorColors: ['#CD7F32', '#2196F3', '#9C27B0', '#FFC107', '#FFFFFF'],
         types: { weapon: { base: ['Katana', 'Hammer', 'Axe', 'Knife'], primary: 'strength' }, armor: { base: ['Helmet', 'Jacket', 'Boots', 'Armor'], primary: 'fortitude' } },
         prefixes: { strength: 'Rusty', fortitude: 'Sturdy', agility: 'Swift', critChance: 'Deadly', goldFind: 'Lucky' },
         suffixes: { strength: 'of Death', fortitude: 'of the tank', agility: 'of the Viper', critChance: 'of Piercing', goldFind: 'of Greed' },
@@ -158,7 +151,7 @@ const firebaseConfig = {
         { day: 4, type: 'gold', amount: 2500 },
         { day: 5, type: 'consumable', id: 'energyPotion', amount: 5 },
         { day: 6, type: 'gold', amount: 5000 },
-        { day: 7, type: 'item', rarity: 'rare' } // Day 7 is a rare item!
+        { day: 7, type: 'item', rarity: 'rare' }
       ];
       const defaultState = {
           version: GAME_VERSION,
@@ -172,7 +165,7 @@ const firebaseConfig = {
           ascension: { tier: 1, points: 0, perks: {} },
           permanentUpgrades: {},
           activeBuffs: {},
-          achievements: JSON.parse(JSON.stringify(achievements)), // Deep copy achievements
+          achievements: JSON.parse(JSON.stringify(achievements)),
           counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
           lastWeeklyRewardClaim: 0,
           settings: { musicVolume: 0.5, sfxVolume: 1.0, isMuted: false, isAutoBattle: false }, dojoPersonalBest: 0,
@@ -186,9 +179,9 @@ const firebaseConfig = {
       const BATTLE_UNLOCK_LEVEL = 20;
       const MAX_ENEMIES = 45;
       const FORGE_UNLOCK_LEVEL = 10;
+      const PVP_UNLOCK_LEVEL = 25;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
       
-      // --- FIXED/MERGED ---: Added all missing element selectors.
       const screens = document.querySelectorAll('.screen');
       const gameScreen = document.getElementById('game-screen');
       const loadGameBtn = document.getElementById('load-game-btn');
@@ -311,7 +304,7 @@ const firebaseConfig = {
       const weeklyRewardsContainer = document.getElementById('weekly-rewards-container');
       const feedBattleBtn = document.getElementById('feed-battle-btn');
       const potionCountDisplay = document.getElementById('potion-count-display');
-      // --- DOJO ELEMENTS ---
+      
       const dojoBtn = document.getElementById('dojo-btn');
       const dojoScreen = document.getElementById('dojo-screen');
       const dojoExitBtn = document.getElementById('dojo-exit-btn');
@@ -328,7 +321,7 @@ const firebaseConfig = {
       const bossHealthContainer = document.getElementById('boss-health-container');
       const bossNameDisplay = document.getElementById('boss-name');
       const bossHealthFill = document.getElementById('boss-health-fill');
-      // --- FIXED/MERGED ---: Combined music logic with settings from new file.
+      
       function initMusic() { if (musicManager.isInitialized) return; musicManager.isInitialized = true; playMusic('main'); }
       function playMusic(trackName) {
           if (!musicManager.isInitialized || !musicManager.audio[trackName]) return;
@@ -363,9 +356,8 @@ const firebaseConfig = {
             star.style.animationDelay = `${Math.random() * 50}s`; 
             container.appendChild(star); 
         } 
-    } // <--- This brace ENDS the createStarfield function.
+    }
     
-    // The new function starts on a new line, AFTER createStarfield is finished.
     async function displayTopPlayersOnMenu() {
         const loadingText = document.getElementById('leaderboard-loading-text');
         try {
@@ -418,7 +410,7 @@ const firebaseConfig = {
             console.error("Error fetching top players:", error);
             loadingText.textContent = "Could not load leaderboard.";
         }
-    } // <--- This brace ENDS the displayTopPlayersOnMenu function.
+    }
     
     function showScreen(screenId) { 
         screens.forEach(s => s.classList.remove('active')); 
@@ -437,7 +429,6 @@ const firebaseConfig = {
         gtag('config', 'G-4686TXHCHN', { 'page_path': virtualPagePath });
     }
       
-      // --- FIXED/MERGED ---: Integrated init with Auth logic.
       function init() { 
           displayTopPlayersOnMenu();
           createWindEffect(); createStarfield(); startBackgroundAssetLoading();
@@ -445,55 +436,60 @@ const firebaseConfig = {
           auth.onAuthStateChanged(user => {
               updateAuthUI(user);
               if (user) {
-                  // If user is logged in, try to load their cloud save.
                   loadGame(); 
               } else {
-                  // If not logged in, check for a local save.
                   loadGameBtn.disabled = !localStorage.getItem('tapGuardianSave');
               }
           });
   
           setTimeout(() => { 
-              // After a delay, if still on loading screen (e.g., no auth state change), show main menu.
               const loadingScreen = document.getElementById('loading-screen');
               if (loadingScreen && loadingScreen.classList.contains('active')) {
                   showScreen('main-menu-screen'); 
               }
           }, 1500);
   
-          // Start all game loop intervals
           buffInterval = setInterval(updateBuffs, 1000);
           partnerTimerInterval = setInterval(checkEggHatch, 1000);
           setInterval(passiveResourceRegen, 1000);
       }
       
-      // --- FIXED/MERGED ---: Restored full startGame logic.
       async function startGame() {
-          initAudio();
-          let playerName = ""; let isNameValid = false;
-          while (!isNameValid) {
-              const defaultName = auth.currentUser ? auth.currentUser.displayName.split(' ')[0] : "";
-              const inputName = prompt("Enter your Guardian's name (3-15 chars):", defaultName);
-              if (inputName === null) { return; } 
-              if (inputName.length < 3 || inputName.length > 15) { alert("Name must be between 3 and 15 characters."); continue; }
-              playerName = inputName; isNameValid = true;
-          }
-          gameState = JSON.parse(JSON.stringify(defaultState));
-          gameState.playerName = playerName;
-          
-          updateSettingsUI();
-          updateUI(); 
-          updateAscensionVisuals();
-          showScreen('game-screen');
-          startGameGenesis();
-          checkWeeklyRewards();
-          checkDailyRewards(); 
-          await saveGame(); 
-      }
+        return new Promise(async (resolve) => {
+            initAudio();
+            let playerName = ""; 
+            let isNameValid = false;
+            while (!isNameValid) {
+                const defaultName = auth.currentUser ? auth.currentUser.displayName.split(' ')[0] : "Guardian";
+                const inputName = prompt("Enter your Guardian's name (3-15 chars):", defaultName);
+                if (inputName === null) { 
+                    resolve();
+                    return; 
+                } 
+                if (inputName.length < 3 || inputName.length > 15) { 
+                    alert("Name must be between 3 and 15 characters."); 
+                    continue; 
+                }
+                playerName = inputName; 
+                isNameValid = true;
+            }
+            gameState = JSON.parse(JSON.stringify(defaultState));
+            gameState.playerName = playerName;
+            
+            updateSettingsUI();
+            updateUI(); 
+            updateAscensionVisuals();
+            showScreen('game-screen');
+            startGameGenesis();
+            checkWeeklyRewards();
+            checkDailyRewards(); 
+            await saveGame();
+            resolve();
+        });
+    }
   
       function rehydrateItemRarity(item) {
         if (!item) return null;
-        // Fix for rarity object structure
         if (typeof item.rarity === 'string') {
             const rarityKey = item.rarity;
             const rarityIndex = itemData.rarityTiers.indexOf(rarityKey);
@@ -529,6 +525,7 @@ const firebaseConfig = {
               loadedState.settings = { ...defaultSettings, ...(loadedState.settings || {})};
               loadedState.highestBattleLevelCompleted = loadedState.highestBattleLevelCompleted || 0;
               loadedState.dojoPersonalBest = loadedState.dojoPersonalBest || 0;
+              loadedState.pvpPersonalBest = loadedState.pvpPersonalBest || 0;
               loadedState.lastDailyClaim = loadedState.lastDailyClaim || 0;
               loadedState.dailyStreak = loadedState.dailyStreak || 0;
               loadedState.lastLogin = loadedState.lastLogin || Date.now();
@@ -547,7 +544,6 @@ const firebaseConfig = {
           return loadedState;
       }
   
-      // --- FIXED/MERGED ---: Robust load game logic with cloud-first approach.
       async function loadGame() {
           initAudio();
           let loadedState = null;
@@ -591,14 +587,11 @@ const firebaseConfig = {
               checkDailyRewards();
               await saveGame();
           } else if (auth.currentUser) {
-               showToast("No saves found. Starting a new game.");
-               startGame();
-          } else {
-               // Do nothing, wait for user to click "Start Game" or "Load Game" (if available)
+               showToast("Welcome! Let's create your Guardian.");
+               await startGame();
           }
       }
   
-      // --- FIXED/MERGED ---: Kept the superior save logic from the new file.
       async function saveGame(showToastNotification = false) {
           if (!gameState.playerName || gameState.playerName === "Guardian") return;
           gameState.lastLogin = Date.now();
@@ -619,20 +612,19 @@ const firebaseConfig = {
           loadGameBtn.disabled = false;
       }
   
-      // --- All functions from here are restored from the working file or merged ---
       function formatNumber(num) {
-        if (num < 1000) return num.toString(); // Return as is if less than 1000
-        const suffixes = ["", "K", "M", "B", "T"]; // K for thousand, M for million, etc.
+        if (num < 1000) return num.toString();
+        const suffixes = ["", "K", "M", "B", "T"];
         const i = Math.floor(Math.log(num) / Math.log(1000));
         let formattedNum = (num / Math.pow(1000, i)).toFixed(2);
         
-        // Remove trailing .00 if it exists
         if (formattedNum.endsWith('.00')) {
           formattedNum = formattedNum.slice(0, -3);
         }
         
         return formattedNum + suffixes[i];
       }
+
       function getXpForNextLevel(level) { return Math.floor(100 * Math.pow(1.5, level - 1)); }
       
       function updateExpeditionTimer() {
@@ -671,9 +663,7 @@ const firebaseConfig = {
           energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
           energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
           
-          // --- THIS LINE WAS MISSING ---
           xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
-          // --- END OF FIX ---
 
           xpBarLabel.textContent = `XP: ${formatNumber(Math.floor(gameState.xp))} / ${formatNumber(xpForNext)}`;
           
@@ -824,7 +814,7 @@ const firebaseConfig = {
             else {
                 const spriteRect = characterSprite.getBoundingClientRect();
                 screenX = spriteRect.left + (spriteRect.width / 2);
-                screenY = spriteRect.top; // Position it at the top of the sprite
+                screenY = spriteRect.top;
             }
             createFloatingText('LEVEL UP!', screenX, screenY, { 
                 color: 'var(--accent-color)',
@@ -853,22 +843,17 @@ const firebaseConfig = {
         if (tapCombo.frenzyTimeout) { clearTimeout(tapCombo.frenzyTimeout); }
         tapCombo.currentMultiplier = (tapCombo.currentMultiplier === 1) ? 5 : tapCombo.currentMultiplier + 5;
     
-        // --- NEW ENHANCED VISUALS ---
-        // 1. Scaled Screen Shake: The shake gets longer and more intense with higher combos.
         const shakeDuration = Math.min(800, 200 + (tapCombo.currentMultiplier * 5));
         triggerScreenShake(shakeDuration);
 
-        // 2. More Particles: Burst more particles as the combo grows.
         createParticles({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
         if (tapCombo.currentMultiplier > 30) {
             createParticles({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
         }
 
-        // 3. Screen Flash for huge combos
         if (tapCombo.currentMultiplier >= 100) {
             triggerScreenFlash();
         }
-        // --- END OF ENHANCED VISUALS ---
 
         updateFrenzyVisuals(); 
         tapCombo.frenzyTimeout = setTimeout(deactivateFrenzy, 7000);
@@ -1029,7 +1014,6 @@ const firebaseConfig = {
           if (!gameState.playerName || gameState.playerName === "Guardian") return;
           const score = { name: gameState.playerName, level: gameState.level, tier: gameState.ascension.tier, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
           try {
-              // Use player name for public leaderboard, but use UID for personal saves.
               await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true });
           } catch (error) { console.error("Error submitting score: ", error); }
       }
@@ -1045,7 +1029,7 @@ const firebaseConfig = {
               collectionName = 'damageLeaderboard';
               orderByField = 'totalDamage';
               orderByDirection = 'desc';
-            } else if (type === 'pvp') { // --- ADD THIS ELSE IF BLOCK ---
+            } else if (type === 'pvp') {
                 targetList = pvpLeaderboardList;
                 collectionName = 'pvpLeaderboard';
                 orderByField = 'maxDamage';
@@ -1102,9 +1086,9 @@ const firebaseConfig = {
               for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
           }
           const rarity = itemData.rarities[chosenRarityKey];
-          const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor'; // Define the type first
+          const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor';
           const rarityIndex = itemData.rarityTiers.indexOf(chosenRarityKey);
-          const itemColor = itemTypeKey === 'weapon' ? itemData.weaponColors[rarityIndex] : itemData.armorColors[rarityIndex]; // Now we can use the type to get the color
+          const itemColor = itemTypeKey === 'weapon' ? itemData.weaponColors[rarityIndex] : itemData.armorColors[rarityIndex];
           const itemType = itemData.types[itemTypeKey];
           const baseName = itemType.base[Math.floor(Math.random() * itemType.base.length)]; const primaryStat = itemType.primary;
           const stats = {}; let power = 0; const totalBudget = (gameState.level + (gameState.ascension.tier * 5)) * rarity.budget;
@@ -1146,12 +1130,9 @@ const firebaseConfig = {
         
             let actionButtonsHtml = ''; 
   
-            // --- THIS IS THE CORRECTED LOGIC ---
             if (currentForgeSelectionTarget !== null) {
-                // We are in FORGE MODE - show the "Select" button
                 actionButtonsHtml = `<button onclick="selectItemForForge('${item.name}')">Select</button>`;
             } else {
-                // We are in normal INVENTORY MODE - show Equip/Sell buttons
                 const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
                 
                 const equipButton = isEquipped 
@@ -1163,7 +1144,6 @@ const firebaseConfig = {
 
                 actionButtonsHtml = `<div class="inventory-button-group">${equipButton}${sellButton}</div>`;
             }
-            // --- END OF CORRECTION ---
   
             return `
                 <div class="inventory-item">
@@ -1248,7 +1228,6 @@ const firebaseConfig = {
   
       function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); initMusic(); } }
       
-      // --- FIXED/MERGED ---: Sound function now respects settings.
       function playSound(type, volume = 1, wave = 'sine', startFreq = 440, endFreq = 440, duration = 0.1) {
           if (!audioCtx || (gameState.settings && gameState.settings.isMuted)) return;
           const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.type = wave;
@@ -1262,32 +1241,28 @@ const firebaseConfig = {
       function triggerScreenFlash() {
         const flashOverlay = document.getElementById('screen-flash-overlay');
         flashOverlay.classList.add('flash');
-        // The animation is short, so we use a timeout to remove the class
         setTimeout(() => {
             flashOverlay.classList.remove('flash');
         }, 300);
       }
       function createXpBubble() {
-        if (document.querySelector('.xp-bubble')) return; // Only one bubble at a time
+        if (document.querySelector('.xp-bubble')) return;
 
         const container = document.getElementById('floating-rewards-container');
         const bubbleEl = document.createElement('div');
         bubbleEl.className = 'xp-bubble';
         bubbleEl.innerHTML = 'XP<span></span><span></span><span></span><span></span><span></span>';
 
-        // Randomize the animation slightly to make it less predictable
         bubbleEl.style.animationDuration = `${12 + Math.random() * 6}s`;
 
         bubbleEl.onclick = () => {
             if (bubbleEl.classList.contains('popped')) return;
 
-            // Grant a large, random amount of XP
-            const reward = Math.floor(getXpForNextLevel(gameState.level) * (Math.random() * 0.15 + 0.05)); // 5% to 20% of next level's XP
+            const reward = Math.floor(getXpForNextLevel(gameState.level) * (Math.random() * 0.15 + 0.05));
             addXP(gameState, reward);
             showToast(`+${reward} XP!`);
-            playSound('feed', 1, 'sine', 400, 800, 0.2); // A nice "collect" sound
+            playSound('feed', 1, 'sine', 400, 800, 0.2);
 
-            // Pop effect and removal
             bubbleEl.classList.add('popped');
             setTimeout(() => {
                 if (bubbleEl) bubbleEl.remove();
@@ -1296,7 +1271,6 @@ const firebaseConfig = {
 
         container.appendChild(bubbleEl);
 
-        // Remove the bubble if it's ignored after its animation finishes
         setTimeout(() => {
             if (bubbleEl && !bubbleEl.classList.contains('popped')) {
                 bubbleEl.remove();
@@ -1304,23 +1278,19 @@ const firebaseConfig = {
         }, parseFloat(bubbleEl.style.animationDuration) * 1000);
       }
       function createFloatingText(text, x, y, options = {}) {
-        // Set default values for options if they aren't provided
         const { color = 'white', fontSize = '1.2em', duration = 1500 } = options;
     
         const textEl = document.createElement('div');
         textEl.className = 'floating-text';
         textEl.textContent = text;
         
-        // Apply styles
         textEl.style.left = `${x}px`;
         textEl.style.top = `${y}px`;
         textEl.style.color = color;
         textEl.style.fontSize = fontSize;
         
-        // Add the element to the page
         document.body.appendChild(textEl);
     
-        // Automatically remove the element after its animation is done
         setTimeout(() => {
             textEl.remove();
         }, duration);
@@ -1335,7 +1305,6 @@ const firebaseConfig = {
           setTimeout(() => { num.remove(); }, 800);
       }
       
-      // --- FIXED/MERGED ---: Full unlock achievement logic.
       function unlockAchievement(id) {
           if (!gameState.achievements[id] || gameState.achievements[id].unlocked) return;
           gameState.achievements[id].unlocked = true;
@@ -1369,7 +1338,6 @@ const firebaseConfig = {
           updateUI();
       }
       
-      // --- FIXED/MERGED ---: Full achievement check logic.
       function checkAllAchievements() {
           if (!gameState.counters) return;
           const counters = gameState.counters;
@@ -1621,7 +1589,6 @@ const firebaseConfig = {
     
         const itemToSell = gameState.inventory[itemIndex];
     
-        // Prevent selling equipped items
         if (gameState.equipment[itemToSell.type] && gameState.equipment[itemToSell.type].name === itemToSell.name) {
             showToast("Cannot sell an equipped item!");
             return;
@@ -1630,17 +1597,13 @@ const firebaseConfig = {
         const sellValue = calculateSellValue(itemToSell);
     
         if (confirm(`Are you sure you want to sell ${itemToSell.name} for ${formatNumber(sellValue)} Gold?`)) {
-            // Add gold to the player
             gameState.gold += sellValue;
             
-            // Remove the item from inventory
             gameState.inventory.splice(itemIndex, 1);
     
-            // Give feedback
             playSound('feed', 0.8, 'sine', 600, 800, 0.1);
             showToast(`Sold ${itemToSell.name} for ${formatNumber(sellValue)} Gold!`);
     
-            // Refresh the UI
             updateInventoryUI();
             updateUI();
             saveGame();
@@ -1706,13 +1669,11 @@ const firebaseConfig = {
   
       async function checkWeeklyRewards() {
           try {
-              // FIX #1: Read from the new, public "gameConfig" collection instead of the protected "admin" collection.
               const rewardDocRef = db.collection("gameConfig").doc("weeklyReward");
               const rewardDoc = await rewardDocRef.get();
               const weekInMs = 7 * 24 * 60 * 60 * 1000;
               const now = Date.now();
               
-              // This logic now correctly checks if the document exists AND if the reward period has passed.
               if (rewardDoc.exists && now > rewardDoc.data().nextRewardTime) {
                   const snapshot = await db.collection("damageLeaderboard").orderBy("totalDamage", "desc").limit(1).get();
                   if (!snapshot.empty) {
@@ -1725,20 +1686,14 @@ const firebaseConfig = {
                           showNotification("Weekly Champion!", `For being #1 on the damage leaderboard, you receive a reward: <strong style="color:var(--rarity-legendary)">${rewardItem.name}</strong>!`);
                       }
                   }
-                  
-                  // FIX #2: REMOVED the insecure line that tried to write to the database.
-                  // The client is no longer allowed to (and shouldn't) reset the timer for everyone.
-                  // const nextTime = now + weekInMs;
-                  // await rewardDocRef.set({ nextRewardTime: nextTime });
               }
           } catch(e) { console.error("Could not check weekly rewards:", e); }
       }
-      // Helper function to check if two timestamps are on different calendar days
+      
       function isNewDay(lastClaimTimestamp) {
-        if (lastClaimTimestamp === 0) return true; // First time ever
+        if (lastClaimTimestamp === 0) return true;
         const now = new Date();
         const lastClaim = new Date(lastClaimTimestamp);
-        // Compare year, month, and date. Ignore the time.
         return now.getFullYear() > lastClaim.getFullYear() ||
                now.getMonth() > lastClaim.getMonth() ||
                now.getDate() > lastClaim.getDate();
@@ -1748,51 +1703,41 @@ const firebaseConfig = {
         const lastLogin = gameState.lastLogin || now;
         const offlineTimeInSeconds = (now - lastLogin) / 1000;
 
-        // Only grant rewards if offline for at least 5 minutes
         if (offlineTimeInSeconds < 60) {
             return;
         }
 
-        // Cap the rewards at a maximum of 24 hours
         const maxOfflineTimeInSeconds = 24 * 60 * 60;
         const effectiveOfflineTime = Math.min(offlineTimeInSeconds, maxOfflineTimeInSeconds);
         
-        // --- Reward Calculations (Highly scalable and tweakable) ---
         const playerPower = gameState.level + (gameState.ascension.tier * 10);
 
-        // Gold per second
         const goldPerSecond = 0.1 * playerPower;
         const totalGold = Math.floor(goldPerSecond * effectiveOfflineTime);
         
-        // XP per second
         const xpPerSecond = 0.2 * playerPower;
         const totalXp = Math.floor(xpPerSecond * effectiveOfflineTime);
         
-        // Enemies defeated (e.g., one enemy every 30 seconds)
         const enemiesDefeated = Math.floor(effectiveOfflineTime / 30);
         
-        // Item drops (e.g., a chance for one item every 10 minutes)
         const minutesOffline = effectiveOfflineTime / 60;
         let itemsFound = [];
         for (let i = 0; i < minutesOffline / 10; i++) {
-            if (Math.random() < 0.75) { // 75% chance per 10-minute block
+            if (Math.random() < 0.75) {
                 itemsFound.push(generateItem());
             }
         }
         const weaponsFound = itemsFound.filter(item => item.type === 'weapon').length;
         const armorsFound = itemsFound.filter(item => item.type === 'armor').length;
 
-        // --- Apply Rewards to Game State ---
         gameState.gold += totalGold;
         addXP(gameState, totalXp);
         gameState.counters.enemiesDefeated += enemiesDefeated;
         itemsFound.forEach(item => gameState.inventory.push(item));
         
-        // --- Format Time for Display ---
         const hours = Math.floor(effectiveOfflineTime / 3600);
         const minutes = Math.floor((effectiveOfflineTime % 3600) / 60);
 
-        // --- Create the Reward Notification ---
         let rewardText = `You were away for ${hours}h ${minutes}m.<br><br>Here's what you found:`;
         rewardText += `<br>+${formatNumber(totalGold)} Gold`;
         rewardText += `<br>+${formatNumber(totalXp)} XP`;
@@ -1802,35 +1747,29 @@ const firebaseConfig = {
 
         showNotification("Welcome Back, Guardian!", rewardText);
         
-        // Important: We don't save the game here, as it will be saved shortly after loadGame finishes.
       }
 
       function checkDailyRewards() {
         if (!isNewDay(gameState.lastDailyClaim)) {
-            // It's not a new day, so do nothing.
             return;
         }
 
         const now = new Date();
         const lastClaim = new Date(gameState.lastDailyClaim);
         
-        // Check if the streak is broken (logged in more than a day ago)
         const oneDay = 24 * 60 * 60 * 1000;
         if (now.getTime() - lastClaim.getTime() > (2 * oneDay)) {
-            gameState.dailyStreak = 0; // Reset streak
+            gameState.dailyStreak = 0;
         }
 
-        // Increment streak and get the reward
         gameState.dailyStreak++;
         
-        // Use modulo to loop rewards after Day 7
         const rewardIndex = (gameState.dailyStreak - 1) % dailyRewards.length;
         const reward = dailyRewards[rewardIndex];
 
         let rewardText = "";
         let rewardTitle = `Daily Login: Day ${gameState.dailyStreak}`;
 
-        // Grant the reward based on its type
         switch (reward.type) {
             case 'gold':
                 gameState.gold += reward.amount;
@@ -1840,7 +1779,6 @@ const firebaseConfig = {
                 if (reward.id === 'storableHealthPotion') {
                     gameState.healthPotions = (gameState.healthPotions || 0) + reward.amount;
                 }
-                // We can add more consumable types here later
                 rewardText = `You received ${reward.amount}x ${shopItems[reward.id].name}!`;
                 break;
             case 'item':
@@ -1853,29 +1791,25 @@ const firebaseConfig = {
         showNotification(rewardTitle, `${rewardText}<br><br>Come back tomorrow for your next reward!`);
         playSound('victory', 0.8, 'triangle', 600, 1200, 0.3);
 
-        // Update the claim time and save
         gameState.lastDailyClaim = Date.now();
         saveGame();
         updateUI();
       }
 
       function showRewardsModal() {
-        // 1. Populate Daily Rewards
-        dailyRewardsContainer.innerHTML = ''; // Clear previous content
+        dailyRewardsContainer.innerHTML = '';
         const canClaimToday = isNewDay(gameState.lastDailyClaim);
     
         dailyRewards.forEach(reward => {
             const itemEl = document.createElement('div');
             itemEl.className = 'reward-item';
     
-            // Determine the state of the reward
             if (reward.day < gameState.dailyStreak) {
                 itemEl.classList.add('claimed');
             } else if (reward.day === gameState.dailyStreak && canClaimToday) {
                 itemEl.classList.add('claimable');
             }
     
-            // Create the description text
             let desc = '';
             switch (reward.type) {
                 case 'gold':
@@ -1893,10 +1827,8 @@ const firebaseConfig = {
             dailyRewardsContainer.appendChild(itemEl);
         });
     
-        // 2. Populate Weekly Reward Info
         weeklyRewardsContainer.innerHTML = `<p>Be #1 on the Damage Leaderboard at the end of the week to earn a special <strong>Legendary</strong> item!</p>`;
     
-        // 3. Show the modal
         rewardsModal.classList.add('visible');
     }
     function calculateSellValue(item) {
@@ -1910,31 +1842,25 @@ const firebaseConfig = {
             legendary: 25
         };
     
-        const baseValue = item.power * 2; // Base value is twice its power
+        const baseValue = item.power * 2;
         const rarityMod = rarityMultiplier[item.rarity.key] || 1;
     
         return Math.floor(baseValue * rarityMod);
     }
 
-// =======================================================
-// --- DOJO SYSTEM (FINAL, CORRECTED VERSION) ---
-// =======================================================
 const DOJO_DAMAGE_MULTIPLIER = 233;
 function enterDojo() {
     showScreen('dojo-screen');
     dojoSessionTotalDisplay.textContent = "";
     dojoTimerBarContainer.style.visibility = 'hidden';
 
-    // Resize canvas to match its display size
     dojoLightningCanvas.width = dojoLightningCanvas.clientWidth;
     dojoLightningCanvas.height = dojoLightningCanvas.clientHeight;
     
-    // Update the personal best display when entering
     updateDojoUI();
 }
 
 function exitDojo() {
-    // Make sure to stop any running session if the user exits prematurely
     if (dojoState.isActive) {
         stopDojoSession();
     }
@@ -1958,16 +1884,13 @@ function startDojoSession() {
         timeLeft: 7.0
     };
 
-    // Reset and show UI
     dojoTimerBarContainer.style.visibility = 'visible';
     dojoSessionTotalDisplay.textContent = formatNumber(0);
-    playSound('ascend', 0.5, 'sawtooth', 100, 500, 0.5); // Power-up sound
-    dojoDummySprite.classList.add('zapped'); // Apply zapped effect
+    playSound('ascend', 0.5, 'sawtooth', 100, 500, 0.5);
+    dojoDummySprite.classList.add('zapped');
 
-    // Start the visual beam
     startDojoBeam();
 
-    // Start the main countdown timer (updates the bar)
     dojoState.timerId = setInterval(() => {
         dojoState.timeLeft -= 0.1;
         
@@ -1980,40 +1903,36 @@ function startDojoSession() {
         }
     }, 100);
 
-    // Start the damage dealer (ticks faster than the timer for rapid numbers)
     dojoState.damageIntervalId = setInterval(() => {
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-        const baseDamage = getTotalStat('strength') * (Math.random() * 0.4 + 0.8); // 80% to 120% of STR
-        const damage = Math.floor(baseDamage * (isCrit ? 2.5 : 1) * DOJO_DAMAGE_MULTIPLIER); // Crits do 2.5x
+        const baseDamage = getTotalStat('strength') * (Math.random() * 0.4 + 0.8);
+        const damage = Math.floor(baseDamage * (isCrit ? 2.5 : 1) * DOJO_DAMAGE_MULTIPLIER);
         
         dojoState.totalSessionDamage += damage;
         
         createDojoDamageNumber(damage, isCrit);
         dojoSessionTotalDisplay.textContent = formatNumber(Math.floor(dojoState.totalSessionDamage));
-        playSound('tap', 0.3, 'square', 200, 150, 0.05); // Rapid hit sound
+        playSound('tap', 0.3, 'square', 200, 150, 0.05);
     }, 150);
 }
 
 async function stopDojoSession() {
     if (!dojoState.isActive) return;
 
-    // Stop all intervals and animations
     clearInterval(dojoState.timerId);
     clearInterval(dojoState.damageIntervalId);
     stopDojoBeam();
-    dojoDummySprite.classList.remove('zapped'); // Remove zapped effect
+    dojoDummySprite.classList.remove('zapped');
 
     dojoState.isActive = false;
     dojoTimerBarContainer.style.visibility = 'hidden';
     
-    // Check for a new personal best
     if (dojoState.totalSessionDamage > gameState.dojoPersonalBest) {
         gameState.dojoPersonalBest = dojoState.totalSessionDamage;
         showToast("New Personal Best!");
         playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-        updateDojoUI(); // Update the display immediately
+        updateDojoUI();
         
-        // Try to submit the new score to the damage leaderboard
         try {
             await db.collection("damageLeaderboard").doc(gameState.playerName).set({
                 name: gameState.playerName,
@@ -2028,7 +1947,7 @@ async function stopDojoSession() {
     }
 }
 function applyDamageToEnemy(enemy, damageAmount, isCrit = false) {
-    if (!enemy || enemy.hp <= 0) return false; // Don't damage already dead enemies
+    if (!enemy || enemy.hp <= 0) return false;
 
     const finalDamage = Math.floor(damageAmount);
     enemy.hp -= finalDamage;
@@ -2054,43 +1973,38 @@ function applyDamageToEnemy(enemy, damageAmount, isCrit = false) {
     genesisArena.appendChild(textEl);
     setTimeout(() => textEl.remove(), 1200);
 
-    // --- NEW UNIFIED DEATH LOGIC ---
     if (enemy.hp <= 0) {
         addXP(gameState, 5 * (genesisState.isBattleMode ? (gameState.highestBattleLevelCompleted + 1) : gameState.level));
-        createLootOrb(enemy.x, enemy.y); // This function correctly handles not dropping loot in battle mode
+        createLootOrb(enemy.x, enemy.y);
         
-        // Remove the visuals from the game
         if (enemy.element) enemy.element.remove();
         if (enemy.healthBarContainer) enemy.healthBarContainer.remove();
 
-        return true; // The enemy was defeated
+        return true;
     }
     
-    return false; // The enemy survived
+    return false;
 }
 
 function createDojoDamageNumber(amount, isCrit) {
     const num = document.createElement('div');
     num.textContent = amount.toLocaleString();
-    num.className = 'damage-text player-damage'; // Use existing player damage style
+    num.className = 'damage-text player-damage';
     if (isCrit) {
         num.classList.add('crit');
     }
-    // Position it over the dummy
     num.style.top = '40%';
     num.style.left = `${45 + Math.random() * 10}%`;
     
     document.getElementById('dojo-arena').appendChild(num);
     
-    // Animate and remove
     setTimeout(() => {
-        num.style.transform = `translateY(-${80 + Math.random() * 40}px)`; // Vary the float height
+        num.style.transform = `translateY(-${80 + Math.random() * 40}px)`;
         num.style.opacity = '0';
     }, 10);
     setTimeout(() => { num.remove(); }, 800);
 }
 
-// --- Beam/Lightning Canvas Animation (UPGRADED) ---
 function startDojoBeam() {
     if (dojoState.beamAnimationId) cancelAnimationFrame(dojoState.beamAnimationId);
 
@@ -2169,9 +2083,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           battleWaveDisplay.textContent = `Wave: ${battleState.currentWave} / ${battleState.totalWaves}`;
           potionCountDisplay.textContent = `Potions: ${(gameState.healthPotions || 0) - battleState.potionsUsedThisBattle}`;
       }
-        // =======================================================
-        // --- GENESIS ARENA SYSTEM (FINAL, ROCK-SOLID FIX) ---
-        // =======================================================
 
         function clamp(value, min, max) {
             return Math.max(min, Math.min(value, max));
@@ -2200,7 +2111,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 width: 80,
                 height: 80,
                 attackRange: 70,
-                //attackCooldown: 300, //
                 lastAttackTime: 0,
                 target: null,
                 manualDestination: null,
@@ -2209,29 +2119,23 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 dashDuration:280,
                 dashCooldown: 3200,
                 lastDashTime: 0,
-                thunderStrikeCooldown: 4500,
+                thunderStrikeCooldown: 4000,
                 lastThunderStrikeTime: 0,
                 lastDamagedTime: 0,
-                havocRageCooldown: 10000,
+                havocRageCooldown: 12000,
                 lastHavocRageTime: 0,
                 isChargingHavoc: false,
-                
             };
 
-            // --- THIS LOGIC IS NEW/MODIFIED ---
-            // It now handles starting positions for both game modes.
             if (genesisState.isBattleMode) {
                 const arenaRect = genesisArena.getBoundingClientRect();
-                // Player starts on the left for battles
                 genesisState.player.x = 100;
                 genesisState.player.y = arenaRect.height / 2;
 
-                // Define the patrol zone parameters for the player
-                genesisState.player.patrolCenterX = 150; // Center of the patrol zone (X-axis)
+                genesisState.player.patrolCenterX = 150;
                 genesisState.player.patrolCenterY = arenaRect.height / 2;
-                genesisState.player.patrolRadius = 120; // The radius the player can move in
+                genesisState.player.patrolRadius = 120;
             }
-            // Endless mode is handled inside the gameLoop's initialization check
 
             characterArea.style.display = 'none';
             genesisState.gameLoopId = requestAnimationFrame(gameLoop);
@@ -2244,35 +2148,28 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 genesisState.gameLoopId = null;
             }
             
-            // --- NEW, TARGETED REMOVAL LOGIC ---
-            // Get all dynamically created game objects
-            const dynamicElements = genesisArena.querySelectorAll('.genesis-player, .genesis-enemy, .genesis-loot-orb');
-            // Remove each one individually, leaving the wave display intact
+            const dynamicElements = genesisArena.querySelectorAll('.genesis-player, .genesis-enemy, .genesis-loot-orb, .enemy-health-bar-container');
             dynamicElements.forEach(el => el.remove());
             
             genesisState.player = null;
             genesisState.enemies = [];
             if(genesisState.lootOrbs) genesisState.lootOrbs = [];
         
-            // Now it's safe to hide the permanent UI elements for the next state
             genesisWaveDisplay.style.display = 'none';
             bossHealthContainer.style.display = 'none';
             genesisState.isBattleMode = false;
         }
         function toggleGrowthMode() {
-            // Check if the Genesis Arena is currently active
             if (genesisState.isActive) {
-                // If it is, stop it and show the static character
                 stopGameGenesis();
-                characterArea.style.display = 'flex'; // Show static tap area
-                genesisArena.style.display = 'none';  // Hide the arena
-                growBtn.textContent = 'Endless'; // Change button text
+                characterArea.style.display = 'flex';
+                genesisArena.style.display = 'none';
+                growBtn.textContent = 'Endless';
             } else {
-                // If it's not active, start it up again
-                genesisArena.style.display = 'block'; // Show the arena
-                characterArea.style.display = 'none'; // Hide static tap area
-                startGameGenesis(); // Start the endless mode
-                growBtn.textContent = 'Grow'; // Change button text back
+                genesisArena.style.display = 'block';
+                characterArea.style.display = 'none';
+                startGameGenesis();
+                growBtn.textContent = 'Grow';
             }
         }
         function handleLootCollection() {
@@ -2304,12 +2201,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         function gameLoop(timestamp) {
             if (!genesisState.isActive || !genesisState.player) return;
 
-            // --- Player Damage Flash Reset ---
             if (timestamp - genesisState.player.lastDamagedTime > 200) {
                 genesisState.player.element.style.filter = '';
             }
 
-            // --- ENDLESS MODE: Difficulty Scaling ---
             if (!genesisState.isBattleMode) {
                 const DIFFICULTY_INTERVAL = 15000;
                 if (timestamp - genesisState.lastDifficultyIncrease > DIFFICULTY_INTERVAL) {
@@ -2322,25 +2217,21 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             }
 
-            // --- BATTLE MODE: Wave Completion Check ---
             if (genesisState.isBattleMode &&
                 genesisState.enemies.length === 0 &&
                 genesisState.enemiesSpawnedThisWave >= genesisState.enemiesToSpawnThisWave &&
                 !genesisState.waveTransitionActive &&
-                genesisState.currentWave < genesisState.totalWaves // <-- This condition is correct
+                genesisState.currentWave < genesisState.totalWaves
             ) {
                 genesisState.waveTransitionActive = true;
             
-                // 1. Immediately show that the wave is cleared.
                 genesisWaveDisplay.textContent = `Wave ${genesisState.currentWave} Cleared!`;
                 genesisWaveDisplay.style.display = 'block';
                 playSound('levelUp', 0.6, 'triangle', 440, 880, 0.3);
             
-                // 2. After 1.5 seconds, update the text to prepare the player for the next wave.
                 setTimeout(() => {
                     if (!genesisState.isActive || !genesisState.waveTransitionActive) return;
             
-                    // Check if the NEXT wave is the final (boss) wave
                     if (genesisState.currentWave + 1 === genesisState.totalWaves) {
                         genesisWaveDisplay.textContent = 'BOSS INCOMING!';
                         playSound('ascend', 0.7, 'sawtooth', 500, 100, 0.4);
@@ -2350,7 +2241,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             
                 }, 1500);
             
-                // 3. After a total of 3 seconds, start the actual next wave.
                 setTimeout(() => {
                     if (!genesisState.isActive) return;
                     startNextBattleWave(); 
@@ -2360,14 +2250,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }, 3000);
             }
 
-            // --- Core Updates ---
             updatePlayerTarget();
             movePlayer();
             moveEnemies();
             moveLootOrbs();
             handleBurnDamage(timestamp);
 
-            // --- Attacks ---
             let actionTaken = false;
             actionTaken = handleGenesisThunderStrike(timestamp);
             if (!actionTaken) {
@@ -2377,16 +2265,17 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (!actionTaken) handleGenesisPlayerAttack(timestamp);
             if (genesisState.isBattleMode) handleEnemyAttacks(timestamp);
 
-            // --- Post-action updates ---
             handleLootCollection();
             if(genesisState.boss) updateBossHealthBar();
             
-            // --- Update Positions ---
             genesisState.player.element.style.left = `${genesisState.player.x}px`;
             genesisState.player.element.style.top = `${genesisState.player.y}px`;
             genesisState.enemies.forEach(enemy => {
                 enemy.element.style.left = `${enemy.x}px`;
                 enemy.element.style.top = `${enemy.y}px`;
+                const barX = enemy.x - (enemy.healthBarContainer.offsetWidth / 2);
+                const barY = enemy.y - (enemy.height / 2) - 15;
+                enemy.healthBarContainer.style.transform = `translate(${barX}px, ${barY}px)`;
             });
             genesisState.lootOrbs.forEach(orb => {
                 const orbTranslateX = orb.x - (orb.element.offsetWidth / 2);
@@ -2396,26 +2285,23 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
             spawnEnemies(timestamp);
             
-            // --- FIX: WIN/LOSS CONDITIONS ---
-            // Win Condition: The boss exists, is defeated, and the game is still active.
             if (genesisState.isBattleMode && genesisState.boss && genesisState.boss.hp <= 0 && genesisState.isActive) {
-                genesisState.isActive = false; // Prevent this from firing multiple times
+                genesisState.isActive = false;
                 endBattle(true);
-                return; // Stop the loop
+                return;
             }
             
-            // Loss Condition
             if (gameState.resources.hp <= 0 && genesisState.isActive) {
-                genesisState.isActive = false; // Prevent multiple calls
+                genesisState.isActive = false;
                 endBattle(false);
-                return; // Stop the loop
+                return;
             }
             
             genesisState.gameLoopId = requestAnimationFrame(gameLoop);
         }
         function spawnEnemies(timestamp) {
             if (genesisState.isBattleMode) {
-                const waveSpawnInterval = 200;
+                const waveSpawnInterval = 400;
                 if (genesisState.enemiesSpawnedThisWave < genesisState.enemiesToSpawnThisWave && timestamp - genesisState.lastEnemySpawn > waveSpawnInterval) {
                     genesisState.lastEnemySpawn = timestamp;
                     genesisState.enemiesSpawnedThisWave++;
@@ -2522,10 +2408,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         function handleEnemyAttacks(timestamp) {
             const player = genesisState.player;
-            if (!player || player.isDashing) return; // Enemies can't hit a dashing player
+            if (!player || player.isDashing) return;
         
             genesisState.enemies.forEach(enemy => {
-                // Check if the player is in range AND the enemy's attack is off cooldown
                 if (timestamp - enemy.lastAttackTime > enemy.attackCooldown) {
                     const dx = player.x - enemy.x;
                     const dy = player.y - enemy.y;
@@ -2537,14 +2422,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         
                         gameState.resources.hp -= damage;
                         
-                        // Visual feedback for getting hit
                         player.lastDamagedTime = timestamp;
                         player.element.style.filter = 'brightness(3) drop-shadow(0 0 5px red)';
                         
                         createImpactEffect(player.x, player.y);
         
-                        // --- NEW: AUTO-POTION LOGIC ---
-                        // Check health AFTER taking damage but BEFORE updating UI
                         const healthThreshold = gameState.resources.maxHp * 0.3;
                         if (gameState.resources.hp > 0 && gameState.resources.hp <= healthThreshold) {
                             if (gameState.healthPotions > 0) {
@@ -2555,14 +2437,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                                 showToast("Used a Health Potion!");
                                 playSound('feed', 1, 'sine', 200, 600, 0.2);
         
-                                // Create a floating heal text
                                 const arenaRect = genesisArena.getBoundingClientRect();
                                 const screenX = arenaRect.left + player.x;
                                 const screenY = arenaRect.top + player.y;
                                 createFloatingText(`+${healAmount} HP`, screenX, screenY, { color: 'var(--accent-color)' });
                             }
                         }
-                        // --- END OF AUTO-POTION LOGIC ---
         
                         updateUI();
                     }
@@ -2574,19 +2454,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const player = genesisState.player;
             if (!player) return;
         
-            // We no longer need the arenaRect for this function
-            // const arenaRect = genesisArena.getBoundingClientRect(); 
-            
-            // --- THIS IS THE ACTUAL CHANGE ---
-            // We remove the entire if/else block that filtered targets.
-            // The player should always consider all enemies on screen as potential targets.
             let validTargets = genesisState.enemies;
-            // --- END OF ACTUAL CHANGE ---
 
             let closestEnemy = null;
             let minDistance = Infinity;
         
-            // Find the closest enemy from the (now unfiltered) list of valid targets.
             validTargets.forEach(enemy => {
                 const dx = player.x - enemy.x;
                 const dy = player.y - enemy.y;
@@ -2597,7 +2469,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             });
 
-            // Set the player's target.
             player.target = closestEnemy;
         }
         function movePlayer() {
@@ -2685,7 +2556,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         
         function initiateGenesisPlayerDash(timestamp) {
             const player = genesisState.player;
-            if (!player || player.isDashing || genesisState.enemies.length === 0) return false;
+            if (!player || player.isDashing || player.isChargingHavoc || genesisState.enemies.length === 0) return false;
             if (timestamp - player.lastDashTime < player.dashCooldown) return false;
 
             let bestTarget = null;
@@ -2820,7 +2691,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 
                 bolt.style.animationDelay = `${Math.random() * 0.15}s`;
                 
-                genesisArena.appendChild(bolt);
+                const arena = document.getElementById('pvp-arena') || document.getElementById('genesis-arena');
+                arena.appendChild(bolt);
+                void bolt.offsetWidth; 
 
                 setTimeout(() => {
                     if (bolt) bolt.remove();
@@ -2845,20 +2718,30 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         function createChainLightningEffect(targets) {
             const canvas = document.createElement('canvas');
             canvas.className = 'genesis-chain-lightning';
-            const arenaRect = genesisArena.getBoundingClientRect();
+            const arena = document.getElementById('pvp-arena') || document.getElementById('genesis-arena');
+            const arenaRect = arena.getBoundingClientRect();
             canvas.width = arenaRect.width;
             canvas.height = arenaRect.height;
-            genesisArena.appendChild(canvas);
+            arena.appendChild(canvas);
+            void canvas.offsetWidth;
 
             const ctx = canvas.getContext('2d');
 
-            for (let i = 0; i < targets.length - 1; i++) {
-                const start = targets[i];
-                const end = targets[i+1];
+            if (targets.length === 2 && targets[0].offsetLeft !== undefined) {
+                const start = { x: targets[0].offsetLeft, y: targets[0].offsetTop };
+                const end = { x: targets[1].offsetLeft, y: targets[1].offsetTop };
                 drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(0, 255, 255, 0.2)', 20, 15);
                 drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(255, 255, 255, 0.5)', 10, 12);
                 drawLightningSegment(ctx, start.x, start.y, end.x, end.y, '#FFFFFF', 4, 10);
-            }
+           } else {
+               for (let i = 0; i < targets.length - 1; i++) {
+                   const start = targets[i];
+                   const end = targets[i+1];
+                   drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(0, 255, 255, 0.2)', 20, 15);
+                   drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(255, 255, 255, 0.5)', 10, 12);
+                   drawLightningSegment(ctx, start.x, start.y, end.x, end.y, '#FFFFFF', 4, 10);
+               }
+           }
 
             setTimeout(() => canvas.remove(), 400);
         }
@@ -2882,7 +2765,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 return false;
             }
 
-            // --- THIS IS THE FIX: MOVE THIS BLOCK UP ---
             let potentialTargets = [...genesisState.enemies];
             let chainTargets = [player];
             const maxChain = 17; 
@@ -2907,7 +2789,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     potentialTargets = potentialTargets.filter(e => e.id !== closestEnemy.id);
                 }
             }
-            // --- END OF MOVED BLOCK ---
 
             if (chainTargets.length > 1) {
                 player.lastThunderStrikeTime = timestamp;
@@ -2922,7 +2803,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     fontSize: '2.2em'
                 });
 
-                // Now this line will work correctly because chainTargets is defined
                 createChainLightningEffect(chainTargets); 
 
                 const thunderDamage = getTotalStat('strength') * 4.5;
@@ -2942,40 +2822,61 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         
         function handleGenesisHavocRage(timestamp) {
             const player = genesisState.player;
-            if (!player || genesisState.enemies.length === 0) return false;
-            if (timestamp - player.lastHavocRageTime < player.havocRageCooldown) return false;
-        
-            player.lastHavocRageTime = timestamp;
-        
-            playSound('crit', 1, 'sawtooth', 300, 50, 0.5); 
-            triggerScreenShake(400);
-        
-            const arenaRect = genesisArena.getBoundingClientRect();
-            const screenX = arenaRect.left + player.x;
-            const screenY = arenaRect.top + player.y - 80;
-            createFloatingText("Havoc Rage!", screenX, screenY, {
-                color: '#dc143c',
-                fontSize: '2.2em'
-            });
-        
-            player.element.style.filter = 'invert(1)';
-            setTimeout(() => {
-                if (player && player.element) {
-                    player.element.style.filter = '';
+            if (!player || player.isChargingHavoc) return;
+            
+            if (player.isChargingHavoc) {
+                if (timestamp - player.lastHavocRageTime > 300) {
+                    player.isChargingHavoc = false;
+                    if (player.element) player.element.style.filter = '';
+
+                    playSound('crit', 1, 'sawtooth', 300, 50, 0.5);
+                    triggerScreenShake(400);
+
+                    const effectRadius = 200;
+                    createHavocShockwaveEffect(player.x, player.y, effectRadius);
+                    createFloatingText("Havoc Rage!", player.x, player.y - 80, {
+                        color: '#dc143c',
+                        fontSize: '2.2em'
+                    });
+
+                    genesisState.enemies.forEach(enemy => {
+                        const dx = player.x - enemy.x;
+                        const dy = player.y - enemy.y;
+                        if (Math.sqrt(dx * dx + dy * dy) <= effectRadius) {
+                            enemy.burn = {
+                                expiryTime: timestamp + 5000,
+                                damagePerTick: getTotalStat('strength') * 0.25,
+                                lastTickTime: timestamp
+                            };
+                            enemy.element.classList.add('burning');
+                        }
+                    });
                 }
-            }, 250);
-        
-            const effectRadius = 200;
-            createHavocShockwaveEffect(player.x, player.y, effectRadius);
-        
+                return true;
+            }
+
+            if (genesisState.enemies.length === 0 || timestamp - player.lastHavocRageTime < player.havocRageCooldown) {
+                return false;
+            }
+
+            let closestDistance = Infinity;
             genesisState.enemies.forEach(enemy => {
-                enemy.burn = {
-                    expiryTime: timestamp + 5000,
-                    damagePerTick: getTotalStat('strength') * 0.25,
-                    lastTickTime: timestamp
-                };
-                enemy.element.classList.add('burning');
+                const dx = player.x - enemy.x;
+                const dy = player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                }
             });
+
+            if (closestDistance > 250) return false;
+
+            player.isChargingHavoc = true;
+            player.lastHavocRageTime = timestamp;
+
+            playSound('hit', 0.8, 'sine', 100, 50, 0.3);
+            player.element.style.filter = 'brightness(2) drop-shadow(0 0 15px red)';
+            triggerScreenShake(200);
             
             return true;
         }
@@ -3069,14 +2970,17 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         
             pulseEl.style.left = `${x}px`;
             pulseEl.style.top = `${y}px`;
-            genesisArena.appendChild(pulseEl);
+            const arena = document.getElementById('pvp-arena') || document.getElementById('genesis-arena');
+            arena.appendChild(pulseEl);
+            void pulseEl.offsetWidth;
             setTimeout(() => pulseEl.remove(), 300);
         }
 
         function createImpactEffect(x, y) {
             const impactEl = document.createElement('div');
             impactEl.className = 'genesis-impact';
-            genesisArena.appendChild(impactEl);
+            const arena = document.getElementById('pvp-arena') || document.getElementById('genesis-arena');
+            arena.appendChild(impactEl);
             
             impactEl.style.left = `${x}px`;
             impactEl.style.top = `${y}px`;
@@ -3109,7 +3013,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             explosion.style.height = `${explosionRadius * 2}px`;
             explosion.style.left = `${x}px`;
             explosion.style.top = `${y}px`;
-            genesisArena.appendChild(explosion);
+            const arena = document.getElementById('pvp-arena') || document.getElementById('genesis-arena');
+            arena.appendChild(explosion);
+            void explosion.offsetWidth;
             setTimeout(() => explosion.remove(), 500);
         }
 
@@ -3137,18 +3043,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             numEl.className = 'enemy-damage-text'; // Reuse the same style
             numEl.textContent = formatNumber(Math.floor(amount));
 
-            // Position based on who is attacking
             if (isPlayerSource) {
-                // Damage appears over the opponent (on the right)
                 numEl.style.left = '75%';
-                numEl.style.color = 'var(--accent-color)'; // Green for player damage
+                numEl.style.color = 'var(--accent-color)';
             } else {
-                // Damage appears over the player (on the left)
                 numEl.style.left = '25%';
-                numEl.style.color = 'var(--health-color)'; // Red for opponent damage
+                numEl.style.color = 'var(--health-color)';
             }
             
-            // Randomize vertical position for a spray effect
             numEl.style.top = `${40 + Math.random() * 20}%`;
             
             pvpArena.appendChild(numEl);
@@ -3175,7 +3077,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             genesisState.isBattleMode = true;
             genesisState.currentWave = 0;
             genesisState.boss = null;
-            genesisState.totalDamageDealtThisBattle = 0; // --- FIX: Reset damage counter for the new battle.
+            genesisState.totalDamageDealtThisBattle = 0;
             genesisWaveDisplay.style.display = 'block';
             gameState.resources.hp = gameState.resources.maxHp;
             updateUI();
@@ -3190,7 +3092,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             genesisState.enemiesSpawnedThisWave = 0;
             
             if (genesisState.currentWave > genesisState.totalWaves) {
-                // This case should be handled by the win condition in the game loop, but as a fallback:
                 endBattle(true);
                 return;
             }
@@ -3199,11 +3100,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             genesisWaveDisplay.style.display = 'block';
 
             if (genesisState.currentWave === genesisState.totalWaves) {
-                // It's the Boss Wave!
-                genesisState.enemiesToSpawnThisWave = 30; // Minions for the boss
+                genesisState.enemiesToSpawnThisWave = 30;
                 spawnBoss();
             } else {
-                // Regular wave: 5 enemies on wave 1, scaling up to 100 on wave 19
                 const baseMinEnemies = 3;
                 const baseMaxEnemies = 18;
                 const waveBonus = Math.floor(genesisState.currentWave * 1.5);
@@ -3219,10 +3118,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             
             const boss = {
                 element: document.createElement('img'),
+                healthBarContainer: document.createElement('div'),
+                healthBarFill: document.createElement('div'),
                 x: arenaRect.width - 100,
                 y: arenaRect.height / 2,
                 speed: 1,
-                width: 160, height: 160, // Much larger
+                width: 160, height: 160,
                 maxHp: 500 * difficulty * gameState.ascension.tier,
                 hp: 500 * difficulty * gameState.ascension.tier,
                 id: 'BOSS',
@@ -3238,11 +3139,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             boss.element.style.height = `${boss.height}px`;
             boss.element.style.filter = 'grayscale(1) sepia(1) hue-rotate(320deg) saturate(5)';
             
+            boss.healthBarContainer.className = 'enemy-health-bar-container';
+            boss.healthBarFill.className = 'enemy-health-bar-fill';
+            boss.healthBarContainer.appendChild(boss.healthBarFill);
+
             genesisArena.appendChild(boss.element);
+            genesisArena.appendChild(boss.healthBarContainer);
             genesisState.enemies.push(boss);
             genesisState.boss = boss;
 
-            // Show and update the boss health bar
             bossHealthContainer.style.display = 'block';
             bossNameDisplay.textContent = `Level ${difficulty} Hellspawn King`;
             updateBossHealthBar();
@@ -3258,16 +3163,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       function startNextWave() {
           battleState.currentWave++;
   
-          // --- NEW LOGIC ---
-          // We no longer use the player's level to calculate enemy stats.
-          // Instead, we use the fixed battle level for this entire battle instance.
           const enemyLevel = battleState.targetBattleLevel;
           const tierMultiplier = gameState.ascension.tier;
           const waveMultiplier = 1 + (battleState.currentWave - 1) * 0.2;
           let isBoss = battleState.currentWave === battleState.totalWaves;
           let enemy;
           
-          // The formulas now scale with `enemyLevel`, not the player's level.
           if (isBoss) {
               enemy = {
                   name: `Level ${enemyLevel} Hellspawn King`,
@@ -3353,14 +3254,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       }
   
       async function endBattle(playerWon) {
-          // --- FIX: This block now handles damage submission for the new Genesis battle system. ---
           if (genesisState.isBattleMode && genesisState.totalDamageDealtThisBattle > gameState.dojoPersonalBest) {
               gameState.dojoPersonalBest = genesisState.totalDamageDealtThisBattle;
               showToast("New Personal Damage Record!");
               playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-              updateDojoUI(); // This will update the text on the dojo screen for next time
+              updateDojoUI();
       
-              // Submit the new high score to the damage leaderboard
               try {
                   await db.collection("damageLeaderboard").doc(gameState.playerName).set({
                       name: gameState.playerName,
@@ -3372,7 +3271,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
               }
           }
       
-          // This part handles the old turn-based battle system state
           battleState.isActive = false;
           gameState.healthPotions = (gameState.healthPotions || 0) - battleState.potionsUsedThisBattle;
           
@@ -3380,7 +3278,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           let rewardText = "";
       
           if (playerWon) {
-              // This is the logic path for winning a Genesis Arena battle
               if (genesisState.isBattleMode) {
                   const battleLevel = gameState.highestBattleLevelCompleted + 1;
                   gameState.highestBattleLevelCompleted = battleLevel;
@@ -3398,32 +3295,31 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                   
                   const totalDamageDealt = Math.floor(genesisState.totalDamageDealtThisBattle);
                   
-                  // --- FIX: The reward prompt now includes the total damage dealt. ---
                   rewardText = `You are victorious!<br><br>Total Rewards:<br>+${goldReward.toLocaleString()} Gold<br>+${xpReward.toLocaleString()} XP<br>Total Damage Dealt: ${totalDamageDealt.toLocaleString()}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
                   
                   gameState.inventory.push(bonusItem);
               }
-          } else { // Player lost
+          } else {
               playSound('defeat', 1, 'sine', 440, 110, 0.8);
               if (gameState.resources.hp <= 0) {
                   title = "Defeated!";
                   rewardText = "You black out and wake up back home. You lost half your current gold.";
                   gameState.gold = Math.floor(gameState.gold / 2);
-                  gameState.resources.hp = 1; // Restore 1 HP so the player isn't stuck
+                  gameState.resources.hp = 1;
               } else {
                   title = "Fled from Battle";
                   rewardText = "You escaped, but gained no rewards.";
               }
           }
           
-          stopGameGenesis(); // Stop the arena visualization
+          stopGameGenesis();
           setTimeout(() => { 
               showScreen('game-screen');
-              startGameGenesis(); // Restart in endless mode
+              startGameGenesis();
               if (title) showNotification(title, rewardText);
               saveGame(); 
               updateUI(); 
-          }, 500); // A short delay before showing the results
+          }, 500);
       }
   
       function feedInBattle() {
@@ -3451,7 +3347,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           addBattleLog(`You use a potion and heal for ${healAmount} HP!`, 'log-player');
           updateBattleHud();
       
-          // The enemy attacks after you heal
           setTimeout(handleEnemyAttack, 1500);
       }
       
@@ -3491,12 +3386,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           }
       }
   
-      // --- AUTH & SETTINGS ---
       function signInWithGoogle() { 
           auth.signInWithPopup(googleProvider)
               .then(result => {
                   showToast(`Welcome, ${result.user.displayName}!`);
-                  // onAuthStateChanged will handle loading the game
               })
               .catch(error => {
                   console.error("Sign in error", error);
@@ -3510,14 +3403,13 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           
           auth.signOut().then(() => {
               showToast("Signed Out");
-              // Reset game state to default before deciding what to do next
               gameState = JSON.parse(JSON.stringify(defaultState));
               if (localSaveExists) {
                   if (confirm("You are now signed out. Do you want to load your local save file? (This will not affect your cloud save)")) {
                       loadGame();
                   } else {
                       showScreen('main-menu-screen');
-                      updateUI(); // Update UI to reflect logged-out state
+                      updateUI();
                   }
               } else {
                   showScreen('main-menu-screen');
@@ -3530,7 +3422,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           if (user) {
               authStatus.textContent = `Signed in as ${user.displayName || user.email}`;
               googleSigninBtn.textContent = 'Sign Out';
-              loadGameBtn.disabled = false; // Enable load game button when logged in
+              loadGameBtn.disabled = false;
           } else {
               authStatus.textContent = 'Sign in for Cloud Saves & Leaderboards';
               googleSigninBtn.textContent = 'Sign in with Google';
@@ -3546,276 +3438,16 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           muteAllCheckbox.checked = gameState.settings.isMuted;
           autoBattleCheckbox.checked = gameState.settings.isAutoBattle;
   
-          // Apply mute setting immediately
           if (gameState.settings.isMuted) {
                for(const key in musicManager.audio) { if(musicManager.audio[key] && !musicManager.audio[key].paused) musicManager.audio[key].pause(); }
           } else {
               if(musicManager.currentTrack) playMusic(musicManager.currentTrack);
           }
   
-          // Apply volume setting immediately
           const currentMusic = musicManager.audio[musicManager.currentTrack];
           if (currentMusic) { currentMusic.volume = gameState.settings.musicVolume; }
        }
-       const PVP_UNLOCK_LEVEL = 25; // Or whatever level you choose
 
-       // --- Function to fetch opponents and show the selection screen ---
-       async function enterPvpSelection() {
-        if (gameState.level < PVP_UNLOCK_LEVEL) {
-            showToast(`PvP unlocks at Level ${PVP_UNLOCK_LEVEL}`);
-            return;
-        }
-        showScreen('pvp-selection-screen');
-        pvpOpponentListContainer.innerHTML = '<p>Searching for opponents...</p>';
-
-        try {
-            // --- CORRECTED QUERY: Ask for a broader list of players ---
-            // We query for players who are at least the minimum PVP level.
-            // This uses only ONE range filter, which is valid.
-            const snapshot = await db.collection('playerSaves')
-                .where('level', '>=', PVP_UNLOCK_LEVEL)
-                .limit(50) // Get a larger pool of potential opponents
-                .get();
-            
-            let allEligiblePlayers = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                // Don't include the current player in the list
-                if (data.playerName !== gameState.playerName) {
-                    allEligiblePlayers.push(data);
-                }
-            });
-
-            // --- NOW, FILTER THE RESULTS ON THE CLIENT-SIDE ---
-            const lowerBound = gameState.level - 10;
-            const upperBound = gameState.level + 10;
-            
-            let opponents = allEligiblePlayers.filter(player => {
-                return player.level >= lowerBound && player.level <= upperBound;
-            });
-
-            // Fallback: If no one is in our level range, just use any eligible players.
-            if (opponents.length < 1) {
-                opponents = allEligiblePlayers;
-            }
-            
-            if (opponents.length === 0) {
-                pvpOpponentListContainer.innerHTML = '<p>Could not find any eligible opponents. Please try again later.</p>';
-                return;
-            }
-
-            // Shuffle the opponents for variety
-            opponents.sort(() => 0.5 - Math.random());
-
-            pvpOpponentListContainer.innerHTML = '';
-            opponents.slice(0, 4).forEach(opponent => {
-                const itemEl = document.createElement('div');
-                itemEl.className = 'pvp-opponent-item';
-                itemEl.innerHTML = `
-                    <img src="player.PNG" class="pvp-opponent-avatar" style="filter: hue-rotate(${Math.random() * 360}deg);">
-                    <div class="pvp-opponent-info">
-                        <div class="pvp-opponent-name">${opponent.playerName} (Lv. ${opponent.level})</div>
-                        <div class="pvp-opponent-stats">Tier: ${opponent.ascension.tier}</div>
-                    </div>
-                `;
-                itemEl.onclick = () => startPvpBattle(opponent);
-                pvpOpponentListContainer.appendChild(itemEl);
-            });
-
-        } catch (error) {
-            console.error("Error fetching PvP opponents:", error);
-            // Now, this catch block MIGHT contain the "Create Index" link if Firebase needs it for the single range query.
-            if (error.message.includes('index')) {
-                 pvpOpponentListContainer.innerHTML = `<p>Database requires an index. Please check the developer console (F12) for a link to create it.</p>`;
-            } else {
-                 pvpOpponentListContainer.innerHTML = '<p>Could not find opponents. Please try again later.</p>';
-            }
-        }
-    }
-
-       // --- Function to start the 15-second battle ---
-       function startPvpBattle(opponentData) {
-           pvpState = {
-               isActive: true,
-               timerId: null,
-               timeLeft: 15.0,
-               playerDamage: 0,
-               opponentDamage: 0,
-               opponentData: opponentData,
-               playerCooldowns: { lastDashTime: 0, lastThunderStrikeTime: 0, lastHavocRageTime: 0, lastAttackTime: 0 },
-               opponentCooldowns: { lastDashTime: 0, lastThunderStrikeTime: 0, lastHavocRageTime: 0, lastAttackTime: 0 }
-           };
-
-           showScreen('pvp-battle-screen');
-           pvpArena.innerHTML = ''; // Clear previous battle
-
-           // Create player and opponent visuals
-           const playerSprite = document.createElement('img');
-           playerSprite.src = 'player.PNG';
-           playerSprite.className = 'genesis-player';
-           playerSprite.style.left = '25%';
-           playerSprite.style.top = '50%';
-
-           const opponentSprite = document.createElement('img');
-           opponentSprite.src = 'player.PNG';
-           opponentSprite.className = 'genesis-player'; // Use same class for style
-           opponentSprite.style.filter = 'hue-rotate(180deg)';
-           opponentSprite.style.left = '75%';
-           opponentSprite.style.top = '50%';
-           
-           pvpArena.appendChild(playerSprite);
-           pvpArena.appendChild(opponentSprite);
-
-           // Set names on the tug-of-war bar
-           pvpPlayerName.textContent = gameState.playerName;
-           pvpOpponentName.textContent = opponentData.playerName;
-
-           // Start the battle timer
-           pvpState.timerId = setInterval(pvpTick, 100);
-       }
-       function executePvpTurn(isPlayer, timestamp) {
-        const combatant = isPlayer ? gameState : pvpState.opponentData;
-        const combatantSprite = pvpArena.querySelectorAll('.genesis-player')[isPlayer ? 0 : 1];
-        const targetSprite = pvpArena.querySelectorAll('.genesis-player')[isPlayer ? 1 : 0];
-        const cooldowns = isPlayer ? pvpState.playerCooldowns : pvpState.opponentCooldowns;
-
-        // --- Re-usable function to get total stats for player OR opponent ---
-        const getCombatantStat = (stat) => {
-            if (isPlayer) return getTotalStat(stat);
-            
-            let total = combatant.stats[stat] || 0;
-            for (const slot in combatant.equipment) {
-                if (combatant.equipment[slot] && combatant.equipment[slot].stats) {
-                    total += combatant.equipment[slot].stats[stat] || 0;
-                }
-            }
-            return total;
-        };
-
-        // Ability Priority Check (identical logic to the main game)
-        
-        // 1. Thunder Strike
-        if (timestamp - cooldowns.lastThunderStrikeTime > 4000) {
-            cooldowns.lastThunderStrikeTime = timestamp;
-            const damage = getCombatantStat('strength') * 4.5;
-            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
-            const finalDamage = damage * (isCrit ? 2.5 : 1);
-            
-            createChainLightningEffect([combatantSprite, targetSprite]);
-            createFloatingText("Thunder Strike!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#00ffff', fontSize: '1.5em' });
-            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
-            createPvpDamageNumber(finalDamage, isPlayer);
-            return;
-        }
-
-        // 2. Havoc Rage
-        if (timestamp - cooldowns.lastHavocRageTime > 12000) {
-            cooldowns.lastHavocRageTime = timestamp;
-            createHavocShockwaveEffect(combatantSprite.offsetLeft, combatantSprite.offsetTop, 100);
-            createFloatingText("Havoc Rage!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#dc143c', fontSize: '1.5em' });
-            
-            // For simplicity in PvP, Havoc Rage does instant damage instead of a DoT
-            const damage = getCombatantStat('strength') * 3;
-            if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
-            createPvpDamageNumber(damage, isPlayer);
-            return;
-        }
-        
-        // 3. Dash
-        if (timestamp - cooldowns.lastDashTime > 3200) {
-            cooldowns.lastDashTime = timestamp;
-            const shouldChain = Math.random() < 0.30;
-            createDashExplosionEffect(targetSprite.offsetLeft, targetSprite.offsetTop);
-            createFloatingText(shouldChain ? "Dash Chain!" : "Dash!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#ff8c00', fontSize: '1.5em' });
-
-            const damage = getCombatantStat('strength') * 5 * (shouldChain ? 2 : 1); // Chain dash does double damage
-            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
-            const finalDamage = damage * (isCrit ? 2.5 : 1);
-            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
-            createPvpDamageNumber(finalDamage, isPlayer);
-            return;
-        }
-
-        // 4. Basic Attack
-        const agility = getCombatantStat('agility');
-        const dynamicAttackCooldown = Math.max(95, 300 - (agility * 1));
-        if (timestamp - cooldowns.lastAttackTime > dynamicAttackCooldown) {
-            cooldowns.lastAttackTime = timestamp;
-            const damage = getCombatantStat('strength');
-            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
-            const finalDamage = damage * (isCrit ? 2.5 : 1);
-
-            createAoeSlashEffect(targetSprite.offsetLeft, targetSprite.offsetTop, 50);
-            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
-            createPvpDamageNumber(finalDamage, isPlayer);
-        }
-       }
-
-       // --- Function that runs every 100ms during the PvP battle ---
-       function pvpTick() {
-        if (!pvpState.isActive) {
-            clearInterval(pvpState.timerId);
-            return;
-        }
-
-        // Update timer
-        pvpState.timeLeft -= 0.1;
-
-        if (pvpState.timeLeft <= 0) {
-            pvpTimerDisplay.textContent = "0.0";
-            endPvpBattle();
-            return;
-        }
-        
-        pvpTimerDisplay.textContent = pvpState.timeLeft.toFixed(1);
-
-        const timestamp = Date.now();
-        
-        // --- EXECUTE ATTACK TURNS FOR BOTH SIDES ---
-        executePvpTurn(true, timestamp);  // Player's turn
-        executePvpTurn(false, timestamp); // Opponent's turn
-
-        // Update the tug-of-war bar
-        const totalDamage = pvpState.playerDamage + pvpState.opponentDamage;
-        if (totalDamage > 0) {
-            const playerPct = (pvpState.playerDamage / totalDamage) * 100;
-            pvpPlayerDamageFill.style.width = `${playerPct}%`;
-            pvpOpponentDamageFill.style.width = `${100 - playerPct}%`;
-        }
-       }
-       
-       // --- Function to end the battle and show results ---
-       async function endPvpBattle() {
-           clearInterval(pvpState.timerId);
-           pvpState.isActive = false;
-
-           const playerWon = pvpState.playerDamage > pvpState.opponentDamage;
-           let title = playerWon ? "VICTORY!" : "DEFEAT!";
-           let text = `You dealt ${formatNumber(pvpState.playerDamage)} damage.<br>${pvpState.opponentData.playerName} dealt ${formatNumber(pvpState.opponentDamage)} damage.`;
-
-           if (playerWon) {
-               playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-               // Submit score to leaderboard if it's a new personal best
-               const pvpBest = gameState.pvpPersonalBest || 0;
-               if (pvpState.playerDamage > pvpBest) {
-                   gameState.pvpPersonalBest = pvpState.playerDamage;
-                   text += "<br><br><b>New PvP Damage Record!</b> Score submitted to leaderboard.";
-                   try {
-                       await db.collection("pvpLeaderboard").doc(gameState.playerName).set({
-                           name: gameState.playerName,
-                           maxDamage: Math.floor(gameState.pvpPersonalBest)
-                       }, { merge: true });
-                   } catch(e) { console.error("Failed to submit PvP score", e); }
-               }
-           } else {
-               playSound('defeat', 1, 'sine', 440, 110, 0.8);
-           }
-           
-           showNotification(title, text);
-           saveGame();
-           showScreen('game-screen');
-       }
-       // --- EVENT LISTENERS (Corrected) ---
        startGameBtn.addEventListener('click', startGame);
        loadGameBtn.addEventListener('click', loadGame);
        characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
@@ -3824,31 +3456,25 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
        partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
        modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
        feedBtn.addEventListener('click', feed); 
-       // --- DOJO EVENT LISTENERS ---
+      
       dojoBtn.addEventListener('click', enterDojo);
       dojoExitBtn.addEventListener('click', exitDojo);
 
-        // Handle both mouse and touch for the hold-to-attack mechanic
       dojoDummySprite.addEventListener('mousedown', startDojoSession);
       dojoDummySprite.addEventListener('mouseup', stopDojoSession);
-      dojoDummySprite.addEventListener('mouseleave', stopDojoSession); // Stop if mouse leaves the dummy
+      dojoDummySprite.addEventListener('mouseleave', stopDojoSession);
       dojoDummySprite.addEventListener('touchstart', (e) => {
-           e.preventDefault(); // Important for mobile to prevent scrolling
+           e.preventDefault();
            startDojoSession();
        }, { passive: false });
       dojoDummySprite.addEventListener('touchend', stopDojoSession);
       dojoDummySprite.addEventListener('touchcancel', stopDojoSession);
       
-      // vvv ADD THIS NEW LISTENER vvv
-      // Use Event Delegation for the dynamically created rewards button
       playerStatPanel.addEventListener('click', (event) => {
-          // Check if the element that was actually clicked has the ID 'rewards-btn'
           if (event.target && event.target.id === 'rewards-btn') {
-              // If it is our button, run the function!
               showRewardsModal();
           }
       });
-      // ^^^ END OF NEW LISTENER ^^^
         
       closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
       battleBtn.addEventListener('click', startBattle);
@@ -3869,15 +3495,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
  
       expeditionCancelBtn.addEventListener('click', () => {
         showScreen('game-screen');
-        startGameGenesis(); // <-- ADD THIS LINE
+        startGameGenesis();
       });
  
       ingameMenuBtn.addEventListener('click', () => {
-          /*if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
-              ascensionBtn.style.display = 'block';
-          } else {
-              ascensionBtn.style.display = 'none';
-          }*/
           ingameMenuModal.classList.add('visible');
           gtag('config', 'G-4686TXHCHN', { 'page_path': '/menu' });
       });
@@ -3931,21 +3552,18 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       forgeBtnAction.addEventListener('click', forgeItems);
       function openInventoryForForgeSelection(slotIndex) {
         currentForgeSelectionTarget = slotIndex;
-        updateInventoryUI(); // Update inventory to use forge selection logic
+        updateInventoryUI();
         forgeModal.classList.remove('visible');
         inventoryModal.classList.add('visible');
-        // Update prompt text in inventory
         document.getElementById("inventory-prompt-text").textContent = `Select an item for Forge Slot ${slotIndex + 1}.`;
     }
       
       [forgeSlot1Div, forgeSlot2Div].forEach((slot, index) => {
           slot.addEventListener('click', () => {
               if (forgeSlots[index]) {
-                  // If slot is filled, click to clear it
                   forgeSlots[index] = null;
                   updateForgeUI();
               } else {
-                  // If slot is empty, click to open inventory for selection
                   openInventoryForForgeSelection(index);
               }
           });
@@ -3953,11 +3571,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       switchCharacterBtn.addEventListener('click', () => showScreen('partner-screen'));
       switchToMainBtn.addEventListener('click', () => showScreen('game-screen'));
       
-      // Auth and Settings listeners
       optionsBtn.addEventListener('click', () => { 
         updateSettingsUI(); 
         optionsModal.classList.add('visible'); 
-        gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' }); // <-- Now it's inside
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' });
       });      
       closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
       googleSigninBtn.addEventListener('click', () => {
@@ -3966,11 +3583,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       });
       muteAllCheckbox.addEventListener('change', (e) => {
           gameState.settings.isMuted = e.target.checked;
-          updateSettingsUI(); // Re-apply settings
+          updateSettingsUI();
       });
       musicVolumeSlider.addEventListener('input', (e) => {
           gameState.settings.musicVolume = parseFloat(e.target.value);
-          updateSettingsUI(); // Re-apply settings
+          updateSettingsUI();
       });
       sfxVolumeSlider.addEventListener('input', (e) => { 
           gameState.settings.sfxVolume = parseFloat(e.target.value); 
