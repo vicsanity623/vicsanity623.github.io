@@ -3539,65 +3539,63 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
        // --- Function to fetch opponents and show the selection screen ---
        async function enterPvpSelection() {
-           if (gameState.level < PVP_UNLOCK_LEVEL) {
-               showToast(`PvP unlocks at Level ${PVP_UNLOCK_LEVEL}`);
-               return;
-           }
-           showScreen('pvp-selection-screen');
-           pvpOpponentListContainer.innerHTML = '<p>Searching for opponents...</p>';
+        if (gameState.level < PVP_UNLOCK_LEVEL) {
+            showToast(`PvP unlocks at Level ${PVP_UNLOCK_LEVEL}`);
+            return;
+        }
+        showScreen('pvp-selection-screen');
+        pvpOpponentListContainer.innerHTML = '<p>Searching for opponents...</p>';
 
-           try {
-               // Fetch players around the current player's power level
-               // NOTE: This is a simplified query. For a real game, this would be more complex.
-               const playerPower = gameState.level + gameState.ascension.tier * 50;
-               const lowerBound = playerPower * 0.8;
-               const upperBound = playerPower * 1.2;
+        try {
+            const snapshot = await db.collection('playerSaves')
+                .where('level', '>=', gameState.level - 10)
+                .where('level', '<=', gameState.level + 10)
+                .where('level', '>=', PVP_UNLOCK_LEVEL)
+                .limit(10)
+                .get();
+            
+            let opponents = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.playerName !== gameState.playerName) {
+                    opponents.push(data);
+                }
+            });
 
-               const snapshot = await db.collection('playerSaves')
-                   .where('level', '>=', gameState.level - 10)
-                   .where('level', '<=', gameState.level + 10)
-                   .limit(10)
-                   .get();
-               
-               let opponents = [];
-               snapshot.forEach(doc => {
-                   const data = doc.data();
-                   // Don't list the player as their own opponent
-                   if (data.playerName !== gameState.playerName) {
-                       opponents.push(data);
-                   }
-               });
+            if (opponents.length < 4) {
+                 const anySnapshot = await db.collection('playerSaves').limit(10).get();
+                 anySnapshot.forEach(doc => {
+                     const data = doc.data();
+                     if (data.playerName !== gameState.playerName && !opponents.some(o => o.playerName === data.playerName) && data.level >= PVP_UNLOCK_LEVEL) {
+                        opponents.push(data);
+                     }
+                 });
+            }
+            
+            if (opponents.length === 0) {
+                pvpOpponentListContainer.innerHTML = '<p>Could not find any eligible opponents. Please try again later.</p>';
+                return;
+            }
 
-               // If not enough opponents found, widen the search (this is a fallback)
-               if(opponents.length < 4) {
-                    const anySnapshot = await db.collection('playerSaves').limit(10).get();
-                    anySnapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.playerName !== gameState.playerName && !opponents.some(o => o.playerName === data.playerName)) {
-                           opponents.push(data);
-                        }
-                    });
-               }
-               
-               pvpOpponentListContainer.innerHTML = '';
-               opponents.slice(0, 4).forEach(opponent => {
-                   const itemEl = document.createElement('div');
-                   itemEl.className = 'pvp-opponent-item';
-                   itemEl.innerHTML = `
-                       <img src="player.PNG" class="pvp-opponent-avatar" style="filter: hue-rotate(${Math.random() * 360}deg);">
-                       <div class="pvp-opponent-info">
-                           <div class="pvp-opponent-name">${opponent.playerName} (Lv. ${opponent.level})</div>
-                           <div class="pvp-opponent-stats">Tier: ${opponent.ascension.tier}</div>
-                       </div>
-                   `;
-                   itemEl.onclick = () => startPvpBattle(opponent);
-                   pvpOpponentListContainer.appendChild(itemEl);
-               });
+            pvpOpponentListContainer.innerHTML = '';
+            opponents.slice(0, 4).forEach(opponent => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'pvp-opponent-item';
+                itemEl.innerHTML = `
+                    <img src="player.PNG" class="pvp-opponent-avatar" style="filter: hue-rotate(${Math.random() * 360}deg);">
+                    <div class="pvp-opponent-info">
+                        <div class="pvp-opponent-name">${opponent.playerName} (Lv. ${opponent.level})</div>
+                        <div class="pvp-opponent-stats">Tier: ${opponent.ascension.tier}</div>
+                    </div>
+                `;
+                itemEl.onclick = () => startPvpBattle(opponent);
+                pvpOpponentListContainer.appendChild(itemEl);
+            });
 
-           } catch (error) {
-               console.error("Error fetching PvP opponents:", error);
-               pvpOpponentListContainer.innerHTML = '<p>Could not find opponents. Please try again later.</p>';
-           }
+        } catch (error) {
+            console.error("Error fetching PvP opponents:", error);
+            pvpOpponentListContainer.innerHTML = '<p>Could not find opponents. Please try again later.</p>';
+        }
        }
 
        // --- Function to start the 15-second battle ---
