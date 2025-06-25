@@ -719,7 +719,13 @@ const firebaseConfig = {
           const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
           forgeBtn.disabled = onExpedition || !canUseForge;
           forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
-  
+          if (ascensionBtn) { // Safety check to ensure the button element exists
+            if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
+                ascensionBtn.style.display = 'block';
+            } else {
+                ascensionBtn.style.display = 'none';
+            }
+          }
           feedBtn.disabled = onExpedition; 
           inventoryBtn.disabled = onExpedition; 
           shopBtn.disabled = onExpedition;
@@ -3233,11 +3239,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       });
  
       ingameMenuBtn.addEventListener('click', () => {
-          if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
+          /*if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
               ascensionBtn.style.display = 'block';
           } else {
               ascensionBtn.style.display = 'none';
-          }
+          }*/
           ingameMenuModal.classList.add('visible');
           gtag('config', 'G-4686TXHCHN', { 'page_path': '/menu' });
       });
