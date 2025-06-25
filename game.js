@@ -634,7 +634,7 @@ const firebaseConfig = {
           energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
           energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
           xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
-          xpBarLabel.textContent = `XP: ${Math.floor(gameState.xp)} / ${xpForNext}`;
+          xpBarLabel.textContent = `XP: ${(gameState.xp).toFixed(3)} / ${xpForNext}`;
                  // --- NEW, FINAL LOGIC: Build the entire stat panel dynamically ---
           const defaultStatColor = 'var(--text-color)';
           const statColors = {};
@@ -849,7 +849,7 @@ const firebaseConfig = {
           let clientX = event.clientX || (event.touches && event.touches[0].clientX); let clientY = event.clientY || (event.touches && event.touches[0].clientY);
           const orbContainer = document.createElement('div'); orbContainer.className = 'xp-orb-container';
           orbContainer.style.left = `${clientX - 10}px`; orbContainer.style.top = `${clientY - 10}px`;
-          orbContainer.innerHTML = `<div class="xp-orb"></div><div class="xp-orb-text">+${xpGain.toFixed(2)}</div>`;
+          orbContainer.innerHTML = `<div class="xp-orb"></div><div class="xp-orb-text">+${xpGain.toFixed(3)}</div>`;
           document.body.appendChild(orbContainer);
           const xpBarEl = character.isPartner ? '#partner-xp-bar' : '#xp-bar';
           const xpBarRect = document.querySelector(xpBarEl).getBoundingClientRect();
@@ -1981,7 +1981,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 x: 0, 
                 y: 0,
                 isInitialized: false,
-                speed: 8,
+                speed: 5,
                 width: 80,
                 height: 80,
                 attackRange: 70,
@@ -1991,8 +1991,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 manualDestination: null,
                 isDashing: false,
                 dashTarget: null,
-                dashDuration:280,
-                dashCooldown: 1000,
+                dashDuration:380,
+                dashCooldown: 4000,
                 lastDashTime: 0,
                 thunderStrikeCooldown: 1800,
                 lastThunderStrikeTime: 0,
@@ -2126,7 +2126,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             // --- Attacks ---
             let actionTaken = false;
             actionTaken = handleGenesisThunderStrike(timestamp);
-            if (!actionTaken) actionTaken = handleGenesisPlayerDash(timestamp);
+            if (!actionTaken) actionTaken = initiateGenesisPlayerDash(timestamp);
             if (!actionTaken) handleGenesisPlayerAttack(timestamp);
             if (genesisState.isBattleMode) handleEnemyAttacks(timestamp);
 
@@ -2229,12 +2229,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         attackCooldown: 2000, // Give them an attack cooldown too
                         lastAttackTime: 0,
                     };
-                    const side = Math.floor(Math.random() * 4);
-                    const buffer = 50;
-                    if (side === 0) { enemy.x = Math.random() * arenaRect.width; enemy.y = -buffer; } 
-                    else if (side === 1) { enemy.x = arenaRect.width + buffer; enemy.y = Math.random() * arenaRect.height; } 
-                    else if (side === 2) { enemy.x = Math.random() * arenaRect.width; enemy.y = arenaRect.height + buffer; } 
-                    else { enemy.x = -buffer; enemy.y = Math.random() * arenaRect.height; }
+                    const padding = 50; // How far from the edge they can spawn
+                    enemy.x = padding + (Math.random() * (arenaRect.width - padding * 2));
+                    enemy.y = padding + (Math.random() * (arenaRect.height - padding * 2));
 
                     enemy.element.src = 'player.PNG';
                     enemy.element.className = 'genesis-enemy';
@@ -2439,7 +2436,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 player.y = clamp(player.y, player.height / 2, arenaRect.height - player.height / 2);
             }
         }
-        function handleGenesisPlayerDash(timestamp) {
+        /*function handleGenesisPlayerDash(timestamp) {
             const player = genesisState.player;
             // Can't dash if already dashing, no enemies exist, or the skill is on cooldown.
             if (!player || player.isDashing || genesisState.enemies.length === 0) return;
@@ -2517,6 +2514,124 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         
             }, player.dashDuration);
             return true; // The dash action was taken
+        }*/
+        function initiateGenesisPlayerDash(timestamp) {
+            const player = genesisState.player;
+            if (!player || player.isDashing || genesisState.enemies.length === 0) return false;
+            if (timestamp - player.lastDashTime < player.dashCooldown) return false;
+
+            player.lastDashTime = timestamp;
+
+            // --- NEW: Chain Dash Logic ---
+            const chainChance = 0.10; // 10% chance
+            const shouldChain = Math.random() < chainChance;
+            const maxChains = shouldChain ? 3 : 1;
+            
+            // Find the first target (always the densest cluster)
+            let bestTarget = null;
+            let maxCount = 0;
+            const clusterRadius = 150;
+
+            genesisState.enemies.forEach(potentialTarget => {
+                let nearbyCount = 0;
+                genesisState.enemies.forEach(otherEnemy => {
+                    const dx = potentialTarget.x - otherEnemy.x;
+                    const dy = potentialTarget.y - otherEnemy.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < clusterRadius) {
+                        nearbyCount++;
+                    }
+                });
+                if (nearbyCount > maxCount) {
+                    maxCount = nearbyCount;
+                    bestTarget = potentialTarget;
+                }
+            });
+            
+            // If no cluster found, default to the closest enemy
+            if (!bestTarget) {
+                 bestTarget = player.target;
+            }
+
+            if (bestTarget) {
+                if (shouldChain) showToast("Dash Chain!");
+                performDash(bestTarget, 1, maxChains); // Start the first dash
+                return true; // The dash action was taken
+            }
+            return false;
+        }
+
+        // This function performs a single dash and then calls itself if the chain continues.
+        function performDash(target, currentChain, maxChains) {
+            const player = genesisState.player;
+            if (!player || !target) {
+                player.isDashing = false;
+                return;
+            };
+
+            player.isDashing = true;
+            player.dashTarget = { x: target.x, y: target.y };
+            playSound('hit', 1, 'sawtooth', 800, 200, 0.2);
+
+            setTimeout(() => {
+                if (!genesisState.player) return; // Safety check
+
+                // Explosion and Damage at the end of the dash
+                const explosionX = player.x;
+                const explosionY = player.y;
+                createDashExplosionEffect(explosionX, explosionY);
+                playSound('crit', 1, 'square', 400, 50, 0.4);
+                triggerScreenShake(300);
+
+                const explosionRadius = 150;
+                const dashDamage = getTotalStat('strength') * 5;
+                let enemiesWereDefeated = false;
+
+                genesisState.enemies.forEach(enemy => {
+                    const dx = explosionX - enemy.x;
+                    const dy = explosionY - enemy.y;
+                    if (Math.sqrt(dx * dx + dy * dy) <= explosionRadius) {
+                        const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+                        const finalDamage = Math.floor(dashDamage * (isCrit ? 2 : 1));
+                        genesisState.totalDamageDealtThisBattle += finalDamage;
+                        enemy.hp -= finalDamage;
+                        createImpactEffect(enemy.x, enemy.y);
+                        if (enemy.hp <= 0) enemiesWereDefeated = true;
+                    }
+                });
+
+                if (enemiesWereDefeated) {
+                    genesisState.enemies.forEach(e => { if (e.hp <= 0) e.element.remove(); });
+                    genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
+                }
+
+                // --- Chain Logic: Find the next target and continue ---
+                if (currentChain < maxChains && genesisState.enemies.length > 0) {
+                    // Subsequent chains target the FURTHEST enemy to clear the screen
+                    let furthestEnemy = null;
+                    let maxDistance = -1;
+                    genesisState.enemies.forEach(enemy => {
+                        const dx = player.x - enemy.x;
+                        const dy = player.y - enemy.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance > maxDistance) {
+                            maxDistance = distance;
+                            furthestEnemy = enemy;
+                        }
+                    });
+
+                    if (furthestEnemy) {
+                        // Call the function again for the next link in the chain
+                        performDash(furthestEnemy, currentChain + 1, maxChains);
+                    } else {
+                        // No enemies left to chain to
+                        player.isDashing = false;
+                    }
+                } else {
+                    // Chain is finished
+                    player.isDashing = false;
+                }
+
+            }, player.dashDuration);
         }
         function createChainLightningEffect(targets) {
             const canvas = document.createElement('canvas');
@@ -2546,11 +2661,24 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const player = genesisState.player;
             if (!player || genesisState.enemies.length === 0) return;
             if (timestamp - player.lastThunderStrikeTime < player.thunderStrikeCooldown) return false;
+            const thunderStrikeProximity = 50; // The range required to activate the skill
+            let isEnemyClose = false;
+            for (const enemy of genesisState.enemies) {
+                const dx = player.x - enemy.x;
+                const dy = player.y - enemy.y;
+                if (Math.sqrt(dx * dx + dy * dy) <= thunderStrikeProximity) {
+                    isEnemyClose = true;
+                    break; // Found a close enemy, no need to check further
+                }
+            }
+            if (!isEnemyClose) {
+                return false;
+            }
 
             // --- Find Targets for the Chain Lightning ---
             let potentialTargets = [...genesisState.enemies];
             let chainTargets = [player]; // The player is always the start of the chain
-            const maxChain = 50; // Player + 49 enemies = 50 total targets
+            const maxChain = 18; 
 
             for (let i = 0; i < maxChain && potentialTargets.length > 0; i++) {
                 const lastTarget = chainTargets[chainTargets.length - 1];
@@ -2585,7 +2713,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 createChainLightningEffect(chainTargets);
 
                 // --- Deal Massive Damage to Chained Enemies ---
-                const thunderDamage = getTotalStat('strength') * 5.5; // Thunder Strike does 10x STR damage!
+                const thunderDamage = getTotalStat('strength') * 10.5; // Thunder Strike does 10x STR damage!
                 let enemiesWereDefeated = false;
 
                 // We damage every target in the chain except the player (who is at index 0)
@@ -2743,9 +2871,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 element: document.createElement('div'),
                 x: x, y: y, type: 'gold',
                 amount: Math.floor(5 + (Math.random() * 5 * gameState.level)),
-                collectionRadius: 90,
-                magnetRadius: 1650,
-                magnetSpeed: 40
+                collectionRadius: 20,
+                magnetRadius: 2550,
+                magnetSpeed: 3
 
             };
             orb.element.className = 'genesis-loot-orb';
