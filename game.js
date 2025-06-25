@@ -1586,7 +1586,7 @@ const firebaseConfig = {
               partnerEnergyBarFill.style.width = `${(partner.resources.energy / partner.resources.maxEnergy) * 100}%`;
               partnerEnergyBarLabel.textContent = `Energy: ${Math.floor(partner.resources.energy)} / ${partner.resources.maxEnergy}`;
               partnerXpBarFill.style.width = `${(partner.xp / xpForNext) * 100}%`;
-              partnerXpBarLabel.textContent = `XP: ${Math.floor(partner.xp)} / ${xpForNext}`;
+              partnerXpBarLabel.textContent = `XP: ${(partner.xp).toFixed(3)} / ${xpForNext}`;
               partnerCoreStatsDisplay.innerHTML = `<span>STR: ${partner.stats.strength}</span><span>AGI: ${partner.stats.agility}</span><span>FOR: ${partner.stats.fortitude}</span><span>STA: ${partner.stats.stamina}</span>`;
           } else {
               partnerStatsArea.style.display = 'none';
