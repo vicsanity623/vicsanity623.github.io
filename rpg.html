@@ -837,17 +837,26 @@ input[type="range"] { flex-grow: 1; }
 }
 .genesis-aoe-pulse {
     position: absolute;
-    border: 3px solid rgba(255, 255, 255, 0.8);
+    width: 0;
+    height: 0;
+    /* Create a sharp, silver-colored crescent shape */
+    border: 70px solid transparent;
+    border-top: 70px solid #c0c0c0; /* Silver color */
+    border-right: 70px solid #c0c0c0;
     border-radius: 50%;
     pointer-events: none;
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 1;
-    animation: aoe-pulse-anim 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    opacity: 0.8;
+    animation: aoe-slash-spin-anim 0.3s ease-out forwards;
 }
-@keyframes aoe-pulse-anim {
+@keyframes aoe-slash-spin-anim {
+    from {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) rotate(-45deg) scale(0.5);
+    }
     to {
-        transform: translate(-50%, -50%) scale(1);
         opacity: 0;
+        transform: translate(-50%, -50%) rotate(135deg) scale(1.2);
     }
 }
 .floating-text {
@@ -887,11 +896,25 @@ input[type="range"] { flex-grow: 1; }
     position: absolute;
     border-radius: 50%;
     pointer-events: none;
-    /* This centers the explosion on its coordinates */
     transform: translate(-50%, -50%);
-    /* The animation that makes it expand and fade */
-    animation: explosion-anim 0.5s ease-out forwards;
+    /* This is the expanding fiery ring */
+    border: 5px solid orangered;
+    box-shadow: 0 0 15px orangered, inset 0 0 10px yellow;
+    animation: dash-explosion-anim 0.5s ease-out forwards;
 }
+@keyframes dash-explosion-anim {
+    from {
+        width: 20px;
+        height: 20px;
+        opacity: 1;
+    }
+    to {
+        width: 300px; /* Same as the damage radius */
+        height: 300px;
+        opacity: 0;
+    }
+}
+
 
 /* We use ::before and ::after to create a layered explosion effect */
 .genesis-dash-explosion::before,
@@ -925,6 +948,52 @@ input[type="range"] { flex-grow: 1; }
     to {
         transform: translate(-50%, -50%) scale(1.5);
         opacity: 0;
+    }
+}
+/* --- NEW: Havoc Rage Shockwave Effect --- */
+.genesis-havoc-shockwave {
+    position: absolute;
+    border: 4px solid rgba(255, 69, 0, 0.9); /* A fiery orange color */
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+    animation: havoc-pulse-anim 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes havoc-pulse-anim {
+    to {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0;
+    }
+}
+
+/* --- NEW: Burning Status Effect on Enemies --- */
+.genesis-enemy.burning {
+    /* This filter creates a nice, fiery red glow */
+    filter: sepia(1) hue-rotate(330deg) saturate(5) brightness(1.3) drop-shadow(0 0 8px red) !important;
+    transition: filter 0.2s linear;
+}
+
+/* --- NEW: Fire Particle Effect for Burning Enemies --- */
+.enemy-fire-particle {
+    position: absolute;
+    width: 10px;
+    height: 15px;
+    background: radial-gradient(circle, white 0%, yellow 40%, orangered 80%, rgba(255,0,0,0) 100%);
+    border-radius: 50% 50% 50% 0; /* Teardrop shape */
+    pointer-events: none;
+    animation: fire-flicker-anim 0.5s ease-out forwards;
+}
+
+@keyframes fire-flicker-anim {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-30px) scale(0); /* Floats up and fades out */
     }
 }
 /* --- NEW: Thunder Strike CSS --- */
@@ -1044,6 +1113,43 @@ input[type="range"] { flex-grow: 1; }
     font-size: 0.8em;
     margin-top: 5px;
 }
+/* --- NEW: Havoc Rage EPIC Lightning Effect --- */
+.havoc-lightning-container {
+    position: absolute;
+    width: 400px; /* This is the 200px radius */
+    height: 400px;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    animation: havoc-container-fade-out 0.8s ease-out forwards;
+}
+
+@keyframes havoc-container-fade-out {
+    0% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.havoc-lightning-bolt {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 250px; /* Make the bolt graphic larger than the radius */
+    height: 50px;
+    background-image: url('data:image/png;base64,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'); /* A white/transparent lightning bolt image */
+    background-size: contain;
+    background-repeat: no-repeat;
+    transform-origin: center center;
+    opacity: 0.8;
+}
+
+/* We will create 3 bolts and rotate them */
+.havoc-lightning-bolt.bolt-1 { animation: havoc-bolt-spin-1 0.8s linear forwards; }
+.havoc-lightning-bolt.bolt-2 { animation: havoc-bolt-spin-2 0.8s linear forwards; }
+.havoc-lightning-bolt.bolt-3 { animation: havoc-bolt-spin-3 0.8s linear forwards; }
+
+@keyframes havoc-bolt-spin-1 { from { transform: rotate(0deg) scale(0); } to { transform: rotate(180deg) scale(1.6); } }
+@keyframes havoc-bolt-spin-2 { from { transform: rotate(120deg) scale(0); } to { transform: rotate(300deg) scale(1.6); } }
+@keyframes havoc-bolt-spin-3 { from { transform: rotate(240deg) scale(0); } to { transform: rotate(420deg) scale(1.6); } }
 </style>
 </head>
 <body>
