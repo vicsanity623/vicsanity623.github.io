@@ -1138,7 +1138,132 @@ input[type="range"] { flex-grow: 1; }
     font-size: 0.8em;
     margin-top: 5px;
 }
+/* --- NEW: PvP Selection Screen Styles --- */
+#pvp-opponent-list-container {
+    width: 100%;
+    max-width: 500px;
+    margin: 20px 0;
+}
 
+.pvp-opponent-item {
+    display: flex;
+    align-items: center;
+    background-color: var(--secondary-bg);
+    border: 2px solid var(--accent-color);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pvp-opponent-item:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 10px var(--accent-color);
+}
+
+.pvp-opponent-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid var(--xp-color);
+    margin-right: 15px;
+}
+
+.pvp-opponent-info {
+    text-align: left;
+    flex-grow: 1;
+}
+
+.pvp-opponent-name {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.pvp-opponent-stats {
+    font-size: 0.8em;
+    opacity: 0.7;
+}
+
+/* --- NEW: PvP Battle Screen Styles --- */
+#pvp-battle-screen {
+    justify-content: space-between;
+}
+
+#pvp-arena {
+    flex-grow: 1;
+    width: 100%;
+    position: relative;
+}
+
+#pvp-timer-display {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 3em;
+    font-weight: bold;
+    color: var(--xp-color);
+    z-index: 100;
+}
+
+#pvp-tug-of-war-container {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 600px;
+    padding: 15px;
+    gap: 10px;
+}
+
+.tug-of-war-bar {
+    flex-grow: 1;
+    height: 30px;
+    background-color: #111;
+    border: 2px solid white;
+    display: flex;
+    position: relative;
+}
+
+#pvp-player-damage-fill {
+    height: 100%;
+    background-color: var(--accent-color);
+    transition: width 0.3s ease;
+}
+
+#pvp-opponent-damage-fill {
+    height: 100%;
+    background-color: var(--health-color);
+    transition: width 0.3s ease;
+}
+
+#pvp-damage-divider {
+    position: absolute;
+    left: 50%;
+    top: -5px;
+    bottom: -5px;
+    width: 4px;
+    background-color: white;
+    transform: translateX(-50%);
+}
+/* Style for the container holding Equip/Sell buttons */
+.inventory-button-group {
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 5px; /* Add a small space between them */
+}
+
+/* Style for the new Sell button */
+.sell-button {
+    background-color: #4a2a2a; /* A muted red background */
+    border-color: var(--health-color);
+    color: var(--health-color);
+}
+
+.sell-button:hover {
+    background-color: var(--health-color);
+    color: var(--primary-bg);
+}
 </style>
 </head>
 <body>
@@ -1224,6 +1349,7 @@ input[type="range"] { flex-grow: 1; }
             <div class="action-button-container"><button id="grow-btn">Grow</button></div>
             <div class="action-button-container"><button id="feed-btn">Feed (50 Gold)</button></div>
             <div class="action-button-container"><button id="battle-btn">Battle</button><span id="battle-unlock-text" class="unlock-text"></span></div>
+            <div class="action-button-container"><button id="pvp-btn">PvP</button><span id="pvp-unlock-text" class="unlock-text"></span></div>
             <div class="action-button-container"><button id="expedition-btn">Expedition</button></div>
             <div class="action-button-container"><button id="dojo-btn">Dojo</button></div>
             <div class="action-button-container"><button id="forge-btn">Forge</button><span id="forge-unlock-text" class="unlock-text"></span></div>
@@ -1238,7 +1364,28 @@ input[type="range"] { flex-grow: 1; }
     <div id="partner-screen" class="screen">
         <div id="partner-stats-area" class="stats-area"><h2 id="partner-name-level">Partner Lv. 1</h2><div id="partner-health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div><div id="partner-energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div><div id="partner-xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div><div id="partner-core-stats-display" class="core-stats-display"><span>STR: 5</span><span>AGI: 5</span><span>FOR: 5</span><span>STA: 5</span></div></div><div id="partner-character-area"><div id="egg-timer-display">00:00:00</div><img id="partner-sprite" class="sprite" src="egg.png" alt="Partner"></div><div id="partner-action-buttons"><button id="switch-to-main-btn">Switch to Guardian</button></div>
     </div>
-    
+    <div id="pvp-selection-screen" class="screen">
+        <h2>Choose Your Opponent</h2>
+        <div id="pvp-opponent-list-container">
+            <p>Searching for opponents...</p>
+        </div>
+        <button id="pvp-selection-back-btn">Back</button>
+    </div>
+    <div id="pvp-battle-screen" class="screen">
+        <div id="pvp-timer-display">15.0</div>
+        <div id="pvp-arena">
+            <!-- Player and Opponent sprites will be created here -->
+        </div>
+        <div id="pvp-tug-of-war-container">
+            <span id="pvp-player-name">Player</span>
+            <div class="tug-of-war-bar">
+                <div id="pvp-player-damage-fill"></div>
+                <div id="pvp-opponent-damage-fill"></div>
+                <div id="pvp-damage-divider"></div>
+            </div>
+            <span id="pvp-opponent-name">Opponent</span>
+        </div>
+    </div>
     <div id="battle-screen" class="screen">
         <h2 id="battle-title">Battle!</h2>
         <div id="battle-wave-display">Wave: 1/5</div>
@@ -1329,7 +1476,13 @@ input[type="range"] { flex-grow: 1; }
     <div id="leaderboard-modal" class="modal">
         <div class="modal-content">
             <h2>Leaderboard</h2>
-            <div class="leaderboard-tabs"><button class="leaderboard-tab active" data-type="level">Level</button><button class="leaderboard-tab" data-type="damage">Damage</button></div>
+            <div class="leaderboard-tabs"><button class="leaderboard-tab active" data-type="level">Level</button><button class="leaderboard-tab" data-type="damage">Damage</button><button class="leaderboard-tab" data-type="pvp">PvP Damage</button>
+            </div>
+            <ul id="level-leaderboard-list" class="leaderboard-list active"><li>Loading...</li></ul>
+            <ul id="damage-leaderboard-list" class="leaderboard-list"><li>Loading...</li></ul><ul id="pvp-leaderboard-list" class="leaderboard-list"><li>Loading...</li></ul>
+            <button id="close-leaderboard-btn">Close</button>
+        </div>
+    </div>
             <ul id="level-leaderboard-list" class="leaderboard-list active"><li>Loading...</li></ul>
             <ul id="damage-leaderboard-list" class="leaderboard-list"><li>Loading...</li></ul>
             <button id="close-leaderboard-btn">Close</button>
