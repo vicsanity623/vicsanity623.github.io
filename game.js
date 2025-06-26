@@ -4005,8 +4005,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
            if (playerWon) {
                playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-               const pvpGoldReward = 5000 * gameState.level * gameState.ascension.tier;
-               const pvpXpReward = 50000 * gameState.level * gameState.ascension.tier;
+               const pvpGoldReward = 55000 * gameState.level * gameState.ascension.tier;
+               const pvpXpReward = 500000 * gameState.level * gameState.ascension.tier;
                
                gameState.gold += pvpGoldReward;
                addXP(gameState, pvpXpReward);
@@ -4224,7 +4224,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         const clickX = e.clientX - arenaRect.left;
         const clickY = e.clientY - arenaRect.top;
     
-        genesisStatee.player.manualDestination = { x: clickX, y: clickY };
+        genesisStateee.player.manualDestination = { x: clickX, y: clickY };
       });
       init();
   });
