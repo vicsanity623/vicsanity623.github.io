@@ -3593,7 +3593,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                   
                   // --- FIX: The reward prompt now includes the total damage dealt. ---
                   rewardText = `You are victorious!<br><br>Total Rewards:<br>+${goldReward.toLocaleString()} Gold<br>+${xpReward.toLocaleString()} XP<br>Total Damage Dealt: ${totalDamageDealt.toLocaleString()}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
-                  const edgeStoneReward = 0.0035 * (gameState.ascension.tier); // Scale reward with tier
+                  const edgeStoneReward = 0.50 * (gameState.ascension.tier); // Scale reward with tier
                   gameState.edgeStones = (gameState.edgeStones || 0) + edgeStoneReward;
                   
                   // Add it to the reward text
