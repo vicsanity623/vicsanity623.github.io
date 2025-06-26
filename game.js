@@ -2229,7 +2229,7 @@ function applyDamageToEnemy(enemy, damageAmount, isCrit = false) {
 
     // --- NEW UNIFIED DEATH LOGIC ---
     if (enemy.hp <= 0) {
-        addXP(gameState, 5 * (genesisState.isBattleMode ? (gameState.highestBattleLevelCompleted + 1) : gameState.level));
+        addXP(gameState, 20 * (genesisState.isBattleMode ? (gameState.highestBattleLevelCompleted + 1) : (gameState.level * gameState.ascension.tier)));
         createLootOrb(enemy.x, enemy.y); // This function correctly handles not dropping loot in battle mode
         
         // Remove the visuals from the game
@@ -2642,8 +2642,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     const difficulty = genesisState.difficultyLevel;
                     const enemyHp = Math.floor((5 * gameState.level * gameState.ascension.tier) + (difficulty * 5));
                     
-                    const baseSpeed = 0.5 + Math.random() * 2.0;
-                    const speedMultiplier = 1 + (difficulty - 1) * 0.25;
+                    const baseSpeed = 0.5 + Math.random() * 1.5;
+                    const speedMultiplier = 1 + (difficulty - 1) * 0.05;
                     const enemySpeed = baseSpeed * speedMultiplier;
             
                     const enemy = {
@@ -3313,7 +3313,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const orb = {
                 element: document.createElement('div'),
                 x: x, y: y, type: 'gold',
-                amount: Math.floor(5 + (Math.random() * 5 * gameState.level)),
+                amount: Math.floor((100 + Math.random() * 10) * gameState.level * (1 + (gameState.ascension.tier - 1) * 0.5)),
                 collectionRadius: 690,
                 magnetRadius: 2550,
                 magnetSpeed: 13
