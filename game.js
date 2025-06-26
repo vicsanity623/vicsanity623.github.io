@@ -163,6 +163,7 @@ const firebaseConfig = {
       const defaultState = {
           version: GAME_VERSION,
           playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 3,
+          edgeStones: 0,
           highestBattleLevelCompleted: 0,
           stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
           resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
@@ -265,6 +266,7 @@ const firebaseConfig = {
       const inventoryList = document.getElementById('inventory-list');
       const closeInventoryBtn = document.getElementById('close-inventory-btn');
       const forgeModal = document.getElementById('forge-modal');
+      const autoForgeBtn = document.getElementById('auto-forge-btn');
       const forgeSlot1Div = document.getElementById('forge-slot-1');
       const forgeSlot2Div = document.getElementById('forge-slot-2');
       const forgeResultSlotDiv = document.getElementById('forge-result-slot');
@@ -529,6 +531,7 @@ const firebaseConfig = {
               loadedState.settings = { ...defaultSettings, ...(loadedState.settings || {})};
               loadedState.highestBattleLevelCompleted = loadedState.highestBattleLevelCompleted || 0;
               loadedState.dojoPersonalBest = loadedState.dojoPersonalBest || 0;
+              loadedState.edgeStones = loadedState.edgeStones || 0;
               loadedState.lastDailyClaim = loadedState.lastDailyClaim || 0;
               loadedState.dailyStreak = loadedState.dailyStreak || 0;
               loadedState.lastLogin = loadedState.lastLogin || Date.now();
@@ -722,11 +725,20 @@ const firebaseConfig = {
           panelHtml += createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance');
           panelHtml += createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind');
           panelHtml += '<hr class="stat-divider">';
+
           panelHtml += `
           <div class="stat-item">
               <span class="stat-label">Gold</span>
               <div class="gold-rewards-row">
                   <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
+                  
+                  <!-- NEW: EDGESTONE DISPLAY -->
+                  <span class="edgestone-display">
+                      <span>♦️</span>
+                      <span>${(gameState.edgeStones || 0).toFixed(4)}</span>
+                  </span>
+                  <!-- END NEW DISPLAY -->
+
                   <span class="potion-display">
                       <span>🧪</span>
                       <span>${gameState.healthPotions || 0}</span>
@@ -1117,7 +1129,7 @@ const firebaseConfig = {
               else { value = Math.ceil(totalBudget * 0.25 * (Math.random() * 0.5 + 0.75)); power += value; }
               stats[affix] = value; if (i === 1) { nameSuffix = itemData.suffixes[affix]; }
           }
-          return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: itemColor }, stats: stats, power: power, reforgeCount: 0 };
+          return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: itemColor }, stats: stats, power: power, reforgeCount: 0, refineLevel: 0 };
       }
       
       function equipItem(itemToEquip) {
@@ -1126,8 +1138,51 @@ const firebaseConfig = {
           gameState.equipment[itemToEquip.type] = itemToEquip;
           updateUI(); saveGame();
       }
+      function refineItem(itemName) {
+        const itemIndex = gameState.inventory.findIndex(i => i && i.name === itemName);
+        if (itemIndex === -1) return;
+    
+        const item = gameState.inventory[itemIndex];
+        
+        // Safety checks
+        if ((item.reforgeCount || 0) < 3) {
+            showToast("Only fully reforged items (3/3) can be refined.");
+            return;
+        }
+    
+        const cost = 5;
+        if ((gameState.edgeStones || 0) < cost) {
+            showToast(`Not enough EdgeStones. Need ${cost}.`);
+            return;
+        }
+    
+        // Spend resources
+        gameState.edgeStones -= cost;
+    
+        // Enhance the item
+        item.refineLevel = (item.refineLevel || 0) + 1;
+        
+        // Boost stats by a percentage (e.g., 5% per refine level)
+        for (const stat in item.stats) {
+            item.stats[stat] = Math.ceil(item.stats[stat] * 1.05);
+        }
+        item.power = Object.values(item.stats).reduce((a, b) => a + b, 0);
+    
+        // Update the name to show the refinement level
+        // Remove old +N if it exists
+        item.name = item.name.replace(/ \+\d+$/, ''); 
+        item.name += ` +${item.refineLevel}`;
+    
+        playSound('ascend', 0.8, 'sawtooth', 400, 1200, 0.3);
+        showToast(`${item.name} refined!`);
+    
+        // Refresh UI and save
+        updateInventoryUI();
+        updateUI();
+        saveGame();
+    }
       
-      function updateInventoryUI() {
+    function updateInventoryUI() {
         const weaponsContainer = document.getElementById('inventory-weapons');
         const armorContainer = document.getElementById('inventory-armor');
         weaponsContainer.innerHTML = '';
@@ -1146,12 +1201,9 @@ const firebaseConfig = {
         
             let actionButtonsHtml = ''; 
   
-            // --- THIS IS THE CORRECTED LOGIC ---
             if (currentForgeSelectionTarget !== null) {
-                // We are in FORGE MODE - show the "Select" button
                 actionButtonsHtml = `<button onclick="selectItemForForge('${item.name}')">Select</button>`;
             } else {
-                // We are in normal INVENTORY MODE - show Equip/Sell buttons
                 const isEquipped = gameState.equipment[item.type] && gameState.equipment[item.type].name === item.name;
                 
                 const equipButton = isEquipped 
@@ -1160,16 +1212,37 @@ const firebaseConfig = {
 
                 const sellValue = calculateSellValue(item);
                 const sellButton = `<button class="sell-button" onclick="sellItemByName('${item.name}')">Sell (${formatNumber(sellValue)} G)</button>`;
+                
+                let refineButton = '';
+                if ((item.reforgeCount || 0) >= 3) {
+                    refineButton = `<button class="refine-button" onclick="refineItem('${item.name}')">Refine (5 ♦️)</button>`;
+                }
 
-                actionButtonsHtml = `<div class="inventory-button-group">${equipButton}${sellButton}</div>`;
+                actionButtonsHtml = `<div class="inventory-button-group">${equipButton}${sellButton}${refineButton}</div>`;
             }
-            // --- END OF CORRECTION ---
+
+            // --- THIS IS THE CORRECTED LOGIC ---
+            let itemColor = item.rarity.color;
+            if (item.reforgeCount > 0 && item.refineLevel === 0) { // Only show blue for forged, not refined
+                if (item.reforgeCount === 1) itemColor = '#00BFFF';
+                if (item.reforgeCount === 2) itemColor = '#000080';
+                if (item.reforgeCount >= 3) itemColor = '#00FFFF';
+            }
+            // If item is refined, it should probably have a unique, even more epic color! Let's make it gold.
+            if (item.refineLevel > 0) {
+                itemColor = 'var(--xp-color)'; // Gold color for refined items
+            }
   
+            const reforgeOrRefineText = item.refineLevel > 0 
+                ? `Refined: +${item.refineLevel}` 
+                : `Reforged: ${item.reforgeCount || 0}/3`;
+            // --- END OF CORRECTION ---
+
             return `
                 <div class="inventory-item">
                     <div class="inventory-item-info">
-                        <strong style="color:${item.rarity.color}">${item.name}</strong>
-                        <div class="item-stats">${statsHtml}Reforged: ${item.reforgeCount || 0}/3</div>
+                        <strong style="color:${itemColor}">${item.name}</strong>
+                        <div class="item-stats">${statsHtml}${reforgeOrRefineText}</div>
                     </div>
                     ${actionButtonsHtml}
                 </div>
@@ -1213,6 +1286,7 @@ const firebaseConfig = {
     window.equipItemByName = equipItemByName;
     window.selectItemForForge = selectItemForForge;
     window.sellItemByName = sellItemByName;
+    window.refineItem = refineItem;
   
       function generateAndShowExpeditions() {
           availableExpeditions = [];
@@ -1561,57 +1635,137 @@ const firebaseConfig = {
               forgeCostDisplay.innerHTML = '';
           }
       }
-      
-      function forgeItems() {
-          const [item1, item2] = forgeSlots;
-          if (!item1 || !item2) { showToast("Need two items to forge."); return; }
-          if (item1.type !== item2.type) { showToast("Items must be the same type."); return; }
-          if (item1.reforgeCount >= 3 || item2.reforgeCount >= 3) { showToast("One of the items cannot be reforged further."); return; }
-          
-          const cost = Math.floor((item1.power + item2.power) * 5);
-          if (gameState.gold < cost) { showToast(`Not enough gold. Need ${cost} G.`); return; }
-          if (gameState.resources.energy < 50) { showToast("Not enough energy. Need 50."); return; }
-  
-          gameState.gold -= cost;
-          gameState.resources.energy -= 50;
-          
-          const newStats = {};
-          const allKeys = new Set([...Object.keys(item1.stats), ...Object.keys(item2.stats)]);
-          allKeys.forEach(stat => {
-              const val1 = item1.stats[stat] || 0;
-              const val2 = item2.stats[stat] || 0;
-              newStats[stat] = Math.ceil((val1 + val2) * 1.1);
-          });
-  
-          const randomPrefix = reforgeNameData.prefixes[Math.floor(Math.random() * reforgeNameData.prefixes.length)];
-          const randomBaseList = item1.type === 'weapon' ? reforgeNameData.bases.weapon : reforgeNameData.bases.armor;
-          const randomBase = randomBaseList[Math.floor(Math.random() * randomBaseList.length)];
-          const randomSuffix = reforgeNameData.suffixes[Math.floor(Math.random() * reforgeNameData.suffixes.length)];
-          const newName = `${randomPrefix} ${randomBase} ${randomSuffix}`;
-          const newPower = Object.values(newStats).reduce((a, b) => a + b, 0);
-          const newItem = {
-              type: item1.type, name: newName,
-              rarity: { key: 'epic', color: 'var(--rarity-epic)' },
-              stats: newStats, power: newPower,
-              reforgeCount: Math.max(item1.reforgeCount, item2.reforgeCount) + 1
-          };
-  
-          const index1 = gameState.inventory.findIndex(i => i.name === item1.name);
-          if (index1 > -1) gameState.inventory.splice(index1, 1);
-          const index2 = gameState.inventory.findIndex(i => i.name === item2.name);
-          if (index2 > -1) gameState.inventory.splice(index2, 1);
-          gameState.inventory.push(newItem);
-          
-          if (gameState.equipment[item1.type] && (gameState.equipment[item1.type].name === item1.name || gameState.equipment[item1.type].name === item2.name)) {
-              gameState.equipment[item1.type] = null;
-          }
-          
-          gameState.counters.itemsForged = (gameState.counters.itemsForged || 0) + 1;
-          forgeSlots = [null, null];
-          updateForgeUI();
-          showToast("Items successfully forged!");
-          updateUI(); saveGame();
-      }
+      function autoForge() {
+        if (!confirm("This will automatically forge your weakest items to create stronger ones. This cannot be undone. Are you sure?")) {
+            return;
+        }
+    
+        let itemsForged = 0;
+        let keepForging = true;
+    
+        while (keepForging) {
+            let forgeOccurredThisLoop = false;
+    
+            const forgeableWeapons = gameState.inventory.filter(i => 
+                i && i.type === 'weapon' && (i.reforgeCount || 0) < 3 && (!gameState.equipment.weapon || i.name !== gameState.equipment.weapon.name)
+            ).sort((a, b) => a.power - b.power);
+    
+            const forgeableArmor = gameState.inventory.filter(i => 
+                i && i.type === 'armor' && (i.reforgeCount || 0) < 3 && (!gameState.equipment.armor || i.name !== gameState.equipment.armor.name)
+            ).sort((a, b) => a.power - b.power);
+    
+            if (forgeableWeapons.length >= 2) {
+                forgeSlots = [forgeableWeapons[0], forgeableWeapons[1]];
+                // --- THIS IS THE FIX ---
+                // Check if forgeItems() actually succeeded before continuing
+                if (forgeItems()) {
+                    itemsForged++;
+                    forgeOccurredThisLoop = true;
+                    continue; 
+                }
+            }
+    
+            if (forgeableArmor.length >= 2) {
+                forgeSlots = [forgeableArmor[0], forgeableArmor[1]];
+                // --- THIS IS THE FIX ---
+                if (forgeItems()) {
+                    itemsForged++;
+                    forgeOccurredThisLoop = true;
+                    continue;
+                }
+            }
+    
+            keepForging = forgeOccurredThisLoop;
+        }
+    
+        if (itemsForged > 0) {
+            showToast(`Auto-Forge complete! ${itemsForged} items were created.`);
+        } else {
+            showToast("No forgeable pairs found or not enough resources.");
+        }
+        // Update the UI once at the very end
+        updateInventoryUI();
+        updateForgeUI();
+    }
+    function forgeItems() {
+        const [item1, item2] = forgeSlots;
+        if (!item1 || !item2) { 
+            showToast("Need two items to forge."); 
+            return false; // Return failure
+        }
+        if (item1.type !== item2.type) { 
+            showToast("Items must be the same type."); 
+            return false; // Return failure
+        }
+        if ((item1.reforgeCount || 0) >= 3 || (item2.reforgeCount || 0) >= 3) { 
+            showToast("One of the items cannot be reforged further."); 
+            return false; // Return failure
+        }
+        
+        const cost = Math.floor((item1.power + item2.power) * 5);
+        if (gameState.gold < cost) { 
+            showToast(`Not enough gold. Need ${formatNumber(cost)} G.`); 
+            return false; // Return failure
+        }
+        if (gameState.resources.energy < 50) { 
+            showToast("Not enough energy. Need 50."); 
+            return false; // Return failure
+        }
+    
+        gameState.gold -= cost;
+        gameState.resources.energy -= 50;
+        
+        const newStats = {};
+        const allKeys = new Set([...Object.keys(item1.stats), ...Object.keys(item2.stats)]);
+        allKeys.forEach(stat => {
+            const val1 = item1.stats[stat] || 0;
+            const val2 = item2.stats[stat] || 0;
+            newStats[stat] = Math.ceil((val1 + val2) * 1.1);
+        });
+    
+        const randomPrefix = reforgeNameData.prefixes[Math.floor(Math.random() * reforgeNameData.prefixes.length)];
+        const randomBaseList = item1.type === 'weapon' ? reforgeNameData.bases.weapon : reforgeNameData.bases.armor;
+        const randomBase = randomBaseList[Math.floor(Math.random() * randomBaseList.length)];
+        const randomSuffix = reforgeNameData.suffixes[Math.floor(Math.random() * reforgeNameData.suffixes.length)];
+        
+        const newName = `${randomPrefix} ${randomBase} ${randomSuffix}`;
+        const newPower = Object.values(newStats).reduce((a, b) => a + b, 0);
+        const newReforgeCount = Math.max(item1.reforgeCount || 0, item2.reforgeCount || 0) + 1;
+    
+        let newColor = '#00BFFF';
+        if (newReforgeCount === 2) newColor = '#000080';
+        if (newReforgeCount >= 3) newColor = '#00FFFF';
+    
+        const newItem = {
+            type: item1.type, 
+            name: newName,
+            rarity: { key: 'epic', color: newColor },
+            stats: newStats, 
+            power: newPower,
+            reforgeCount: newReforgeCount,
+            refineLevel: 0
+        };
+    
+        const index1 = gameState.inventory.findIndex(i => i.name === item1.name);
+        if (index1 > -1) gameState.inventory.splice(index1, 1);
+        const index2 = gameState.inventory.findIndex(i => i.name === item2.name);
+        if (index2 > -1) gameState.inventory.splice(index2, 1);
+        gameState.inventory.push(newItem);
+        
+        if (gameState.equipment[item1.type] && (gameState.equipment[item1.type].name === item1.name || gameState.equipment[item1.type].name === item2.name)) {
+            gameState.equipment[item1.type] = null;
+        }
+        
+        gameState.counters.itemsForged = (gameState.counters.itemsForged || 0) + 1;
+        forgeSlots = [null, null];
+        
+        // Don't show toasts during auto-forge
+        // showToast("Items successfully forged!"); 
+        
+        updateUI();
+        saveGame();
+        return true; // Return SUCCESS
+    }
       function sellItemByName(itemName) {
         const itemIndex = gameState.inventory.findIndex(i => i && i.name === itemName);
         if (itemIndex === -1) {
@@ -1748,8 +1902,8 @@ const firebaseConfig = {
         const lastLogin = gameState.lastLogin || now;
         const offlineTimeInSeconds = (now - lastLogin) / 1000;
 
-        // Only grant rewards if offline for at least 5 minutes
-        if (offlineTimeInSeconds < 60) {
+        // Only grant rewards if offline for at least 5 minutes (300 seconds)
+        if (offlineTimeInSeconds < 300) {
             return;
         }
 
@@ -1757,52 +1911,71 @@ const firebaseConfig = {
         const maxOfflineTimeInSeconds = 24 * 60 * 60;
         const effectiveOfflineTime = Math.min(offlineTimeInSeconds, maxOfflineTimeInSeconds);
         
-        // --- Reward Calculations (Highly scalable and tweakable) ---
+        // --- Reward Calculations ---
         const playerPower = gameState.level + (gameState.ascension.tier * 10);
+        const minutesOffline = effectiveOfflineTime / 60;
 
         // Gold per second
-        const goldPerSecond = 0.1 * playerPower;
+        const goldPerSecond = 0.6 * playerPower;
         const totalGold = Math.floor(goldPerSecond * effectiveOfflineTime);
         
         // XP per second
-        const xpPerSecond = 0.2 * playerPower;
+        const xpPerSecond = 1.2 * playerPower;
         const totalXp = Math.floor(xpPerSecond * effectiveOfflineTime);
         
-        // Enemies defeated (e.g., one enemy every 30 seconds)
+        // Enemies defeated
         const enemiesDefeated = Math.floor(effectiveOfflineTime / 30);
         
-        // Item drops (e.g., a chance for one item every 10 minutes)
-        const minutesOffline = effectiveOfflineTime / 60;
+        // Item drops
         let itemsFound = [];
         for (let i = 0; i < minutesOffline / 10; i++) {
-            if (Math.random() < 0.75) { // 75% chance per 10-minute block
+            if (Math.random() < 0.75) {
                 itemsFound.push(generateItem());
             }
         }
-        const weaponsFound = itemsFound.filter(item => item.type === 'weapon').length;
-        const armorsFound = itemsFound.filter(item => item.type === 'armor').length;
-
-        // --- Apply Rewards to Game State ---
+        
+        // Health Potion Calculation
+        const potionsFound = Math.floor(minutesOffline / 120); // 1 potion every 2 hours
+        
+        // EdgeStone Calculation
+        const edgeStonesPerMinute = 0.0001;
+        const totalEdgeStones = (edgeStonesPerMinute * minutesOffline) * gameState.ascension.tier;
+        
+        // --- Apply ALL Rewards to Game State ---
         gameState.gold += totalGold;
         addXP(gameState, totalXp);
         gameState.counters.enemiesDefeated += enemiesDefeated;
+        gameState.healthPotions = (gameState.healthPotions || 0) + potionsFound;
+        gameState.edgeStones = (gameState.edgeStones || 0) + totalEdgeStones;
         itemsFound.forEach(item => gameState.inventory.push(item));
         
         // --- Format Time for Display ---
         const hours = Math.floor(effectiveOfflineTime / 3600);
         const minutes = Math.floor((effectiveOfflineTime % 3600) / 60);
 
-        // --- Create the Reward Notification ---
+        // --- Create the Enhanced Reward Notification ---
         let rewardText = `You were away for ${hours}h ${minutes}m.<br><br>Here's what you found:`;
         rewardText += `<br>+${formatNumber(totalGold)} Gold`;
         rewardText += `<br>+${formatNumber(totalXp)} XP`;
         rewardText += `<br>Defeated ${enemiesDefeated} enemies`;
-        if (weaponsFound > 0) rewardText += `<br>Found ${weaponsFound} weapon(s)`;
-        if (armorsFound > 0) rewardText += `<br>Found ${armorsFound} armor piece(s)`;
+        
+        if (potionsFound > 0) {
+            rewardText += `<br><span style="color:var(--health-color);">Found ${potionsFound} Health Potion(s) 🧪</span>`;
+        }
+        if (totalEdgeStones > 0) {
+            rewardText += `<br><span style="color:#00FFFF;">Found ${totalEdgeStones.toFixed(4)} EdgeStones ♦️</span>`;
+        }
+        
+        const weaponsFound = itemsFound.filter(item => item.type === 'weapon').length;
+        const armorsFound = itemsFound.filter(item => item.type === 'armor').length;
+        if (weaponsFound > 0) {
+            rewardText += `<br>Found ${weaponsFound} weapon(s)`;
+        }
+        if (armorsFound > 0) {
+            rewardText += `<br>Found ${armorsFound} armor piece(s)`;
+        }
 
         showNotification("Welcome Back, Guardian!", rewardText);
-        
-        // Important: We don't save the game here, as it will be saved shortly after loadGame finishes.
       }
 
       function checkDailyRewards() {
@@ -3411,8 +3584,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                   let bonusItem = generateItem();
                   title = `Battle Level ${battleLevel} Complete!`;
                   
-                  const goldReward = 100 * battleLevel;
-                  const xpReward = 200 * battleLevel;
+                  const goldReward = 10000 * battleLevel;
+                  const xpReward = 20000 * battleLevel;
                   gameState.gold += goldReward;
                   addXP(gameState, xpReward);
                   
@@ -3420,7 +3593,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                   
                   // --- FIX: The reward prompt now includes the total damage dealt. ---
                   rewardText = `You are victorious!<br><br>Total Rewards:<br>+${goldReward.toLocaleString()} Gold<br>+${xpReward.toLocaleString()} XP<br>Total Damage Dealt: ${totalDamageDealt.toLocaleString()}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
+                  const edgeStoneReward = 0.0035 * (gameState.ascension.tier); // Scale reward with tier
+                  gameState.edgeStones = (gameState.edgeStones || 0) + edgeStoneReward;
                   
+                  // Add it to the reward text
+                  rewardText += `<br>Found <span style="color: #00FFFF;">♦️ ${edgeStoneReward.toFixed(4)} EdgeStones</span>`;
                   gameState.inventory.push(bonusItem);
               }
           } else { // Player lost
@@ -3828,7 +4005,13 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
            if (playerWon) {
                playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-               // Submit score to leaderboard if it's a new personal best
+               const pvpGoldReward = 5000 * gameState.level * gameState.ascension.tier;
+               const pvpXpReward = 50000 * gameState.level * gameState.ascension.tier;
+               
+               gameState.gold += pvpGoldReward;
+               addXP(gameState, pvpXpReward);
+
+               text += `<br><br><b>Victory Bonus:</b><br>+${formatNumber(pvpGoldReward)} Gold<br>+${formatNumber(pvpXpReward)} XP`;
                const pvpBest = gameState.pvpPersonalBest || 0;
                if (pvpState.playerDamage > pvpBest) {
                    gameState.pvpPersonalBest = pvpState.playerDamage;
@@ -3962,6 +4145,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       });
       closeForgeBtn.addEventListener('click', () => { forgeSlots = [null, null]; forgeModal.classList.remove('visible'); });
       forgeBtnAction.addEventListener('click', forgeItems);
+      autoForgeBtn.addEventListener('click', autoForge);
       function openInventoryForForgeSelection(slotIndex) {
         currentForgeSelectionTarget = slotIndex;
         updateInventoryUI(); // Update inventory to use forge selection logic
