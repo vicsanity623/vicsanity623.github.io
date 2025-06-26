@@ -977,10 +977,10 @@ const firebaseConfig = {
               const goldMod = mods.goldMod || 1; const itemMod = mods.itemMod || 1; const xpMod = mods.xpMod || 1;
               gameState.expedition.active = false; playMusic('main');
               const tierMultiplier = Math.pow(1.5, gameState.ascension.tier - 1);
-              const xpReward = Math.floor(100 * gameState.level * tierMultiplier * xpMod);
-              const goldReward = Math.floor(50 * gameState.level * tierMultiplier * (1 + getTotalStat('goldFind') / 100) * goldMod);
+              const xpReward = Math.floor(500 * Math.pow(gameState.level, 1.7) * tierMultiplier * xpMod);
+              const goldReward = Math.floor(300 * Math.pow(gameState.level, 1.25) * tierMultiplier * (1 + getTotalStat('goldFind') / 100) * goldMod);
               let rewardText = `Your guardian has returned from ${gameState.expedition.name}!<br><br>+${xpReward} XP<br>+${goldReward} Gold`;
-              const itemFindChance = 0.3 + (gameState.ascension.tier * 0.05);
+              const itemFindChance = 0.5 + (gameState.ascension.tier * 0.15);
               if (Math.random() < (itemFindChance * itemMod)) {
                   const foundItem = generateItem(); 
                   if (foundItem.rarity.key === 'legendary') gameState.counters.legendariesFound = (gameState.counters.legendariesFound || 0) + 1;
