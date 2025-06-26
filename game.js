@@ -77,19 +77,19 @@ const firebaseConfig = {
       // --- FIXED/MERGED ---: Added all missing constant data from the working file.
       const achievements = {
           tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 500 } },
-          tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 2500 } },
-          tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false, reward: { type: 'gold', amount: 10000 } },
-          level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'uncommon' } },
+          tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 1000000 } },
+          tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false, reward: { type: 'gold', amount: 10000000 } },
+          level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'rare' } },
           level25: { name: "Seasoned Guardian", desc: "Reach level 15.", target: 15, unlocked: false, reward: { type: 'item', rarity: 'rare' } },
-          level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false, reward: { type: 'gold', amount: 50000 } },
-          defeat10: { name: "Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100 } },
-          defeat100: { name: "Monster Hunter", desc: "Defeat 100 enemies.", target: 100, unlocked: false, reward: { type: 'gold', amount: 500 } },
+          level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false, reward: { type: 'gold', amount: 50000000 } },
+          defeat10: { name: "Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100000 } },
+          defeat100: { name: "Monster Hunter", desc: "Defeat 100 enemies.", target: 100, unlocked: false, reward: { type: 'gold', amount: 5000000 } },
           defeat500: { name: "Death Bringer", desc: "Defeat 500 enemies.", target: 500, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
           ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
           ascend5: { name: "World Walker", desc: "Reach Ascension Tier 5.", target: 5, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
-          battle1: { name: "Battle Runner", desc: "Complete a Battle sequence once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000 } },
-          forge1: { name: "Apprentice Blacksmith", desc: "Forge an item once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 750 } },
-          findLegendary: { name: "A Glimmer of Power", desc: "Find your first Legendary item.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2500 } },
+          battle1: { name: "Battle Runner", desc: "Complete a Battle sequence once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000000 } },
+          forge1: { name: "Apprentice Blacksmith", desc: "Forge an item once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 75000 } },
+          findLegendary: { name: "A Glimmer of Power", desc: "Find your first Legendary item.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2500000 } },
           masterGuardian: { name: "Master Guardian", desc: "Reach Ascension Tier 5 and Level 50.", target: 1, unlocked: false, reward: { type: 'egg' } }
       };
       const perks = {
@@ -152,17 +152,17 @@ const firebaseConfig = {
           suffixes: ["of Power", "of Doom", "of Glory", "of the Forge", "of Titans"]
       };
       const dailyRewards = [
-        { day: 1, type: 'gold', amount: 500 },
-        { day: 2, type: 'gold', amount: 1000 },
-        { day: 3, type: 'consumable', id: 'storableHealthPotion', amount: 2 },
-        { day: 4, type: 'gold', amount: 2500 },
-        { day: 5, type: 'consumable', id: 'energyPotion', amount: 5 },
-        { day: 6, type: 'gold', amount: 5000 },
+        { day: 1, type: 'gold', amount: 5000 },
+        { day: 2, type: 'gold', amount: 1000000 },
+        { day: 3, type: 'consumable', id: 'storableHealthPotion', amount: 200 },
+        { day: 4, type: 'gold', amount: 2500000 },
+        { day: 5, type: 'consumable', id: 'storableHealthPotion', amount: 500 },
+        { day: 6, type: 'gold', amount: 5000000 },
         { day: 7, type: 'item', rarity: 'rare' } // Day 7 is a rare item!
       ];
       const defaultState = {
           version: GAME_VERSION,
-          playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 3,
+          playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 30,
           edgeStones: 0,
           highestBattleLevelCompleted: 0,
           stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
@@ -185,7 +185,7 @@ const firebaseConfig = {
   
       const ASCENSION_LEVEL = 50;
       const BATTLE_UNLOCK_LEVEL = 20;
-      const MAX_ENEMIES = 45;
+      const MAX_ENEMIES = 75;
       const FORGE_UNLOCK_LEVEL = 10;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
       
@@ -1935,10 +1935,10 @@ const firebaseConfig = {
         }
         
         // Health Potion Calculation
-        const potionsFound = Math.floor(minutesOffline / 120); // 1 potion every 2 hours
+        const potionsFound = Math.floor(minutesOffline / 120); // 50 potion every 2 hours
         
         // EdgeStone Calculation
-        const edgeStonesPerMinute = 0.0001;
+        const edgeStonesPerMinute = 0.001;
         const totalEdgeStones = (edgeStonesPerMinute * minutesOffline) * gameState.ascension.tier;
         
         // --- Apply ALL Rewards to Game State ---
@@ -2722,7 +2722,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         if (gameState.resources.hp > 0 && gameState.resources.hp <= healthThreshold) {
                             if (gameState.healthPotions > 0) {
                                 gameState.healthPotions--;
-                                const healAmount = Math.floor(gameState.resources.maxHp * 0.5);
+                                const healAmount = Math.floor(gameState.resources.maxHp * 0.7);
                                 gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + healAmount);
                                 
                                 showToast("Used a Health Potion!");
@@ -3396,8 +3396,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 genesisState.enemiesToSpawnThisWave = 30; // Minions for the boss
                 spawnBoss();
             } else {
-                // Regular wave: 5 enemies on wave 1, scaling up to 100 on wave 19
-                const baseMinEnemies = 3;
+                // Regular wave: 10 enemies on wave 1, scaling up to 75 on wave 19
+                const baseMinEnemies = 7;
                 const baseMaxEnemies = 18;
                 const waveBonus = Math.floor(genesisState.currentWave * 1.5);
                 const minEnemies = baseMinEnemies + waveBonus;
@@ -3421,7 +3421,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 id: 'BOSS',
                 isBoss: true,
                 attackRange: 80,
-                attackCooldown: 1000,
+                attackCooldown: 3000,
                 lastAttackTime: 0
             };
             
@@ -4224,7 +4224,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         const clickX = e.clientX - arenaRect.left;
         const clickY = e.clientY - arenaRect.top;
     
-        genesisState.player.manualDestination = { x: clickX, y: clickY };
+        genesisStatee.player.manualDestination = { x: clickX, y: clickY };
       });
       init();
   });
