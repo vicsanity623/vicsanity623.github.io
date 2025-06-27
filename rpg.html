@@ -3,7 +3,6 @@
 <head>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
 crossorigin="anonymous"></script>
-<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-4686TXHCHN"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -16,7 +15,6 @@ crossorigin="anonymous"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Tap Guardian</title>
 <style>
-/* --- FIXED/MERGED CSS --- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 :root {
     --primary-bg: #1a1a1a;
@@ -60,25 +58,17 @@ button.ascend-button:hover { background-color: var(--xp-color); color: var(--pri
 button:hover { background-color: var(--accent-color); color: var(--primary-bg); }
 button:disabled { border-color: #555; color: #555; cursor: not-allowed; }
 button:disabled:hover { background-color: var(--secondary-bg); color: #555; transform: none; }
-
-/* --- START: NEW LAYOUT CSS --- */
-
-/* 1. Turn the entire game screen into a vertical flex container */
 #game-screen.active {
-    display: flex; /* This is the most important change */
-    flex-direction: column; /* Stack items vertically */
-    justify-content: flex-start; /* Align to the top */
-    height: 100%; /* Ensure it takes up full screen height */
-    padding: 10px; /* Add some overall padding */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    height: 100%;
+    padding: 10px;
 }
-
-/* Make partner screen layout consistent */
 #partner-screen { 
     justify-content: space-between; 
     position: relative; 
 }
-
-/* 2. Make the playable area (BLUE BOX) grow to fill all available space */
 #genesis-arena {
     flex-grow: 1;
     min-height: 0;
@@ -91,40 +81,32 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     min-height: 0;
     width: 100%;
     position: relative;
-    /* --- THESE ARE THE KEY FIXES --- */
     display: flex;
     justify-content: center;
     align-items: center;
 }
-
-/* 3. Make the stat panel thinner (GREEN BOX) by reducing its padding */
 #player-stat-panel {
     background-color: rgba(0, 0, 0, 0.4);
     border: 2px solid var(--accent-color);
     border-radius: 8px;
-    padding: 3px 15px; /* Reduced vertical padding */
-    margin-top: 10px; /* Reduced top margin */
+    padding: 3px 15px;
+    margin-top: 10px;
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 1px 15px; /* Reduced row gap */
+    gap: 1px 15px;
     align-items: center;
 }
-
-/* 4. Position the action buttons at the bottom (RED BOX) */
 #action-buttons {
     display: grid;
-    grid-template-columns: repeat(3, 1fr); /* CORRECTED: A 3-column grid for 9 buttons */
-    gap: 10px;                             /* CORRECTED: A more reasonable gap */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
     width: 100%;
-    max-width: 500px;                      /* This keeps it from looking too wide */
+    max-width: 500px;
     margin: 10px auto 0 auto;
     flex-shrink: 0;
     padding: 10px;
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
 }
-
-/* --- END: NEW LAYOUT CSS --- */
-
 #character-sprite, #partner-sprite {
     width: 220px; height: 220px; cursor: pointer;
     transition: transform 0.1s ease, filter 0.5s ease;
@@ -184,17 +166,14 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     font-size: 1.2em;
     vertical-align: middle;
 }
-
 .stat-item {
     display: contents;
 }
-
 .stat-label {
     text-align: right;
     color: var(--text-color);
     opacity: 0.8;
 }
-
 .stat-value {
     text-align: left;
     font-weight: bold;
@@ -211,7 +190,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     justify-content: space-between;
     align-items: center;
 }
-
 .potion-display {
     display: flex;
     align-items: center;
@@ -219,7 +197,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     font-size: 1.1em;
     color: var(--health-color);
 }
-
 .stat-divider {
     grid-column: 1 / -1;
     height: 1px;
@@ -244,14 +221,13 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     align-items: center;
     gap: 5px;
     font-size: 1.1em;
-    color: #00FFFF; /* Use the same neon blue as max forged items */
+    color: #00FFFF;
 }
 .refine-button {
-    background-color: #003366; /* Dark blue background */
-    border-color: #00FFFF; /* Neon blue border */
-    color: #00FFFF; /* Neon blue text */
+    background-color: #003366;
+    border-color: #00FFFF;
+    color: #00FFFF;
 }
-
 .refine-button:hover {
     background-color: #00FFFF;
     color: var(--primary-bg);
@@ -259,7 +235,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 .world-tier-display { margin-top: 10px; font-size: 1em; color: var(--xp-color); text-shadow: 0 0 5px var(--xp-color); }
 .gold-display { margin-top: 10px; font-size: 1em; color: var(--xp-color); }
 .buff-display { margin-top: 10px; font-size: 0.8em; color: var(--accent-color); min-height: 1em; }
-
 .action-button-container { display: flex; flex-direction: column; align-items: center; }
 .action-button-container .unlock-text { font-size: 0.6em; color: #888; margin-top: -5px; height: 1em; }
 #switch-character-btn { display: none; margin-top: 15px; width: 80%; padding: 10px; font-size: 0.8em; }
@@ -368,7 +343,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     transform: scale(1.5);
     opacity: 0;
 }
-
 @keyframes float-around {
     0% { transform: translate(-100px, 20%); }
     25% { transform: translate(calc(100vw - 100px), 40%); }
@@ -384,7 +358,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         box-shadow: inset 0 0 15px rgba(255,255,255,0.7), 0 0 25px var(--xp-color), 0 0 40px rgba(255,220,0,0.5);
     }
 }
-
 .xp-bubble span {
     position: absolute;
     width: 10px;
@@ -395,7 +368,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     z-index: 220;
     animation: trickle linear infinite;
 }
-
 @keyframes trickle {
     0% {
         transform: translate(0, 0) scale(0);
@@ -410,7 +382,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
         opacity: 0;
     }
 }
-
 .xp-bubble span:nth-child(1) {
     width: 12px; height: 12px;
     animation-duration: 2.5s;
@@ -510,7 +481,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 #achievements-list li .achievement-desc { font-size: 0.8em; color: var(--text-color); }
 #achievements-list li .achievement-reward { font-size: 0.7em; color: var(--accent-color); margin-top: 5px; }
 .log-crit { color: var(--xp-color); font-weight: bold; text-shadow: 0 0 5px var(--xp-color); animation: pulse 0.5s 2; }
-@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
 #tutorial-overlay {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%); display: none;
@@ -628,7 +599,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     background-color: rgba(0,0,0,0.3);
     border-radius: 8px;
     padding: 10px;
-    flex-grow: 1; /* Makes columns same height */
+    flex-grow: 1;
     min-height: 200px;
 }
 .inventory-item {
@@ -638,7 +609,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     padding: 10px;
     border-bottom: 1px solid #444;
 }
-/* You already have this, but make sure `text-align` is left */
 .inventory-item-info {
     flex-grow: 1;
     text-align: left;
@@ -646,43 +616,30 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 #inventory-list .inventory-item { cursor: pointer; }
 .slider-container { display: flex; align-items: center; gap: 10px; }
 input[type="range"] { flex-grow: 1; }
-/* --- Dojo Screen Styles --- */
-
-/* Main layout for the dojo screen */
 #dojo-screen {
     justify-content: space-between;
 }
-
-/* The central "arena" where the dummy sits */
 #dojo-arena {
     flex-grow: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 100%;
-    position: relative; /* Essential for positioning damage numbers and effects */
-    min-height: 0; /* Fix for flexbox sizing issues */
+    position: relative;
+    min-height: 0;
 }
-
-/* UPGRADED Styling for the training dummy sprite */
 #dojo-dummy-sprite {
     cursor: pointer;
     -webkit-user-drag: none;
     user-select: none;
-    /* NEW: A more dramatic "corrupted" filter with a red hue */
     filter: grayscale(0.5) hue-rotate(330deg) saturate(2) brightness(0.7) drop-shadow(0 0 10px #ff0000);
-    /* NEW: Combine idle breathing with a new distort animation */
     animation: idle-breathe 4s ease-in-out infinite, dummy-distort 8s steps(2, end) infinite;
-    transition: filter 0.1s linear; /* Smooth transition for the zapped effect */
+    transition: filter 0.1s linear;
 }
-
-/* NEW KEYFRAME for the distortion effect */
 @keyframes dummy-distort {
     0%, 100% { transform: skewX(0deg); }
     50% { transform: skewX(-1.5deg); }
 }
-
-/* NEW KEYFRAME for the violent shaking when zapped */
 @keyframes zapped-shake {
     0% { transform: translate(1px, 1px) rotate(0deg); }
     10% { transform: translate(-1px, -2px) rotate(-1deg); }
@@ -696,54 +653,39 @@ input[type="range"] { flex-grow: 1; }
     90% { transform: translate(1px, 2px) rotate(0deg); }
     100% { transform: translate(1px, -2px) rotate(-1deg); }
 }
-
-/* NEW CLASS for the "static shock" effect */
 #dojo-dummy-sprite.zapped {
-    /* The "X-Ray" or "Skeleton" look from cartoons */
     filter: invert(1) brightness(2) contrast(3);
-    /* Apply the new violent shake animation */
     animation: zapped-shake 0.1s linear infinite;
 }
-
-/* The canvas for the beam effect, overlaid on the arena */
 #dojo-lightning-canvas {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none; /* Allows clicks to pass through to the dummy */
+    pointer-events: none;
     z-index: 10;
 }
-
-/* Style for the 7-second timer bar */
 .dojo-timer-bar .stat-bar-fill {
-    /* Use a distinct color for the timer, like the epic purple */
     background-color: var(--rarity-epic); 
-    /* Use a linear transition for a smooth, steady countdown */
     transition: width 0.1s linear; 
 }
-
-/* Adjustments for smaller screens */
 @media (max-width: 600px) {
     #dojo-dummy-sprite {
-        /* Make the dummy smaller on mobile */
         width: 160px;
         height: 160px;
     }
 }
-/* --- Main Menu Top Players Styles --- */
 #top-players-container {
     display: flex;
     justify-content: center;
-    align-items: flex-end; /* Aligns players to the bottom edge */
+    align-items: flex-end;
     gap: 20px;
     margin: 20px 0;
     width: 100%;
     max-width: 600px;
-    min-height: 200px; /* Give it space to load into */
+    min-height: 200px;
 }
-
 .top-player-display {
     position: relative;
     display: flex;
@@ -753,34 +695,27 @@ input[type="range"] { flex-grow: 1; }
     border: 2px solid var(--accent-color);
     border-radius: 8px;
     background-color: rgba(0, 0, 0, 0.3);
-    opacity: 0; /* Hidden by default, made visible by JS */
+    opacity: 0;
     transition: opacity 0.5s ease;
 }
-
 .top-player-display.visible {
     opacity: 1;
 }
-
-/* Make the #1 player bigger and more prominent */
 .top-player-display.player-1 {
-    transform: scale(1.15); /* Makes it 15% larger */
+    transform: scale(1.15);
     border-color: var(--xp-color);
     box-shadow: 0 0 15px var(--xp-color);
 }
-
 .top-player-sprite {
     width: 100px;
     height: 100px;
-    /* Remove the default animation from the sprite class */
     animation: none;
 }
-
 .top-player-name {
     margin-top: 8px;
     font-weight: bold;
     color: var(--text-color);
 }
-
 .top-player-rank {
     position: absolute;
     top: -15px;
@@ -788,21 +723,18 @@ input[type="range"] { flex-grow: 1; }
     font-size: 2.5em;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
 }
-
 #leaderboard-loading-text {
     color: var(--text-color);
     opacity: 0.7;
 }
-/* --- Genesis Arena Styles --- */
 #genesis-arena {
-    flex-grow: 1; /* Takes up all available space between stats and buttons */
+    flex-grow: 1;
     width: 100%;
-    position: relative; /* Crucial for positioning the player and enemies */
-    overflow: hidden; /* Prevents elements from appearing outside the box */
-    min-height: 250px; /* Ensure it has a minimum height */
+    position: relative;
+    overflow: hidden;
+    min-height: 250px;
     align-self: stretch;
 }
-
 .genesis-player, .genesis-enemy {
     position: absolute;
     width: 80px;
@@ -812,13 +744,11 @@ input[type="range"] { flex-grow: 1; }
     transform: translate(-50%, -50%); 
     transition: left 0.1s linear, top 0.1s linear;
 }
-
 .genesis-enemy {
-    width: 40px; /* Enemies are smaller */
+    width: 40px;
     height: 40px;
     animation: enemy-fade-in 0.5s ease-out;
 }
-/* Slash Impact */
 .genesis-slash {
     position: absolute;
     width: 100px;
@@ -833,7 +763,6 @@ input[type="range"] { flex-grow: 1; }
     from { transform-origin: center; scale: 0.5; opacity: 1; }
     to { transform-origin: center; scale: 1.2; opacity: 0; }
 }
-
 .genesis-impact {
     position: absolute;
     width: 30px;
@@ -847,7 +776,6 @@ input[type="range"] { flex-grow: 1; }
     from { scale: 0; opacity: 1; }
     to { scale: 1.5; opacity: 0; }
 }
-
 .genesis-loot-orb {
     position: absolute;
     width: 20px;
@@ -861,9 +789,8 @@ input[type="range"] { flex-grow: 1; }
     position: absolute;
     width: 0;
     height: 0;
-    /* Create a sharp, silver-colored crescent shape */
     border: 70px solid transparent;
-    border-top: 70px solid #c0c0c0; /* Silver color */
+    border-top: 70px solid #c0c0c0;
     border-right: 70px solid #c0c0c0;
     border-radius: 50%;
     pointer-events: none;
@@ -882,44 +809,37 @@ input[type="range"] { flex-grow: 1; }
     }
 }
 .floating-text {
-    position: absolute; /* Allows positioning anywhere on the screen */
+    position: absolute;
     font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* For readability */
-    pointer-events: none; /* So it doesn't block clicks */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    pointer-events: none;
     user-select: none;
     z-index: 100;
-    transform: translateX(-50%); /* Center the text on its x-coordinate */
+    transform: translateX(-50%);
     animation: float-up-fade-out 2.5s ease-out forwards;
 }
-
 @keyframes float-up-fade-out {
     from {
         transform: translate(-50%, 0);
         opacity: 1;
     }
     to {
-        transform: translate(-50%, -80px); /* Float up by 80px */
+        transform: translate(-50%, -80px);
         opacity: 0;
     }
 }
-/* --- NEW: Dash Skill CSS --- */
-
-/* The after-image trail left by the player while dashing */
 .genesis-dash-ghost {
     position: absolute;
     opacity: 0.5;
-    transition: opacity 0.4s ease-out; /* Controls the fade-out speed */
+    transition: opacity 0.4s ease-out;
     pointer-events: none;
-    z-index: -1; /* Make sure it's behind the actual player */
+    z-index: -1;
 }
-
-/* The powerful explosion at the end of the dash */
 .genesis-dash-explosion {
     position: absolute;
     border-radius: 50%;
     pointer-events: none;
     transform: translate(-50%, -50%);
-    /* This is the expanding fiery ring */
     border: 5px solid orangered;
     box-shadow: 0 0 15px orangered, inset 0 0 10px yellow;
     animation: dash-explosion-anim 0.5s ease-out forwards;
@@ -931,14 +851,11 @@ input[type="range"] { flex-grow: 1; }
         opacity: 1;
     }
     to {
-        width: 300px; /* Same as the damage radius */
+        width: 300px;
         height: 300px;
         opacity: 0;
     }
 }
-
-
-/* We use ::before and ::after to create a layered explosion effect */
 .genesis-dash-explosion::before,
 .genesis-dash-explosion::after {
     content: '';
@@ -948,20 +865,14 @@ input[type="range"] { flex-grow: 1; }
     border-radius: 50%;
     box-sizing: border-box;
 }
-
-/* This is the outer shockwave ring */
 .genesis-dash-explosion::before {
     border: 5px solid rgba(255, 165, 0, 0.8);
     animation: inherit;
-    animation-delay: 0.05s; /* A slight delay for a cool layered look */
+    animation-delay: 0.05s;
 }
-
-/* This is the inner fiery core of the explosion */
 .genesis-dash-explosion::after {
     background: radial-gradient(circle, white 0%, yellow 30%, orange 60%, rgba(255,0,0,0) 70%);
 }
-
-/* The keyframe animation for the explosion's growth and fade */
 @keyframes explosion-anim {
     from {
         transform: translate(-50%, -50%) scale(0.1);
@@ -972,25 +883,19 @@ input[type="range"] { flex-grow: 1; }
         opacity: 0;
     }
 }
-
-/* --- NEW: Burning Status Effect on Enemies --- */
 .genesis-enemy.burning {
-    /* This filter creates a nice, fiery red glow */
     filter: sepia(1) hue-rotate(330deg) saturate(5) brightness(1.3) drop-shadow(0 0 8px red) !important;
     transition: filter 0.2s linear;
 }
-
-/* --- NEW: Fire Particle Effect for Burning Enemies --- */
 .enemy-fire-particle {
     position: absolute;
     width: 10px;
     height: 15px;
     background: radial-gradient(circle, white 0%, yellow 40%, orangered 80%, rgba(255,0,0,0) 100%);
-    border-radius: 50% 50% 50% 0; /* Teardrop shape */
+    border-radius: 50% 50% 50% 0;
     pointer-events: none;
     animation: fire-flicker-anim 0.5s ease-out forwards;
 }
-
 @keyframes fire-flicker-anim {
     from {
         opacity: 1;
@@ -998,10 +903,9 @@ input[type="range"] { flex-grow: 1; }
     }
     to {
         opacity: 0;
-        transform: translateY(-30px) scale(0); /* Floats up and fades out */
+        transform: translateY(-30px) scale(0);
     }
 }
-/* --- NEW: Thunder Strike CSS --- */
 .genesis-chain-lightning {
     position: absolute;
     top: 0;
@@ -1009,60 +913,54 @@ input[type="range"] { flex-grow: 1; }
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 120; /* Make sure it appears on top */
+    z-index: 120;
     opacity: 0;
     animation: lightning-fade-in-out 0.4s ease-out;
 }
-/* --- NEW: Enemy Health Bar Styles --- */
 .enemy-health-bar-container {
     position: absolute;
     width: 50px;
     height: 7px;
-    background-color: #333; /* Dark background for the bar */
+    background-color: #333;
     border: 1px solid black;
     border-radius: 3px;
-    top: -15px; /* Position it above the enemy sprite */
+    top: -15px;
     left: 50%;
     transform: translateX(-50%);
-    overflow: hidden; /* Important for the fill effect */
+    overflow: hidden;
 }
-
 .enemy-health-bar-fill {
     width: 100%;
     height: 100%;
-    background-color: var(--health-color); /* Use the same red as the player's HP */
-    transition: width 0.2s linear; /* Smoothly animate health loss */
+    background-color: var(--health-color);
+    transition: width 0.2s linear;
 }
-
-/* --- NEW: Floating Damage Text for Enemies --- */
 .enemy-damage-text {
     position: absolute;
     font-weight: bold;
     pointer-events: none;
     user-select: none;
-    z-index: 150; /* Ensure it's on top of most elements */
+    z-index: 150;
     animation: float-up-fade-out-damage 1.2s ease-out forwards;
 }
-
-/* Specific animation for damage text to distinguish from skill text */
 @keyframes float-up-fade-out-damage {
     from {
         transform: translateY(0) scale(1);
         opacity: 1;
     }
     to {
-        transform: translateY(-60px) scale(0.8); /* Float up and shrink */
+        transform: translateY(-60px) scale(0.8);
         opacity: 0;
     }
 }
 @keyframes enemy-fade-in {
     from { 
         opacity: 0;
-        transform: translate(-50%, -50%) scale(0.5); /* Start small and invisible */
+        transform: translate(-50%, -50%) scale(0.5);
     }
     to { 
         opacity: 1;
-        transform: translate(-50%, -50%) scale(1); /* End at full size and visible */
+        transform: translate(-50%, -50%) scale(1);
     }
 }
 @keyframes lightning-fade-in-out {
@@ -1071,7 +969,6 @@ input[type="range"] { flex-grow: 1; }
     75% { opacity: 1; }
     100% { opacity: 0; }
 }
-/* --- NEW: Genesis Battle UI CSS --- */
 #genesis-wave-display {
     position: absolute;
     top: 8%;
@@ -1081,12 +978,11 @@ input[type="range"] { flex-grow: 1; }
     font-weight: bold;
     color: var(--xp-color);
     text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-    z-index: 300; /* Increased to ensure it's on top of everything */
+    z-index: 300;
     text-align: center;
     width: 80%;
-    pointer-events: none; /* Ensures it never interferes with clicks */
+    pointer-events: none;
 }
-
 #boss-health-container {
     position: absolute;
     bottom: 20px;
@@ -1094,7 +990,6 @@ input[type="range"] { flex-grow: 1; }
     right: 10%;
     z-index: 200;
 }
-
 #boss-name {
     color: var(--health-color);
     font-size: 1.2em;
@@ -1103,32 +998,28 @@ input[type="range"] { flex-grow: 1; }
     display: block;
     margin-bottom: 5px;
 }
-/* --- NEW: Rewards Button & Modal CSS --- */
 #rewards-btn {
-    grid-column: initial; /* Reset grid behavior */
-    justify-self: initial; /* Reset grid behavior */
+    grid-column: initial;
+    justify-self: initial;
     background: none;
     border: none;
-    font-size: 1.8em; /* Adjust size as needed */
+    font-size: 1.8em;
     cursor: pointer;
     padding: 0;
-    margin: 0 0 0 10px; /* Add space from the gold amount */
-    line-height: 1; /* Helps with vertical alignment */
+    margin: 0 0 0 10px;
+    line-height: 1;
 }
-
 #rewards-btn:hover {
     opacity: 1;
     transform: scale(1.1);
-    background: none; /* Prevent the old hover effect */
+    background: none;
 }
-
 #daily-rewards-container {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     justify-content: center;
 }
-
 .reward-item {
     background-color: var(--secondary-bg);
     border: 2px solid #555;
@@ -1138,35 +1029,29 @@ input[type="range"] { flex-grow: 1; }
     width: 120px;
     transition: all 0.3s ease;
 }
-
 .reward-item.claimed {
     opacity: 0.5;
     border-color: #444;
 }
-
 .reward-item.claimable {
     border-color: var(--xp-color);
     box-shadow: 0 0 15px var(--xp-color);
     transform: scale(1.05);
 }
-
 .reward-item .day-label {
     font-weight: bold;
     font-size: 1.2em;
     color: var(--accent-color);
 }
-
 .reward-item .reward-desc {
     font-size: 0.8em;
     margin-top: 5px;
 }
-/* --- NEW: PvP Selection Screen Styles --- */
 #pvp-opponent-list-container {
     width: 100%;
     max-width: 500px;
     margin: 20px 0;
 }
-
 .pvp-opponent-item {
     display: flex;
     align-items: center;
@@ -1178,12 +1063,10 @@ input[type="range"] { flex-grow: 1; }
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-
 .pvp-opponent-item:hover {
     transform: scale(1.03);
     box-shadow: 0 0 10px var(--accent-color);
 }
-
 .pvp-opponent-avatar {
     width: 60px;
     height: 60px;
@@ -1191,33 +1074,26 @@ input[type="range"] { flex-grow: 1; }
     border: 2px solid var(--xp-color);
     margin-right: 15px;
 }
-
 .pvp-opponent-info {
     text-align: left;
     flex-grow: 1;
 }
-
 .pvp-opponent-name {
     font-size: 1.2em;
     font-weight: bold;
 }
-
 .pvp-opponent-stats {
     font-size: 0.8em;
     opacity: 0.7;
 }
-
-/* --- NEW: PvP Battle Screen Styles --- */
 #pvp-battle-screen {
     justify-content: space-between;
 }
-
 #pvp-arena {
     flex-grow: 1;
     width: 100%;
     position: relative;
 }
-
 #pvp-timer-display {
     position: absolute;
     top: 20px;
@@ -1228,7 +1104,6 @@ input[type="range"] { flex-grow: 1; }
     color: var(--xp-color);
     z-index: 100;
 }
-
 #pvp-tug-of-war-container {
     display: flex;
     align-items: center;
@@ -1237,7 +1112,6 @@ input[type="range"] { flex-grow: 1; }
     padding: 15px;
     gap: 10px;
 }
-
 .tug-of-war-bar {
     flex-grow: 1;
     height: 30px;
@@ -1246,19 +1120,16 @@ input[type="range"] { flex-grow: 1; }
     display: flex;
     position: relative;
 }
-
 #pvp-player-damage-fill {
     height: 100%;
     background-color: var(--accent-color);
     transition: width 0.3s ease;
 }
-
 #pvp-opponent-damage-fill {
     height: 100%;
     background-color: var(--health-color);
     transition: width 0.3s ease;
 }
-
 #pvp-damage-divider {
     position: absolute;
     left: 50%;
@@ -1268,22 +1139,285 @@ input[type="range"] { flex-grow: 1; }
     background-color: white;
     transform: translateX(-50%);
 }
-/* Style for the container holding Equip/Sell buttons */
 .inventory-button-group {
     display: flex;
-    flex-direction: column; /* Stack buttons vertically */
-    gap: 5px; /* Add a small space between them */
+    flex-direction: column;
+    gap: 5px;
 }
-
-/* Style for the new Sell button */
 .sell-button {
-    background-color: #4a2a2a; /* A muted red background */
+    background-color: #4a2a2a;
     border-color: var(--health-color);
     color: var(--health-color);
 }
-
 .sell-button:hover {
     background-color: var(--health-color);
+    color: var(--primary-bg);
+}
+
+#offline-rewards-modal .modal-content {
+    /* Match the new look: yellow border, dark bg */
+    background: #1c1c1e; /* A slightly off-black */
+    border: 3px solid var(--xp-color);
+    border-radius: 12px;
+    box-shadow: 0 0 25px rgba(255, 220, 0, 0.5);
+    max-width: 450px;
+}
+
+#offline-rewards-modal h2 {
+    color: var(--accent-color); /* The bright green title */
+}
+
+.offline-subtext {
+    text-align: center;
+    font-size: 1.1em;
+    margin-bottom: 25px;
+    opacity: 0.8;
+}
+
+/* This is the main container for the list of rewards */
+.offline-rewards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px; /* Space between each reward row */
+    margin-bottom: 30px;
+}
+
+.offline-reward-row {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Space between icon and details */
+    /* Animation for each row to appear */
+    opacity: 0;
+    animation: reward-slide-in 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes reward-slide-in {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.offline-reward-icon {
+    font-size: 2.8em; /* Slightly larger icons */
+    width: 50px; /* Fixed width for alignment */
+    text-align: center;
+    filter: drop-shadow(0 0 6px currentColor);
+}
+
+/* Container for text details (e.g., "Gold Found", "+13.41K") */
+.offline-reward-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex-grow: 1;
+}
+
+.offline-reward-label {
+    font-size: 1.1em;
+    font-weight: 500;
+    opacity: 0.9;
+    line-height: 1.1;
+}
+
+.offline-reward-value {
+    font-size: 1.5em;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* --- FIX: Special styling for the full-width summary bar --- */
+.offline-summary-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #2c2c2e; /* Darker grey bar */
+    border-radius: 8px;
+    padding: 12px 16px;
+    width: 100%; /* Take up all available space */
+}
+
+.offline-summary-bar .offline-reward-label {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.offline-summary-bar .offline-reward-value {
+    font-size: 1.4em;
+    font-weight: bold;
+    color: var(--health-color); /* Red for enemies */
+}
+
+/* New styling for the circular item badge */
+.item-count-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background-color: var(--accent-color);
+    color: var(--primary-bg);
+    border-radius: 50%; /* Makes it a circle */
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+#close-offline-rewards-btn {
+    display: block;
+    width: 80%;
+    margin: 20px auto 0 auto;
+    background-color: var(--xp-color); /* Bright yellow */
+    color: #111; /* Dark text for contrast */
+    border: none;
+    font-size: 1.3em;
+    font-weight: bold;
+    padding: 14px;
+    border-radius: 8px;
+    transition: transform 0.2s, filter 0.2s;
+}
+
+#close-offline-rewards-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+#immortal-growth-btn {
+    border-color: #00FFFF; /* Cyan to match EdgeStones */
+    color: #00FFFF;
+    text-shadow: 0 0 5px #00FFFF;
+}
+#immortal-growth-btn:hover {
+    background-color: #00FFFF;
+    color: var(--primary-bg);
+}
+
+#potentials-tree-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.immortal-stat-row {
+    display: flex;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 10px;
+    gap: 15px;
+}
+
+.immortal-grade-box {
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    
+    /* Make the background transparent */
+    background-color: transparent;
+
+    /* --- FONT & TEXT STYLING --- */
+    font-family: 'Cinzel Decorative', serif; /* Use our new epic font */
+    font-weight: 700;
+    font-size: 2.2em;
+    line-height: 1;
+
+    /* --- The Gradient Fill --- */
+    background: linear-gradient(180deg, #ffde7a 0%, #ff8c00 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+
+    /* --- The 3D / Depth Effect --- */
+    text-shadow: 
+        1px 1px 1px rgba(255, 255, 255, 0.2),
+        0px 4px 8px rgba(0, 0, 0, 0.7);
+
+    /* --- The Sharp Outline --- */
+    -webkit-text-stroke: 1.5px #3c1e00;
+    paint-order: stroke fill;
+}
+.immortal-grade-box.s-tier-glow {
+    /* 
+      This creates a layered gold/yellow glow around the text.
+      The first shadow is a tight, bright yellow.
+      The second shadow is a wider, more diffuse gold.
+    */
+    filter: 
+        drop-shadow(0 0 3px #ffee00) 
+        drop-shadow(0 0 8px #ffd700);
+}
+
+/* Updated Upgrade Button Style */
+.immortal-upgrade-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 0.9em;
+    background-color: var(--secondary-bg);
+    /* The border and text color will now be set dynamically by JavaScript */
+    line-height: 1.2;
+    transition: background-color 0.2s, color 0.2s; /* Added transition */
+}
+
+.immortal-upgrade-btn:hover:not(:disabled) {
+    /* This now matches the hover style of your other buttons */
+    background-color: var(--accent-color);
+    color: var(--primary-bg);
+}
+
+.immortal-upgrade-btn .cost {
+    font-size: 0.8em;
+    opacity: 0.8;
+}
+
+.immortal-stat-details {
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.immortal-stat-info {
+    text-align: left;
+}
+
+.immortal-stat-info p:first-child {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: var(--text-color);
+}
+
+.stat-value-change {
+    font-size: 0.9em;
+    color: var(--accent-color);
+}
+
+
+.immortal-growth-header .close-button {
+    display: none;
+}
+.immortal-growth-footer {
+    display: flex; /* This is the key change */
+    justify-content: space-between; /* Puts space between the buttons */
+    align-items: center; /* Vertically aligns them */
+}
+#immortal-growth-close-footer-btn {
+    background-color: var(--secondary-bg);
+    border: 2px solid var(--accent-color);
+    color: var(--accent-color);
+    padding: 8px 15px;
+    margin: 0;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+#immortal-growth-close-footer-btn:hover {
+    background-color: var(--accent-color);
     color: var(--primary-bg);
 }
 </style>
@@ -1299,21 +1433,17 @@ input[type="range"] { flex-grow: 1; }
     <div id="main-menu-screen" class="screen">
         <h1>Tap Guardian</h1>
     
-        <!-- This new container will hold our top players -->
         <div id="top-players-container">
-            <!-- Player #2 -->
             <div id="top-player-2-container" class="top-player-display">
                 <span id="top-player-2-rank" class="top-player-rank">🥈</span>
                 <img id="top-player-2-sprite" class="top-player-sprite sprite" src="player.PNG" alt="Top Player 2">
                 <span id="top-player-2-name" class="top-player-name">--</span>
             </div>
-            <!-- Player #1 (Center) -->
             <div id="top-player-1-container" class="top-player-display player-1">
                 <span id="top-player-1-rank" class="top-player-rank">🥇</span>
                 <img id="top-player-1-sprite" class="top-player-sprite sprite" src="player.PNG" alt="Top Player 1">
                 <span id="top-player-1-name" class="top-player-name">--</span>
             </div>
-            <!-- Player #3 -->
             <div id="top-player-3-container" class="top-player-display">
                 <span id="top-player-3-rank" class="top-player-rank">🥉</span>
                 <img id="top-player-3-sprite" class="top-player-sprite sprite" src="player.PNG" alt="Top Player 3">
@@ -1333,7 +1463,6 @@ input[type="range"] { flex-grow: 1; }
     </div>
     
     <div id="game-screen" class="screen">
-        <!-- The top stats area remains the same -->
         <div id="frenzy-display">x5</div>
         <div id="stats-area" class="stats-area">
             <h2 id="player-name-level">Guardian Lv. 1</h2>
@@ -1345,9 +1474,7 @@ input[type="range"] { flex-grow: 1; }
             <div id="buff-display" class="buff-display"></div>
         </div>
     
-        <!-- ===== NEW GENESIS ARENA ===== -->
         <div id="genesis-arena">
-            <!-- ADD THESE NEW ELEMENTS INSIDE THE ARENA -->
             <div id="genesis-wave-display" style="display: none;">Wave 1/20</div>
             <div id="boss-health-container" style="display: none;">
                 <span id="boss-name"></span>
@@ -1355,11 +1482,8 @@ input[type="range"] { flex-grow: 1; }
                     <div id="boss-health-fill" class="stat-bar-fill"></div>
                 </div>
             </div>
-            <!-- The player character will be created here by JavaScript -->
         </div>
-        <!-- ============================= -->
     
-        <!-- OLD STATIC AREA - we will hide this with CSS -->
         <div id="character-area" style="display: none;">
             <div id="floating-rewards-container"></div>
             <div id="expedition-timer-display">00:00:00</div>
@@ -1370,7 +1494,6 @@ input[type="range"] { flex-grow: 1; }
             </div>
         </div>
         
-        <!-- The bottom action buttons remain the same -->
         <div id="action-buttons">
             <div class="action-button-container"><button id="grow-btn">Grow</button></div>
             <div class="action-button-container"><button id="feed-btn">Feed (50 Gold)</button></div>
@@ -1400,7 +1523,6 @@ input[type="range"] { flex-grow: 1; }
     <div id="pvp-battle-screen" class="screen">
         <div id="pvp-timer-display">15.0</div>
         <div id="pvp-arena">
-            <!-- Player and Opponent sprites will be created here -->
         </div>
         <div id="pvp-tug-of-war-container">
             <span id="pvp-player-name">Player</span>
@@ -1436,21 +1558,16 @@ input[type="range"] { flex-grow: 1; }
     <div id="dojo-screen" class="screen">
         <h2>Training Dojo</h2>
         
-        <!-- Displays for scores -->
         <div class="stats-area">
             <div id="dojo-personal-best" style="font-size: 1.2em; color: var(--xp-color);">Personal Best: 0</div>
             <div id="dojo-session-total" style="font-size: 2.2em; font-weight: bold; min-height: 1.2em; margin-top: 10px;"></div>
         </div>
 
-        <!-- The main area with the training dummy -->
         <div id="dojo-arena">
              <img id="dojo-dummy-sprite" class="sprite" src="player.PNG" alt="Training Dummy">
-             <!-- A canvas for the lightning/beam effect -->
              <canvas id="dojo-lightning-canvas"></canvas>
-             <!-- Damage numbers will be created here by JavaScript -->
         </div>
         
-        <!-- Timer bar and instructions -->
         <div class="stats-area" style="margin-bottom: 10px;">
             <p id="dojo-instructions" style="margin-bottom: 15px; color: var(--accent-color);">Tap and hold the dummy to test your power!</p>
             <div id="dojo-timer-bar-container" class="stat-bar-container dojo-timer-bar" style="visibility: hidden;">
@@ -1461,20 +1578,22 @@ input[type="range"] { flex-grow: 1; }
             </div>
         </div>
 
-        <!-- Exit button -->
         <div id="action-buttons">
             <button id="dojo-exit-btn">Exit Dojo</button>
         </div>
     </div>
     
-    <!-- --- Restored modals and added new Options modal --- -->
     <div id="expedition-screen" class="screen"><h2>Available Expeditions</h2><div id="expedition-list-container"></div><button id="expedition-cancel-btn">Back</button></div>
     <div id="notification-modal" class="modal"><div class="modal-content"><h2 id="modal-title">Notification</h2><p id="modal-text">Some text here.</p><button id="modal-close-btn">OK</button></div></div>
     
     <div id="ingame-menu-modal" class="modal">
         <div class="modal-content" id="ingame-menu-content">
             <h2>Menu</h2>
-            <div id="progression-menu-section" class="menu-section"><h3 class="modal-subtitle">Progression</h3><button id="ascension-btn">Ascension</button><button id="achievements-btn">Achievements</button></div>
+            <div id="progression-menu-section" class="menu-section"><h3 class="modal-subtitle">Progression</h3><button id="ascension-btn">Ascension</button><button id="immortal-growth-btn">Immortal Growth</button>
+
+                <button id="achievements-btn">Achievements</button>
+            </div>
+                
             <div id="community-menu-section" class="menu-section"><h3 class="modal-subtitle">Community</h3><button id="leaderboard-btn">Leaderboard</button></div>
             <div id="system-menu-section" class="menu-section"><h3 class="modal-subtitle">System</h3><button id="save-game-btn">Save Game</button><button id="options-btn">Options</button><button id="quit-to-title-btn">Quit to Title</button></div>
             <button id="return-to-game-btn">Return to Game</button>
@@ -1505,15 +1624,14 @@ input[type="range"] { flex-grow: 1; }
     <div id="leaderboard-modal" class="modal">
         <div class="modal-content">
             <h2>Leaderboard</h2>
-            <div class="leaderboard-tabs"><button class="leaderboard-tab active" data-type="level">Level</button><button class="leaderboard-tab" data-type="damage">Damage</button><button class="leaderboard-tab" data-type="pvp">PvP Damage</button>
+            <div class="leaderboard-tabs">
+                <button class="leaderboard-tab active" data-type="level">Level</button>
+                <button class="leaderboard-tab" data-type="damage">Damage</button>
+                <button class="leaderboard-tab" data-type="pvp">PvP Damage</button>
             </div>
             <ul id="level-leaderboard-list" class="leaderboard-list active"><li>Loading...</li></ul>
-            <ul id="damage-leaderboard-list" class="leaderboard-list"><li>Loading...</li></ul><ul id="pvp-leaderboard-list" class="leaderboard-list"><li>Loading...</li></ul>
-            <button id="close-leaderboard-btn">Close</button>
-        </div>
-    </div>
-            <ul id="level-leaderboard-list" class="leaderboard-list active"><li>Loading...</li></ul>
             <ul id="damage-leaderboard-list" class="leaderboard-list"><li>Loading...</li></ul>
+            <ul id="pvp-leaderboard-list" class="leaderboard-list"><li>Loading...</li></ul>
             <button id="close-leaderboard-btn">Close</button>
         </div>
     </div>
@@ -1546,7 +1664,6 @@ input[type="range"] { flex-grow: 1; }
             <h2>Options</h2>
             <div class="options-section">
                 <h3 class="modal-subtitle">Cloud Save</h3>
-                
             </div>
             <div class="options-section">
                 <h3 class="modal-subtitle">Audio</h3>
@@ -1573,21 +1690,66 @@ input[type="range"] { flex-grow: 1; }
             <button id="close-options-btn">Close</button>
         </div>
     </div>
+
     <div id="rewards-modal" class="modal">
         <div class="modal-content">
             <h2>Daily & Weekly Rewards</h2>
             
             <h3 class="modal-subtitle">Daily Login Rewards</h3>
             <div id="daily-rewards-container">
-                <!-- Daily rewards will be generated here by JavaScript -->
             </div>
     
             <h3 class="modal-subtitle">Weekly Leaderboard Reward</h3>
             <div id="weekly-rewards-container">
-                <!-- Weekly reward info will be generated here by JavaScript -->
             </div>
             
             <button id="close-rewards-btn" style="text-align: center; margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
+    <div id="offline-rewards-modal" class="modal">
+        <div class="modal-content">
+            <h2>Welcome Back, Guardian!</h2>
+            <p class="offline-subtext">You were away for <strong id="offline-time-away">0h 0m</strong>.</p>
+            
+            <!-- This is the container for the reward rows -->
+            <div id="offline-rewards-list" class="offline-rewards-list">
+                <!-- JavaScript will populate this area -->
+            </div>
+            
+            <!-- The button now correctly sits outside the list -->
+            <button id="close-offline-rewards-btn">Claim</button>
+        </div>
+    </div>
+    <div id="immortal-growth-modal" class="modal">
+        <div class="modal-content immortal-growth-modal-content">
+            <!-- Header -->
+            <div class="immortal-growth-header">
+                <h2>Immortal Growth</h2>
+            </div>
+    
+            <!-- Main Body -->
+            <div class="immortal-growth-body">
+                <!-- Left-side Tabs -->
+                <div class="immortal-growth-tabs">
+                    <button class="immortal-growth-tab-btn">Awakening</button>
+                </div>
+    
+                <!-- Content Area for the Tabs -->
+                <div class="immortal-growth-content">
+                    <!-- Potentials Tree (This is what we will build) -->
+                    <div id="potentials-tree-container" class="immortal-tab-pane active">
+                        <!-- Stat rows will be dynamically generated by game.js here -->
+                        <p class="loading-text">Loading Potentials...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer (e.g., for a reset button) -->
+            <div class="immortal-growth-footer">
+                <button id="reset-potentials-btn">Reset Potentials</button>
+                <button id="immortal-growth-close-footer-btn">Close</button>
+            </div>
         </div>
     </div>
 
