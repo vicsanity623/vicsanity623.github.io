@@ -398,7 +398,7 @@ function returnEffectToPool(type, element) {
   
       const ASCENSION_LEVEL = 50;
       const BATTLE_UNLOCK_LEVEL = 20;
-      const MAX_ENEMIES = 120;
+      const MAX_ENEMIES = 40;
       const FORGE_UNLOCK_LEVEL = 10;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
       
@@ -3261,14 +3261,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         function spawnEnemies(timestamp) {
             if (genesisState.isBattleMode) {
-                const waveSpawnInterval = 200;
+                const waveSpawnInterval = 800;
                 if (genesisState.enemiesSpawnedThisWave < genesisState.enemiesToSpawnThisWave && timestamp - genesisState.lastEnemySpawn > waveSpawnInterval) {
                     genesisState.lastEnemySpawn = timestamp;
                     genesisState.enemiesSpawnedThisWave++;
                     
                     const arenaRect = genesisArena.getBoundingClientRect();
                     const difficulty = gameState.highestBattleLevelCompleted + 1;
-                    const waveMultiplier = 1 + (genesisState.currentWave / genesisState.totalWaves);
+                    const waveMultiplier = 0.1 + (genesisState.currentWave / genesisState.totalWaves);
 
                     const enemy = {
                         element: document.createElement('img'),
@@ -3276,10 +3276,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         healthBarFill: document.createElement('div'),
                         x: 0,
                         y: 0,
-                        speed: (0.5 + Math.random() * 2.0) * waveMultiplier,
+                        speed: (0.5 + Math.random() * 1.2) * waveMultiplier,
                         width: 40, height: 40,
-                        maxHp: (40 + (10 * difficulty)) * waveMultiplier,
-                        hp: (40 + (10 * difficulty)) * waveMultiplier,
+                        maxHp: (40 + (1.1 * difficulty)) * waveMultiplier,
+                        hp: (40 + (1.1 * difficulty)) * waveMultiplier,
                         id: Date.now() + Math.random(),
                         attackRange: 25,
                         attackCooldown: 2000,
@@ -3308,7 +3308,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 const baseSpawnInterval = 380;
                 const minSpawnInterval = 50;
                 const enemyCountRatio = genesisState.enemies.length / MAX_ENEMIES;
-                const spawnRateModifier = 1 / (1 - enemyCountRatio * 0.95); // This value grows exponentially as we near the cap
+                const spawnRateModifier = 1 / (1 - enemyCountRatio * 0.45); // This value grows exponentially as we near the cap
 
                 let dynamicSpawnInterval = Math.max(minSpawnInterval, (baseSpawnInterval / genesisState.difficultyLevel) * spawnRateModifier);
                 const arenaRect = genesisArena.getBoundingClientRect();
@@ -3316,7 +3316,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 if (timestamp - genesisState.lastEnemySpawn > dynamicSpawnInterval && arenaRect.width > 0) {
                     genesisState.lastEnemySpawn = timestamp;
                     const difficulty = genesisState.difficultyLevel;
-                    const enemyHp = Math.floor((5 * gameState.level * gameState.ascension.tier) + (difficulty * 5));
+                    const enemyHp = Math.floor((2 * gameState.level * gameState.ascension.tier) + (difficulty * 2));
                     
                     const baseSpeed = 0.2 + Math.random() * 0.9;
                     const speedMultiplier = 1 + (difficulty - 1) * 0.05;
