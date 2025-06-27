@@ -206,19 +206,38 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     font-size: 1.2em;
     vertical-align: middle;
 }
-.stat-item {
-    display: contents;
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: auto 1fr; /* Label column auto-sizes, value column takes the rest */
+    gap: 4px 10px; /* 4px row gap, 10px column gap */
+    align-items: center;
 }
+
 .stat-label {
     text-align: right;
     color: var(--text-color);
     opacity: 0.8;
 }
+
+/* Make dividers and the gold container span the full width of the grid */
+.stats-grid > .stat-divider,
+.stats-grid > .gold-rewards-container {
+    grid-column: 1 / -1; /* Span from the first column to the last */
+}
+
+/* The gold container needs its own grid to align its label and values */
+.gold-rewards-container {
+    display: grid;
+    grid-template-columns: subgrid; /* Inherit columns from the parent .stats-grid */
+    grid-column: 1 / -1;
+}
+
 .stat-value {
     text-align: left;
     font-weight: bold;
     display: flex;
-    justify-content: space-between;
+    /* This was removed: justify-content: space-between; */
     align-items: center;
 }
 .stat-value-gold {
