@@ -1227,6 +1227,49 @@ input[type="range"] { flex-grow: 1; }
     background-color: white;
     transform: translateX(-50%);
 }
+/* --- FINAL: DYNAMIC PVP BATTLE ANIMATIONS --- */
+
+#pvp-arena .genesis-player {
+    /* The transition makes all transform and position changes smooth.
+       We use a faster 'ease-out' for knockback. */
+    transition: transform 0.2s ease-out, opacity 0.2s linear, left 0.1s ease-out;
+}
+
+/* The attack lunge is now just a scale-up */
+#pvp-arena .genesis-player.attacking {
+    transform: scale(1.25);
+}
+
+/* The evade animation remains the same */
+#pvp-arena .genesis-player.evading {
+    transform: translateY(60px) scale(0.7) rotate(15deg);
+    opacity: 0.5;
+}
+
+/* --- NEW: Collision Explosion Style --- */
+.pvp-collision-explosion {
+    position: absolute;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 200;
+    /* Main white-hot core */
+    background: radial-gradient(circle, white 10%, var(--xp-color) 40%, rgba(255,100,0,0) 70%);
+    animation: collision-explosion-anim 0.4s ease-out forwards;
+}
+
+@keyframes collision-explosion-anim {
+    from {
+        width: 20px;
+        height: 20px;
+        opacity: 1;
+    }
+    to {
+        width: 300px; /* Big explosion */
+        height: 300px;
+        opacity: 0;
+    }
+}
 .inventory-button-group {
     display: flex;
     flex-direction: column;
