@@ -198,6 +198,38 @@ const firebaseConfig = {
             formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
         }
       };
+      const awakeningData = {
+          stamina: {
+              name: 'Stamina',
+              desc: 'Increases Max Energy and passive Energy Regeneration.',
+              icon: 'https://i.imgur.com/your-stamina-icon.png', // Replace with your icon URL
+              cost: (level) => Math.floor(1000 * Math.pow(1.25, level)) 
+          },
+          wisdom: {
+              name: 'Wisdom',
+              desc: 'Increases all Experience gained from combat and rewards.',
+              icon: 'https://i.imgur.com/your-wisdom-icon.png', // Replace with your icon URL
+              cost: (level) => Math.floor(1500 * Math.pow(1.27, level))
+          },
+          weaponMastery: {
+              name: 'Weapon Damage',
+              desc: 'Increases all damage dealt and Legendary Weapon drop rates.',
+              icon: 'https://i.imgur.com/your-weapon-icon.png', // Replace with your icon URL
+              cost: (level) => Math.floor(2000 * Math.pow(1.3, level))
+          },
+          armorMastery: {
+              name: 'Armor Protection',
+              desc: 'Increases Fortitude and Legendary Armor drop rates.',
+              icon: 'https://i.imgur.com/your-armor-icon.png', // Replace with your icon URL
+              cost: (level) => Math.floor(2000 * Math.pow(1.3, level))
+          },
+          attackSpeed: {
+              name: 'Attack Speed',
+              desc: 'Slightly increases your attack speed in combat.',
+              icon: 'https://i.imgur.com/your-speed-icon.png', // Replace with your icon URL
+              cost: (level) => Math.floor(5000 * Math.pow(1.35, level))
+          }
+      };
       const defaultState = {
           version: GAME_VERSION,
           playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 30,
@@ -226,7 +258,15 @@ const firebaseConfig = {
                 crit_damage_percent: 0,
                 gold_find_percent: 0,
                 xp_gain_percent: 0
+            },
+            awakening: {
+                stamina: 0,
+                wisdom: 0,
+                weaponMastery: 0,
+                armorMastery: 0,
+                attackSpeed: 0
             }
+        
           } 
       };
   
@@ -369,6 +409,10 @@ const firebaseConfig = {
       const potentialsTreeContainer = document.getElementById('potentials-tree-container');
       const resetPotentialsBtn = document.getElementById('reset-potentials-btn');
       const immortalGrowthCloseFooterBtn = document.getElementById('immortal-growth-close-footer-btn');
+      const awakeningBtn = document.querySelector('.immortal-growth-tabs .immortal-growth-tab-btn');
+      const awakeningModal = document.getElementById('awakening-modal');
+      const awakeningTreeContainer = document.getElementById('awakening-tree-container');
+      const awakeningCloseBtn = document.getElementById('awakening-close-btn');
       // --- DOJO ELEMENTS ---
       const dojoBtn = document.getElementById('dojo-btn');
       const dojoScreen = document.getElementById('dojo-screen');
@@ -639,7 +683,14 @@ const firebaseConfig = {
           
           if (loadedState) {
               loadedState = await migrateSaveData(loadedState);
-              gameState = { ...defaultState, ...loadedState };
+              gameState = JSON.parse(JSON.stringify(defaultState));
+              for (const key in loadedState) {
+                if (typeof loadedState[key] === 'object' && !Array.isArray(loadedState[key]) && loadedState[key] !== null) {
+                    gameState[key] = { ...gameState[key], ...loadedState[key] };
+                } else {
+                gameState[key] = loadedState[key];
+                  }
+              }
               checkOfflineRewards();
               if(fromCloud) showToast("Cloud save loaded!");
               
@@ -726,7 +777,8 @@ const firebaseConfig = {
           }
           const hpPotentialBonus = getPotentialBonus('hp_percent');
           gameState.resources.maxHp = Math.round((baseMaxHp + vigorBonus) * (1 + hpPotentialBonus / 100));
-          gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus + energyUpgradeBonus;
+          const staminaBonus = getAwakeningBonus('stamina') * 25; // Each level gives +25 Max Energy
+          gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus + energyUpgradeBonus + staminaBonus;
           if (gameState.resources.maxHp > oldMaxHp) {
               // ...calculate the difference...
               const hpIncrease = gameState.resources.maxHp - oldMaxHp;
@@ -865,6 +917,7 @@ const firebaseConfig = {
           let finalAmount = amount * tierMultiplier;
           if (gameState.activeBuffs.xpBoost && !character.isPartner) { finalAmount *= 1.5; }
           finalAmount *= (1 + getPotentialBonus('xp_gain_percent') / 100);
+          finalAmount *= (1 + (getAwakeningBonus('wisdom') * 0.05));
           character.xp += finalAmount;
           if (character.xp >= getXpForNextLevel(character.level)) {
               levelUp(character);
@@ -1089,7 +1142,12 @@ const firebaseConfig = {
         // =======================================================
         // --- NEW: APPLY IMMORTAL GROWTH BONUSES ---
         // =======================================================
-    
+        if (stat === 'strength') {
+            total += getAwakeningBonus('weaponMastery') * 10; // Each level adds +10 STR
+        }
+        if (stat === 'fortitude') {
+            total += getAwakeningBonus('armorMastery') * 10; // Each level adds +10 FOR
+        }
         // Apply % bonuses for stats that get them
         if (stat === 'strength') {
             // Attack Power is a multiplier on the final Strength
@@ -1112,6 +1170,7 @@ const firebaseConfig = {
         }
         
         // --- END NEW LOGIC ---
+
     
         return total;
       }
@@ -1158,7 +1217,7 @@ const firebaseConfig = {
               collectionName = 'damageLeaderboard';
               orderByField = 'totalDamage';
               orderByDirection = 'desc';
-            } else if (type === 'pvp') { // --- ADD THIS ELSE IF BLOCK ---
+            } else if (type === 'pvp') {
                 targetList = pvpLeaderboardList;
                 collectionName = 'pvpLeaderboard';
                 orderByField = 'maxDamage';
@@ -1209,29 +1268,73 @@ const firebaseConfig = {
       }
       
       function generateItem(forceRarity = null) {
-          let chosenRarityKey = forceRarity;
-          if (!chosenRarityKey) {
-              const roll = Math.random() * 100; let cumulativeWeight = 0;
-              for(const key in itemData.rarities) { cumulativeWeight += itemData.rarities[key].weight; if (roll < cumulativeWeight) { chosenRarityKey = key; break; } }
-          }
-          const rarity = itemData.rarities[chosenRarityKey];
-          const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor'; // Define the type first
-          const rarityIndex = itemData.rarityTiers.indexOf(chosenRarityKey);
-          const itemColor = itemTypeKey === 'weapon' ? itemData.weaponColors[rarityIndex] : itemData.armorColors[rarityIndex]; // Now we can use the type to get the color
-          const itemType = itemData.types[itemTypeKey];
-          const baseName = itemType.base[Math.floor(Math.random() * itemType.base.length)]; const primaryStat = itemType.primary;
-          const stats = {}; let power = 0; const totalBudget = (gameState.level + (gameState.ascension.tier * 5)) * rarity.budget;
-          stats[primaryStat] = Math.ceil(totalBudget * 0.6); power += stats[primaryStat];
-          let availableAffixes = [...itemData.affixes]; let namePrefix = itemData.prefixes[primaryStat]; let nameSuffix = '';
-          for (let i = 1; i < rarity.affixes && availableAffixes.length > 0; i++) {
-              const affixIndex = Math.floor(Math.random() * availableAffixes.length); const affix = availableAffixes.splice(affixIndex, 1)[0];
-              let value;
-              if (affix === 'critChance' || affix === 'goldFind') { value = Math.max(1, Math.ceil(totalBudget * 0.15 * (Math.random() * 0.5 + 0.75))); power += value * 3; } 
-              else { value = Math.ceil(totalBudget * 0.25 * (Math.random() * 0.5 + 0.75)); power += value; }
-              stats[affix] = value; if (i === 1) { nameSuffix = itemData.suffixes[affix]; }
-          }
-          return { type: itemTypeKey, name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), rarity: { key: chosenRarityKey, color: itemColor }, stats: stats, power: power, reforgeCount: 0, refineLevel: 0 };
-      }
+        let chosenRarityKey = forceRarity;
+    
+        if (!chosenRarityKey) {
+
+            let roll = Math.random() * 100; 
+    
+            // 2. We get the bonuses from our new Awakening powers.
+            // We check if gameState.immortalGrowth exists first for safety.
+            if (gameState.immortalGrowth) {
+                const weaponBonus = getAwakeningBonus('weaponMastery') * 0.1; // 0.1% per level
+                const armorBonus = getAwakeningBonus('armorMastery') * 0.1;  // 0.1% per level
+                // 3. We subtract the bonuses from the roll. A lower roll means a better chance at high-tier loot.
+                roll -= (weaponBonus + armorBonus);
+            }
+    
+            let cumulativeWeight = 0;
+            for(const key in itemData.rarities) { 
+                cumulativeWeight += itemData.rarities[key].weight; 
+                if (roll < cumulativeWeight) { 
+                    chosenRarityKey = key; 
+                    break; 
+                } 
+            }
+    
+        }
+    
+        const rarity = itemData.rarities[chosenRarityKey];
+        const itemTypeKey = Math.random() < 0.5 ? 'weapon' : 'armor';
+        const rarityIndex = itemData.rarityTiers.indexOf(chosenRarityKey);
+        const itemColor = itemTypeKey === 'weapon' ? itemData.weaponColors[rarityIndex] : itemData.armorColors[rarityIndex];
+        const itemType = itemData.types[itemTypeKey];
+        const baseName = itemType.base[Math.floor(Math.random() * itemType.base.length)];
+        const primaryStat = itemType.primary;
+        const stats = {};
+        let power = 0;
+        const totalBudget = (gameState.level + (gameState.ascension.tier * 5)) * rarity.budget;
+        stats[primaryStat] = Math.ceil(totalBudget * 0.6);
+        power += stats[primaryStat];
+        let availableAffixes = [...itemData.affixes];
+        let namePrefix = itemData.prefixes[primaryStat];
+        let nameSuffix = '';
+        for (let i = 1; i < rarity.affixes && availableAffixes.length > 0; i++) {
+            const affixIndex = Math.floor(Math.random() * availableAffixes.length);
+            const affix = availableAffixes.splice(affixIndex, 1)[0];
+            let value;
+            if (affix === 'critChance' || affix === 'goldFind') {
+                value = Math.max(1, Math.ceil(totalBudget * 0.15 * (Math.random() * 0.5 + 0.75)));
+                power += value * 3;
+            } else {
+                value = Math.ceil(totalBudget * 0.25 * (Math.random() * 0.5 + 0.75));
+                power += value;
+            }
+            stats[affix] = value;
+            if (i === 1) {
+                nameSuffix = itemData.suffixes[affix];
+            }
+        }
+        return { 
+            type: itemTypeKey, 
+            name: `${namePrefix} ${baseName} ${nameSuffix}`.trim(), 
+            rarity: { key: chosenRarityKey, color: itemColor }, 
+            stats: stats, 
+            power: power, 
+            reforgeCount: 0, 
+            refineLevel: 0 
+        };
+    }
       
       function equipItem(itemToEquip) {
           const itemIndex = gameState.inventory.findIndex(i => i && i.name === itemToEquip.name);
@@ -2253,6 +2356,12 @@ const firebaseConfig = {
         }
         return 0; // Return 0 if the stat doesn't exist
     }
+    function getAwakeningBonus(statId) {
+        if (gameState.immortalGrowth && gameState.immortalGrowth.awakening && gameState.immortalGrowth.awakening[statId]) {
+            return gameState.immortalGrowth.awakening[statId] || 0;
+        }
+        return 0;
+    }
     function calculateGradeInfo(level) {
         const grades = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSR'];
         const colors = {
@@ -2391,6 +2500,63 @@ const firebaseConfig = {
         renderPotentialsTree();
         updateUI();
         saveGame();
+    }
+    function renderAwakeningTree() {
+        awakeningTreeContainer.innerHTML = ''; // Clear old content
+    
+        if (!gameState.immortalGrowth || !gameState.immortalGrowth.awakening) {
+            awakeningTreeContainer.innerHTML = '<p>Error: Awakening data not found.</p>';
+            return;
+        }
+    
+        for (const id in awakeningData) {
+            const data = awakeningData[id];
+            const level = gameState.immortalGrowth.awakening[id] || 0;
+            const cost = data.cost(level);
+            const canAfford = gameState.gold >= cost;
+    
+            const statRow = document.createElement('div');
+            // We can reuse the immortal-stat-row style and add a new class
+            statRow.className = 'immortal-stat-row awakening-stat-row';
+            statRow.setAttribute('data-stat-id', id);  
+            statRow.innerHTML = `
+                <div class="awakening-icon"></div>
+                <div class="awakening-stat-details">
+                    <div class="awakening-stat-info">
+                        <p class="awakening-stat-name">${data.name} (Lv. ${level})</p>
+                        <p class="awakening-stat-desc">${data.desc}</p>
+                    </div>
+                    <button class="awakening-upgrade-btn" data-stat-id="${id}" ${canAfford ? '' : 'disabled'}>
+                        LV UP
+                        <span class="cost">${formatNumber(cost)} G</span>
+                    </button>
+                </div>
+            `;
+            awakeningTreeContainer.appendChild(statRow);
+        }
+    }
+    // ===============================================
+    // --- NEW AWAKENING FUNCTIONS START HERE ---
+    // ===============================================
+    function upgradeAwakeningStat(statId) {
+        const data = awakeningData[statId];
+        if (!data) return;
+    
+        const level = gameState.immortalGrowth.awakening[statId] || 0;
+        const cost = data.cost(level);
+    
+        if (gameState.gold >= cost) {
+            gameState.gold -= cost;
+            gameState.immortalGrowth.awakening[statId]++;
+            
+            playSound('ascend', 0.7, 'sawtooth', 300, 900, 0.3); // A deep, powerful sound
+            
+            renderAwakeningTree(); // Refresh this modal
+            updateUI(); // Refresh the main game UI
+            saveGame();
+        } else {
+            showToast("Not enough Gold!");
+        }
     }
 
 // =======================================================
@@ -3525,7 +3691,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const minimumCooldown = 95;
             
             const agility = getTotalStat('agility');
-            const dynamicAttackCooldown = Math.max(minimumCooldown, baseCooldown - (agility * reductionPerAgi));
+            const attackSpeedBonus = 1 - (getAwakeningBonus('attackSpeed') * 0.01); // Each level gives 1% faster speed
+            const dynamicAttackCooldown = Math.max(minimumCooldown, (baseCooldown - (agility * reductionPerAgi)) * attackSpeedBonus);
 
             if (!player || player.isDashing || (timestamp - player.lastAttackTime < dynamicAttackCooldown)) {
                 return;
@@ -3981,7 +4148,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                   playerUINeedsUpdate = true;
               }
               if (gameState.resources.energy < gameState.resources.maxEnergy) {
-                  gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 0.15);
+                  const baseRegen = 0.15;
+                  const staminaRegenBonus = getAwakeningBonus('stamina') * 0.05; // Each level adds +0.05 regen/sec
+                  gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + baseRegen + staminaRegenBonus);
                   playerUINeedsUpdate = true;
               }
           }
@@ -4370,6 +4539,29 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 const statId = button.getAttribute('data-stat-id');
                 if (statId) {
                     upgradePotentialStat(statId);
+                }
+            }
+        });
+        awakeningBtn.addEventListener('click', () => {
+            // Open the new modal instead of the old one
+            immortalGrowthModal.classList.remove('visible'); // Close the current modal
+            renderAwakeningTree();
+            awakeningModal.classList.add('visible');
+            gtag('config', 'G-4686TXHCHN', { 'page_path': '/awakening' });
+        });
+        
+        awakeningCloseBtn.addEventListener('click', () => {
+            awakeningModal.classList.remove('visible');
+            // Re-open the previous modal for a smooth
+            immortalGrowthModal.classList.add('visible'); 
+        });
+        
+        awakeningTreeContainer.addEventListener('click', (event) => {
+            const button = event.target.closest('.awakening-upgrade-btn');
+            if (button) {
+                const statId = button.getAttribute('data-stat-id');
+                if (statId) {
+                    upgradeAwakeningStat(statId);
                 }
             }
         });
