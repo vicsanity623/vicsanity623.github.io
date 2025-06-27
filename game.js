@@ -49,6 +49,7 @@ const firebaseConfig = {
         player: null,
         enemies: [],
         lootOrbs: [],
+        autoPotionOnCooldown: false,
         
         // Endless Mode state
         lastEnemySpawn: 0,
@@ -160,6 +161,43 @@ const firebaseConfig = {
         { day: 6, type: 'gold', amount: 5000000 },
         { day: 7, type: 'item', rarity: 'rare' } // Day 7 is a rare item!
       ];
+      const potentialsData = {
+        attack_power_percent: {
+            name: 'Attack Power (%)',
+            icon: 'https://i.imgur.com/KxISF7H.png', // Sword Icon
+            cost: (level) => Math.pow(1.25, level) * 0.0001,
+            bonusPerLevel: 0.5, // 0.5% bonus per level
+            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
+        },
+        hp_percent: {
+            name: 'Health (%)',
+            icon: 'https://i.imgur.com/vHq4D3x.png', // Heart Icon
+            cost: (level) => Math.pow(1.24, level) * 0.0001,
+            bonusPerLevel: 0.8, // 0.8% bonus per level
+            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
+        },
+        crit_damage_percent: {
+            name: 'Crit Damage (%)',
+            icon: 'https://i.imgur.com/gYg28r0.png', // Crit Icon
+            cost: (level) => Math.pow(1.3, level) * 0.0002,
+            bonusPerLevel: 1.5, // 1.5% crit damage per level
+            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
+        },
+        gold_find_percent: {
+            name: 'Gold Find (%)',
+            icon: 'https://i.imgur.com/l2sOKe8.png', // Gold Icon
+            cost: (level) => Math.pow(1.2, level) * 0.00005,
+            bonusPerLevel: 1, // 1% gold find per level
+            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
+        },
+        xp_gain_percent: {
+            name: 'Experience Gain (%)',
+            icon: 'https://i.imgur.com/rN5g4dF.png', // XP Icon
+            cost: (level) => Math.pow(1.22, level) * 0.00008,
+            bonusPerLevel: 1, // 1% XP gain per level
+            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
+        }
+      };
       const defaultState = {
           version: GAME_VERSION,
           playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 30,
@@ -180,7 +218,16 @@ const firebaseConfig = {
           pvpPersonalBest: 0,
           lastDailyClaim: 0,
           dailyStreak: 0,
-          lastLogin: Date.now() 
+          lastLogin: Date.now(),
+          immortalGrowth: {
+            potentials: {
+                attack_power_percent: 0,
+                hp_percent: 0,
+                crit_damage_percent: 0,
+                gold_find_percent: 0,
+                xp_gain_percent: 0
+            }
+          } 
       };
   
       const ASCENSION_LEVEL = 50;
@@ -313,6 +360,15 @@ const firebaseConfig = {
       const weeklyRewardsContainer = document.getElementById('weekly-rewards-container');
       const feedBattleBtn = document.getElementById('feed-battle-btn');
       const potionCountDisplay = document.getElementById('potion-count-display');
+      const offlineRewardsModal = document.getElementById('offline-rewards-modal');
+      const closeOfflineRewardsBtn = document.getElementById('close-offline-rewards-btn');
+      const offlineTimeAway = document.getElementById('offline-time-away');
+      const offlineRewardsList = document.getElementById('offline-rewards-list');
+      const immortalGrowthBtn = document.getElementById('immortal-growth-btn');
+      const immortalGrowthModal = document.getElementById('immortal-growth-modal');
+      const potentialsTreeContainer = document.getElementById('potentials-tree-container');
+      const resetPotentialsBtn = document.getElementById('reset-potentials-btn');
+      const immortalGrowthCloseFooterBtn = document.getElementById('immortal-growth-close-footer-btn');
       // --- DOJO ELEMENTS ---
       const dojoBtn = document.getElementById('dojo-btn');
       const dojoScreen = document.getElementById('dojo-screen');
@@ -535,6 +591,9 @@ const firebaseConfig = {
               loadedState.lastDailyClaim = loadedState.lastDailyClaim || 0;
               loadedState.dailyStreak = loadedState.dailyStreak || 0;
               loadedState.lastLogin = loadedState.lastLogin || Date.now();
+              if (!loadedState.immortalGrowth) {
+                loadedState.immortalGrowth = JSON.parse(JSON.stringify(defaultState.immortalGrowth));
+              }
               if (loadedState.equipment.weapon) {
                   rehydrateItemRarity(loadedState.equipment.weapon);
               }
@@ -655,6 +714,7 @@ const firebaseConfig = {
       
       function updateUI() {
           if (!gameState.stats) return;
+          const oldMaxHp = gameState.resources.maxHp;
           const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
           const baseMaxHp = 100 + (gameState.level - 1) * 10;
           const baseMaxEnergy = 100 + (gameState.level - 1) * 5;
@@ -664,8 +724,16 @@ const firebaseConfig = {
               const upgradeData = permanentShopUpgrades.energyTraining;
               energyUpgradeBonus = upgradeLevel * upgradeData.bonus;
           }
-          gameState.resources.maxHp = baseMaxHp + vigorBonus;
+          const hpPotentialBonus = getPotentialBonus('hp_percent');
+          gameState.resources.maxHp = Math.round((baseMaxHp + vigorBonus) * (1 + hpPotentialBonus / 100));
           gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus + energyUpgradeBonus;
+          if (gameState.resources.maxHp > oldMaxHp) {
+              // ...calculate the difference...
+              const hpIncrease = gameState.resources.maxHp - oldMaxHp;
+              // ...and add that difference to our current HP.
+              gameState.resources.hp += hpIncrease;
+          }
+          gameState.resources.hp = Math.min(gameState.resources.hp, gameState.resources.maxHp);
           playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
           worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
           const xpForNext = getXpForNextLevel(gameState.level);
@@ -739,7 +807,7 @@ const firebaseConfig = {
                   </span>
                   <!-- END NEW DISPLAY -->
 
-                  <span class="potion-display">
+                  <span class="potion-display" title="Auto-used at 30% HP. Restores ${Math.floor(gameState.resources.maxHp * 0.7)} HP (70%)">
                       <span>🧪</span>
                       <span>${gameState.healthPotions || 0}</span>
                   </span>
@@ -796,6 +864,7 @@ const firebaseConfig = {
           const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
           let finalAmount = amount * tierMultiplier;
           if (gameState.activeBuffs.xpBoost && !character.isPartner) { finalAmount *= 1.5; }
+          finalAmount *= (1 + getPotentialBonus('xp_gain_percent') / 100);
           character.xp += finalAmount;
           if (character.xp >= getXpForNextLevel(character.level)) {
               levelUp(character);
@@ -956,7 +1025,7 @@ const firebaseConfig = {
           if (gameState.gold >= 50) {
               gameState.gold -= 50; 
               gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 20);
-              gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 10);
+              gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 50);
               playSound('feed', 1, 'sine', 200, 600, 0.2);
               showNotification("Yum!", "Energy and HP restored slightly."); updateUI(); saveGame();
           } else { showNotification("Not enough gold!", "You need 50 gold to feed your guardian."); }
@@ -998,21 +1067,53 @@ const firebaseConfig = {
       }
       
       function getTotalStat(stat) {
-          let total = gameState.stats[stat] || 0;
-          if(gameState.permanentUpgrades) {
-              for (const upgradeId in gameState.permanentUpgrades) {
-                  const upgradeData = permanentShopUpgrades[upgradeId];
-                  if (upgradeData && upgradeData.stat === stat) {
-                      total += (gameState.permanentUpgrades[upgradeId] || 0) * upgradeData.bonus;
-                  }
-              }
-          }
-          for (const slot in gameState.equipment) {
-              const item = gameState.equipment[slot];
-              if (item && item.stats && item.stats[stat]) { total += item.stats[stat]; }
-          }
-          if (stat === 'goldFind' && gameState.ascension.perks) { total += (gameState.ascension.perks.goldBoost || 0) * 5; }
-          return total;
+        let total = gameState.stats[stat] || 0;
+    
+        // --- Apply Permanent Shop Upgrades (existing logic) ---
+        if(gameState.permanentUpgrades) {
+            for (const upgradeId in gameState.permanentUpgrades) {
+                const upgradeData = permanentShopUpgrades[upgradeId];
+                if (upgradeData && upgradeData.stat === stat) {
+                    total += (gameState.permanentUpgrades[upgradeId] || 0) * upgradeData.bonus;
+                }
+            }
+        }
+        // --- Apply Equipment Stats (existing logic) ---
+        for (const slot in gameState.equipment) {
+            const item = gameState.equipment[slot];
+            if (item && item.stats && item.stats[stat]) { total += item.stats[stat]; }
+        }
+        // --- Apply Ascension Perks (existing logic) ---
+        if (stat === 'goldFind' && gameState.ascension.perks) { total += (gameState.ascension.perks.goldBoost || 0) * 5; }
+        
+        // =======================================================
+        // --- NEW: APPLY IMMORTAL GROWTH BONUSES ---
+        // =======================================================
+    
+        // Apply % bonuses for stats that get them
+        if (stat === 'strength') {
+            // Attack Power is a multiplier on the final Strength
+            const attackPowerBonus = getPotentialBonus('attack_power_percent');
+            total *= (1 + attackPowerBonus / 100);
+            return Math.round(total); // Return a whole number for STR
+        }
+    
+        if (stat === 'goldFind') {
+            // Gold Find is an additive percentage
+            const goldFindBonus = getPotentialBonus('gold_find_percent');
+            total += goldFindBonus;
+        }
+        
+        if (stat === 'critChance') {
+            // Note: The potential is for Crit DAMAGE, not Chance. We'll apply that in the damage formulas.
+            // If you ever add a Crit Chance potential, you would add it here like this:
+            // const critChanceBonus = getPotentialBonus('crit_chance_percent');
+            // total += critChanceBonus;
+        }
+        
+        // --- END NEW LOGIC ---
+    
+        return total;
       }
   
       function ascend() {
@@ -1901,81 +2002,137 @@ const firebaseConfig = {
         const now = Date.now();
         const lastLogin = gameState.lastLogin || now;
         const offlineTimeInSeconds = (now - lastLogin) / 1000;
-
-        // Only grant rewards if offline for at least 5 minutes (300 seconds)
-        if (offlineTimeInSeconds < 300) {
+    
+        // Set to 60 for testing, change back to 300 for production
+        if (offlineTimeInSeconds < 60) { 
             return;
         }
-
-        // Cap the rewards at a maximum of 24 hours
+    
         const maxOfflineTimeInSeconds = 24 * 60 * 60;
         const effectiveOfflineTime = Math.min(offlineTimeInSeconds, maxOfflineTimeInSeconds);
         
         // --- Reward Calculations ---
         const playerPower = gameState.level + (gameState.ascension.tier * 10);
         const minutesOffline = effectiveOfflineTime / 60;
-
-        // Gold per second
-        const goldPerSecond = 0.6 * playerPower;
+        const goldPerSecond = 0.6 * playerPower * (1 + getTotalStat('goldFind') / 100);
         const totalGold = Math.floor(goldPerSecond * effectiveOfflineTime);
-        
-        // XP per second
-        const xpPerSecond = 1.2 * playerPower;
+        const xpPerSecond = 3.2 * playerPower;
         const totalXp = Math.floor(xpPerSecond * effectiveOfflineTime);
+        const enemiesDefeated = Math.max(1, Math.floor(effectiveOfflineTime / 30));
+        const edgeStonesPerMinute = 0.001;
+        let totalEdgeStones = (edgeStonesPerMinute * minutesOffline);
+        if (gameState.ascension.tier > 1) {
+            totalEdgeStones *= gameState.ascension.tier;
+        }
         
-        // Enemies defeated
-        const enemiesDefeated = Math.floor(effectiveOfflineTime / 30);
-        
-        // Item drops
-        let itemsFound = [];
+        const weaponsFoundList = [];
+        const armorsFoundList = [];
         for (let i = 0; i < minutesOffline / 10; i++) {
             if (Math.random() < 0.75) {
-                itemsFound.push(generateItem());
+                const item = generateItem();
+                if (item.type === 'weapon') weaponsFoundList.push(item);
+                else armorsFoundList.push(item);
             }
         }
         
-        // Health Potion Calculation
-        const potionsFound = Math.floor(minutesOffline / 120); // 50 potion every 2 hours
-        
-        // EdgeStone Calculation
-        const edgeStonesPerMinute = 0.001;
-        const totalEdgeStones = (edgeStonesPerMinute * minutesOffline) * gameState.ascension.tier;
-        
-        // --- Apply ALL Rewards to Game State ---
+        // --- Apply Rewards to Game State ---
         gameState.gold += totalGold;
         addXP(gameState, totalXp);
         gameState.counters.enemiesDefeated += enemiesDefeated;
-        gameState.healthPotions = (gameState.healthPotions || 0) + potionsFound;
         gameState.edgeStones = (gameState.edgeStones || 0) + totalEdgeStones;
-        itemsFound.forEach(item => gameState.inventory.push(item));
+        [...weaponsFoundList, ...armorsFoundList].forEach(item => gameState.inventory.push(item));
         
         // --- Format Time for Display ---
         const hours = Math.floor(effectiveOfflineTime / 3600);
         const minutes = Math.floor((effectiveOfflineTime % 3600) / 60);
-
-        // --- Create the Enhanced Reward Notification ---
-        let rewardText = `You were away for ${hours}h ${minutes}m.<br><br>Here's what you found:`;
-        rewardText += `<br>+${formatNumber(totalGold)} Gold`;
-        rewardText += `<br>+${formatNumber(totalXp)} XP`;
-        rewardText += `<br>Defeated ${enemiesDefeated} enemies`;
-        
-        if (potionsFound > 0) {
-            rewardText += `<br><span style="color:var(--health-color);">Found ${potionsFound} Health Potion(s) 🧪</span>`;
+        offlineTimeAway.textContent = `${hours}h ${minutes}m.`;
+    
+        // --- Build the Enhanced Reward Notification ---
+        offlineRewardsList.innerHTML = ''; // Clear previous content
+        let animationDelay = 0;
+        const delayIncrement = 0.1;
+    
+        const addRow = (html) => {
+            offlineRewardsList.innerHTML += html; // Correctly uses the single list variable
+            animationDelay += delayIncrement;
+        };
+    
+        if (totalGold > 0) {
+            addRow(`
+                <div class="offline-reward-row" style="animation-delay: ${animationDelay}s;">
+                    <div class="offline-reward-icon" style="color: var(--xp-color);">💰</div>
+                    <div class="offline-reward-details">
+                        <span class="offline-reward-label">Gold Found</span>
+                        <span class="offline-reward-value" style="color: var(--xp-color);">+${formatNumber(totalGold)}</span>
+                    </div>
+                </div>
+            `);
         }
+    
+        if (enemiesDefeated > 0) {
+             addRow(`
+                <div class="offline-reward-row" style="animation-delay: ${animationDelay}s;">
+                    <div class="offline-reward-icon" style="color: var(--health-color);">💀</div>
+                    <div class="offline-summary-bar">
+                        <span class="offline-reward-label">Enemies Defeated</span>
+                        <span class="offline-reward-value">+${formatNumber(enemiesDefeated)}</span>
+                    </div>
+                </div>
+            `);
+        }
+        
+        if (totalXp > 0) {
+             addRow(`
+                <div class="offline-reward-row" style="animation-delay: ${animationDelay}s;">
+                    <div class="offline-reward-icon" style="color: var(--accent-color);">✨</div>
+                    <div class="offline-reward-details">
+                        <span class="offline-reward-label">XP Gained</span>
+                        <span class="offline-reward-value" style="color: var(--accent-color);">+${formatNumber(totalXp)}</span>
+                    </div>
+                </div>
+            `);
+        }
+    
         if (totalEdgeStones > 0) {
-            rewardText += `<br><span style="color:#00FFFF;">Found ${totalEdgeStones.toFixed(4)} EdgeStones ♦️</span>`;
+             addRow(`
+                <div class="offline-reward-row" style="animation-delay: ${animationDelay}s;">
+                    <div class="offline-reward-icon" style="color: #00FFFF;">♦️</div>
+                    <div class="offline-reward-details">
+                        <span class="offline-reward-label">EdgeStones</span>
+                        <span class="offline-reward-value" style="color: #00FFFF;">+${totalEdgeStones.toFixed(4)}</span>
+                    </div>
+                </div>
+            `);
+        }
+    
+        const weaponsFound = weaponsFoundList.length;
+        if (weaponsFound > 0) {
+            addRow(`
+                <div class="offline-reward-row" style="animation-delay: ${animationDelay}s;">
+                    <div class="offline-reward-icon" style="color: #ccc;">⚔️</div>
+                    <div class="offline-reward-details">
+                        <span class="offline-reward-label">Weapons Found</span>
+                        <div class="item-count-badge">+${weaponsFound}</div>
+                    </div>
+                </div>
+            `);
         }
         
-        const weaponsFound = itemsFound.filter(item => item.type === 'weapon').length;
-        const armorsFound = itemsFound.filter(item => item.type === 'armor').length;
-        if (weaponsFound > 0) {
-            rewardText += `<br>Found ${weaponsFound} weapon(s)`;
-        }
+        const armorsFound = armorsFoundList.length;
         if (armorsFound > 0) {
-            rewardText += `<br>Found ${armorsFound} armor piece(s)`;
+            addRow(`
+                <div class="offline-reward-row" style="animation-delay: ${animationDelay}s;">
+                    <div class="offline-reward-icon" style="color: #ccc;">🛡️</div>
+                    <div class="offline-reward-details">
+                        <span class="offline-reward-label">Armor Found</span>
+                        <div class="item-count-badge">+${armorsFound}</div>
+                    </div>
+                </div>
+            `);
         }
-
-        showNotification("Welcome Back, Guardian!", rewardText);
+        
+        offlineRewardsModal.classList.add('visible');
+        playSound('victory', 0.8, 'triangle', 440, 1000, 0.4);
       }
 
       function checkDailyRewards() {
@@ -2088,6 +2245,153 @@ const firebaseConfig = {
     
         return Math.floor(baseValue * rarityMod);
     }
+    function getPotentialBonus(statId) {
+        if (gameState.immortalGrowth && gameState.immortalGrowth.potentials && gameState.immortalGrowth.potentials[statId]) {
+            const level = gameState.immortalGrowth.potentials[statId];
+            const data = potentialsData[statId];
+            return level * data.bonusPerLevel;
+        }
+        return 0; // Return 0 if the stat doesn't exist
+    }
+    function calculateGradeInfo(level) {
+        const grades = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSR'];
+        const colors = {
+            D: '#9E9E9E', // Grey
+            C: '#4CAF50', // Green
+            B: '#2196F3', // Blue
+            A: '#9C27B0', // Purple
+            S: '#FF9800', // Orange (S)
+            SS: '#F44336', // Red (SS)
+            SSR: '#E91E63', // Pink/Magenta (SSR)
+            MAX: '#FFD700'  // Gold
+        };
+        
+        const MAX_POTENTIAL_LEVEL = 925;
+        if (level >= MAX_POTENTIAL_LEVEL) {
+            return { grade: 'MAX', color: colors.MAX };
+        }
+    
+        const tier = Math.floor(level / 25);
+    
+        if (tier < grades.length) {
+            const gradeKey = grades[tier];
+            return { grade: gradeKey, color: colors[gradeKey] };
+        } else {
+            const s_tier = tier - grades.length;
+            const number = Math.floor(s_tier / 3) + 1;
+            const prefixKey = grades[4 + (s_tier % 3)]; // S, SS, or SSR
+            
+            // Cap the number at 10 as per your requirement
+            if (number > 10) {
+                 return { grade: 'MAX', color: colors.MAX };
+            }
+    
+            return { grade: `${prefixKey}${number}`, color: colors[prefixKey] };
+        }
+    }
+    function renderPotentialsTree() {
+        potentialsTreeContainer.innerHTML = '';
+    
+        if (!gameState.immortalGrowth || !gameState.immortalGrowth.potentials) {
+            potentialsTreeContainer.innerHTML = '<p>Error: Immortal Growth data not found.</p>';
+            return;
+        }
+    
+        const MAX_POTENTIAL_LEVEL = 925;
+    
+        for (const id in potentialsData) {
+            const data = potentialsData[id];
+            const level = gameState.immortalGrowth.potentials[id] || 0;
+            
+            const gradeInfo = calculateGradeInfo(level);
+            
+            const isMaxed = level >= MAX_POTENTIAL_LEVEL;
+            const isStier = ['S', 'SS', 'SSR', 'MAX'].some(prefix => gradeInfo.grade.startsWith(prefix));
+            const glowClass = isStier ? 's-tier-glow' : '';
+            let upgradeButtonHtml = '';
+    
+            if (isMaxed) {
+                upgradeButtonHtml = `<button class="immortal-upgrade-btn" disabled style="border-color:${gradeInfo.color}; color:${gradeInfo.color};">MAX<span class="cost">GRADE</span></button>`;
+            } else {
+                const cost = data.cost(level);
+                const canAfford = (gameState.edgeStones || 0) >= cost;
+                upgradeButtonHtml = `<button class="immortal-upgrade-btn" data-stat-id="${id}" ${canAfford ? '' : 'disabled'} style="border-color:${gradeInfo.color}; color:${gradeInfo.color};">LV UP<span class="cost">${cost.toFixed(4)} ♦️</span></button>`;
+            }
+    
+            const currentBonus = level * data.bonusPerLevel;
+            const nextBonus = (level + 1) * data.bonusPerLevel;
+            
+            const statRow = document.createElement('div');
+            statRow.className = 'immortal-stat-row';
+            statRow.innerHTML = `
+            <div class="immortal-grade-box ${glowClass}">
+                ${gradeInfo.grade}
+            </div>
+            <div class="immortal-stat-details">
+                <div class="immortal-stat-info">
+                    <p>${data.name} (Lv. ${level})</p>
+                    <p class="stat-value-change">${isMaxed ? 'MAXIMUM' : `${data.formatBonus(currentBonus)} → ${data.formatBonus(nextBonus)}`}</p>
+                </div>
+                ${upgradeButtonHtml}
+            </div>
+        `;
+        potentialsTreeContainer.appendChild(statRow);
+    }
+}
+    
+    function upgradePotentialStat(statId) {
+        const MAX_POTENTIAL_LEVEL = 925;
+        const currentLevel = gameState.immortalGrowth.potentials[statId] || 0;
+        if (currentLevel >= MAX_POTENTIAL_LEVEL) {
+            showToast("This potential is at its maximum grade!");
+            return;
+        }
+        const data = potentialsData[statId];
+        if (!data) return;
+    
+        const level = gameState.immortalGrowth.potentials[statId] || 0;
+        const cost = data.cost(level);
+    
+        if ((gameState.edgeStones || 0) >= cost) {
+            gameState.edgeStones -= cost;
+            gameState.immortalGrowth.potentials[statId]++;
+            
+            playSound('levelUp', 0.5, 'sine', 800, 1000, 0.1);
+            
+            // Refresh this modal and the main game UI
+            renderPotentialsTree();
+            updateUI();
+            saveGame();
+        } else {
+            showToast("Not enough EdgeStones!");
+        }
+    }
+    
+    function resetPotentials() {
+        if (!confirm("Are you sure you want to reset all Potentials? You will be refunded 100% of the EdgeStones spent.")) {
+            return;
+        }
+    
+        let totalRefund = 0;
+        for (const id in gameState.immortalGrowth.potentials) {
+            const level = gameState.immortalGrowth.potentials[id];
+            const data = potentialsData[id];
+            for (let i = 0; i < level; i++) {
+                totalRefund += data.cost(i);
+            }
+            // Reset level to 0
+            gameState.immortalGrowth.potentials[id] = 0;
+        }
+    
+        gameState.edgeStones = (gameState.edgeStones || 0) + totalRefund;
+        
+        showToast(`Potentials reset! Refunded ${totalRefund.toFixed(4)} EdgeStones.`);
+        playSound('ascend', 0.8, 'sawtooth', 800, 100, 0.4);
+    
+        renderPotentialsTree();
+        updateUI();
+        saveGame();
+    }
 
 // =======================================================
 // --- DOJO SYSTEM (FINAL, CORRECTED VERSION) ---
@@ -2157,7 +2461,8 @@ function startDojoSession() {
     dojoState.damageIntervalId = setInterval(() => {
         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
         const baseDamage = getTotalStat('strength') * (Math.random() * 0.4 + 0.8); // 80% to 120% of STR
-        const damage = Math.floor(baseDamage * (isCrit ? 2.5 : 1) * DOJO_DAMAGE_MULTIPLIER); // Crits do 2.5x
+        const critMultiplier = 2.5 + (getPotentialBonus('crit_damage_percent') / 100);
+        const damage = Math.floor(baseDamage * (isCrit ? critMultiplier : 1) * DOJO_DAMAGE_MULTIPLIER); // Crits do 2.5x
         
         dojoState.totalSessionDamage += damage;
         
@@ -2695,10 +3000,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         function handleEnemyAttacks(timestamp) {
             const player = genesisState.player;
-            if (!player || player.isDashing) return; // Enemies can't hit a dashing player
+            if (!player || player.isDashing) return;
         
             genesisState.enemies.forEach(enemy => {
-                // Check if the player is in range AND the enemy's attack is off cooldown
                 if (timestamp - enemy.lastAttackTime > enemy.attackCooldown) {
                     const dx = player.x - enemy.x;
                     const dy = player.y - enemy.y;
@@ -2707,36 +3011,47 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     if (distance <= enemy.attackRange) {
                         enemy.lastAttackTime = timestamp;
                         const damage = Math.max(1, (enemy.isBoss ? 20 : 5) * (gameState.highestBattleLevelCompleted + 1) - getTotalStat('fortitude'));
-                        
                         gameState.resources.hp -= damage;
-                        
-                        // Visual feedback for getting hit
                         player.lastDamagedTime = timestamp;
                         player.element.style.filter = 'brightness(3) drop-shadow(0 0 5px red)';
-                        
                         createImpactEffect(player.x, player.y);
         
-                        // --- NEW: AUTO-POTION LOGIC ---
-                        // Check health AFTER taking damage but BEFORE updating UI
+                        // --- FIX START ---
                         const healthThreshold = gameState.resources.maxHp * 0.3;
-                        if (gameState.resources.hp > 0 && gameState.resources.hp <= healthThreshold) {
+        
+                        // 1. We add a check for our new cooldown flag here.
+                        // The code will only proceed if health is low AND the potion system is not on cooldown.
+                        if (gameState.resources.hp > 0 && gameState.resources.hp <= healthThreshold && !genesisState.autoPotionOnCooldown) {
                             if (gameState.healthPotions > 0) {
+                                
+                                // 2. Immediately set the cooldown to TRUE. This is the key to stopping the bug.
+                                // It prevents any other enemy hits in the same frame from triggering this logic again.
+                                genesisState.autoPotionOnCooldown = true;
+        
                                 gameState.healthPotions--;
-                                const healAmount = Math.floor(gameState.resources.maxHp * 0.7);
+                                // Note: Keeping the healing amount at 50% to match your provided code.
+                                const healAmount = Math.floor(gameState.resources.maxHp * 0.5); 
                                 gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + healAmount);
                                 
                                 showToast("Used a Health Potion!");
                                 playSound('feed', 1, 'sine', 200, 600, 0.2);
         
-                                // Create a floating heal text
                                 const arenaRect = genesisArena.getBoundingClientRect();
                                 const screenX = arenaRect.left + player.x;
                                 const screenY = arenaRect.top + player.y;
                                 createFloatingText(`+${healAmount} HP`, screenX, screenY, { color: 'var(--accent-color)' });
+        
+                                // 3. After 1 second, set the cooldown back to FALSE.
+                                // This allows another potion to be used later if your health drops again.
+                                setTimeout(() => {
+                                    if (genesisState) { // Safety check in case the game state changes
+                                        genesisState.autoPotionOnCooldown = false;
+                                    }
+                                }, 1000); // 1-second cooldown
                             }
                         }
-                        // --- END OF AUTO-POTION LOGIC ---
-        
+                        // --- FIX END ---
+                        
                         updateUI();
                     }
                 }
@@ -2946,7 +3261,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     const dy = explosionY - enemy.y;
                     if (Math.sqrt(dx * dx + dy * dy) <= explosionRadius) {
                         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-                        const finalDamage = dashDamage * (isCrit ? 2.5 : 1);
+                        const critMultiplier = 2.5 + (getPotentialBonus('crit_damage_percent') / 100);
+                        const finalDamage = dashDamage * (isCrit ? critMultiplier : 1);
                         applyDamageToEnemy(enemy, finalDamage, isCrit);
                     }
                 });
@@ -3123,7 +3439,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 for (let i = 1; i < chainTargets.length; i++) {
                     const enemy = chainTargets[i];
                     const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-                    const finalDamage = thunderDamage * (isCrit ? 2.5 : 1);
+                    const critMultiplier = 2.5 + (getPotentialBonus('crit_damage_percent') / 100);
+                    const finalDamage = thunderDamage * (isCrit ? critMultiplier : 1);
                     applyDamageToEnemy(enemy, finalDamage, isCrit);
                 }
                 
@@ -3231,7 +3548,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         
                 if (distance_to_enemy <= player.attackRange) {
                     const isCrit = Math.random() < (getTotalStat('critChance') / 100);
-                    const damage = getTotalStat('strength') * (isCrit ? 2.5 : 1);
+                    const critMultiplier = 2.5 + (getPotentialBonus('crit_damage_percent') / 100);
+                    const damage = getTotalStat('strength') * (isCrit ? critMultiplier : 1);
                     applyDamageToEnemy(enemy, damage, isCrit);
                 }
             });
@@ -4006,7 +4324,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
            if (playerWon) {
                playSound('victory', 1, 'triangle', 523, 1046, 0.4);
                const pvpGoldReward = 55000 * gameState.level * gameState.ascension.tier;
-               const pvpXpReward = 500000 * gameState.level * gameState.ascension.tier;
+               const pvpXpReward = 50000 * gameState.level * gameState.ascension.tier;
                
                gameState.gold += pvpGoldReward;
                addXP(gameState, pvpXpReward);
@@ -4031,7 +4349,30 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
            saveGame();
            showScreen('game-screen');
        }
-       // --- EVENT LISTENERS (Corrected) ---
+       // --- EVENT LISTENERS ---
+       immortalGrowthBtn.addEventListener('click', () => {
+           renderPotentialsTree();
+           immortalGrowthModal.classList.add('visible');
+           // Track this view in Google Analytics, just like your other modals
+           gtag('config', 'G-4686TXHCHN', { 'page_path': '/immortal-growth' });
+        });
+        
+        immortalGrowthCloseFooterBtn.addEventListener('click', () => {
+            immortalGrowthModal.classList.remove('visible');
+        });
+        
+        resetPotentialsBtn.addEventListener('click', resetPotentials);
+        
+        // Use event delegation for all upgrade buttons inside the tree
+        potentialsTreeContainer.addEventListener('click', (event) => {
+            const button = event.target.closest('.immortal-upgrade-btn');
+            if (button) {
+                const statId = button.getAttribute('data-stat-id');
+                if (statId) {
+                    upgradePotentialStat(statId);
+                }
+            }
+        });
        startGameBtn.addEventListener('click', startGame);
        loadGameBtn.addEventListener('click', loadGame);
        characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
@@ -4067,6 +4408,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       // ^^^ END OF NEW LISTENER ^^^
         
       closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
+      closeOfflineRewardsBtn.addEventListener('click', () => offlineRewardsModal.classList.remove('visible'));
       battleBtn.addEventListener('click', startBattle);
       attackBtn.addEventListener('click', handlePlayerAttack);
       feedBattleBtn.addEventListener('click', feedInBattle); 
