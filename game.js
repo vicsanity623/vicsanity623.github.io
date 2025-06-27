@@ -1010,33 +1010,36 @@ function returnEffectToPool(type, element) {
         const createStatRow = (label, value, statKey) => {
             const color = statColors[statKey] || defaultStatColor;
             const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
-            return `<div class="stat-item"><span class="stat-label">${label}</span><span class="stat-value" style="color: ${color};">${value} ${starIcon}</span></div>`;
+            // We no longer need the ".stat-item" div wrapper
+            return `<span class="stat-label">${label}</span><span class="stat-value" style="color: ${color};">${value} ${starIcon}</span>`;
         };
-    
-        let coreStatsHtml = `
-            ${createStatRow('STR', getTotalStat('strength'), 'strength')}
-            ${createStatRow('FOR', getTotalStat('fortitude'), 'fortitude')}
-            ${createStatRow('AGI', getTotalStat('agility'), 'agility')}
-            ${createStatRow('STA', getTotalStat('stamina'), 'stamina')}
-            <hr class="stat-divider">
-            ${createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance')}
-            ${createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind')}
-            <hr class="stat-divider">
-            <div class="stat-item">
-                <span class="stat-label">Gold</span>
-                <div class="gold-rewards-row">
-                    <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
-                    <span class="edgestone-display"><span>♦️</span><span>${(gameState.edgeStones || 0).toFixed(4)}</span></span>
-                    <span class="orb-display"><span>🔮</span><span>${(gameState.orbs || 0).toFixed(1)}</span></span>
-                    <span class="potion-display"><span>🧪</span><span>${gameState.healthPotions || 0}</span></span>
-                    <button id="rewards-btn" title="View Daily & Weekly Rewards">📅</button>
+        
+        // We will build the panel's content using a CSS Grid for stability.
+        playerStatPanel.innerHTML = `
+            <div class="stats-grid">
+                ${createStatRow('STR', getTotalStat('strength'), 'strength')}
+                ${createStatRow('FOR', getTotalStat('fortitude'), 'fortitude')}
+                ${createStatRow('AGI', getTotalStat('agility'), 'agility')}
+                ${createStatRow('STA', getTotalStat('stamina'), 'stamina')}
+                
+                <hr class="stat-divider">
+                
+                ${createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance')}
+                ${createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind')}
+        
+                <hr class="stat-divider">
+                
+                <div class="gold-rewards-container">
+                    <span class="stat-label">Gold</span>
+                    <div class="gold-rewards-row">
+                        <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
+                        <span class="edgestone-display"><span>♦️</span><span>${(gameState.edgeStones || 0).toFixed(4)}</span></span>
+                        <span class="orb-display"><span>🔮</span><span>${(gameState.orbs || 0).toFixed(1)}</span></span>
+                        <span class="potion-display"><span>🧪</span><span>${gameState.healthPotions || 0}</span></span>
+                        <button id="rewards-btn" title="View Daily & Weekly Rewards">📅</button>
+                    </div>
                 </div>
             </div>
-        `;
-    
-        // The panel now only contains the core stats and the button
-        playerStatPanel.innerHTML = `
-            ${coreStatsHtml}
             <button id="toggle-modifiers-btn">Show Details</button>
         `;
     
