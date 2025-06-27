@@ -3238,7 +3238,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             } else {
                 if (genesisState.enemies.length >= MAX_ENEMIES) return;
 
-                const baseSpawnInterval = 700;
+                const baseSpawnInterval = 300;
                 const minSpawnInterval = 200;
                 const dynamicSpawnInterval = Math.max(minSpawnInterval, baseSpawnInterval / genesisState.difficultyLevel);
                 const arenaRect = genesisArena.getBoundingClientRect();
