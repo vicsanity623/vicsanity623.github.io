@@ -1318,7 +1318,6 @@ const firebaseConfig = {
               playSound('ascend', 1, 'sawtooth', 100, 1000, 1);
               gameState.level = 1; gameState.xp = 0; gameState.gold = 0;
               gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
-              gameState.equipment = JSON.parse(JSON.stringify(defaultState.equipment));
               gameState.inventory = [];
               const oldHp = gameState.resources.hp; const oldEnergy = gameState.resources.energy;
               gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
