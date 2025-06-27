@@ -286,7 +286,7 @@ const firebaseConfig = {
             // Passive drain over time
             updatePassiveDrain() {
                 if (gameState.satiation > 0) {
-                    gameState.satiation = Math.max(0, gameState.satiation - 0.09); // Very slow drain
+                    gameState.satiation = Math.max(0, gameState.satiation - 0.1); // Very slow drain
                     this.updateBar();
                     if (gameState.satiation === 0) {
                         this.handleConsequences();
@@ -298,7 +298,7 @@ const firebaseConfig = {
             drainOnAction(actionType) {
                 if (gameState.satiation <= 0) return;
                 // Different actions can have different costs
-                const cost = actionType === 'tap' ? 0.005 : 0.003; 
+                const cost = actionType === 'tap' ? 0.009 : 0.01; 
                 gameState.satiation = Math.max(0, gameState.satiation - cost);
                 this.updateBar();
                 if (gameState.satiation === 0) {
