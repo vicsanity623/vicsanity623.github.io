@@ -391,7 +391,7 @@ function returnEffectToPool(type, element) {
             
             // MODIFICATION: Cost now scales with player level and tier, making it feel consistent.
             // It's much larger than the passive drain, which makes sense.
-            const baseCost = actionType === 'tap' ? 0.05 : 0.1;
+            const baseCost = actionType === 'tap' ? 0.05 : 0.003;
             const cost = baseCost * (1 + (gameState.level / 100)) * gameState.ascension.tier;
     
             gameState.satiation = Math.max(0, gameState.satiation - cost);
