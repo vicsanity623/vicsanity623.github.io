@@ -237,8 +237,8 @@ const firebaseConfig = {
           edgeStones: 0,
           highestBattleLevelCompleted: 0,
           stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
-          satiation: 1000, 
-          maxSatiation: 1000,
+          satiation: 500, 
+          maxSatiation: 500,
           resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
           equipment: { weapon: null, armor: null }, 
           inventory: [], hasEgg: false, partner: null,
@@ -286,7 +286,7 @@ const firebaseConfig = {
             // Passive drain over time
             updatePassiveDrain() {
                 if (gameState.satiation > 0) {
-                    gameState.satiation = Math.max(0, gameState.satiation - 0.05); // Very slow drain
+                    gameState.satiation = Math.max(0, gameState.satiation - 0.09); // Very slow drain
                     this.updateBar();
                     if (gameState.satiation === 0) {
                         this.handleConsequences();
@@ -4460,133 +4460,266 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
     }
 
-       // --- Function to start the 15-second battle ---
-       function startPvpBattle(opponentData) {
-           pvpState = {
-               isActive: true,
-               timerId: null,
-               timeLeft: 15.0,
-               playerDamage: 0,
-               opponentDamage: 0,
-               opponentData: opponentData,
-               playerCooldowns: { lastDashTime: 0, lastThunderStrikeTime: 0, lastHavocRageTime: 0, lastAttackTime: 0 },
-               opponentCooldowns: { lastDashTime: 0, lastThunderStrikeTime: 0, lastHavocRageTime: 0, lastAttackTime: 0 }
-           };
-
-           showScreen('pvp-battle-screen');
-           pvpArena.innerHTML = ''; // Clear previous battle
-
-           // Create player and opponent visuals
-           const playerSprite = document.createElement('img');
-           playerSprite.src = 'player.PNG';
-           playerSprite.className = 'genesis-player';
-           playerSprite.style.left = '25%';
-           playerSprite.style.top = '50%';
-
-           const opponentSprite = document.createElement('img');
-           opponentSprite.src = 'player.PNG';
-           opponentSprite.className = 'genesis-player'; // Use same class for style
-           opponentSprite.style.filter = 'hue-rotate(180deg)';
-           opponentSprite.style.left = '75%';
-           opponentSprite.style.top = '50%';
-           
-           pvpArena.appendChild(playerSprite);
-           pvpArena.appendChild(opponentSprite);
-
-           // Set names on the tug-of-war bar
-           pvpPlayerName.textContent = gameState.playerName;
-           pvpOpponentName.textContent = opponentData.playerName;
-
-           // Start the battle timer
-           pvpState.timerId = setInterval(pvpTick, 100);
-       }
-       function executePvpTurn(isPlayer, timestamp) {
-        const combatant = isPlayer ? gameState : pvpState.opponentData;
-        const combatantSprite = pvpArena.querySelectorAll('.genesis-player')[isPlayer ? 0 : 1];
-        const targetSprite = pvpArena.querySelectorAll('.genesis-player')[isPlayer ? 1 : 0];
-        const cooldowns = isPlayer ? pvpState.playerCooldowns : pvpState.opponentCooldowns;
-
-        // --- Re-usable function to get total stats for player OR opponent ---
-        const getCombatantStat = (stat) => {
-            if (isPlayer) return getTotalStat(stat);
-            
+        function triggerAttackAnimation(attackerSprite) {
+            if (!attackerSprite) return;
+            attackerSprite.classList.add('attacking');
+            setTimeout(() => {
+                if (attackerSprite) attackerSprite.classList.remove('attacking');
+            }, 200);
+        }
+        
+        function triggerEvadeAnimation(evaderSprite) {
+            if (!evaderSprite) return;
+            evaderSprite.classList.add('evading');
+            playSound('hit', 1, 'sawtooth', 800, 200, 0.2); // Re-use a "whoosh" sound
+            createFloatingText("Evade!", evaderSprite.offsetLeft + 20, evaderSprite.offsetTop - 30, { color: 'cyan', fontSize: '1.5em' });
+            setTimeout(() => {
+                if (evaderSprite) evaderSprite.classList.remove('evading');
+            }, 400);
+        }
+        function getPvpCombatantStat(combatant, stat) {
+            // Start with base stat
             let total = combatant.stats[stat] || 0;
-            for (const slot in combatant.equipment) {
-                if (combatant.equipment[slot] && combatant.equipment[slot].stats) {
-                    total += combatant.equipment[slot].stats[stat] || 0;
+        
+            // Apply Permanent Shop Upgrades
+            if (combatant.permanentUpgrades) {
+                for (const upgradeId in combatant.permanentUpgrades) {
+                    const upgradeData = permanentShopUpgrades[upgradeId];
+                    if (upgradeData && upgradeData.stat === stat) {
+                        total += (combatant.permanentUpgrades[upgradeId] || 0) * upgradeData.bonus;
+                    }
                 }
             }
-            return total;
-        };
-
-        // Ability Priority Check (identical logic to the main game)
         
-        // 1. Thunder Strike
-        if (timestamp - cooldowns.lastThunderStrikeTime > 4000) {
-            cooldowns.lastThunderStrikeTime = timestamp;
-            const damage = getCombatantStat('strength') * 4.5;
-            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
-            const finalDamage = damage * (isCrit ? 2.5 : 1);
+            // Apply Equipment Stats
+            for (const slot in combatant.equipment) {
+                const item = combatant.equipment[slot];
+                if (item && item.stats && item.stats[stat]) {
+                    total += item.stats[stat];
+                }
+            }
+        
+            // Apply Ascension Perks
+            if (stat === 'goldFind' && combatant.ascension && combatant.ascension.perks) {
+                total += (combatant.ascension.perks.goldBoost || 0) * 5;
+            }
+        
+            // --- APPLY IMMORTAL GROWTH BONUSES (THE MISSING PIECE) ---
+            const immortal = combatant.immortalGrowth || defaultState.immortalGrowth; // Safety check
+        
+            if (stat === 'strength') {
+                const awakeningBonus = (immortal.awakening.weaponMastery || 0) * 10;
+                total += awakeningBonus;
+                const potentialBonus = (immortal.potentials.attack_power_percent || 0) * potentialsData.attack_power_percent.bonusPerLevel;
+                total *= (1 + potentialBonus / 100);
+                return Math.round(total);
+            }
+        
+            if (stat === 'fortitude') {
+                const awakeningBonus = (immortal.awakening.armorMastery || 0) * 10;
+                total += awakeningBonus;
+            }
             
-            createPvpChainLightningEffect(combatantSprite, targetSprite);
-            createFloatingText("Thunder Strike!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#00ffff', fontSize: '1.5em' });
-            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
-            createPvpDamageNumber(finalDamage, isPlayer);
-            return;
+            if (stat === 'goldFind') {
+                const potentialBonus = (immortal.potentials.gold_find_percent || 0) * potentialsData.gold_find_percent.bonusPerLevel;
+                total += potentialBonus;
+            }
+        
+            return total;
         }
-
-        // 2. Havoc Rage
-        if (timestamp - cooldowns.lastHavocRageTime > 12000) {
-            cooldowns.lastHavocRageTime = timestamp;
-            createHavocShockwaveEffect(combatantSprite.offsetLeft, combatantSprite.offsetTop, 100);
-            createFloatingText("Havoc Rage!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#dc143c', fontSize: '1.5em' });
-            // For simplicity in PvP, Havoc Rage does instant damage instead of a DoT
-            const damage = getCombatantStat('strength') * 3;
-            if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
-            createPvpDamageNumber(damage, isPlayer);
-            return;
+        function createCollisionExplosion(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'pvp-collision-explosion';
+            explosion.style.left = `${x}px`;
+            explosion.style.top = `${y}px`;
+            pvpArena.appendChild(explosion);
+        
+            playSound('crit', 1, 'square', 800, 50, 0.4); // A harsh, loud impact sound
+            triggerScreenShake(400); // A strong screen shake
+        
+            setTimeout(() => explosion.remove(), 400);
         }
         
-        // 3. Dash
-        if (timestamp - cooldowns.lastDashTime > 3200) {
-            cooldowns.lastDashTime = timestamp;
-            const shouldChain = Math.random() < 0.30;
-            createDashExplosionEffect(targetSprite.offsetLeft, targetSprite.offsetTop);
-            createFloatingText(shouldChain ? "Dash Chain!" : "Dash!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#ff8c00', fontSize: '1.5em' });
-
-            const damage = getCombatantStat('strength') * 5 * (shouldChain ? 2 : 1); // Chain dash does double damage
-            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
-            const finalDamage = damage * (isCrit ? 2.5 : 1);
-            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
-            createPvpDamageNumber(finalDamage, isPlayer);
-            return;
+        function handlePvpCollision() {
+            if (!pvpState.isActive) return;
+        
+            const playerSprite = document.getElementById('pvp-player-sprite');
+            const opponentSprite = document.getElementById('pvp-opponent-sprite');
+        
+            if (!playerSprite || !opponentSprite) return;
+        
+            const pRect = playerSprite.getBoundingClientRect();
+            const oRect = opponentSprite.getBoundingClientRect();
+        
+            // AABB Collision Check
+            const isColliding = pRect.left < oRect.right && pRect.right > oRect.left &&
+                                pRect.top < oRect.bottom && pRect.bottom > oRect.top;
+        
+            // Only trigger if they are colliding AND at least one is in an attack animation
+            if (isColliding && (playerSprite.classList.contains('is-attacking') || opponentSprite.classList.contains('is-attacking'))) {
+        
+                // Stop their current movements
+                playerSprite.classList.remove('is-attacking');
+                opponentSprite.classList.remove('is-attacking');
+                clearTimeout(pvpState.playerActionTimeout);
+                clearTimeout(pvpState.opponentActionTimeout);
+        
+                // Find midpoint for the explosion
+                const midX = (playerSprite.offsetLeft + opponentSprite.offsetLeft) / 2;
+                const midY = (playerSprite.offsetTop + opponentSprite.offsetTop) / 2;
+                createCollisionExplosion(midX, midY);
+        
+                // Both players take heavy damage
+                const collisionDamage = 10000; // A fixed, high damage number for impact
+                pvpState.playerDamage += collisionDamage;
+                pvpState.opponentDamage += collisionDamage;
+                createPvpDamageNumber(collisionDamage, true);
+                createPvpDamageNumber(collisionDamage, false);
+        
+                // Knockback: Force them back to their start positions
+                playerSprite.style.left = pvpState.playerStartPos;
+                opponentSprite.style.left = pvpState.opponentStartPos;
+        
+                // Restart their AI loops after a brief stun
+                pvpState.playerTimeoutId = setTimeout(() => executePvpAction(true), 1000);
+                pvpState.opponentTimeoutId = setTimeout(() => executePvpAction(false), 1000);
+            }
         }
-
-        // 4. Basic Attack
-        const agility = getCombatantStat('agility');
-        const dynamicAttackCooldown = Math.max(95, 300 - (agility * 1));
-        if (timestamp - cooldowns.lastAttackTime > dynamicAttackCooldown) {
-            cooldowns.lastAttackTime = timestamp;
-            const damage = getCombatantStat('strength');
-            const isCrit = Math.random() < (getCombatantStat('critChance') / 100);
-            const finalDamage = damage * (isCrit ? 2.5 : 1);
-
-            createAoeSlashEffect(targetSprite.offsetLeft, targetSprite.offsetTop, 50);
-            if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
-            createPvpDamageNumber(finalDamage, isPlayer);
+        // --- Function to start the 15-second battle ---
+        function startPvpBattle(opponentData) {
+            pvpState = {
+                isActive: true,
+                mainTimerId: null, // Renamed from timerId
+                playerActionTimeout: null, // For the player's AI
+                opponentActionTimeout: null, // For the opponent's AI
+                timeLeft: 15.0,
+                playerDamage: 0,
+                opponentDamage: 0,
+                opponentData: opponentData,
+                playerStartPos: '20%',
+                opponentStartPos: '80%',
+            };
+        
+            showScreen('pvp-battle-screen');
+            pvpArena.innerHTML = '';
+        
+            const playerSprite = document.createElement('img');
+            playerSprite.src = 'player.PNG';
+            playerSprite.className = 'genesis-player';
+            playerSprite.id = 'pvp-player-sprite';
+            playerSprite.style.left = pvpState.playerStartPos;
+            playerSprite.style.top = '50%';
+            playerSprite.style.transform = 'translate(-50%, -50%)';
+        
+            const opponentSprite = document.createElement('img');
+            opponentSprite.src = 'player.PNG';
+            opponentSprite.className = 'genesis-player';
+            opponentSprite.id = 'pvp-opponent-sprite';
+            opponentSprite.style.filter = 'hue-rotate(180deg) scaleX(-1)';
+            opponentSprite.style.left = pvpState.opponentStartPos;
+            opponentSprite.style.top = '50%';
+            opponentSprite.style.transform = 'translate(-50%, -50%)';
+            
+            pvpArena.appendChild(playerSprite);
+            pvpArena.appendChild(opponentSprite);
+        
+            pvpPlayerName.textContent = gameState.playerName;
+            pvpOpponentName.textContent = opponentData.playerName;
+        
+            // Start the main loop for the timer, damage bar, and collision checks
+            pvpState.mainTimerId = setInterval(pvpTick, 100);
+        
+            // --- START THE INDEPENDENT AI BRAINS ---
+            executePvpAction(true);  // Start player's AI
+            executePvpAction(false); // Start opponent's AI
         }
-       }
+        function executePvpAction(isPlayer) {
+            if (!pvpState.isActive) return;
+        
+            const combatantSprite = pvpArena.querySelector(isPlayer ? '#pvp-player-sprite' : '#pvp-opponent-sprite');
+            const targetSprite = pvpArena.querySelector(isPlayer ? '#pvp-opponent-sprite' : '#pvp-player-sprite');
+            
+            if (!combatantSprite || !targetSprite || combatantSprite.classList.contains('is-attacking')) return;
+        
+            const combatant = isPlayer ? gameState : pvpState.opponentData;
+            const opponent = isPlayer ? pvpState.opponentData : gameState;
+            const startPos = isPlayer ? pvpState.playerStartPos : pvpState.opponentStartPos;
+            const targetPos = isPlayer ? pvpState.opponentStartPos : pvpState.playerStartPos;
+            
+            // --- Smarter, Stat-Based Evasion ---
+            const attackerAgi = getPvpCombatantStat(combatant, 'agility');
+            const defenderAgi = getPvpCombatantStat(opponent, 'agility');
+            const evadeChance = Math.min(0.4, (defenderAgi / (attackerAgi + defenderAgi + 1)) * 0.5); // Capped at 40%
+        
+            const performAttack = (attackLogic) => {
+                combatantSprite.classList.add('is-attacking');
+                combatantSprite.style.left = `calc(${targetPos} ${isPlayer ? '-' : '+'} 60px)`;
+                
+                setTimeout(() => {
+                    if (pvpState.isActive && Math.random() < evadeChance) {
+                        triggerEvadeAnimation(targetSprite);
+                    } else if (pvpState.isActive) {
+                        attackLogic();
+                    }
+                    
+                    setTimeout(() => {
+                        if(combatantSprite) combatantSprite.style.left = startPos;
+                        setTimeout(() => {
+                            if(combatantSprite) combatantSprite.classList.remove('is-attacking');
+                        }, 200);
+                    }, 300);
+                }, 300);
+            };
+        
+            // --- Choose an Action ---
+            const roll = Math.random();
+            if (roll < 0.15) { // 15% chance to use Thunder Strike
+                performAttack(() => {
+                    createPvpChainLightningEffect(combatantSprite, targetSprite);
+                    createFloatingText("Thunder Strike!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#00ffff', fontSize: '1.8em' });
+                    const damage = getPvpCombatantStat(combatant, 'strength') * 4.5;
+                    if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
+                    createPvpDamageNumber(damage, isPlayer);
+                });
+            } else if (roll < 0.35) { // 20% chance to use Dash
+                performAttack(() => {
+                    createDashExplosionEffect(targetSprite.offsetLeft + targetSprite.offsetWidth / 2, targetSprite.offsetTop + targetSprite.offsetHeight / 2);
+                    const damage = getPvpCombatantStat(combatant, 'strength') * 5;
+                    if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
+                    createPvpDamageNumber(damage, isPlayer);
+                });
+            } else { // 65% chance for a basic attack
+                performAttack(() => {
+                    createAoeSlashEffect(targetSprite.offsetLeft + targetSprite.offsetWidth / 2, targetSprite.offsetTop + targetSprite.offsetHeight / 2, 50);
+                    const damage = getPvpCombatantStat(combatant, 'strength');
+                    const isCrit = Math.random() < (getPvpCombatantStat(combatant, 'critChance') / 100);
+                    const finalDamage = damage * (isCrit ? 2.5 : 1);
+                    if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
+                    createPvpDamageNumber(finalDamage, isPlayer);
+                });
+            }
+            
+            // --- SCHEDULE NEXT ACTION ---
+            const baseCooldown = 1500; // Base thinking time
+            const speedBonus = 1 - (attackerAgi / (attackerAgi + 500)); // The faster they are, the lower the cooldown
+            const nextActionDelay = baseCooldown * speedBonus + (Math.random() * 500); // Add randomness
+            
+            if(isPlayer) {
+                pvpState.playerActionTimeout = setTimeout(() => executePvpAction(true), nextActionDelay);
+            } else {
+                pvpState.opponentActionTimeout = setTimeout(() => executePvpAction(false), nextActionDelay);
+            }
+        }
 
        // --- Function that runs every 100ms during the PvP battle ---
        function pvpTick() {
         if (!pvpState.isActive) {
-            clearInterval(pvpState.timerId);
+            clearInterval(pvpState.mainTimerId);
             return;
         }
-
-        // Update timer
+    
         pvpState.timeLeft -= 0.1;
-
+    
         if (pvpState.timeLeft <= 0) {
             pvpTimerDisplay.textContent = "0.0";
             endPvpBattle();
@@ -4594,27 +4727,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         
         pvpTimerDisplay.textContent = pvpState.timeLeft.toFixed(1);
-
-        const timestamp = Date.now();
-        const sprites = pvpArena.querySelectorAll('.genesis-player');
-            if (sprites.length === 2) {
-                const playerSprite = sprites[0];
-                const opponentSprite = sprites[1];
-
-                const meetPointX = pvpArena.offsetWidth / 2;
-                const distance = opponentSprite.offsetLeft - playerSprite.offsetLeft;
-
-                // Move characters towards the center until they are 100px apart
-                if (distance > 70) {
-                    playerSprite.style.left = `${playerSprite.offsetLeft + 2}px`;
-                    opponentSprite.style.left = `${opponentSprite.offsetLeft - 2}px`;
-                }
-            }
-        
-        // --- EXECUTE ATTACK TURNS FOR BOTH SIDES ---
-        executePvpTurn(true, timestamp);  // Player's turn
-        executePvpTurn(false, timestamp); // Opponent's turn
-
+    
+        // Check for collisions every tick
+        handlePvpCollision();
+    
         // Update the tug-of-war bar
         const totalDamage = pvpState.playerDamage + pvpState.opponentDamage;
         if (totalDamage > 0) {
@@ -4626,41 +4742,62 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
        
        // --- Function to end the battle and show results ---
        async function endPvpBattle() {
-           clearInterval(pvpState.timerId);
-           pvpState.isActive = false;
-
-           const playerWon = pvpState.playerDamage > pvpState.opponentDamage;
-           let title = playerWon ? "VICTORY!" : "DEFEAT!";
-           let text = `You dealt ${formatNumber(pvpState.playerDamage)} damage.<br>${pvpState.opponentData.playerName} dealt ${formatNumber(pvpState.opponentDamage)} damage.`;
-
-           if (playerWon) {
-               playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-               const pvpGoldReward = 55000 * gameState.level * gameState.ascension.tier;
-               const pvpXpReward = 50000 * gameState.level * gameState.ascension.tier;
-               
-               gameState.gold += pvpGoldReward;
-               addXP(gameState, pvpXpReward);
-
-               text += `<br><br><b>Victory Bonus:</b><br>+${formatNumber(pvpGoldReward)} Gold<br>+${formatNumber(pvpXpReward)} XP`;
-               const pvpBest = gameState.pvpPersonalBest || 0;
-               if (pvpState.playerDamage > pvpBest) {
-                   gameState.pvpPersonalBest = pvpState.playerDamage;
-                   text += "<br><br><b>New PvP Damage Record!</b> Score submitted to leaderboard.";
-                   try {
-                       await db.collection("pvpLeaderboard").doc(gameState.playerName).set({
-                           name: gameState.playerName,
-                           maxDamage: Math.floor(gameState.pvpPersonalBest)
-                       }, { merge: true });
-                   } catch(e) { console.error("Failed to submit PvP score", e); }
-               }
-           } else {
-               playSound('defeat', 1, 'sine', 440, 110, 0.8);
-           }
-           
-           showNotification(title, text);
-           saveGame();
-           showScreen('game-screen');
-       }
+        // --- Clear all active timers ---
+        clearInterval(pvpState.mainTimerId);
+        clearTimeout(pvpState.playerActionTimeout);
+        clearTimeout(pvpState.opponentActionTimeout);
+        pvpState.isActive = false;
+    
+        const playerWon = pvpState.playerDamage > pvpState.opponentDamage;
+        let title = playerWon ? "VICTORY!" : "DEFEAT!";
+        let text = `You dealt ${formatNumber(pvpState.playerDamage)} damage.<br>${pvpState.opponentData.playerName} dealt ${formatNumber(pvpState.opponentDamage)} damage.`;
+    
+        if (playerWon) {
+            playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+            const pvpGoldReward = 55000 * gameState.level * gameState.ascension.tier;
+            const pvpXpReward = 50000 * gameState.level * gameState.ascension.tier;
+            
+            gameState.gold += pvpGoldReward;
+            addXP(gameState, pvpXpReward);
+    
+            text += `<br><br><b>Victory Bonus:</b><br>+${formatNumber(pvpGoldReward)} Gold<br>+${formatNumber(pvpXpReward)} XP`;
+            const pvpBest = gameState.pvpPersonalBest || 0;
+            if (pvpState.playerDamage > pvpBest) {
+                gameState.pvpPersonalBest = pvpState.playerDamage;
+                text += "<br><br><b>New PvP Damage Record!</b> Score submitted to leaderboard.";
+                try {
+                    await db.collection("pvpLeaderboard").doc(gameState.playerName).set({
+                        name: gameState.playerName,
+                        maxDamage: Math.floor(gameState.pvpPersonalBest)
+                    }, { merge: true });
+                } catch(e) { console.error("Failed to submit PvP score", e); }
+            }
+        } else {
+            playSound('defeat', 1, 'sine', 440, 110, 0.8);
+        }
+        
+        showNotification(title, text);
+        saveGame();
+        showScreen('game-screen'); // Return to the main game container
+    
+        // ==========================================================
+        // --- NEW: LOGIC TO HANDLE WIN/LOSS SCREEN TRANSITION ---
+        // ==========================================================
+        if (playerWon) {
+            // On WIN, return to the ENDLESS screen
+            genesisArena.style.display = 'block';
+            characterArea.style.display = 'none';
+            startGameGenesis();
+            growBtn.textContent = 'Grow'; // Button now lets you go back to Grow mode
+        } else {
+            // On LOSS, return to the GROW (tapping) screen
+            stopGameGenesis(); // Ensure the endless loop is fully stopped
+            genesisArena.style.display = 'none';
+            characterArea.style.display = 'flex';
+            growBtn.textContent = 'Endless'; // Button now lets you start Endless mode
+        }
+        // --- END OF NEW LOGIC ---
+    }
        // --- EVENT LISTENERS ---
        immortalGrowthBtn.addEventListener('click', () => {
            renderPotentialsTree();
