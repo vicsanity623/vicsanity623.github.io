@@ -11,6 +11,46 @@ const firebaseConfig = {
   const db = firebase.firestore();
   const auth = firebase.auth();
   const googleProvider = new firebase.auth.GoogleAuthProvider();
+  const effectPool = {
+    floatingText: [],
+    // We can add pools for other effects like slashes later if needed
+};
+const MAX_POOL_SIZE = 200; // The max number of floating text effects we'll ever need at once.
+
+function initEffectPool() {
+    const container = document.body;
+    for (let i = 0; i < MAX_POOL_SIZE; i++) {
+        const textEl = document.createElement('div');
+        textEl.className = 'floating-text';
+        textEl.style.display = 'none'; // Start hidden
+        container.appendChild(textEl);
+        effectPool.floatingText.push(textEl);
+    }
+    console.log("Effect pool initialized with", effectPool.floatingText.length, "elements.");
+}
+
+function getEffectFromPool(type) {
+    const pool = effectPool[type];
+    if (pool && pool.length > 0) {
+        const el = pool.pop();
+        el.style.display = 'block';
+        return el;
+    }
+    // Fallback in case the pool runs out (shouldn't happen with a large enough pool)
+    return null; 
+}
+
+function returnEffectToPool(type, element) {
+    if (element) {
+        element.style.display = 'none'; // Hide it
+        element.style.animation = 'none'; // Reset animation
+        void element.offsetWidth; // Trigger reflow to apply style changes
+        const pool = effectPool[type];
+        if (pool) {
+            pool.push(element);
+        }
+    }
+}
 
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -273,83 +313,87 @@ const firebaseConfig = {
           } 
       };
       // ----- NEW: HUNGER SYSTEM MODULE -----
-        const HungerSystem = {
-            isExhausted: false, // Flag to prevent spamming "feed me" messages
-
-            // Call this to update the visual bar
-            updateBar() {
-                if (!gameState.satiation) return;
-                const percent = (gameState.satiation / gameState.maxSatiation) * 100;
-                hungerBarFill.style.height = `${percent}%`;
-            },
-
-            // Passive drain over time
-            updatePassiveDrain() {
-                if (gameState.satiation > 0) {
-                    gameState.satiation = Math.max(0, gameState.satiation - 1.5); // Very slow drain
-                    this.updateBar();
-                    if (gameState.satiation === 0) {
-                        this.handleConsequences();
-                    }
-                }
-            },
-
-            // Drain when the player performs an action
-            drainOnAction(actionType) {
-                if (gameState.satiation <= 0) return;
-                // Different actions can have different costs
-                const cost = actionType === 'tap' ? 0.009 : 0.01; 
-                gameState.satiation = Math.max(0, gameState.satiation - cost);
+      const HungerSystem = {
+        isExhausted: false, // Flag to prevent spamming "feed me" messages
+    
+        // Call this to update the visual bar
+        updateBar() {
+            if (!gameState.satiation) return;
+            const percent = (gameState.satiation / gameState.maxSatiation) * 100;
+            hungerBarFill.style.height = `${percent}%`;
+        },
+    
+        // Passive drain over time
+        updatePassiveDrain() {
+            if (gameState.satiation > 0) {
+                // MODIFICATION: Drain is now a tiny base amount that scales with World Tier.
+                const passiveCost = 0.02 * gameState.ascension.tier; 
+                gameState.satiation = Math.max(0, gameState.satiation - passiveCost);
                 this.updateBar();
                 if (gameState.satiation === 0) {
                     this.handleConsequences();
                 }
-            },
-
-            // Refill the meter when feeding
-            replenish() {
-                gameState.satiation = Math.min(gameState.maxSatiation, gameState.satiation + 60); 
-                this.isExhausted = false; // Player is no longer exhausted
-                this.updateBar();
-            },
-
-            // A clean way to check if the player can act
-            canPerformAction() {
-                return gameState.satiation > 0;
-            },
-
-            // Handle all the negative effects when hunger hits zero
-            handleConsequences() {
-                if (this.isExhausted) return; // Don't run this logic again if already handled
-
-                this.isExhausted = true;
-                showToast("Your Guardian is exhausted and hungry!");
-                playSound('defeat', 0.8, 'sine', 300, 100, 0.5);
-
-                // Battle Mode Consequence
-                if (battleState.isActive) {
-                    addBattleLog("You're too hungry to fight!", "log-enemy");
-                    setTimeout(() => endBattle(false), 1500); // Lose the battle
-                    return;
-                }
-
-                // Genesis Arena (Endless) Consequence
-                if (genesisState.isActive) {
-                    genesisState.enemies.forEach(enemy => {
-                        if (enemy.element) enemy.element.remove();
-                        if (enemy.healthBarContainer) enemy.healthBarContainer.remove();
-                    });
-                    genesisState.enemies = []; // Clear all enemies
-                }
-
-                // Grow Mode (Tapping) Consequence
-                const feedBtnRect = feedBtn.getBoundingClientRect();
-                createFloatingText("Feed me!", feedBtnRect.left, feedBtnRect.top - 20, {
-                    color: 'var(--xp-color)',
-                    fontSize: '1.5em'
-                });
             }
-        };
+        },
+    
+        // Drain when the player performs an action
+        drainOnAction(actionType) {
+            if (gameState.satiation <= 0) return;
+            
+            // MODIFICATION: Cost now scales with player level and tier, making it feel consistent.
+            // It's much larger than the passive drain, which makes sense.
+            const baseCost = actionType === 'tap' ? 0.05 : 0.1;
+            const cost = baseCost * (1 + (gameState.level / 100)) * gameState.ascension.tier;
+    
+            gameState.satiation = Math.max(0, gameState.satiation - cost);
+            this.updateBar();
+            if (gameState.satiation === 0) {
+                this.handleConsequences();
+            }
+        },
+    
+        // Refill the meter when feeding
+        replenish() {
+            // We can also make the replenish amount more significant
+            gameState.satiation = Math.min(gameState.maxSatiation, gameState.satiation + 500); 
+            this.isExhausted = false; // Player is no longer exhausted
+            this.updateBar();
+        },
+    
+        // (The rest of the functions below are unchanged and correct)
+        
+        canPerformAction() {
+            return gameState.satiation > 0;
+        },
+    
+        handleConsequences() {
+            if (this.isExhausted) return;
+    
+            this.isExhausted = true;
+            showToast("Your Guardian is exhausted and hungry!");
+            playSound('defeat', 0.8, 'sine', 300, 100, 0.5);
+    
+            if (battleState.isActive) {
+                addBattleLog("You're too hungry to fight!", "log-enemy");
+                setTimeout(() => endBattle(false), 1500);
+                return;
+            }
+    
+            if (genesisState.isActive) {
+                genesisState.enemies.forEach(enemy => {
+                    if (enemy.element) enemy.element.remove();
+                    if (enemy.healthBarContainer) enemy.healthBarContainer.remove();
+                });
+                genesisState.enemies = [];
+            }
+    
+            const feedBtnRect = feedBtn.getBoundingClientRect();
+            createFloatingText("Feed me!", feedBtnRect.left, feedBtnRect.top - 20, {
+                color: 'var(--xp-color)',
+                fontSize: '1.5em'
+            });
+        }
+      };
         // ----- END OF HUNGER SYSTEM MODULE -----
   
       const ASCENSION_LEVEL = 50;
@@ -1718,25 +1762,22 @@ const firebaseConfig = {
         }, parseFloat(bubbleEl.style.animationDuration) * 1000);
       }
       function createFloatingText(text, x, y, options = {}) {
-        // Set default values for options if they aren't provided
+        const textEl = getEffectFromPool('floatingText');
+        if (!textEl) return; // Do nothing if the pool is empty
+    
         const { color = 'white', fontSize = '1.2em', duration = 1500 } = options;
     
-        const textEl = document.createElement('div');
-        textEl.className = 'floating-text';
         textEl.textContent = text;
-        
-        // Apply styles
         textEl.style.left = `${x}px`;
         textEl.style.top = `${y}px`;
         textEl.style.color = color;
         textEl.style.fontSize = fontSize;
-        
-        // Add the element to the page
-        document.body.appendChild(textEl);
+        // We re-apply the animation name to make it run again
+        textEl.style.animation = `float-up-fade-out ${duration / 1000}s ease-out forwards`;
     
-        // Automatically remove the element after its animation is done
+        // Return the element to the pool after the animation is done
         setTimeout(() => {
-            textEl.remove();
+            returnEffectToPool('floatingText', textEl);
         }, duration);
     }
       function showToast(message) { const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; toastContainer.appendChild(toast); setTimeout(() => { toast.remove(); }, 4000); }
@@ -2813,6 +2854,31 @@ function applyDamageToEnemy(enemy, damageAmount, isCrit = false) {
     const finalDamage = Math.floor(damageAmount);
     enemy.hp -= finalDamage;
     genesisState.totalDamageDealtThisBattle += finalDamage;
+    const now = Date.now();
+    // Initialize the timestamp if it doesn't exist
+    if (enemy.lastDamageNumberTime === undefined) {
+        enemy.lastDamageNumberTime = 0;
+    }
+
+    // Only show a damage number if it's a crit OR 150ms have passed
+    if (isCrit || now - enemy.lastDamageNumberTime > 150) {
+        enemy.lastDamageNumberTime = now; // Update the time
+
+        const textEl = document.createElement('div'); // Note: For simplicity, we are not pooling these specific numbers yet. Pooling floatingText is the biggest win.
+        textEl.className = 'enemy-damage-text';
+        textEl.textContent = formatNumber(finalDamage);
+        textEl.style.left = `${enemy.x}px`;
+        textEl.style.top = `${enemy.y - 20}px`;
+        textEl.style.color = isCrit ? 'var(--xp-color)' : '#ff4136';
+        if (isCrit) {
+            textEl.style.fontSize = '1.8em';
+            textEl.style.fontWeight = '900';
+        } else {
+            textEl.style.fontSize = '1.2em';
+        }
+        genesisArena.appendChild(textEl);
+        setTimeout(() => textEl.remove(), 1200);
+    }
 
     const hpPercent = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
     if (enemy.healthBarFill) enemy.healthBarFill.style.width = `${hpPercent}%`;
@@ -3239,9 +3305,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             } else {
                 if (genesisState.enemies.length >= MAX_ENEMIES) return;
 
-                const baseSpawnInterval = 300;
-                const minSpawnInterval = 200;
-                const dynamicSpawnInterval = Math.max(minSpawnInterval, baseSpawnInterval / genesisState.difficultyLevel);
+                const baseSpawnInterval = 380;
+                const minSpawnInterval = 50;
+                const enemyCountRatio = genesisState.enemies.length / MAX_ENEMIES;
+                const spawnRateModifier = 1 / (1 - enemyCountRatio * 0.95); // This value grows exponentially as we near the cap
+
+                let dynamicSpawnInterval = Math.max(minSpawnInterval, (baseSpawnInterval / genesisState.difficultyLevel) * spawnRateModifier);
                 const arenaRect = genesisArena.getBoundingClientRect();
 
                 if (timestamp - genesisState.lastEnemySpawn > dynamicSpawnInterval && arenaRect.width > 0) {
