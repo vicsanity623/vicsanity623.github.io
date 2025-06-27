@@ -354,7 +354,7 @@ const firebaseConfig = {
   
       const ASCENSION_LEVEL = 50;
       const BATTLE_UNLOCK_LEVEL = 20;
-      const MAX_ENEMIES = 75;
+      const MAX_ENEMIES = 120;
       const FORGE_UNLOCK_LEVEL = 10;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
       
