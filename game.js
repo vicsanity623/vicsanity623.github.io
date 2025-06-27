@@ -1740,7 +1740,7 @@ function returnEffectToPool(type, element) {
             if (bubbleEl.classList.contains('popped')) return;
 
             // Grant a large, random amount of XP
-            const reward = Math.floor(getXpForNextLevel(gameState.level) * (Math.random() * 0.15 + 0.05)); // 5% to 20% of next level's XP
+            const reward = Math.floor(getXpForNextLevel(gameState.level) * (Math.random() * 0.03 + 0.01)); // 5% to 20% of next level's XP
             addXP(gameState, reward);
             showToast(`+${reward} XP!`);
             playSound('feed', 1, 'sine', 400, 800, 0.2); // A nice "collect" sound
@@ -2294,12 +2294,12 @@ function returnEffectToPool(type, element) {
         // --- Reward Calculations ---
         const playerPower = gameState.level + (gameState.ascension.tier * 10);
         const minutesOffline = effectiveOfflineTime / 60;
-        const goldPerSecond = 0.6 * playerPower * (1 + getTotalStat('goldFind') / 100);
+        const goldPerSecond = 10.6 * playerPower * (1 + getTotalStat('goldFind') / 100);
         const totalGold = Math.floor(goldPerSecond * effectiveOfflineTime);
-        const xpPerSecond = 3.2 * playerPower;
+        const xpPerSecond = 150.2 * playerPower;
         const totalXp = Math.floor(xpPerSecond * effectiveOfflineTime);
         const enemiesDefeated = Math.max(1, Math.floor(effectiveOfflineTime / 30));
-        const edgeStonesPerMinute = 0.001;
+        const edgeStonesPerMinute = 0.008;
         let totalEdgeStones = (edgeStonesPerMinute * minutesOffline);
         if (gameState.ascension.tier > 1) {
             totalEdgeStones *= gameState.ascension.tier;
@@ -2308,7 +2308,7 @@ function returnEffectToPool(type, element) {
         const weaponsFoundList = [];
         const armorsFoundList = [];
         for (let i = 0; i < minutesOffline / 10; i++) {
-            if (Math.random() < 0.75) {
+            if (Math.random() < 0.95) {
                 const item = generateItem();
                 if (item.type === 'weapon') weaponsFoundList.push(item);
                 else armorsFoundList.push(item);
@@ -3585,7 +3585,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
                 const chainChance = 0.30;
                 const shouldChain = Math.random() < chainChance;
-                const maxChains = shouldChain ? 4 : 1;
+                const maxChains = shouldChain ? 6 : 1;
                 
                 const arenaRect = genesisArena.getBoundingClientRect();
                 const screenX = arenaRect.left + player.x;
@@ -3767,7 +3767,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             // --- THIS IS THE FIX: MOVE THIS BLOCK UP ---
             let potentialTargets = [...genesisState.enemies];
             let chainTargets = [player];
-            const maxChain = 17; 
+            const maxChain = 28; 
 
             for (let i = 0; i < maxChain && potentialTargets.length > 0; i++) {
                 const lastTarget = chainTargets[chainTargets.length - 1];
