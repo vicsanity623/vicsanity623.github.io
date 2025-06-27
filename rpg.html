@@ -87,15 +87,18 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     align-items: center;
 }
 #player-stat-panel {
+    /* Layout Properties */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    position: relative; /* This is essential for the dropdown to work */
+    
+    /* Styling Properties */
     background-color: rgba(0, 0, 0, 0.4);
     border: 2px solid var(--accent-color);
     border-radius: 8px;
     padding: 3px 15px;
     margin-top: 10px;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 1px 15px;
-    align-items: center;
 }
 #top-hud-container {
     display: flex;
@@ -104,10 +107,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     width: 100%;
 }
 
-/* Make the existing stat panel fill the available space */
-#player-stat-panel {
-    flex-grow: 1;
-}
 
 /* --- NEW: Hunger Meter Styling --- */
 #hunger-bar-container {
@@ -1655,6 +1654,69 @@ input[type="range"] { flex-grow: 1; }
 .awakening-stat-row[data-stat-id="attackSpeed"] .awakening-icon::before {
     content: '💨';
 }
+/* Style for the Orb display in the main HUD */
+.orb-display {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 1.1em;
+    color: #87CEFA; /* Light Sky Blue */
+}
+
+/* Style for the new Skills button */
+#skills-btn {
+    border-color: #87CEFA;
+    color: #87CEFA;
+    text-shadow: 0 0 5px #87CEFA;
+}
+#skills-btn:hover {
+    background-color: #87CEFA;
+    color: var(--primary-bg);
+}
+
+/* Style for the upgrade buttons in the skills modal */
+.skill-upgrade-btn {
+    border-color: #87CEFA;
+    color: #87CEFA;
+}
+.skill-upgrade-btn:hover:not(:disabled) {
+    background-color: #87CEFA;
+    color: var(--primary-bg);
+}
+
+
+
+/* Styling for each row in the new panel */
+.modifier-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9em;
+    padding: 3px 0;
+}
+.modifier-label {
+    opacity: 0.8;
+}
+.modifier-value {
+    font-weight: bold;
+    color: var(--accent-color);
+}
+.modifier-grade {
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+/* Styling for the new toggle button */
+#toggle-modifiers-btn {
+    width: 100%;
+    padding: 5px;
+    margin: 8px 0 0 0;
+    font-size: 0.8em;
+    background-color: #3a3a3a;
+}
+#toggle-modifiers-btn:hover {
+    background-color: #4a4a4a;
+}
 </style>
 </head>
 <body>
@@ -1974,6 +2036,7 @@ input[type="range"] { flex-grow: 1; }
                 <!-- Left-side Tabs -->
                 <div class="immortal-growth-tabs">
                     <button class="immortal-growth-tab-btn">Awakening</button>
+                    <button id="skills-btn" class="immortal-growth-tab-btn">Skills</button>
                 </div>
     
                 <!-- Content Area for the Tabs -->
@@ -2013,6 +2076,32 @@ input[type="range"] { flex-grow: 1; }
             <div class="awakening-footer">
                 <button id="awakening-close-btn">Close</button>
             </div>
+        </div>
+    </div>
+    <div id="skills-modal" class="modal">
+        <div class="modal-content awakening-modal-content"> <!-- Re-use awakening style -->
+            <div class="awakening-header">
+                <h2>Guardian Skills</h2>
+                <div id="skills-orb-display" class="orb-display" style="justify-content: center; font-size: 1.5em; margin-top: 10px;">
+                    <span>🔮</span>
+                    <span>0</span>
+                </div>
+            </div>
+            <div id="skills-tree-container" class="awakening-body">
+                <p class="loading-text">Loading Skills...</p>
+            </div>
+            <div class="awakening-footer">
+                <button id="skills-close-btn">Close</button>
+            </div>
+        </div>
+    </div>
+    <div id="detailed-stats-modal" class="modal">
+        <div class="modal-content">
+            <h2>Detailed Modifiers</h2>
+            <div id="detailed-stats-list" style="margin-top: 20px; max-height: 60vh; overflow-y: auto;">
+                <!-- JavaScript will populate this list -->
+            </div>
+            <button id="detailed-stats-close-btn" style="margin-top: 20px;">Close</button>
         </div>
     </div>
     <button id="toggle-ui-btn" class="ui-toggle-button">👁️</button>
