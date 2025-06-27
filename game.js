@@ -4758,7 +4758,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         const clickX = e.clientX - arenaRect.left;
         const clickY = e.clientY - arenaRect.top;
     
-        genesisStateee.player.manualDestination = { x: clickX, y: clickY };
+        genesisState.player.manualDestination = { x: clickX, y: clickY };
       });
       init();
   });
