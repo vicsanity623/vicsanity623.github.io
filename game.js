@@ -1316,6 +1316,7 @@ const firebaseConfig = {
               gameState.ascension.tier++; gameState.ascension.points++;
               gameState.counters.ascensionCount = (gameState.counters.ascensionCount || 0) + 1; checkAllAchievements();
               playSound('ascend', 1, 'sawtooth', 100, 1000, 1);
+              gameState.edgeStones = (gameState.edgeStones || 0) + 50;
               gameState.level = 1; gameState.xp = 0; gameState.gold = 0;
               gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
               gameState.inventory = [];
@@ -1327,7 +1328,8 @@ const firebaseConfig = {
               submitScoreToLeaderboard();
               updateAscensionVisuals();
               saveGame(); updateUI(); ingameMenuModal.classList.remove('visible');
-              showNotification("ASCENDED!", `Welcome to World Tier ${gameState.ascension.tier}. You have gained 1 Ascension Point to spend.`);
+              const notificationText = `Welcome to World Tier ${gameState.ascension.tier}. You have gained 1 Ascension Point to spend.<br><br>Bonus Reward: <strong style="color: #00FFFF;">♦️ 50 EdgeStones</strong>`;
+              showNotification("ASCENDED!", notificationText);
           }
       }
   
