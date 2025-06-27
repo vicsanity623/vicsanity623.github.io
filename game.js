@@ -20,6 +20,7 @@ const firebaseConfig = {
       let audioCtx = null;
       let buffInterval = null;
       let lightningInterval = null;
+      let isUiHidden = false;
       
       // Centralized state for the battle system.
       let battleState = {
@@ -119,13 +120,13 @@ const firebaseConfig = {
       };
       const shopItems = {
           storableHealthPotion: { name: "Health Potion", desc: "A storable potion for battle. Restores 50% HP.", cost: 550, type: 'consumable' },
-          energyPotion: { name: "Energy Potion", desc: "Instantly restores 50% of your Max Energy.", cost: 500, type: 'consumable' },
+          energyPotion: { name: "Energy Potion", desc: "Instantly restores 10% of your Max Energy.", cost: 500, type: 'consumable' },
           xpBoost: { name: "Scroll of Wisdom", desc: "+50% XP from all sources for 15 minutes.", cost: 500, type: 'buff', duration: 900 }
       };
       const permanentShopUpgrades = {
-          strTraining: { name: "Strength Training", desc: "Permanently increases base Strength.", stat: 'strength', bonus: 1, levelReq: 10, maxLevel: 10000, cost: (level) => 1000 * Math.pow(2, level) },
-          forTraining: { name: "Fortitude Training", desc: "Permanently increases base Fortitude.", stat: 'fortitude', bonus: 1, levelReq: 10, maxLevel: 10000, cost: (level) => 1000 * Math.pow(2, level) },
-          agiTraining: { name: "Agility Training", desc: "Permanently increases base Agility.", stat: 'agility', bonus: 1, levelReq: 10, maxLevel: 5000, cost: (level) => 5000 * Math.pow(3, level) },
+          strTraining: { name: "Strength Training", desc: "Permanently increases base Strength.", stat: 'strength', bonus: 3, levelReq: 10, maxLevel: 10000, cost: (level) => 1 * Math.pow(1.5, level) },
+          forTraining: { name: "Fortitude Training", desc: "Permanently increases base Fortitude.", stat: 'fortitude', bonus: 3, levelReq: 10, maxLevel: 10000, cost: (level) => 1 * Math.pow(1.5, level) },
+          agiTraining: { name: "Agility Training", desc: "Permanently increases base Agility.", stat: 'agility', bonus: 1, levelReq: 10, maxLevel: 5000, cost: (level) => 1 * Math.pow(3.79, level) },
           energyTraining: { 
             name: "Energy Discipline", 
             desc: "Permanently increases Max Energy by 25.", 
@@ -311,6 +312,8 @@ const firebaseConfig = {
       const pvpOpponentDamageFill = document.getElementById('pvp-opponent-damage-fill');
       const pvpLeaderboardList = document.getElementById('pvp-leaderboard-list');
       const expeditionBtn = document.getElementById('expedition-btn');
+      const actionButtons = document.getElementById('action-buttons'); 
+      const toggleUiBtn = document.getElementById('toggle-ui-btn');
       const shopBtn = document.getElementById('shop-btn');
       const forgeBtn = document.getElementById('forge-btn');
       const forgeUnlockText = document.getElementById('forge-unlock-text');
@@ -413,6 +416,7 @@ const firebaseConfig = {
       const awakeningModal = document.getElementById('awakening-modal');
       const awakeningTreeContainer = document.getElementById('awakening-tree-container');
       const awakeningCloseBtn = document.getElementById('awakening-close-btn');
+      
       // --- DOJO ELEMENTS ---
       const dojoBtn = document.getElementById('dojo-btn');
       const dojoScreen = document.getElementById('dojo-screen');
@@ -1064,7 +1068,7 @@ const firebaseConfig = {
               let xpGain = 0.25 * tapCombo.currentMultiplier;
               if (gameState.level >= 30) { xpGain = 1.0 * tapCombo.currentMultiplier; } else if (gameState.level >= 10) { xpGain = 0.75 * tapCombo.currentMultiplier; }
               const tapXpBonus = 1 + (gameState.ascension.perks.tapXp || 0) * 0.10;
-              xpGain *= tapXpBonus; createXpOrb(event, xpGain, gameState); gameState.resources.energy -= 0.1;
+              xpGain *= tapXpBonus; createXpOrb(event, xpGain, gameState); gameState.resources.energy -= 1.1;
               if (tapCombo.currentMultiplier > 1) { createParticles(event); }
               characterSprite.style.animation = 'none'; void characterSprite.offsetWidth; characterSprite.classList.add('tapped');
               setTimeout(() => { 
@@ -1075,14 +1079,59 @@ const firebaseConfig = {
       }
       
       function feed() {
-          if (gameState.gold >= 50) {
-              gameState.gold -= 50; 
-              gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + 20);
-              gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + 50);
-              playSound('feed', 1, 'sine', 200, 600, 0.2);
-              showNotification("Yum!", "Energy and HP restored slightly."); updateUI(); saveGame();
-          } else { showNotification("Not enough gold!", "You need 50 gold to feed your guardian."); }
-      }
+            // --- NEW: Get the position of the feed button for the floating text ---
+            const feedBtnRect = feedBtn.getBoundingClientRect();
+            const screenX = feedBtnRect.left + (feedBtnRect.width / 2);
+            const screenY = feedBtnRect.top; // Position it at the top of the button
+        
+            if (gameState.gold >= 5000) {
+                gameState.gold -= 5000;
+                
+                // --- Calculate how much energy and HP will actually be restored ---
+                const energyToRestore = 20;
+                const hpToRestore = 15;
+                const currentEnergy = gameState.resources.energy;
+                const currentHp = gameState.resources.hp;
+                
+                gameState.resources.energy = Math.min(gameState.resources.maxEnergy, currentEnergy + energyToRestore);
+                gameState.resources.hp = Math.min(gameState.resources.maxHp, currentHp + hpToRestore);
+                
+                // --- Calculate the actual amount gained for the floating text ---
+                const energyGained = gameState.resources.energy - currentEnergy;
+                const hpGained = gameState.resources.hp - currentHp;
+        
+                playSound('feed', 1, 'sine', 200, 600, 0.2);
+        
+                // --- Create two separate floating text elements for a nice effect ---
+                if (hpGained > 0) {
+                    createFloatingText(`+${Math.round(hpGained)} HP`, screenX, screenY, {
+                        color: 'var(--health-color)', // Red for health
+                        fontSize: '1.4em',
+                        duration: 2000
+                    });
+                }
+                if (energyGained > 0) {
+                    // Delay the energy text slightly to avoid overlap
+                    setTimeout(() => {
+                        createFloatingText(`+${Math.round(energyGained)} Energy`, screenX, screenY - 30, { // Position it a bit higher
+                            color: 'var(--energy-color)', // Blue for energy
+                            fontSize: '1.4em',
+                            duration: 2000
+                        });
+                    }, 150);
+                }
+                
+                updateUI();
+                saveGame();
+            } else {
+                // --- NEW: Show a floating text error message instead of a modal ---
+                createFloatingText("Not enough gold!", screenX, screenY, {
+                    color: 'var(--health-color)', // Red for an error
+                    fontSize: '1.2em'
+                });
+                playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15); // Play an error sound
+            }
+        }
       
       function startExpedition(index) {
           const expedition = availableExpeditions[index]; if (!expedition) return;
@@ -1754,7 +1803,7 @@ const firebaseConfig = {
                   gameState.gold -= item.cost;
                   switch (itemId) {
                       case 'storableHealthPotion': gameState.healthPotions = (gameState.healthPotions || 0) + 1; break;
-                      case 'energyPotion': gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + gameState.resources.maxEnergy * 0.5); break;
+                      case 'energyPotion': gameState.resources.energy = Math.min(gameState.resources.maxEnergy, gameState.resources.energy + gameState.resources.maxEnergy * 0.1); break;
                       case 'xpBoost': gameState.activeBuffs[itemId] = { expiry: Date.now() + item.duration * 1000 }; break;
                   }
                   showToast(`Purchased ${item.name}!`);
@@ -4760,5 +4809,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     
         genesisState.player.manualDestination = { x: clickX, y: clickY };
       });
+
+      // --- FIX: The listener is now outside and independent ---
+      toggleUiBtn.addEventListener('click', () => {
+          isUiHidden = !isUiHidden;
+          // This line targets the entire game screen, which is more powerful
+          gameScreen.classList.toggle('ui-hidden', isUiHidden); 
+          toggleUiBtn.textContent = isUiHidden ? '👁️‍🗨️' : '👁️';
+      });
+
       init();
   });
