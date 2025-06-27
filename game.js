@@ -194,14 +194,62 @@ function returnEffectToPool(type, element) {
           suffixes: ["of Power", "of Doom", "of Glory", "of the Forge", "of Titans"]
       };
       const dailyRewards = [
-        { day: 1, type: 'gold', amount: 5000 },
-        { day: 2, type: 'gold', amount: 1000000 },
-        { day: 3, type: 'consumable', id: 'storableHealthPotion', amount: 200 },
-        { day: 4, type: 'gold', amount: 2500000 },
-        { day: 5, type: 'consumable', id: 'storableHealthPotion', amount: 500 },
-        { day: 6, type: 'gold', amount: 5000000 },
-        { day: 7, type: 'item', rarity: 'rare' } // Day 7 is a rare item!
+        { day: 1, rewards: [
+            { type: 'gold', amount: 5000 }
+        ]},
+        { day: 2, rewards: [
+            { type: 'gold', amount: 1000000 }
+        ]},
+        // MODIFICATION: Day 3 now has two rewards in its array
+        { day: 3, rewards: [
+            { type: 'consumable', id: 'storableHealthPotion', amount: 200 },
+            { type: 'edgestones', amount: 25 }
+        ]},
+        { day: 4, rewards: [
+            { type: 'gold', amount: 2500000 }
+        ]},
+        { day: 5, rewards: [
+            { type: 'consumable', id: 'storableHealthPotion', amount: 500 }
+        ]},
+        // MODIFICATION: Day 6 now has two rewards
+        { day: 6, rewards: [
+            { type: 'gold', amount: 5000000 },
+            { type: 'edgestones', amount: 75 }
+        ]},
+        { day: 7, rewards: [
+            { type: 'item', rarity: 'rare' }
+        ]}
       ];
+      const skillsData = {
+            aoeSlash: {
+                name: 'Guardian\'s Blade',
+                desc: 'Increases the damage of your basic attacks.',
+                bonusPerLevel: 1, // Each level adds +1% damage
+                cost: (level) => Math.floor(5 * Math.pow(1.12, level)),
+                maxLevel: 1000
+            },
+            dash: {
+                name: 'Dash',
+                desc: 'Increases the damage of Dash impacts.',
+                bonusPerLevel: 2, // Each level adds +2% damage
+                cost: (level) => Math.floor(10 * Math.pow(1.15, level)),
+                maxLevel: 1000
+            },
+            thunderStrike: {
+                name: 'Thunder Strike',
+                desc: 'Increases the damage of Thunder Strike.',
+                bonusPerLevel: 2, // Each level adds +2% damage
+                cost: (level) => Math.floor(10 * Math.pow(1.15, level)),
+                maxLevel: 1000
+            },
+            havocRage: {
+                name: 'Havoc Rage',
+                desc: 'Increases the damage-over-time of Havoc Rage.',
+                bonusPerLevel: 3, // Each level adds +3% damage
+                cost: (level) => Math.floor(15 * Math.pow(1.18, level)),
+                maxLevel: 1000
+            },
+        };
       const potentialsData = {
         attack_power_percent: {
             name: 'Attack Power (%)',
@@ -294,6 +342,7 @@ function returnEffectToPool(type, element) {
           lastDailyClaim: 0,
           dailyStreak: 0,
           lastLogin: Date.now(),
+          orbs: 0,
           immortalGrowth: {
             potentials: {
                 attack_power_percent: 0,
@@ -309,9 +358,9 @@ function returnEffectToPool(type, element) {
                 armorMastery: 0,
                 attackSpeed: 0
             }
-        
           } 
       };
+      
       // ----- NEW: HUNGER SYSTEM MODULE -----
       const HungerSystem = {
         isExhausted: false, // Flag to prevent spamming "feed me" messages
@@ -542,6 +591,10 @@ function returnEffectToPool(type, element) {
       const awakeningModal = document.getElementById('awakening-modal');
       const awakeningTreeContainer = document.getElementById('awakening-tree-container');
       const awakeningCloseBtn = document.getElementById('awakening-close-btn');
+      const skillsBtn = document.getElementById('skills-btn');
+      const skillsModal = document.getElementById('skills-modal');
+      const closeSkillsBtn = document.getElementById('skills-close-btn');
+      const skillsTreeContainer = document.getElementById('skills-tree-container');
       
       // --- DOJO ELEMENTS ---
       const dojoBtn = document.getElementById('dojo-btn');
@@ -768,6 +821,11 @@ function returnEffectToPool(type, element) {
               if (!loadedState.immortalGrowth) {
                 loadedState.immortalGrowth = JSON.parse(JSON.stringify(defaultState.immortalGrowth));
               }
+              loadedState.orbs = loadedState.orbs || 0;
+                if (!loadedState.immortalGrowth.skills) {
+                    loadedState.immortalGrowth.skills = JSON.parse(JSON.stringify(defaultState.immortalGrowth.skills));
+                }
+                if (loadedState.immortalGrowth.skills.aoeSlash === undefined) loadedState.immortalGrowth.skills.aoeSlash = 0;
               if (loadedState.equipment.weapon) {
                   rehydrateItemRarity(loadedState.equipment.weapon);
               }
@@ -894,112 +952,94 @@ function returnEffectToPool(type, element) {
       }
       
       function updateUI() {
-          if (!gameState.stats) return;
-          HungerSystem.updateBar();
-          const oldMaxHp = gameState.resources.maxHp;
-          const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
-          const baseMaxHp = 100 + (gameState.level - 1) * 10;
-          const baseMaxEnergy = 100 + (gameState.level - 1) * 5;
-          let energyUpgradeBonus = 0;
-          if (gameState.permanentUpgrades.energyTraining) {
-              const upgradeLevel = gameState.permanentUpgrades.energyTraining;
-              const upgradeData = permanentShopUpgrades.energyTraining;
-              energyUpgradeBonus = upgradeLevel * upgradeData.bonus;
-          }
-          const hpPotentialBonus = getPotentialBonus('hp_percent');
-          gameState.resources.maxHp = Math.round((baseMaxHp + vigorBonus) * (1 + hpPotentialBonus / 100));
-          const staminaBonus = getAwakeningBonus('stamina') * 25; // Each level gives +25 Max Energy
-          gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus + energyUpgradeBonus + staminaBonus;
-          if (gameState.resources.maxHp > oldMaxHp) {
-              // ...calculate the difference...
-              const hpIncrease = gameState.resources.maxHp - oldMaxHp;
-              // ...and add that difference to our current HP.
-              gameState.resources.hp += hpIncrease;
-          }
-          gameState.resources.hp = Math.min(gameState.resources.hp, gameState.resources.maxHp);
-          playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
-          worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
-          const xpForNext = getXpForNextLevel(gameState.level);
-          healthBarFill.style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
-          healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
-          energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
-          energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
-          
-          // --- THIS LINE WAS MISSING ---
-          xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
-          // --- END OF FIX ---
-
-          xpBarLabel.textContent = `XP: ${formatNumber(Math.floor(gameState.xp))} / ${formatNumber(xpForNext)}`;
-          
-          const defaultStatColor = 'var(--text-color)';
-          const statColors = {};
-          const statSourceRarityIndex = {};
-            
-          const statKeys = ['strength', 'fortitude', 'agility', 'stamina', 'critChance', 'goldFind'];
-          statKeys.forEach(key => {
-              statColors[key] = defaultStatColor;
-              statSourceRarityIndex[key] = -1;
-          });
-
-          for (const slot in gameState.equipment) {
-              const item = gameState.equipment[slot];
-              if (item) {
-                  const itemRarityIndex = RARITY_ORDER.indexOf(item.rarity.key);
-                  for (const statName in item.stats) {
-                        if (statSourceRarityIndex.hasOwnProperty(statName) && itemRarityIndex > statSourceRarityIndex[statName]) {
-                            statSourceRarityIndex[statName] = itemRarityIndex;
-                            statColors[statName] = item.rarity.color;
-                        }
+        if (!gameState.stats) return;
+        HungerSystem.updateBar();
+    
+        const oldMaxHp = gameState.resources.maxHp;
+        const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
+        const baseMaxHp = 100 + (gameState.level - 1) * 10;
+        const baseMaxEnergy = 100 + (gameState.level - 1) * 5;
+        let energyUpgradeBonus = 0;
+        if (gameState.permanentUpgrades.energyTraining) {
+            const upgradeLevel = gameState.permanentUpgrades.energyTraining;
+            const upgradeData = permanentShopUpgrades.energyTraining;
+            energyUpgradeBonus = upgradeLevel * upgradeData.bonus;
+        }
+        const hpPotentialBonus = getPotentialBonus('hp_percent');
+        gameState.resources.maxHp = Math.round((baseMaxHp + vigorBonus) * (1 + hpPotentialBonus / 100));
+        const staminaBonus = getAwakeningBonus('stamina') * 25;
+        gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus + energyUpgradeBonus + staminaBonus;
+        if (gameState.resources.maxHp > oldMaxHp) {
+            const hpIncrease = gameState.resources.maxHp - oldMaxHp;
+            gameState.resources.hp += hpIncrease;
+        }
+        gameState.resources.hp = Math.min(gameState.resources.hp, gameState.resources.maxHp);
+        
+        playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
+        worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
+        const xpForNext = getXpForNextLevel(gameState.level);
+        healthBarFill.style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
+        healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
+        energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
+        energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
+        xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
+        xpBarLabel.textContent = `XP: ${formatNumber(Math.floor(gameState.xp))} / ${formatNumber(xpForNext)}`;
+    
+        const defaultStatColor = 'var(--text-color)';
+        const statColors = {};
+        const statSourceRarityIndex = {};
+        const statKeys = ['strength', 'fortitude', 'agility', 'stamina', 'critChance', 'goldFind'];
+        statKeys.forEach(key => {
+            statColors[key] = defaultStatColor;
+            statSourceRarityIndex[key] = -1;
+        });
+    
+        for (const slot in gameState.equipment) {
+            const item = gameState.equipment[slot];
+            if (item) {
+                const itemRarityIndex = RARITY_ORDER.indexOf(item.rarity.key);
+                for (const statName in item.stats) {
+                    if (statSourceRarityIndex.hasOwnProperty(statName) && itemRarityIndex > statSourceRarityIndex[statName]) {
+                        statSourceRarityIndex[statName] = itemRarityIndex;
+                        statColors[statName] = item.rarity.color;
                     }
-              }
-          }
-            
-          let panelHtml = '';
-          const createStatRow = (label, value, statKey) => {
+                }
+            }
+        }
+    
+        const createStatRow = (label, value, statKey) => {
             const color = statColors[statKey] || defaultStatColor;
             const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
-            const extraClass = (statKey === 'gold') ? 'stat-value-gold' : '';
-
-            return `
-                <div class="stat-item">
-                    <span class="stat-label">${label}</span>
-                    <span class="stat-value ${extraClass}" style="color: ${color};">${value} ${starIcon}</span>
+            return `<div class="stat-item"><span class="stat-label">${label}</span><span class="stat-value" style="color: ${color};">${value} ${starIcon}</span></div>`;
+        };
+    
+        let coreStatsHtml = `
+            ${createStatRow('STR', getTotalStat('strength'), 'strength')}
+            ${createStatRow('FOR', getTotalStat('fortitude'), 'fortitude')}
+            ${createStatRow('AGI', getTotalStat('agility'), 'agility')}
+            ${createStatRow('STA', getTotalStat('stamina'), 'stamina')}
+            <hr class="stat-divider">
+            ${createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance')}
+            ${createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind')}
+            <hr class="stat-divider">
+            <div class="stat-item">
+                <span class="stat-label">Gold</span>
+                <div class="gold-rewards-row">
+                    <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
+                    <span class="edgestone-display"><span>♦️</span><span>${(gameState.edgeStones || 0).toFixed(4)}</span></span>
+                    <span class="orb-display"><span>🔮</span><span>${(gameState.orbs || 0).toFixed(1)}</span></span>
+                    <span class="potion-display"><span>🧪</span><span>${gameState.healthPotions || 0}</span></span>
+                    <button id="rewards-btn" title="View Daily & Weekly Rewards">📅</button>
                 </div>
-            `;
-          };
-
-          panelHtml += createStatRow('STR', getTotalStat('strength'), 'strength');
-          panelHtml += createStatRow('FOR', getTotalStat('fortitude'), 'fortitude');
-          panelHtml += createStatRow('AGI', getTotalStat('agility'), 'agility');
-          panelHtml += createStatRow('STA', getTotalStat('stamina'), 'stamina');
-          panelHtml += '<hr class="stat-divider">';
-          panelHtml += createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance');
-          panelHtml += createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind');
-          panelHtml += '<hr class="stat-divider">';
-
-          panelHtml += `
-          <div class="stat-item">
-              <span class="stat-label">Gold</span>
-              <div class="gold-rewards-row">
-                  <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
-                  
-                  <!-- NEW: EDGESTONE DISPLAY -->
-                  <span class="edgestone-display">
-                      <span>♦️</span>
-                      <span>${(gameState.edgeStones || 0).toFixed(4)}</span>
-                  </span>
-                  <!-- END NEW DISPLAY -->
-
-                  <span class="potion-display" title="Auto-used at 30% HP. Restores ${Math.floor(gameState.resources.maxHp * 0.7)} HP (70%)">
-                      <span>🧪</span>
-                      <span>${gameState.healthPotions || 0}</span>
-                  </span>
-                  <button id="rewards-btn" title="View Daily & Weekly Rewards">📅</button>
-              </div>
-          </div>
+            </div>
         `;
-
-        playerStatPanel.innerHTML = panelHtml;
+    
+        // The panel now only contains the core stats and the button
+        playerStatPanel.innerHTML = `
+            ${coreStatsHtml}
+            <button id="toggle-modifiers-btn">Show Details</button>
+        `;
+    
         updateBuffDisplay();
         const onExpedition = gameState.expedition.active;
         characterSprite.style.display = onExpedition ? 'none' : 'block';
@@ -1041,6 +1081,56 @@ function returnEffectToPool(type, element) {
         switchCharacterBtn.style.display = gameState.hasEgg ? 'block' : 'none';
         updatePartnerUI();
       }
+      function renderAndShowDetailedStats() {
+            const listContainer = document.getElementById('detailed-stats-list');
+            const modal = document.getElementById('detailed-stats-modal');
+            listContainer.innerHTML = ''; // Clear previous stats
+        
+            let modifiersHtml = '';
+        
+            // Potentials
+            Object.keys(potentialsData).forEach(id => {
+                const level = gameState.immortalGrowth.potentials[id] || 0;
+                if (level > 0) {
+                    const data = potentialsData[id];
+                    const bonus = level * data.bonusPerLevel;
+                    const gradeInfo = calculateGradeInfo(level);
+                    modifiersHtml += `<div class="modifier-row"><span class="modifier-label"><span class="modifier-grade" style="color: ${gradeInfo.color};">[${gradeInfo.grade}]</span>${data.name}</span> <span class="modifier-value">+${bonus.toFixed(2)}%</span></div>`;
+                }
+            });
+        
+            // Awakening
+            Object.keys(awakeningData).forEach(id => {
+                const level = gameState.immortalGrowth.awakening[id] || 0;
+                if (level > 0) {
+                    const data = awakeningData[id];
+                    let bonusText = '';
+                    if (id === 'weaponMastery') bonusText = `+${level * 10} STR`;
+                    else if (id === 'armorMastery') bonusText = `+${level * 10} FOR`;
+                    else if (id === 'attackSpeed') bonusText = `+${level * 1}% Attack Speed`;
+                    else if (id === 'wisdom') bonusText = `+${level * 5}% XP Gain`;
+                    else if (id === 'stamina') bonusText = `+${level * 25} Max Energy`;
+                    modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">${bonusText}</span></div>`;
+                }
+            });
+        
+            // Skills
+            Object.keys(skillsData).forEach(id => {
+                const level = gameState.immortalGrowth.skills[id] || 0;
+                if (level > 0) {
+                    const data = skillsData[id];
+                    const bonus = level * data.bonusPerLevel;
+                    modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">+${bonus.toFixed(1)}% Damage</span></div>`;
+                }
+            });
+        
+            if (modifiersHtml === '') {
+                modifiersHtml = '<p style="text-align: center; opacity: 0.7;">No active modifiers yet. Upgrade them in the Growth menu!</p>';
+            }
+        
+            listContainer.innerHTML = modifiersHtml;
+            modal.classList.add('visible');
+        }
       
       function addXP(character, amount) { 
           if(character.isPartner && gameState.expedition.active) return;
@@ -2283,15 +2373,13 @@ function returnEffectToPool(type, element) {
         const lastLogin = gameState.lastLogin || now;
         const offlineTimeInSeconds = (now - lastLogin) / 1000;
     
-        // Set to 60 for testing, change back to 300 for production
-        if (offlineTimeInSeconds < 60) { 
+        if (offlineTimeInSeconds < 60) {
             return;
         }
     
         const maxOfflineTimeInSeconds = 24 * 60 * 60;
         const effectiveOfflineTime = Math.min(offlineTimeInSeconds, maxOfflineTimeInSeconds);
-        
-        // --- Reward Calculations ---
+    
         const playerPower = gameState.level + (gameState.ascension.tier * 10);
         const minutesOffline = effectiveOfflineTime / 60;
         const goldPerSecond = 10.6 * playerPower * (1 + getTotalStat('goldFind') / 100);
@@ -2304,7 +2392,8 @@ function returnEffectToPool(type, element) {
         if (gameState.ascension.tier > 1) {
             totalEdgeStones *= gameState.ascension.tier;
         }
-        
+        const totalOrbs = enemiesDefeated * 0.5;
+    
         const weaponsFoundList = [];
         const armorsFoundList = [];
         for (let i = 0; i < minutesOffline / 10; i++) {
@@ -2314,26 +2403,24 @@ function returnEffectToPool(type, element) {
                 else armorsFoundList.push(item);
             }
         }
-        
-        // --- Apply Rewards to Game State ---
+    
         gameState.gold += totalGold;
         addXP(gameState, totalXp);
         gameState.counters.enemiesDefeated += enemiesDefeated;
         gameState.edgeStones = (gameState.edgeStones || 0) + totalEdgeStones;
+        gameState.orbs = (gameState.orbs || 0) + totalOrbs;
         [...weaponsFoundList, ...armorsFoundList].forEach(item => gameState.inventory.push(item));
-        
-        // --- Format Time for Display ---
+    
         const hours = Math.floor(effectiveOfflineTime / 3600);
         const minutes = Math.floor((effectiveOfflineTime % 3600) / 60);
         offlineTimeAway.textContent = `${hours}h ${minutes}m.`;
     
-        // --- Build the Enhanced Reward Notification ---
-        offlineRewardsList.innerHTML = ''; // Clear previous content
+        offlineRewardsList.innerHTML = '';
         let animationDelay = 0;
         const delayIncrement = 0.1;
     
         const addRow = (html) => {
-            offlineRewardsList.innerHTML += html; // Correctly uses the single list variable
+            offlineRewardsList.innerHTML += html;
             animationDelay += delayIncrement;
         };
     
@@ -2372,6 +2459,18 @@ function returnEffectToPool(type, element) {
                 </div>
             `);
         }
+    
+        if (totalOrbs > 0) {
+            addRow(`
+               <div class="offline-reward-row" style="animation-delay: ${animationDelay}s;">
+                   <div class="offline-reward-icon" style="color: #87CEFA;">🔮</div>
+                   <div class="offline-reward-details">
+                       <span class="offline-reward-label">Skill Orbs</span>
+                       <span class="offline-reward-value" style="color: #87CEFA;">+${totalOrbs.toFixed(1)}</span>
+                   </div>
+               </div>
+           `);
+       }
     
         if (totalEdgeStones > 0) {
              addRow(`
@@ -2413,102 +2512,108 @@ function returnEffectToPool(type, element) {
         
         offlineRewardsModal.classList.add('visible');
         playSound('victory', 0.8, 'triangle', 440, 1000, 0.4);
-      }
+    }
 
       function checkDailyRewards() {
-        if (!isNewDay(gameState.lastDailyClaim)) {
-            // It's not a new day, so do nothing.
-            return;
-        }
-
-        const now = new Date();
-        const lastClaim = new Date(gameState.lastDailyClaim);
+            if (!isNewDay(gameState.lastDailyClaim)) {
+                return;
+            }
         
-        // Check if the streak is broken (logged in more than a day ago)
-        const oneDay = 24 * 60 * 60 * 1000;
-        if (now.getTime() - lastClaim.getTime() > (2 * oneDay)) {
-            gameState.dailyStreak = 0; // Reset streak
-        }
-
-        // Increment streak and get the reward
-        gameState.dailyStreak++;
+            const now = new Date();
+            const lastClaim = new Date(gameState.lastDailyClaim);
+            
+            const oneDay = 24 * 60 * 60 * 1000;
+            if (now.getTime() - lastClaim.getTime() > (2 * oneDay)) {
+                gameState.dailyStreak = 0;
+            }
         
-        // Use modulo to loop rewards after Day 7
-        const rewardIndex = (gameState.dailyStreak - 1) % dailyRewards.length;
-        const reward = dailyRewards[rewardIndex];
-
-        let rewardText = "";
-        let rewardTitle = `Daily Login: Day ${gameState.dailyStreak}`;
-
-        // Grant the reward based on its type
-        switch (reward.type) {
-            case 'gold':
-                gameState.gold += reward.amount;
-                rewardText = `You received ${reward.amount} Gold!`;
-                break;
-            case 'consumable':
-                if (reward.id === 'storableHealthPotion') {
-                    gameState.healthPotions = (gameState.healthPotions || 0) + reward.amount;
+            gameState.dailyStreak++;
+            
+            const rewardIndex = (gameState.dailyStreak - 1) % dailyRewards.length;
+            const dailyRewardData = dailyRewards[rewardIndex];
+        
+            let rewardTexts = []; // To hold the text for each reward
+            let rewardTitle = `Daily Login: Day ${gameState.dailyStreak}`;
+        
+            // --- MODIFICATION: Loop through the rewards array ---
+            dailyRewardData.rewards.forEach(reward => {
+                switch (reward.type) {
+                    case 'gold':
+                        gameState.gold += reward.amount;
+                        rewardTexts.push(`${reward.amount.toLocaleString()} Gold`);
+                        break;
+                    case 'edgestones':
+                        gameState.edgeStones = (gameState.edgeStones || 0) + reward.amount;
+                        rewardTexts.push(`<strong style="color: #00FFFF;">♦️ ${reward.amount} EdgeStones</strong>`);
+                        break;
+                    case 'consumable':
+                        if (reward.id === 'storableHealthPotion') {
+                            gameState.healthPotions = (gameState.healthPotions || 0) + reward.amount;
+                        }
+                        rewardTexts.push(`${reward.amount}x ${shopItems[reward.id].name}`);
+                        break;
+                    case 'item':
+                        const newItem = generateItem(reward.rarity);
+                        gameState.inventory.push(newItem);
+                        rewardTexts.push(`a special item: <strong style="color:${newItem.rarity.color}">${newItem.name}</strong>`);
+                        break;
                 }
-                // We can add more consumable types here later
-                rewardText = `You received ${reward.amount}x ${shopItems[reward.id].name}!`;
-                break;
-            case 'item':
-                const newItem = generateItem(reward.rarity);
-                gameState.inventory.push(newItem);
-                rewardText = `You received a special item: <strong style="color:${newItem.rarity.color}">${newItem.name}</strong>!`;
-                break;
+            });
+            // --- END OF MODIFICATION ---
+        
+            // Join the reward texts together for a clean notification
+            const finalRewardText = "You received:<br>- " + rewardTexts.join('<br>- ');
+            showNotification(rewardTitle, `${finalRewardText}<br><br>Come back tomorrow for your next reward!`);
+            playSound('victory', 0.8, 'triangle', 600, 1200, 0.3);
+        
+            gameState.lastDailyClaim = Date.now();
+            saveGame();
+            updateUI();
         }
 
-        showNotification(rewardTitle, `${rewardText}<br><br>Come back tomorrow for your next reward!`);
-        playSound('victory', 0.8, 'triangle', 600, 1200, 0.3);
-
-        // Update the claim time and save
-        gameState.lastDailyClaim = Date.now();
-        saveGame();
-        updateUI();
-      }
-
-      function showRewardsModal() {
-        // 1. Populate Daily Rewards
-        dailyRewardsContainer.innerHTML = ''; // Clear previous content
-        const canClaimToday = isNewDay(gameState.lastDailyClaim);
-    
-        dailyRewards.forEach(reward => {
-            const itemEl = document.createElement('div');
-            itemEl.className = 'reward-item';
-    
-            // Determine the state of the reward
-            if (reward.day < gameState.dailyStreak) {
-                itemEl.classList.add('claimed');
-            } else if (reward.day === gameState.dailyStreak && canClaimToday) {
-                itemEl.classList.add('claimable');
-            }
-    
-            // Create the description text
-            let desc = '';
-            switch (reward.type) {
-                case 'gold':
-                    desc = `${reward.amount.toLocaleString()} Gold`;
-                    break;
-                case 'consumable':
-                    desc = `${reward.amount}x ${shopItems[reward.id].name}`;
-                    break;
-                case 'item':
-                    desc = `1x ${reward.rarity.charAt(0).toUpperCase() + reward.rarity.slice(1)} Item`;
-                    break;
-            }
-    
-            itemEl.innerHTML = `<div class="day-label">Day ${reward.day}</div><div class="reward-desc">${desc}</div>`;
-            dailyRewardsContainer.appendChild(itemEl);
-        });
-    
-        // 2. Populate Weekly Reward Info
-        weeklyRewardsContainer.innerHTML = `<p>Be #1 on the Damage Leaderboard at the end of the week to earn a special <strong>Legendary</strong> item!</p>`;
-    
-        // 3. Show the modal
-        rewardsModal.classList.add('visible');
-    }
+        function showRewardsModal() {
+            dailyRewardsContainer.innerHTML = '';
+            const canClaimToday = isNewDay(gameState.lastDailyClaim);
+        
+            dailyRewards.forEach(dailyRewardData => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'reward-item';
+        
+                if (dailyRewardData.day < gameState.dailyStreak) {
+                    itemEl.classList.add('claimed');
+                } else if (dailyRewardData.day === gameState.dailyStreak && canClaimToday) {
+                    itemEl.classList.add('claimable');
+                }
+        
+                // --- MODIFICATION: Loop through rewards to build the description ---
+                let descriptions = [];
+                dailyRewardData.rewards.forEach(reward => {
+                    switch (reward.type) {
+                        case 'gold':
+                            descriptions.push(`${reward.amount.toLocaleString()} Gold`);
+                            break;
+                        case 'edgestones':
+                            descriptions.push(`♦️ ${reward.amount} EdgeStones`);
+                            break;
+                        case 'consumable':
+                            descriptions.push(`${reward.amount}x ${shopItems[reward.id].name}`);
+                            break;
+                        case 'item':
+                            descriptions.push(`1x ${reward.rarity.charAt(0).toUpperCase() + reward.rarity.slice(1)} Item`);
+                            break;
+                    }
+                });
+                const finalDesc = descriptions.join('<br>'); // Join with a line break
+                // --- END OF MODIFICATION ---
+        
+                itemEl.innerHTML = `<div class="day-label">Day ${dailyRewardData.day}</div><div class="reward-desc">${finalDesc}</div>`;
+                dailyRewardsContainer.appendChild(itemEl);
+            });
+        
+            weeklyRewardsContainer.innerHTML = `<p>Be #1 on the Damage Leaderboard at the end of the week to earn a special <strong>Legendary</strong> item and an <strong>Ascension Point</strong>!</p>`;
+        
+            rewardsModal.classList.add('visible');
+        }
     function calculateSellValue(item) {
         if (!item) return 0;
     
@@ -2735,6 +2840,85 @@ function returnEffectToPool(type, element) {
             showToast("Not enough Gold!");
         }
     }
+// PASTE THESE new functions into game.js
+
+function getSkillBonus(skillId) {
+    if (gameState.immortalGrowth && gameState.immortalGrowth.skills && gameState.immortalGrowth.skills[skillId]) {
+        const level = gameState.immortalGrowth.skills[skillId];
+        const data = skillsData[skillId];
+        return level * data.bonusPerLevel;
+    }
+    return 0;
+}
+
+function renderSkillsModal() {
+    const container = document.getElementById('skills-tree-container');
+    container.innerHTML = '';
+    
+    // Update the orb count at the top of the modal
+    document.querySelector('#skills-orb-display span:last-child').textContent = (gameState.orbs || 0).toFixed(1);
+
+    for (const id in skillsData) {
+
+        const data = skillsData[id];
+        const level = gameState.immortalGrowth.skills[id] || 0;
+        const isMaxed = level >= data.maxLevel;
+        const cost = isMaxed ? 0 : data.cost(level);
+        const canAfford = (gameState.orbs || 0) >= cost;
+        const bonus = getSkillBonus(id);
+
+        const statRow = document.createElement('div');
+        statRow.className = 'immortal-stat-row awakening-stat-row';
+        
+        let buttonHtml;
+        if (isMaxed) {
+            buttonHtml = `<button class="awakening-upgrade-btn skill-upgrade-btn" disabled>MAX</button>`;
+        } else {
+            buttonHtml = `<button class="awakening-upgrade-btn skill-upgrade-btn" data-skill-id="${id}" ${canAfford ? '' : 'disabled'}>
+                            LV UP
+                            <span class="cost">${formatNumber(cost)} 🔮</span>
+                          </button>`;
+        }
+
+        statRow.innerHTML = `
+            <div class="awakening-stat-details">
+                <div class="awakening-stat-info">
+                    <p class="awakening-stat-name">${data.name} (Lv. ${level}/${data.maxLevel})</p>
+                    <p class="awakening-stat-desc">${data.desc}</p>
+                    <p class="stat-value-change">Current Bonus: +${bonus.toFixed(1)}%</p>
+                </div>
+                ${buttonHtml}
+            </div>
+        `;
+        container.appendChild(statRow);
+    }
+}
+
+function upgradeSkill(skillId) {
+    const data = skillsData[skillId];
+    if (!data) return;
+
+    const level = gameState.immortalGrowth.skills[skillId] || 0;
+    if (level >= data.maxLevel) {
+        showToast("This skill is at its maximum level!");
+        return;
+    }
+    
+    const cost = data.cost(level);
+
+    if ((gameState.orbs || 0) >= cost) {
+        gameState.orbs -= cost;
+        gameState.immortalGrowth.skills[skillId]++;
+        
+        playSound('levelUp', 0.6, 'sine', 900, 1200, 0.1);
+        
+        renderSkillsModal();
+        updateUI();
+        saveGame();
+    } else {
+        showToast("Not enough Orbs!");
+    }
+}    
 
 // =======================================================
 // --- DOJO SYSTEM (FINAL, CORRECTED VERSION) ---
@@ -2902,6 +3086,13 @@ function applyDamageToEnemy(enemy, damageAmount, isCrit = false) {
 
     // --- NEW UNIFIED DEATH LOGIC ---
     if (enemy.hp <= 0) {
+        // --- ADD ORB ACQUISITION HERE ---
+        if (!enemy.isBoss) { // Don't give regular orbs for a boss kill
+             gameState.orbs = (gameState.orbs || 0) + 0.5;
+             createFloatingText('+0.5 🔮', enemy.x, enemy.y - 40, { color: '#87CEFA', fontSize: '1.4em' });
+        }
+        // --- END OF ORB LOGIC ---
+
         addXP(gameState, 20 * (genesisState.isBattleMode ? (gameState.highestBattleLevelCompleted + 1) : (gameState.level * gameState.ascension.tier)));
         createLootOrb(enemy.x, enemy.y); // This function correctly handles not dropping loot in battle mode
         
@@ -3219,9 +3410,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (!actionTaken) {
                 actionTaken = handleGenesisHavocRage(timestamp);
             }
-            if (!actionTaken) actionTaken = initiateGenesisPlayerDash(timestamp);
-            if (!actionTaken) handleGenesisPlayerAttack(timestamp);
-            if (genesisState.isBattleMode) handleEnemyAttacks(timestamp);
+            if (!actionTaken) {
+                actionTaken = initiateGenesisPlayerDash(timestamp);
+            }
+            if (!actionTaken) {
+                handleGenesisPlayerAttack(timestamp);
+            }
+            if (genesisState.isBattleMode) {
+                handleEnemyAttacks(timestamp);
+            }
 
             // --- Post-action updates ---
             handleLootCollection();
@@ -3547,17 +3744,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const player = genesisState.player;
             if (!player || player.isDashing || genesisState.enemies.length === 0) return false;
             if (timestamp - player.lastDashTime < player.dashCooldown) return false;
-
+        
             let bestTarget = null;
             let maxCount = 0;
             const clusterRadius = 350;
-
+        
             genesisState.enemies.forEach(potentialTarget => {
                 let nearbyCount = 0;
                 genesisState.enemies.forEach(otherEnemy => {
-                    const dx = potentialTarget.x - otherEnemy.x;
-                    const dy = potentialTarget.y - otherEnemy.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < clusterRadius) {
+                    if (Math.sqrt(Math.pow(potentialTarget.x - otherEnemy.x, 2) + Math.pow(potentialTarget.y - otherEnemy.y, 2)) < clusterRadius) {
                         nearbyCount++;
                     }
                 });
@@ -3570,32 +3765,22 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (!bestTarget) {
                  bestTarget = player.target;
             }
-
+        
             if (bestTarget) {
-                const dx = player.x - bestTarget.x;
-                const dy = player.y - bestTarget.y;
-                const distanceToTarget = Math.sqrt(dx * dx + dy * dy);
-                const maxDashRange = 600; 
-
-                if (distanceToTarget > maxDashRange) {
+                if (Math.sqrt(Math.pow(player.x - bestTarget.x, 2) + Math.pow(player.y - bestTarget.y, 2)) > 600) {
                     return false; 
                 }
-
+        
                 player.lastDashTime = timestamp;
-
-                const chainChance = 0.30;
-                const shouldChain = Math.random() < chainChance;
+        
+                const shouldChain = Math.random() < 0.30;
                 const maxChains = shouldChain ? 6 : 1;
                 
                 const arenaRect = genesisArena.getBoundingClientRect();
                 const screenX = arenaRect.left + player.x;
                 const screenY = arenaRect.top + player.y - 80;
                 
-                if (shouldChain) {
-                    createFloatingText("Dash Chain!", screenX, screenY, { color: '#ff8c00', fontSize: '2.2em' });
-                } else {
-                    createFloatingText("Dash!", screenX, screenY, { color: '#ff8c00', fontSize: '1.8em' });
-                }
+                createFloatingText(shouldChain ? "Dash Chain!" : "Dash!", screenX, screenY, { color: '#ff8c00', fontSize: '2.2em' });
                 
                 performDash(bestTarget, 1, maxChains);
                 
@@ -3603,6 +3788,64 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             }
             
             return false;
+        
+            // This is the part to replace
+            function performDash(target, currentChain, maxChains) {
+                if (!player || !target) {
+                    if(player) player.isDashing = false;
+                    return;
+                };
+        
+                player.isDashing = true;
+                player.dashTarget = { x: target.x, y: target.y };
+                playSound('hit', 1, 'sawtooth', 800, 200, 0.2);
+        
+                setTimeout(() => {
+                    if (!genesisState.player) return;
+        
+                    player.isDashing = false; // Stop dashing right after impact
+                    const explosionX = player.x;
+                    const explosionY = player.y;
+                    createDashExplosionEffect(explosionX, explosionY);
+                    playSound('crit', 1, 'square', 400, 50, 0.4);
+                    triggerScreenShake(300);
+                    HungerSystem.drainOnAction('attack');
+        
+                    // --- MODIFICATION IS HERE ---
+                    const dashDamage = getTotalStat('strength') * 5 * (1 + getSkillBonus('dash') / 100);
+                    const explosionRadius = 150;
+        
+                    genesisState.enemies.forEach(enemy => {
+                        const dx = explosionX - enemy.x;
+                        const dy = explosionY - enemy.y;
+                        if (Math.sqrt(dx * dx + dy * dy) <= explosionRadius) {
+                            const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+                            const critMultiplier = 2.5 + (getPotentialBonus('crit_damage_percent') / 100);
+                            const finalDamage = dashDamage * (isCrit ? critMultiplier : 1);
+                            applyDamageToEnemy(enemy, finalDamage, isCrit);
+                        }
+                    });
+                    
+                    genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
+        
+                    if (currentChain < maxChains && genesisState.enemies.length > 0) {
+                        let furthestEnemy = null;
+                        let maxDistance = -1;
+                        genesisState.enemies.forEach(enemy => {
+                            const dx = player.x - enemy.x;
+                            const dy = player.y - enemy.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            if (distance > maxDistance) {
+                                maxDistance = distance;
+                                furthestEnemy = enemy;
+                            }
+                        });
+                        if (furthestEnemy) {
+                            performDash(furthestEnemy, currentChain + 1, maxChains);
+                        }
+                    }
+                }, player.dashDuration);
+            }
         }
 
         function performDash(target, currentChain, maxChains) {
@@ -3625,8 +3868,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 playSound('crit', 1, 'square', 400, 50, 0.4);
                 triggerScreenShake(300);
                 HungerSystem.drainOnAction('attack');
+                const dashDamage = getTotalStat('strength') * 5 * (1 + getSkillBonus('dash') / 100);
                 const explosionRadius = 150;
-                const dashDamage = getTotalStat('strength') * 5;
 
                 genesisState.enemies.forEach(enemy => {
                     const dx = explosionX - enemy.x;
@@ -3638,30 +3881,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         applyDamageToEnemy(enemy, finalDamage, isCrit);
                     }
                 });
-
-                genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
-
-                if (currentChain < maxChains && genesisState.enemies.length > 0) {
-                    let furthestEnemy = null;
-                    let maxDistance = -1;
-                    genesisState.enemies.forEach(enemy => {
-                        const dx = player.x - enemy.x;
-                        const dy = player.y - enemy.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        if (distance > maxDistance) {
-                            maxDistance = distance;
-                            furthestEnemy = enemy;
-                        }
-                    });
-
-                    if (furthestEnemy) {
-                        performDash(furthestEnemy, currentChain + 1, maxChains);
-                    } else {
-                        player.isDashing = false;
-                    }
-                } else {
-                    player.isDashing = false;
-                }
 
             }, player.dashDuration);
         }
@@ -3749,7 +3968,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const player = genesisState.player;
             if (!player || player.isChargingHavoc || genesisState.enemies.length === 0) return false;
             if (timestamp - player.lastThunderStrikeTime < player.thunderStrikeCooldown) return false;
-
+        
             const thunderStrikeProximity = 50;
             let isEnemyClose = false;
             for (const enemy of genesisState.enemies) {
@@ -3763,17 +3982,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (!isEnemyClose) {
                 return false;
             }
-
-            // --- THIS IS THE FIX: MOVE THIS BLOCK UP ---
+        
             let potentialTargets = [...genesisState.enemies];
             let chainTargets = [player];
-            const maxChain = 28; 
-
+            const maxChain = 28;
+        
             for (let i = 0; i < maxChain && potentialTargets.length > 0; i++) {
                 const lastTarget = chainTargets[chainTargets.length - 1];
                 let closestEnemy = null;
                 let minDistance = Infinity;
-
                 potentialTargets.forEach(enemy => {
                     const dx = lastTarget.x - enemy.x;
                     const dy = lastTarget.y - enemy.y;
@@ -3783,20 +4000,18 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         closestEnemy = enemy;
                     }
                 });
-
                 if (closestEnemy) {
                     chainTargets.push(closestEnemy);
                     potentialTargets = potentialTargets.filter(e => e.id !== closestEnemy.id);
                 }
             }
-            // --- END OF MOVED BLOCK ---
-
+        
             if (chainTargets.length > 1) {
                 player.lastThunderStrikeTime = timestamp;
                 HungerSystem.drainOnAction('attack');
                 playSound('ascend', 0.8, 'sawtooth', 100, 800, 0.3);
                 triggerScreenShake(200);
-
+        
                 const arenaRect = genesisArena.getBoundingClientRect();
                 const screenX = arenaRect.left + player.x;
                 const screenY = arenaRect.top + player.y - 80;
@@ -3804,12 +4019,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     color: '#00ffff',
                     fontSize: '2.2em'
                 });
-
-                // Now this line will work correctly because chainTargets is defined
-                createChainLightningEffect(chainTargets); 
-
-                const thunderDamage = getTotalStat('strength') * 4.5;
-
+        
+                createChainLightningEffect(chainTargets);
+        
+                // --- MODIFICATION IS HERE ---
+                const thunderDamage = getTotalStat('strength') * 4.5 * (1 + getSkillBonus('thunderStrike') / 100);
+        
                 for (let i = 1; i < chainTargets.length; i++) {
                     const enemy = chainTargets[i];
                     const isCrit = Math.random() < (getTotalStat('critChance') / 100);
@@ -3851,13 +4066,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             }, 250);
         
-            const effectRadius = 200;
-            createHavocShockwaveEffect(player.x, player.y, effectRadius);
+            createHavocShockwaveEffect(player.x, player.y, 200);
+            
+            // --- MODIFICATION IS HERE ---
+            const burnDamagePerSecond = getTotalStat('strength') * 0.25 * (1 + getSkillBonus('havocRage') / 100);
         
             genesisState.enemies.forEach(enemy => {
                 enemy.burn = {
                     expiryTime: timestamp + 5000,
-                    damagePerTick: getTotalStat('strength') * 0.25,
+                    damagePerTick: burnDamagePerSecond,
                     lastTickTime: timestamp
                 };
                 enemy.element.classList.add('burning');
@@ -3902,37 +4119,37 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const minimumCooldown = 95;
             
             const agility = getTotalStat('agility');
-            const attackSpeedBonus = 1 - (getAwakeningBonus('attackSpeed') * 0.01); // Each level gives 1% faster speed
+            const attackSpeedBonus = 1 - (getAwakeningBonus('attackSpeed') * 0.01);
             const dynamicAttackCooldown = Math.max(minimumCooldown, (baseCooldown - (agility * reductionPerAgi)) * attackSpeedBonus);
-
+        
             if (!player || player.isDashing || (timestamp - player.lastAttackTime < dynamicAttackCooldown)) {
                 return;
             }
             if (!player.target) return;
             
-            const dx = player.x - player.target.x;
-            const dy = player.y - player.target.y;
-            const distanceToTarget = Math.sqrt(dx * dx + dy * dy);
-
-            if (distanceToTarget > player.attackRange) return;
+            if (Math.sqrt(Math.pow(player.x - player.target.x, 2) + Math.pow(player.y - player.target.y, 2)) > player.attackRange) {
+                return;
+            }
             
             player.lastAttackTime = timestamp;
             createAoeSlashEffect(player.x, player.y, player.attackRange);
             
             genesisState.enemies.forEach(enemy => {
-                const d_enemy_x = player.x - enemy.x;
-                const d_enemy_y = player.y - enemy.y;
-                const distance_to_enemy = Math.sqrt(d_enemy_x * d_enemy_x + d_enemy_y * d_enemy_y);
-        
+                const distance_to_enemy = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+            
                 if (distance_to_enemy <= player.attackRange) {
                     const isCrit = Math.random() < (getTotalStat('critChance') / 100);
                     const critMultiplier = 2.5 + (getPotentialBonus('crit_damage_percent') / 100);
-                    const damage = getTotalStat('strength') * (isCrit ? critMultiplier : 1);
-                    applyDamageToEnemy(enemy, damage, isCrit);
+        
+                    // --- MODIFICATION IS HERE ---
+                    const baseDamage = getTotalStat('strength') * (1 + getSkillBonus('aoeSlash') / 100);
+                    const finalDamage = baseDamage * (isCrit ? critMultiplier : 1);
+                    
+                    applyDamageToEnemy(enemy, finalDamage, isCrit);
                     HungerSystem.drainOnAction('attack');
                 }
             });
-
+        
             genesisState.enemies = genesisState.enemies.filter(e => e.hp > 0);
         }
 
@@ -4295,6 +4512,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                   
                   // Add it to the reward text
                   rewardText += `<br>Found <span style="color: #00FFFF;">♦️ ${edgeStoneReward.toFixed(4)} EdgeStones</span>`;
+                  const orbReward = 10 * battleLevel; // Scales with battle level
+                  gameState.orbs = (gameState.orbs || 0) + orbReward;
+                  rewardText += `<br>Found <strong style="color: #87CEFA;">${orbReward} 🔮 Orbs</strong>`;
                   gameState.inventory.push(bonusItem);
               }
           } else { // Player lost
@@ -4716,10 +4936,16 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const startPos = isPlayer ? pvpState.playerStartPos : pvpState.opponentStartPos;
             const targetPos = isPlayer ? pvpState.opponentStartPos : pvpState.playerStartPos;
             
-            // --- Smarter, Stat-Based Evasion ---
             const attackerAgi = getPvpCombatantStat(combatant, 'agility');
             const defenderAgi = getPvpCombatantStat(opponent, 'agility');
-            const evadeChance = Math.min(0.4, (defenderAgi / (attackerAgi + defenderAgi + 1)) * 0.5); // Capped at 40%
+            const evadeChance = Math.min(0.4, (defenderAgi / (attackerAgi + defenderAgi + 1)) * 0.5);
+        
+            // --- FIX: RESTORE CRITICAL HIT LOGIC ---
+            // These need to be available for all attacks within this function scope.
+            const isCrit = Math.random() < (getPvpCombatantStat(combatant, 'critChance') / 100);
+            const critPotentialLevel = (combatant.immortalGrowth?.potentials?.crit_damage_percent) || 0;
+            const critDamageBonus = 1.5 + (critPotentialLevel * potentialsData.crit_damage_percent.bonusPerLevel / 100);
+            // --- END OF FIX ---
         
             const performAttack = (attackLogic) => {
                 combatantSprite.classList.add('is-attacking');
@@ -4741,38 +4967,50 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }, 300);
             };
         
-            // --- Choose an Action ---
             const roll = Math.random();
-            if (roll < 0.15) { // 15% chance to use Thunder Strike
+            const combatantLevel = combatant.level || 0;
+        
+            // --- USE THE CORRECTED DAMAGE FORMULAS ---
+            if (combatantLevel >= 50 && roll < 0.10) { 
+                performAttack(() => {
+                    createSlamEffect(combatantSprite.offsetLeft, combatantSprite.offsetTop);
+                    createFloatingText("Slam!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#D2691E', fontSize: '1.8em' });
+                    
+                    const damage = getPvpCombatantStat(combatant, 'strength') * 8 * (1 + getSkillBonus('slam') / 100);
+                    if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
+                    createPvpDamageNumber(damage, isPlayer);
+                });
+            } else if (roll < 0.25) {
                 performAttack(() => {
                     createPvpChainLightningEffect(combatantSprite, targetSprite);
                     createFloatingText("Thunder Strike!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#00ffff', fontSize: '1.8em' });
-                    const damage = getPvpCombatantStat(combatant, 'strength') * 4.5;
-                    if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
-                    createPvpDamageNumber(damage, isPlayer);
+                    const damage = getPvpCombatantStat(combatant, 'strength') * 4.5 * (1 + getSkillBonus('thunderStrike') / 100);
+                    const finalDamage = damage * (isCrit ? (1 + critDamageBonus) : 1);
+                    if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
+                    createPvpDamageNumber(finalDamage, isPlayer);
                 });
-            } else if (roll < 0.35) { // 20% chance to use Dash
+            } else if (roll < 0.45) {
                 performAttack(() => {
                     createDashExplosionEffect(targetSprite.offsetLeft + targetSprite.offsetWidth / 2, targetSprite.offsetTop + targetSprite.offsetHeight / 2);
-                    const damage = getPvpCombatantStat(combatant, 'strength') * 5;
-                    if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
-                    createPvpDamageNumber(damage, isPlayer);
+                    createFloatingText("Dash!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#ff8c00', fontSize: '1.8em' });
+                    const damage = getPvpCombatantStat(combatant, 'strength') * 5 * (1 + getSkillBonus('dash') / 100);
+                    const finalDamage = damage * (isCrit ? (1 + critDamageBonus) : 1);
+                    if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
+                    createPvpDamageNumber(finalDamage, isPlayer);
                 });
-            } else { // 65% chance for a basic attack
+            } else {
                 performAttack(() => {
                     createAoeSlashEffect(targetSprite.offsetLeft + targetSprite.offsetWidth / 2, targetSprite.offsetTop + targetSprite.offsetHeight / 2, 50);
-                    const damage = getPvpCombatantStat(combatant, 'strength');
-                    const isCrit = Math.random() < (getPvpCombatantStat(combatant, 'critChance') / 100);
-                    const finalDamage = damage * (isCrit ? 2.5 : 1);
+                    const baseDamage = getPvpCombatantStat(combatant, 'strength') * (1 + getSkillBonus('aoeSlash') / 100);
+                    const finalDamage = baseDamage * (isCrit ? (1 + critDamageBonus) : 1);
                     if (isPlayer) pvpState.playerDamage += finalDamage; else pvpState.opponentDamage += finalDamage;
                     createPvpDamageNumber(finalDamage, isPlayer);
                 });
             }
             
-            // --- SCHEDULE NEXT ACTION ---
-            const baseCooldown = 1500; // Base thinking time
-            const speedBonus = 1 - (attackerAgi / (attackerAgi + 500)); // The faster they are, the lower the cooldown
-            const nextActionDelay = baseCooldown * speedBonus + (Math.random() * 500); // Add randomness
+            const baseCooldown = 1500;
+            const speedBonus = 1 - (attackerAgi / (attackerAgi + 500));
+            const nextActionDelay = baseCooldown * speedBonus + (Math.random() * 500);
             
             if(isPlayer) {
                 pvpState.playerActionTimeout = setTimeout(() => executePvpAction(true), nextActionDelay);
@@ -4869,6 +5107,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         // --- END OF NEW LOGIC ---
     }
        // --- EVENT LISTENERS ---
+       const detailedStatsModal = document.getElementById('detailed-stats-modal');
+       const detailedStatsCloseBtn = document.getElementById('detailed-stats-close-btn');
        immortalGrowthBtn.addEventListener('click', () => {
            renderPotentialsTree();
            immortalGrowthModal.classList.add('visible');
@@ -4915,6 +5155,26 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             }
         });
+        skillsBtn.addEventListener('click', () => {
+            immortalGrowthModal.classList.remove('visible');
+            renderSkillsModal();
+            skillsModal.classList.add('visible');
+        });
+        
+        closeSkillsBtn.addEventListener('click', () => {
+            skillsModal.classList.remove('visible');
+            immortalGrowthModal.classList.add('visible');
+        });
+        
+        skillsTreeContainer.addEventListener('click', (event) => {
+            const button = event.target.closest('.skill-upgrade-btn');
+            if (button) {
+                const skillId = button.getAttribute('data-skill-id');
+                if (skillId) {
+                    upgradeSkill(skillId);
+                }
+            }
+        });
        startGameBtn.addEventListener('click', startGame);
        loadGameBtn.addEventListener('click', loadGame);
        characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
@@ -4937,20 +5197,20 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
        }, { passive: false });
       dojoDummySprite.addEventListener('touchend', stopDojoSession);
       dojoDummySprite.addEventListener('touchcancel', stopDojoSession);
-      
-      // vvv ADD THIS NEW LISTENER vvv
-      // Use Event Delegation for the dynamically created rewards button
-      playerStatPanel.addEventListener('click', (event) => {
-          // Check if the element that was actually clicked has the ID 'rewards-btn'
-          if (event.target && event.target.id === 'rewards-btn') {
-              // If it is our button, run the function!
-              showRewardsModal();
-          }
-      });
-      // ^^^ END OF NEW LISTENER ^^^
-        
+      gameScreen.addEventListener('click', (event) => {
+            if (event.target.id === 'rewards-btn') {
+                showRewardsModal();
+            }
+            // Updated to call our new function
+            if (event.target.id === 'toggle-modifiers-btn') {
+                renderAndShowDetailedStats();
+            }
+        }); 
       closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
       closeOfflineRewardsBtn.addEventListener('click', () => offlineRewardsModal.classList.remove('visible'));
+      detailedStatsCloseBtn.addEventListener('click', () => {
+            detailedStatsModal.classList.remove('visible');
+        });
       battleBtn.addEventListener('click', startBattle);
       attackBtn.addEventListener('click', handlePlayerAttack);
       feedBattleBtn.addEventListener('click', feedInBattle); 
