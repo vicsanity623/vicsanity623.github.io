@@ -97,6 +97,45 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     gap: 1px 15px;
     align-items: center;
 }
+#top-hud-container {
+    display: flex;
+    gap: 10px; /* Adds a nice space between the stat panel and the hunger bar */
+    align-items: stretch; /* Makes them the same height */
+    width: 100%;
+}
+
+/* Make the existing stat panel fill the available space */
+#player-stat-panel {
+    flex-grow: 1;
+}
+
+/* --- NEW: Hunger Meter Styling --- */
+#hunger-bar-container {
+    width: 30px; /* The width of the vertical bar */
+    background-color: var(--secondary-bg);
+    border: 2px solid #8B4513; /* A saddle brown color for the border */
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden; /* Important for containing the fill */
+}
+
+#hunger-bar-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #CD853F; /* A nice "peru" brown/orange for the fill */
+    transition: height 0.3s ease-out; /* Smooth animation when it changes */
+}
+
+#hunger-bar-icon {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.2em;
+    filter: drop-shadow(0 1px 1px black);
+}
 #action-buttons {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -676,6 +715,8 @@ input[type="range"] { flex-grow: 1; }
     min-height: 0;
 }
 #dojo-dummy-sprite {
+    width: 180px;
+    height: 180px;
     cursor: pointer;
     -webkit-user-drag: none;
     user-select: none;
@@ -1621,7 +1662,13 @@ input[type="range"] { flex-grow: 1; }
             <div id="health-bar" class="stat-bar-container health-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">HP: 100 / 100</span></div></div>
             <div id="energy-bar" class="stat-bar-container energy-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">Energy: 100 / 100</span></div></div>
             <div id="xp-bar" class="stat-bar-container xp-bar"><div class="stat-bar"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0 / 100</span></div></div>
-            <div id="player-stat-panel"></div>
+            <div id="top-hud-container">
+                <div id="player-stat-panel"></div>
+                <div id="hunger-bar-container">
+                    <div id="hunger-bar-fill"></div>
+                    <div id="hunger-bar-icon">🍖</div>
+                </div>
+            </div>
             <div id="buff-display" class="buff-display"></div>
         </div>
     
