@@ -286,7 +286,7 @@ const firebaseConfig = {
             // Passive drain over time
             updatePassiveDrain() {
                 if (gameState.satiation > 0) {
-                    gameState.satiation = Math.max(0, gameState.satiation - 0.1); // Very slow drain
+                    gameState.satiation = Math.max(0, gameState.satiation - 1.5); // Very slow drain
                     this.updateBar();
                     if (gameState.satiation === 0) {
                         this.handleConsequences();
