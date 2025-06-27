@@ -3248,7 +3248,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     const difficulty = genesisState.difficultyLevel;
                     const enemyHp = Math.floor((5 * gameState.level * gameState.ascension.tier) + (difficulty * 5));
                     
-                    const baseSpeed = 0.5 + Math.random() * 1.5;
+                    const baseSpeed = 0.2 + Math.random() * 0.9;
                     const speedMultiplier = 1 + (difficulty - 1) * 0.05;
                     const enemySpeed = baseSpeed * speedMultiplier;
             
