@@ -237,6 +237,8 @@ const firebaseConfig = {
           edgeStones: 0,
           highestBattleLevelCompleted: 0,
           stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
+          satiation: 1000, 
+          maxSatiation: 1000,
           resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
           equipment: { weapon: null, armor: null }, 
           inventory: [], hasEgg: false, partner: null,
@@ -270,6 +272,85 @@ const firebaseConfig = {
         
           } 
       };
+      // ----- NEW: HUNGER SYSTEM MODULE -----
+        const HungerSystem = {
+            isExhausted: false, // Flag to prevent spamming "feed me" messages
+
+            // Call this to update the visual bar
+            updateBar() {
+                if (!gameState.satiation) return;
+                const percent = (gameState.satiation / gameState.maxSatiation) * 100;
+                hungerBarFill.style.height = `${percent}%`;
+            },
+
+            // Passive drain over time
+            updatePassiveDrain() {
+                if (gameState.satiation > 0) {
+                    gameState.satiation = Math.max(0, gameState.satiation - 0.05); // Very slow drain
+                    this.updateBar();
+                    if (gameState.satiation === 0) {
+                        this.handleConsequences();
+                    }
+                }
+            },
+
+            // Drain when the player performs an action
+            drainOnAction(actionType) {
+                if (gameState.satiation <= 0) return;
+                // Different actions can have different costs
+                const cost = actionType === 'tap' ? 0.005 : 0.003; 
+                gameState.satiation = Math.max(0, gameState.satiation - cost);
+                this.updateBar();
+                if (gameState.satiation === 0) {
+                    this.handleConsequences();
+                }
+            },
+
+            // Refill the meter when feeding
+            replenish() {
+                gameState.satiation = Math.min(gameState.maxSatiation, gameState.satiation + 60); 
+                this.isExhausted = false; // Player is no longer exhausted
+                this.updateBar();
+            },
+
+            // A clean way to check if the player can act
+            canPerformAction() {
+                return gameState.satiation > 0;
+            },
+
+            // Handle all the negative effects when hunger hits zero
+            handleConsequences() {
+                if (this.isExhausted) return; // Don't run this logic again if already handled
+
+                this.isExhausted = true;
+                showToast("Your Guardian is exhausted and hungry!");
+                playSound('defeat', 0.8, 'sine', 300, 100, 0.5);
+
+                // Battle Mode Consequence
+                if (battleState.isActive) {
+                    addBattleLog("You're too hungry to fight!", "log-enemy");
+                    setTimeout(() => endBattle(false), 1500); // Lose the battle
+                    return;
+                }
+
+                // Genesis Arena (Endless) Consequence
+                if (genesisState.isActive) {
+                    genesisState.enemies.forEach(enemy => {
+                        if (enemy.element) enemy.element.remove();
+                        if (enemy.healthBarContainer) enemy.healthBarContainer.remove();
+                    });
+                    genesisState.enemies = []; // Clear all enemies
+                }
+
+                // Grow Mode (Tapping) Consequence
+                const feedBtnRect = feedBtn.getBoundingClientRect();
+                createFloatingText("Feed me!", feedBtnRect.left, feedBtnRect.top - 20, {
+                    color: 'var(--xp-color)',
+                    fontSize: '1.5em'
+                });
+            }
+        };
+        // ----- END OF HUNGER SYSTEM MODULE -----
   
       const ASCENSION_LEVEL = 50;
       const BATTLE_UNLOCK_LEVEL = 20;
@@ -293,6 +374,7 @@ const firebaseConfig = {
       const playerStatPanel = document.getElementById('player-stat-panel');
       const buffDisplay = document.getElementById('buff-display');
       const worldTierDisplay = document.getElementById('world-tier-display');
+      const hungerBarFill = document.getElementById('hunger-bar-fill');
       const startGameBtn = document.getElementById('start-game-btn');
       const growBtn = document.getElementById('grow-btn');
       const feedBtn = document.getElementById('feed-btn');
@@ -769,6 +851,7 @@ const firebaseConfig = {
       
       function updateUI() {
           if (!gameState.stats) return;
+          HungerSystem.updateBar();
           const oldMaxHp = gameState.resources.maxHp;
           const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
           const baseMaxHp = 100 + (gameState.level - 1) * 10;
@@ -1039,6 +1122,7 @@ const firebaseConfig = {
       }
       
       function handleTap(event, isPartnerTap = false) {
+          if (!HungerSystem.canPerformAction()) return;
           if (gameState.expedition.active) return;
           initAudio();
           if (gameState.tutorialCompleted === false) { gameState.tutorialCompleted = true; tutorialOverlay.classList.remove('visible'); saveGame(); }
@@ -1069,6 +1153,7 @@ const firebaseConfig = {
               if (gameState.level >= 30) { xpGain = 1.0 * tapCombo.currentMultiplier; } else if (gameState.level >= 10) { xpGain = 0.75 * tapCombo.currentMultiplier; }
               const tapXpBonus = 1 + (gameState.ascension.perks.tapXp || 0) * 0.10;
               xpGain *= tapXpBonus; createXpOrb(event, xpGain, gameState); gameState.resources.energy -= 1.1;
+              HungerSystem.drainOnAction('tap');
               if (tapCombo.currentMultiplier > 1) { createParticles(event); }
               characterSprite.style.animation = 'none'; void characterSprite.offsetWidth; characterSprite.classList.add('tapped');
               setTimeout(() => { 
@@ -1085,6 +1170,7 @@ const firebaseConfig = {
             const screenY = feedBtnRect.top; // Position it at the top of the button
         
             if (gameState.gold >= 5000) {
+                HungerSystem.replenish(); 
                 gameState.gold -= 5000;
                 
                 // --- Calculate how much energy and HP will actually be restored ---
@@ -3387,6 +3473,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         
         function initiateGenesisPlayerDash(timestamp) {
+            if (!HungerSystem.canPerformAction()) return false;
             const player = genesisState.player;
             if (!player || player.isDashing || genesisState.enemies.length === 0) return false;
             if (timestamp - player.lastDashTime < player.dashCooldown) return false;
@@ -3467,7 +3554,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 createDashExplosionEffect(explosionX, explosionY);
                 playSound('crit', 1, 'square', 400, 50, 0.4);
                 triggerScreenShake(300);
-
+                HungerSystem.drainOnAction('attack');
                 const explosionRadius = 150;
                 const dashDamage = getTotalStat('strength') * 5;
 
@@ -3588,6 +3675,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
 
         function handleGenesisThunderStrike(timestamp) {
+            if (!HungerSystem.canPerformAction()) return false;
             const player = genesisState.player;
             if (!player || player.isChargingHavoc || genesisState.enemies.length === 0) return false;
             if (timestamp - player.lastThunderStrikeTime < player.thunderStrikeCooldown) return false;
@@ -3635,6 +3723,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
             if (chainTargets.length > 1) {
                 player.lastThunderStrikeTime = timestamp;
+                HungerSystem.drainOnAction('attack');
                 playSound('ascend', 0.8, 'sawtooth', 100, 800, 0.3);
                 triggerScreenShake(200);
 
@@ -3666,11 +3755,13 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         
         function handleGenesisHavocRage(timestamp) {
+            if (!HungerSystem.canPerformAction()) return false; 
             const player = genesisState.player;
             if (!player || genesisState.enemies.length === 0) return false;
             if (timestamp - player.lastHavocRageTime < player.havocRageCooldown) return false;
         
             player.lastHavocRageTime = timestamp;
+            HungerSystem.drainOnAction('attack');
         
             playSound('crit', 1, 'sawtooth', 300, 50, 0.5); 
             triggerScreenShake(400);
@@ -3734,6 +3825,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
 
         function handleGenesisPlayerAttack(timestamp) {
+            if (!HungerSystem.canPerformAction()) return;
             const player = genesisState.player;
             const baseCooldown = 300;
             const reductionPerAgi = 1;
@@ -3767,6 +3859,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     const critMultiplier = 2.5 + (getPotentialBonus('crit_damage_percent') / 100);
                     const damage = getTotalStat('strength') * (isCrit ? critMultiplier : 1);
                     applyDamageToEnemy(enemy, damage, isCrit);
+                    HungerSystem.drainOnAction('attack');
                 }
             });
 
@@ -4187,6 +4280,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       }
       
       function passiveResourceRegen() {
+          HungerSystem.updatePassiveDrain();
           let playerUINeedsUpdate = false;
           let partnerUINeedsUpdate = false;
   
