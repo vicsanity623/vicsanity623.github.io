@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
       lastDifficultyIncrease: 0,
       isBattleMode: false,
       currentWave: 0,
-      totalWaves: 20,
+      totalWaves: 10,
       enemiesToSpawnThisWave: 0,
       enemiesSpawnedThisWave: 0,
       boss: null,
@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
       opponentData: null,
     };
 
+    // --- FIX PART 1: Remove the direct dependency on the `achievements` constant ---
     const defaultState = {
         version: GAME_VERSION,
         playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 30,
@@ -82,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ascension: { tier: 1, points: 0, perks: {} },
         permanentUpgrades: {},
         activeBuffs: {},
-        achievements: JSON.parse(JSON.stringify(achievements)),
+        achievements: null, // Set to null initially
         counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
         lastWeeklyRewardClaim: 0,
         settings: { musicVolume: 0.5, sfxVolume: 1.0, isMuted: false, isAutoBattle: false }, dojoPersonalBest: 0,
@@ -322,6 +323,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         gameState = JSON.parse(JSON.stringify(defaultState));
         gameState.playerName = playerName;
+
+        // --- FIX PART 2: Properly initialize the achievements now that it's safe ---
+        gameState.achievements = JSON.parse(JSON.stringify(achievements));
 
         updateSettingsUI();
         updateUI();
