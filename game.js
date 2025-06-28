@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = "1.1.5"; // Updated version for new features
+      const GAME_VERSION = "1.1.6"; // Updated version for new features
       
       let gameState = {};
       let audioCtx = null;
@@ -81,7 +81,13 @@ function returnEffectToPool(type, element) {
       let partnerTimerInterval = null;
       const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
       const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
-      let tapCombo = { counter: 0, lastTapTime: 0, currentMultiplier: 1, frenzyTimeout: null };
+      let tapCombo = { 
+            counter: 0, 
+            lastTapTime: 0, 
+            currentMultiplier: 1, 
+            maxMultiplier: 5000, // The highest the combo can go
+            frenzyTimeout: null 
+        };
       let expeditionInterval = null;
       let dojoState = { isActive: false, timerId: null, damageIntervalId: null, beamAnimationId: null, totalSessionDamage: 0 };
       // --- GENESIS ARENA STATE ---
@@ -411,7 +417,7 @@ function returnEffectToPool(type, element) {
         // Refill the meter when feeding
         replenish() {
             // We can also make the replenish amount more significant
-            gameState.satiation = Math.min(gameState.maxSatiation, gameState.satiation + 50); 
+            gameState.satiation = Math.min(gameState.maxSatiation, gameState.satiation + 10); 
             this.isExhausted = false; // Player is no longer exhausted
             this.updateBar();
         },
@@ -778,7 +784,10 @@ function returnEffectToPool(type, element) {
           updateUI(); 
           updateAscensionVisuals();
           showScreen('game-screen');
-          startGameGenesis();
+          const characterArea = document.getElementById('character-area');
+          const genesisArena = document.getElementById('genesis-arena');
+          characterArea.style.display = 'flex'; // Or 'block' if you use that
+          genesisArena.style.display = 'none';
           checkWeeklyRewards();
           checkDailyRewards(); 
           await saveGame(); 
@@ -898,7 +907,10 @@ function returnEffectToPool(type, element) {
               updateUI(); 
               updateAscensionVisuals();
               showScreen('game-screen');
-              startGameGenesis(); 
+              const characterArea = document.getElementById('character-area');
+              const genesisArena = document.getElementById('genesis-arena');
+              characterArea.style.display = 'flex'; // Or 'block'
+              genesisArena.style.display = 'none';
               checkWeeklyRewards();
               checkDailyRewards();
               await saveGame();
@@ -1016,6 +1028,14 @@ function returnEffectToPool(type, element) {
                     }
                 }
             }
+        }
+        const ENDLESS_UNLOCK_LEVEL = 5;
+        if (gameState.level < ENDLESS_UNLOCK_LEVEL) {
+            growBtn.textContent = `Endless (Lvl ${ENDLESS_UNLOCK_LEVEL})`;
+        } else {
+            // If Endless mode is active, the button should say "Grow"
+            // If not active, it should say "Endless"
+            growBtn.textContent = genesisState.isActive ? 'Grow' : 'Endless';
         }
     
         const createStatRow = (label, value, statKey) => {
@@ -1205,42 +1225,51 @@ function returnEffectToPool(type, element) {
       function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
       
       function updateFrenzyVisuals() {
-          const multiplier = tapCombo.currentMultiplier; const root = document.documentElement;
-          if (multiplier > 1) {
-              let color = 'var(--accent-color)';
-              if (multiplier >= 15) { color = 'var(--health-color)'; } else if (multiplier >= 10) { color = 'var(--xp-color)'; }
-              root.style.setProperty('--frenzy-glow-color', color);
-              frenzyDisplay.textContent = `x${multiplier}`; frenzyDisplay.style.color = color;
-              frenzyDisplay.classList.add('active'); characterSprite.classList.add('frenzy');
-          } else { frenzyDisplay.classList.remove('active'); characterSprite.classList.remove('frenzy'); }
-      }
-      
-      function activateFrenzy() {
-        if (tapCombo.frenzyTimeout) { clearTimeout(tapCombo.frenzyTimeout); }
-        tapCombo.currentMultiplier = (tapCombo.currentMultiplier === 1) ? 5 : tapCombo.currentMultiplier + 5;
-    
-        // --- NEW ENHANCED VISUALS ---
-        // 1. Scaled Screen Shake: The shake gets longer and more intense with higher combos.
-        const shakeDuration = Math.min(800, 200 + (tapCombo.currentMultiplier * 5));
-        triggerScreenShake(shakeDuration);
+            const multiplier = tapCombo.currentMultiplier;
+            const root = document.documentElement;
 
-        // 2. More Particles: Burst more particles as the combo grows.
-        createParticles({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
-        if (tapCombo.currentMultiplier > 30) {
-            createParticles({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
+            if (multiplier > 1) {
+                let color = 'var(--text-color)'; // Default combo color
+                if (multiplier >= 50) {
+                    color = 'var(--rarity-legendary)'; // Legendary Pink/Red
+                } else if (multiplier >= 25) {
+                    color = 'var(--xp-color)'; // Gold
+                } else if (multiplier >= 10) {
+                    color = 'var(--accent-color)'; // Green
+                }
+                
+                root.style.setProperty('--frenzy-glow-color', color);
+                frenzyDisplay.textContent = `x${multiplier}`;
+                frenzyDisplay.style.color = color;
+                frenzyDisplay.classList.add('active');
+                characterSprite.classList.add('frenzy');
+            } else {
+                frenzyDisplay.classList.remove('active');
+                characterSprite.classList.remove('frenzy');
+            }
+        }
+      
+      function increaseCombo() {
+            // Clear any existing timer to reset the 5-second countdown
+            if (tapCombo.frenzyTimeout) {
+                clearTimeout(tapCombo.frenzyTimeout);
+            }
+
+            // Add a small amount to the multiplier, capping it at the max
+            tapCombo.currentMultiplier = Math.min(tapCombo.maxMultiplier, tapCombo.currentMultiplier + 1);
+
+            // Update the visuals to show the new multiplier
+            updateFrenzyVisuals();
+
+            // Set a new timer. If the player doesn't tap again within 5 seconds, the combo resets.
+            tapCombo.frenzyTimeout = setTimeout(resetCombo, 2300);
         }
 
-        // 3. Screen Flash for huge combos
-        if (tapCombo.currentMultiplier >= 100) {
-            triggerScreenFlash();
+        function resetCombo() {
+            tapCombo.currentMultiplier = 1; // Reset to base
+            tapCombo.frenzyTimeout = null;
+            updateFrenzyVisuals(); // Update visuals to hide the combo display
         }
-        // --- END OF ENHANCED VISUALS ---
-
-        updateFrenzyVisuals(); 
-        tapCombo.frenzyTimeout = setTimeout(deactivateFrenzy, 7000);
-      }
-      
-      function deactivateFrenzy() { tapCombo.currentMultiplier = 1; tapCombo.frenzyTimeout = null; updateFrenzyVisuals(); }
       
       function createParticles(event) {
           for (let i = 0; i < 8; i++) {
@@ -1292,7 +1321,9 @@ function returnEffectToPool(type, element) {
               playSound('tap', 0.5, 'square', 150, 100, 0.05); const now = Date.now();
               if (now - tapCombo.lastTapTime < 1500) { tapCombo.counter++; } else { tapCombo.counter = 1; }
               tapCombo.lastTapTime = now;
-              if (tapCombo.counter > 0 && tapCombo.counter % 5 === 0) { if (Math.random() < 0.60) { activateFrenzy(); } }
+              if (tapCombo.counter > 0 && tapCombo.counter % 5 === 0) {
+                increaseCombo();
+              }
               if (Math.random() < 0.1) { triggerScreenShake(150); }
               let xpGain = 0.25 * tapCombo.currentMultiplier;
               if (gameState.level >= 30) { xpGain = 1.0 * tapCombo.currentMultiplier; } else if (gameState.level >= 10) { xpGain = 0.75 * tapCombo.currentMultiplier; }
@@ -3112,7 +3143,8 @@ function applyDamageToEnemy(enemy, damageAmount, isCrit = false) {
         }
         // --- END OF ORB LOGIC ---
 
-        addXP(gameState, 20 * (genesisState.isBattleMode ? (gameState.highestBattleLevelCompleted + 1) : (gameState.level * gameState.ascension.tier)));
+        const xpAmount = 20 * (genesisState.isBattleMode ? (gameState.highestBattleLevelCompleted + 1) : genesisState.difficultyLevel);
+                addXP(gameState, xpAmount);
         createLootOrb(enemy.x, enemy.y); // This function correctly handles not dropping loot in battle mode
         
         // Remove the visuals from the game
@@ -3316,19 +3348,28 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             genesisState.isBattleMode = false;
         }
         function toggleGrowthMode() {
-            // Check if the Genesis Arena is currently active
+            const UNLOCK_LEVEL = 5; // Level required to unlock Endless mode
+
+            // Check if the Genesis Arena (Endless Mode) is currently active
             if (genesisState.isActive) {
-                // If it is, stop it and show the static character
+                // If it is, stop it and show the static character (Grow Mode)
                 stopGameGenesis();
-                characterArea.style.display = 'flex'; // Show static tap area
-                genesisArena.style.display = 'none';  // Hide the arena
-                growBtn.textContent = 'Endless'; // Change button text
+                characterArea.style.display = 'flex';
+                genesisArena.style.display = 'none';
+                growBtn.textContent = `Endless (Lvl ${UNLOCK_LEVEL})`;
             } else {
-                // If it's not active, start it up again
-                genesisArena.style.display = 'block'; // Show the arena
-                characterArea.style.display = 'none'; // Hide static tap area
-                startGameGenesis(); // Start the endless mode
-                growBtn.textContent = 'Grow'; // Change button text back
+                // If it's not active, check if the player is high enough level
+                if (gameState.level < UNLOCK_LEVEL) {
+                    showToast(`You must reach Level ${UNLOCK_LEVEL} to unlock Endless mode.`);
+                    playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15); // Error sound
+                    return;
+                }
+
+                // If they are, start the Endless mode
+                genesisArena.style.display = 'block';
+                characterArea.style.display = 'none';
+                startGameGenesis();
+                growBtn.textContent = 'Grow'; // Button now lets you go back to Grow mode
             }
         }
         function handleLootCollection() {
