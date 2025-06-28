@@ -2392,17 +2392,17 @@ function returnEffectToPool(type, element) {
     
         const playerPower = gameState.level + (gameState.ascension.tier * 10);
         const minutesOffline = effectiveOfflineTime / 60;
-        const goldPerSecond = 10.6 * playerPower * (1 + getTotalStat('goldFind') / 100);
+        const goldPerSecond = 110.6 * playerPower * (1 + getTotalStat('goldFind') / 100);
         const totalGold = Math.floor(goldPerSecond * effectiveOfflineTime);
-        const xpPerSecond = 150.2 * playerPower;
+        const xpPerSecond = 3150.2 * playerPower;
         const totalXp = Math.floor(xpPerSecond * effectiveOfflineTime);
         const enemiesDefeated = Math.max(1, Math.floor(effectiveOfflineTime / 30));
-        const edgeStonesPerMinute = 0.008;
+        const edgeStonesPerMinute = 0.1;
         let totalEdgeStones = (edgeStonesPerMinute * minutesOffline);
         if (gameState.ascension.tier > 1) {
             totalEdgeStones *= gameState.ascension.tier;
         }
-        const totalOrbs = enemiesDefeated * 0.5;
+        const totalOrbs = enemiesDefeated * 1.5;
     
         const weaponsFoundList = [];
         const armorsFoundList = [];
