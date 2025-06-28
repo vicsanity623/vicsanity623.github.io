@@ -2108,5 +2108,19 @@ input[type="range"] { flex-grow: 1; }
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="game.js" defer></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then((reg) => {
+              console.log('Service worker registered.', reg);
+            })
+            .catch((err) => {
+              console.error('Service worker registration failed:', err);
+            });
+        });
+      }
+    
+</script>
 </body>
 </html>
