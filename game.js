@@ -358,8 +358,14 @@ function returnEffectToPool(type, element) {
                 weaponMastery: 0,
                 armorMastery: 0,
                 attackSpeed: 0
+            },
+            skills: {
+                aoeSlash: 0,
+                dash: 0,
+                thunderStrike: 0,
+                havocRage: 0
             }
-          } 
+        } 
       };
       
       // ----- NEW: HUNGER SYSTEM MODULE -----
@@ -792,55 +798,58 @@ function returnEffectToPool(type, element) {
         }
         return item;
     }
-      async function migrateSaveData(loadedState) {
-          if (!loadedState.version || loadedState.version < GAME_VERSION) {
-              showScreen('update-screen');
-              loadedState.version = GAME_VERSION;
-              if (!loadedState.equipment) loadedState.equipment = { weapon: null, armor: null };
-              if (!loadedState.inventory) { 
-                  loadedState.inventory = [];
-                  if (loadedState.equipment.weapon) loadedState.inventory.push(loadedState.equipment.weapon);
-                  if (loadedState.equipment.armor) loadedState.inventory.push(loadedState.equipment.armor);
-              }
-              loadedState.inventory.forEach(item => { if (item && item.reforgeCount === undefined) item.reforgeCount = 0; });
-              loadedState.permanentUpgrades = loadedState.permanentUpgrades || {};
-              loadedState.activeBuffs = loadedState.activeBuffs || {};
-              loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
-              const defaultCounters = { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 };
-              loadedState.counters = { ...defaultCounters, ...(loadedState.counters || {})};
-              loadedState.hasEgg = loadedState.hasEgg || false;
-              loadedState.partner = loadedState.partner || null;
-              loadedState.lastWeeklyRewardClaim = loadedState.lastWeeklyRewardClaim || 0;
-              const defaultSettings = defaultState.settings;
-              loadedState.settings = { ...defaultSettings, ...(loadedState.settings || {})};
-              loadedState.highestBattleLevelCompleted = loadedState.highestBattleLevelCompleted || 0;
-              loadedState.dojoPersonalBest = loadedState.dojoPersonalBest || 0;
-              loadedState.edgeStones = loadedState.edgeStones || 0;
-              loadedState.lastDailyClaim = loadedState.lastDailyClaim || 0;
-              loadedState.dailyStreak = loadedState.dailyStreak || 0;
-              loadedState.lastLogin = loadedState.lastLogin || Date.now();
-              if (!loadedState.immortalGrowth) {
+    async function migrateSaveData(loadedState) {
+        if (!loadedState.version || loadedState.version < GAME_VERSION) {
+            showScreen('update-screen');
+            loadedState.version = GAME_VERSION;
+            if (!loadedState.equipment) loadedState.equipment = { weapon: null, armor: null };
+            if (!loadedState.inventory) { 
+                loadedState.inventory = [];
+                if (loadedState.equipment.weapon) loadedState.inventory.push(loadedState.equipment.weapon);
+                if (loadedState.equipment.armor) loadedState.inventory.push(loadedState.equipment.armor);
+            }
+            loadedState.inventory.forEach(item => { if (item && item.reforgeCount === undefined) item.reforgeCount = 0; });
+            loadedState.permanentUpgrades = loadedState.permanentUpgrades || {};
+            loadedState.activeBuffs = loadedState.activeBuffs || {};
+            loadedState.ascension = loadedState.ascension || { tier: 1, points: 0, perks: {} };
+            const defaultCounters = { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 };
+            loadedState.counters = { ...defaultCounters, ...(loadedState.counters || {})};
+            loadedState.hasEgg = loadedState.hasEgg || false;
+            loadedState.partner = loadedState.partner || null;
+            loadedState.lastWeeklyRewardClaim = loadedState.lastWeeklyRewardClaim || 0;
+            const defaultSettings = defaultState.settings;
+            loadedState.settings = { ...defaultSettings, ...(loadedState.settings || {})};
+            loadedState.highestBattleLevelCompleted = loadedState.highestBattleLevelCompleted || 0;
+            loadedState.dojoPersonalBest = loadedState.dojoPersonalBest || 0;
+            loadedState.edgeStones = loadedState.edgeStones || 0;
+            loadedState.lastDailyClaim = loadedState.lastDailyClaim || 0;
+            loadedState.dailyStreak = loadedState.dailyStreak || 0;
+            loadedState.lastLogin = loadedState.lastLogin || Date.now();
+            
+            if (!loadedState.immortalGrowth) {
                 loadedState.immortalGrowth = JSON.parse(JSON.stringify(defaultState.immortalGrowth));
-              }
-              loadedState.orbs = loadedState.orbs || 0;
-                if (!loadedState.immortalGrowth.skills) {
-                    loadedState.immortalGrowth.skills = JSON.parse(JSON.stringify(defaultState.immortalGrowth.skills));
-                }
-                if (loadedState.immortalGrowth.skills.aoeSlash === undefined) loadedState.immortalGrowth.skills.aoeSlash = 0;
-              if (loadedState.equipment.weapon) {
-                  rehydrateItemRarity(loadedState.equipment.weapon);
-              }
-              if (loadedState.equipment.armor) {
-                  rehydrateItemRarity(loadedState.equipment.armor);
-              }
-              if (loadedState.inventory && Array.isArray(loadedState.inventory)) {
-                  loadedState.inventory = loadedState.inventory.map(item => rehydrateItemRarity(item));
-              }
-              
-              await new Promise(resolve => setTimeout(resolve, 1500));
-          }
-          return loadedState;
-      }
+            }
+    
+            if (!loadedState.immortalGrowth.skills) {
+                loadedState.immortalGrowth.skills = JSON.parse(JSON.stringify(defaultState.immortalGrowth.skills));
+            }
+    
+            loadedState.orbs = loadedState.orbs || 0;
+          
+            if (loadedState.equipment.weapon) {
+                rehydrateItemRarity(loadedState.equipment.weapon);
+            }
+            if (loadedState.equipment.armor) {
+                rehydrateItemRarity(loadedState.equipment.armor);
+            }
+            if (loadedState.inventory && Array.isArray(loadedState.inventory)) {
+                loadedState.inventory = loadedState.inventory.map(item => rehydrateItemRarity(item));
+            }
+                  
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+        return loadedState;
+    }
   
       // --- FIXED/MERGED ---: Robust load game logic with cloud-first approach.
       async function loadGame() {
