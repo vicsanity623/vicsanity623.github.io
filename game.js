@@ -1463,7 +1463,17 @@ function returnEffectToPool(type, element) {
               gameState.edgeStones = (gameState.edgeStones || 0) + 50;
               gameState.level = 1; gameState.xp = 0; gameState.gold = 0;
               gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
-              gameState.inventory = [];
+              const equippedWeapon = gameState.equipment.weapon;
+              const equippedArmor = gameState.equipment.armor;
+
+              gameState.inventory = []; // Clear the old inventory
+
+              if (equippedWeapon) {
+                  gameState.inventory.push(equippedWeapon);
+              }
+              if (equippedArmor) {
+                  gameState.inventory.push(equippedArmor);
+              }
               const oldHp = gameState.resources.hp; const oldEnergy = gameState.resources.energy;
               gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
               updateUI();
