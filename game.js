@@ -3466,7 +3466,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         function spawnEnemies(timestamp) {
             if (genesisState.isBattleMode) {
-                const waveSpawnInterval = 800;
+                const waveSpawnInterval = 240;
                 if (genesisState.enemiesSpawnedThisWave < genesisState.enemiesToSpawnThisWave && timestamp - genesisState.lastEnemySpawn > waveSpawnInterval) {
                     genesisState.lastEnemySpawn = timestamp;
                     genesisState.enemiesSpawnedThisWave++;
