@@ -1,0 +1,28 @@
+{
+  "name": "Tap Guardian",
+  "short_name": "Guardian",
+  "description": "An incremental RPG where you tap to grow your guardian stronger.",
+  "start_url": "./rpg.html",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#00ff7f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "player.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "player.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "player.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ]
+}
