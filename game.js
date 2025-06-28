@@ -595,6 +595,8 @@ function returnEffectToPool(type, element) {
       const skillsModal = document.getElementById('skills-modal');
       const closeSkillsBtn = document.getElementById('skills-close-btn');
       const skillsTreeContainer = document.getElementById('skills-tree-container');
+      const detailedStatsModal = document.getElementById('detailed-stats-modal');
+      const detailedStatsCloseBtn = document.getElementById('detailed-stats-close-btn');
       
       // --- DOJO ELEMENTS ---
       const dojoBtn = document.getElementById('dojo-btn');
@@ -1085,55 +1087,55 @@ function returnEffectToPool(type, element) {
         updatePartnerUI();
       }
       function renderAndShowDetailedStats() {
-            const listContainer = document.getElementById('detailed-stats-list');
-            const modal = document.getElementById('detailed-stats-modal');
-            listContainer.innerHTML = ''; // Clear previous stats
-        
-            let modifiersHtml = '';
-        
-            // Potentials
-            Object.keys(potentialsData).forEach(id => {
-                const level = gameState.immortalGrowth.potentials[id] || 0;
-                if (level > 0) {
-                    const data = potentialsData[id];
-                    const bonus = level * data.bonusPerLevel;
-                    const gradeInfo = calculateGradeInfo(level);
-                    modifiersHtml += `<div class="modifier-row"><span class="modifier-label"><span class="modifier-grade" style="color: ${gradeInfo.color};">[${gradeInfo.grade}]</span>${data.name}</span> <span class="modifier-value">+${bonus.toFixed(2)}%</span></div>`;
-                }
-            });
-        
-            // Awakening
-            Object.keys(awakeningData).forEach(id => {
-                const level = gameState.immortalGrowth.awakening[id] || 0;
-                if (level > 0) {
-                    const data = awakeningData[id];
-                    let bonusText = '';
-                    if (id === 'weaponMastery') bonusText = `+${level * 10} STR`;
-                    else if (id === 'armorMastery') bonusText = `+${level * 10} FOR`;
-                    else if (id === 'attackSpeed') bonusText = `+${level * 1}% Attack Speed`;
-                    else if (id === 'wisdom') bonusText = `+${level * 5}% XP Gain`;
-                    else if (id === 'stamina') bonusText = `+${level * 25} Max Energy`;
-                    modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">${bonusText}</span></div>`;
-                }
-            });
-        
-            // Skills
-            Object.keys(skillsData).forEach(id => {
-                const level = gameState.immortalGrowth.skills[id] || 0;
-                if (level > 0) {
-                    const data = skillsData[id];
-                    const bonus = level * data.bonusPerLevel;
-                    modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">+${bonus.toFixed(1)}% Damage</span></div>`;
-                }
-            });
-        
-            if (modifiersHtml === '') {
-                modifiersHtml = '<p style="text-align: center; opacity: 0.7;">No active modifiers yet. Upgrade them in the Growth menu!</p>';
+        const listContainer = document.getElementById('detailed-stats-list');
+        const modal = document.getElementById('detailed-stats-modal');
+        listContainer.innerHTML = ''; // Clear previous stats
+    
+        let modifiersHtml = '';
+    
+        // Potentials
+        Object.keys(potentialsData).forEach(id => {
+            const level = gameState.immortalGrowth.potentials[id] || 0;
+            if (level > 0) {
+                const data = potentialsData[id];
+                const bonus = level * data.bonusPerLevel;
+                const gradeInfo = calculateGradeInfo(level);
+                modifiersHtml += `<div class="modifier-row"><span class="modifier-label"><span class="modifier-grade" style="color: ${gradeInfo.color};">[${gradeInfo.grade}]</span>${data.name}</span> <span class="modifier-value">+${bonus.toFixed(2)}%</span></div>`;
             }
-        
-            listContainer.innerHTML = modifiersHtml;
-            modal.classList.add('visible');
+        });
+    
+        // Awakening
+        Object.keys(awakeningData).forEach(id => {
+            const level = gameState.immortalGrowth.awakening[id] || 0;
+            if (level > 0) {
+                const data = awakeningData[id];
+                let bonusText = '';
+                if (id === 'weaponMastery') bonusText = `+${level * 10} STR`;
+                else if (id === 'armorMastery') bonusText = `+${level * 10} FOR`;
+                else if (id === 'attackSpeed') bonusText = `+${level * 1}% Attack Speed`;
+                else if (id === 'wisdom') bonusText = `+${level * 5}% XP Gain`;
+                else if (id === 'stamina') bonusText = `+${level * 25} Max Energy`;
+                modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">${bonusText}</span></div>`;
+            }
+        });
+    
+        // Skills
+        Object.keys(skillsData).forEach(id => {
+            const level = gameState.immortalGrowth.skills[id] || 0;
+            if (level > 0) {
+                const data = skillsData[id];
+                const bonus = level * data.bonusPerLevel;
+                modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">+${bonus.toFixed(1)}% Damage</span></div>`;
+            }
+        });
+    
+        if (modifiersHtml === '') {
+            modifiersHtml = '<p style="text-align: center; opacity: 0.7;">No active modifiers yet. Upgrade them in the Growth menu!</p>';
         }
+    
+        listContainer.innerHTML = modifiersHtml;
+        modal.classList.add('visible');
+    }
       
       function addXP(character, amount) { 
           if(character.isPartner && gameState.expedition.active) return;
@@ -5110,8 +5112,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         // --- END OF NEW LOGIC ---
     }
        // --- EVENT LISTENERS ---
-       const detailedStatsModal = document.getElementById('detailed-stats-modal');
-       const detailedStatsCloseBtn = document.getElementById('detailed-stats-close-btn');
+       
        immortalGrowthBtn.addEventListener('click', () => {
            renderPotentialsTree();
            immortalGrowthModal.classList.add('visible');
@@ -5201,14 +5202,19 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       dojoDummySprite.addEventListener('touchend', stopDojoSession);
       dojoDummySprite.addEventListener('touchcancel', stopDojoSession);
       gameScreen.addEventListener('click', (event) => {
-            if (event.target.id === 'rewards-btn') {
-                showRewardsModal();
-            }
-            // Updated to call our new function
-            if (event.target.id === 'toggle-modifiers-btn') {
-                renderAndShowDetailedStats();
-            }
-        }); 
+                if (event.target.id === 'rewards-btn') {
+                    showRewardsModal();
+                }
+                // Updated to call our new function
+                if (event.target.id === 'toggle-modifiers-btn') {
+                    renderAndShowDetailedStats();
+                }
+            }); 
+        closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
+        closeOfflineRewardsBtn.addEventListener('click', () => offlineRewardsModal.classList.remove('visible'));
+        detailedStatsCloseBtn.addEventListener('click', () => { // <-- ADD THIS
+                detailedStatsModal.classList.remove('visible');
+            });
       closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
       closeOfflineRewardsBtn.addEventListener('click', () => offlineRewardsModal.classList.remove('visible'));
       detailedStatsCloseBtn.addEventListener('click', () => {
