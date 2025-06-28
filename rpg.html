@@ -206,7 +206,9 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     font-size: 1.2em;
     vertical-align: middle;
 }
-
+.stat-item {
+    display: contents;
+}
 .stat-label {
     text-align: right;
     color: var(--text-color);
@@ -1715,29 +1717,6 @@ input[type="range"] { flex-grow: 1; }
 #toggle-modifiers-btn:hover {
     background-color: #4a4a4a;
 }
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    margin-bottom: 15px; /* Adds space between header and inventory grid */
-}
-
-#inventory-view-stats-btn {
-    padding: 8px 12px;
-    font-size: 0.9em;
-    font-weight: bold;
-    background-color: var(--accent-color); /* Matches your theme */
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-#inventory-view-stats-btn:hover {
-    background-color: #57a8a0; /* A slightly lighter shade for hover */
-}
 </style>
 </head>
 <body>
@@ -1926,10 +1905,7 @@ input[type="range"] { flex-grow: 1; }
     
     <div id="inventory-modal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>Inventory</h2>
-                <button id="inventory-view-stats-btn">📊 View Stats</button>
-            </div>
+            <h2>Inventory</h2>
             <p id="inventory-prompt-text"></p>
             <div id="inventory-columns">
                 <div class="inventory-column">
@@ -2128,16 +2104,6 @@ input[type="range"] { flex-grow: 1; }
             <button id="detailed-stats-close-btn" style="margin-top: 20px;">Close</button>
         </div>
     </div>
-    <div id="detailed-stats-modal" class="modal">
-        <div class="modal-content">
-            <h2>Detailed Modifiers</h2>
-            <div id="detailed-stats-list" style="margin-top: 20px; max-height: 60vh; overflow-y: auto;">
-                <!-- JavaScript will populate this list -->
-            </div>
-            <button id="detailed-stats-close-btn" style="margin-top: 20px;">Close</button>
-        </div>
-    </div>
-
     <button id="toggle-ui-btn" class="ui-toggle-button">👁️</button>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
