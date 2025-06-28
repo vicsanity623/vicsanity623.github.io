@@ -2102,6 +2102,16 @@ input[type="range"] { flex-grow: 1; }
             <button id="detailed-stats-close-btn" style="margin-top: 20px;">Close</button>
         </div>
     </div>
+    <div id="detailed-stats-modal" class="modal">
+        <div class="modal-content">
+            <h2>Detailed Modifiers</h2>
+            <div id="detailed-stats-list" style="margin-top: 20px; max-height: 60vh; overflow-y: auto;">
+                <!-- JavaScript will populate this list -->
+            </div>
+            <button id="detailed-stats-close-btn" style="margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
     <button id="toggle-ui-btn" class="ui-toggle-button">👁️</button>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
