@@ -528,6 +528,7 @@ function returnEffectToPool(type, element) {
       const returnToGameBtn = document.getElementById('return-to-game-btn');
       const inventoryBtn = document.getElementById('inventory-btn');
       const inventoryModal = document.getElementById('inventory-modal');
+      const inventoryViewStatsBtn = document.getElementById('inventory-view-stats-btn');
       const inventoryList = document.getElementById('inventory-list');
       const closeInventoryBtn = document.getElementById('close-inventory-btn');
       const forgeModal = document.getElementById('forge-modal');
@@ -5201,6 +5202,13 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
        }, { passive: false });
       dojoDummySprite.addEventListener('touchend', stopDojoSession);
       dojoDummySprite.addEventListener('touchcancel', stopDojoSession);
+      inventoryViewStatsBtn.addEventListener('click', () => {
+            // Hide the inventory modal for a cleaner view
+            inventoryModal.classList.remove('visible');
+            
+            // Call the existing function to show the stats modal
+            renderAndShowDetailedStats();
+        });
       gameScreen.addEventListener('click', (event) => {
                 if (event.target.id === 'rewards-btn') {
                     showRewardsModal();
