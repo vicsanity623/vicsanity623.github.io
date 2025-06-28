@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = "1.1.9"; // Updated version for xpbubble spawn chance from 0.005 to 0.25
+      const GAME_VERSION = "1.2.0"; // Updated version for added rift mode.
       
       let gameState = {};
       let audioCtx = null;
