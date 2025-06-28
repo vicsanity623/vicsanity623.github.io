@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = "1.1.7"; // Updated version for ascend keep weapons, armor and gold
+      const GAME_VERSION = "1.1.8"; // Updated version for ascend keep weapons, armor, gold, edgesetones, orbs
       
       let gameState = {};
       let audioCtx = null;
@@ -1487,70 +1487,59 @@ function returnEffectToPool(type, element) {
       }
   
       function ascend() {
-            if (gameState.level < ASCENSION_LEVEL) {
-                showNotification("Not Ready", `You must reach Level ${ASCENSION_LEVEL} to Ascend.`);
-                return;
-            }
-            const confirmationMessage = `Are you sure you want to Ascend?\n\nYour Level, Stats, Gold, and non-equipped inventory will be reset.\n\nYour equipped Weapon and Armor will be kept.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point.`;
-
-            if (confirm(confirmationMessage)) {
-                gameState.ascension.tier++;
-                gameState.ascension.points++;
-                gameState.counters.ascensionCount = (gameState.counters.ascensionCount || 0) + 1;
-                checkAllAchievements();
-                playSound('ascend', 1, 'sawtooth', 100, 1000, 1);
-                gameState.edgeStones = (gameState.edgeStones || 0) + 50;
-
-
-                // Save your currently equipped items to temporary variables
-                const keptWeapon = gameState.equipment.weapon;
-                const keptArmor = gameState.equipment.armor;
-
-                // Reset the player's core progression stats
-                gameState.level = 1;
-                gameState.xp = 0;
-                gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
-
-                // Reset the player's inventory and equipment slots completely
-                gameState.inventory = [];
-                gameState.equipment = { weapon: null, armor: null };
-
-                // Now, add the kept items back to the inventory AND re-equip them
-                if (keptWeapon) {
-                    gameState.inventory.push(keptWeapon);
-                    gameState.equipment.weapon = keptWeapon;
-                }
-                if (keptArmor) {
-                    gameState.inventory.push(keptArmor);
-                    gameState.equipment.armor = keptArmor;
-                }
-                // --- END OF CHANGES ---
-
-                const oldHp = gameState.resources.hp;
-                const oldEnergy = gameState.resources.energy;
-                gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
-                updateUI();
-                gameState.resources.hp = Math.min(oldHp, gameState.resources.maxHp);
-                gameState.resources.energy = Math.min(oldEnergy, gameState.resources.maxEnergy);
-
-                submitScoreToLeaderboard();
-                updateAscensionVisuals();
-                saveGame();
-                updateUI();
-                ingameMenuModal.classList.remove('visible');
-                
-                const notificationText = `Welcome to World Tier ${gameState.ascension.tier}. You have gained 1 Ascension Point to spend.<br><br>Bonus Reward: <strong style="color: #00FFFF;">♦️ 50 EdgeStones</strong>`;
-                showNotification("ASCENDED!", notificationText);
-            }
+        if (gameState.level < ASCENSION_LEVEL) {
+            showNotification("Not Ready", `You must reach Level ${ASCENSION_LEVEL} to Ascend.`);
+            return;
         }
-  
-      async function submitScoreToLeaderboard() {
-          if (!gameState.playerName || gameState.playerName === "Guardian") return;
-          const score = { name: gameState.playerName, level: gameState.level, tier: gameState.ascension.tier, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
-          try {
-              // Use player name for public leaderboard, but use UID for personal saves.
-              await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true });
-          } catch (error) { console.error("Error submitting score: ", error); }
+
+        // Updated confirmation message to reflect that all items and currencies are kept
+        const confirmationMessage = `Are you sure you want to Ascend?\n\nThis will reset your Level and core stats (STR, AGI, etc.).\n\nYou will KEEP all of your Equipment, Gold, EdgeStones, and Orbs.\n\nYou will advance to World Tier ${gameState.ascension.tier + 1} and gain 1 Ascension Point.`;
+
+        if (confirm(confirmationMessage)) {
+            gameState.ascension.tier++;
+            gameState.ascension.points++;
+            gameState.counters.ascensionCount = (gameState.counters.ascensionCount || 0) + 1;
+            checkAllAchievements();
+            playSound('ascend', 1, 'sawtooth', 100, 1000, 1);
+            
+            // We've removed the bonus EdgeStones line since the player now keeps their existing ones.
+            // You can keep it if you still want to give a bonus.
+
+            // --- CORE CHANGES ---
+            // Reset only the necessary stats
+            gameState.level = 1;
+            gameState.xp = 0;
+            gameState.stats = JSON.parse(JSON.stringify(defaultState.stats));
+            
+            // The following lines are now REMOVED:
+            // gameState.gold = 0; // <-- REMOVED
+            // gameState.edgeStones = 0; // <-- REMOVED (Implicitly, since we aren't resetting it)
+            // gameState.orbs = 0; // <-- REMOVED (Implicitly)
+            // The entire block for saving and re-adding inventory is also now REMOVED,
+            // because we are not clearing the inventory at all.
+            
+            // --- END OF CORE CHANGES ---
+
+            const oldHp = gameState.resources.hp;
+            const oldEnergy = gameState.resources.energy;
+            gameState.resources = JSON.parse(JSON.stringify(defaultState.resources));
+
+            // Call updateUI() to recalculate max HP/Energy based on the new level=1 stats
+            updateUI(); 
+
+            // Restore a proportional amount of HP/Energy
+            gameState.resources.hp = Math.min(oldHp, gameState.resources.maxHp);
+            gameState.resources.energy = Math.min(oldEnergy, gameState.resources.maxEnergy);
+
+            submitScoreToLeaderboard();
+            updateAscensionVisuals();
+            saveGame();
+            updateUI(); // Final UI update to show everything correctly
+            ingameMenuModal.classList.remove('visible');
+            
+            const notificationText = `Welcome to World Tier ${gameState.ascension.tier}. You have gained 1 Ascension Point to spend.`;
+            showNotification("ASCENDED!", notificationText);
+        }
       }
   
       async function showLeaderboard(type = 'level') {
