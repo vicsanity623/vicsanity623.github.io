@@ -3473,7 +3473,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     
                     const arenaRect = genesisArena.getBoundingClientRect();
                     const difficulty = gameState.highestBattleLevelCompleted + 1;
-                    const waveMultiplier = 0.1 + (genesisState.currentWave / genesisState.totalWaves);
+                    const waveMultiplier = 0.4 + (genesisState.currentWave / genesisState.totalWaves);
 
                     const enemy = {
                         element: document.createElement('img'),
