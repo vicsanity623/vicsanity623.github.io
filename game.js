@@ -454,7 +454,7 @@ function returnEffectToPool(type, element) {
   
       const ASCENSION_LEVEL = 50;
       const BATTLE_UNLOCK_LEVEL = 20;
-      const MAX_ENEMIES = 40;
+      const MAX_ENEMIES = 25;
       const FORGE_UNLOCK_LEVEL = 10;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
       
