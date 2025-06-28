@@ -4,7 +4,7 @@ const CACHE_NAME = `tap-guardian-cache-${CACHE_VERSION}`;
 
 // A list of all the files your game needs to work offline.
 const FILES_TO_CACHE = [
-  './Rpg.html',
+  './rpg.html',
   // Your JS files
   './Stats.js',
   './Combat.js',
