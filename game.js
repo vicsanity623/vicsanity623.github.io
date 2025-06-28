@@ -60,6 +60,7 @@ function returnEffectToPool(type, element) {
       let audioCtx = null;
       let buffInterval = null;
       let lightningInterval = null;
+      let skillsModalInterval = null;
       let isUiHidden = false;
       
       // Centralized state for the battle system.
@@ -2854,6 +2855,7 @@ function getSkillBonus(skillId) {
 function renderSkillsModal() {
     const container = document.getElementById('skills-tree-container');
     container.innerHTML = '';
+    document.querySelector('#skills-orb-display span:last-child').textContent = (gameState.orbs || 0).toFixed(1);
     for (const id in skillsData) {
 
         const data = skillsData[id];
@@ -2905,6 +2907,7 @@ function upgradeSkill(skillId) {
     if ((gameState.orbs || 0) >= cost) {
         gameState.orbs -= cost;
         gameState.immortalGrowth.skills[skillId]++;
+        document.querySelector('#skills-orb-display span:last-child').textContent = (gameState.orbs || 0).toFixed(1);
         
         playSound('levelUp', 0.6, 'sine', 900, 1200, 0.1);
         
@@ -5152,14 +5155,19 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             }
         });
         skillsBtn.addEventListener('click', () => {
-            immortalGrowthModal.classList.remove('visible');
+            // We are now in the main menu, so just open the skills modal.
             renderSkillsModal();
             skillsModal.classList.add('visible');
+            if (skillsModalInterval) clearInterval(skillsModalInterval);
+            skillsModalInterval = setInterval(renderSkillsModal, 1000); // 1000ms = 1 second
         });
         
         closeSkillsBtn.addEventListener('click', () => {
-            skillsModal.classList.remove('visible');
-            immortalGrowthModal.classList.add('visible');
+            if (skillsModalInterval) {
+                clearInterval(skillsModalInterval);
+                skillsModalInterval = null; // Reset the variable
+            }
+            skillsModal.classList.remove('visible'); // This is all it needs to do.
         });
         
         skillsTreeContainer.addEventListener('click', (event) => {
