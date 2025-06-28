@@ -528,7 +528,6 @@ function returnEffectToPool(type, element) {
       const returnToGameBtn = document.getElementById('return-to-game-btn');
       const inventoryBtn = document.getElementById('inventory-btn');
       const inventoryModal = document.getElementById('inventory-modal');
-      const inventoryViewStatsBtn = document.getElementById('inventory-view-stats-btn');
       const inventoryList = document.getElementById('inventory-list');
       const closeInventoryBtn = document.getElementById('close-inventory-btn');
       const forgeModal = document.getElementById('forge-modal');
@@ -596,8 +595,6 @@ function returnEffectToPool(type, element) {
       const skillsModal = document.getElementById('skills-modal');
       const closeSkillsBtn = document.getElementById('skills-close-btn');
       const skillsTreeContainer = document.getElementById('skills-tree-container');
-      const detailedStatsModal = document.getElementById('detailed-stats-modal');
-      const detailedStatsCloseBtn = document.getElementById('detailed-stats-close-btn');
       
       // --- DOJO ELEMENTS ---
       const dojoBtn = document.getElementById('dojo-btn');
@@ -1013,36 +1010,33 @@ function returnEffectToPool(type, element) {
         const createStatRow = (label, value, statKey) => {
             const color = statColors[statKey] || defaultStatColor;
             const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
-            // We no longer need the ".stat-item" div wrapper
-            return `<span class="stat-label">${label}</span><span class="stat-value" style="color: ${color};">${value} ${starIcon}</span>`;
+            return `<div class="stat-item"><span class="stat-label">${label}</span><span class="stat-value" style="color: ${color};">${value} ${starIcon}</span></div>`;
         };
-        
-        // We will build the panel's content using a CSS Grid for stability.
-        playerStatPanel.innerHTML = `
-            <div class="stats-grid">
-                ${createStatRow('STR', getTotalStat('strength'), 'strength')}
-                ${createStatRow('FOR', getTotalStat('fortitude'), 'fortitude')}
-                ${createStatRow('AGI', getTotalStat('agility'), 'agility')}
-                ${createStatRow('STA', getTotalStat('stamina'), 'stamina')}
-                
-                <hr class="stat-divider">
-                
-                ${createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance')}
-                ${createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind')}
-        
-                <hr class="stat-divider">
-                
-                <div class="gold-rewards-container">
-                    <span class="stat-label">Gold</span>
-                    <div class="gold-rewards-row">
-                        <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
-                        <span class="edgestone-display"><span>♦️</span><span>${(gameState.edgeStones || 0).toFixed(4)}</span></span>
-                        <span class="orb-display"><span>🔮</span><span>${(gameState.orbs || 0).toFixed(1)}</span></span>
-                        <span class="potion-display"><span>🧪</span><span>${gameState.healthPotions || 0}</span></span>
-                        <button id="rewards-btn" title="View Daily & Weekly Rewards">📅</button>
-                    </div>
+    
+        let coreStatsHtml = `
+            ${createStatRow('STR', getTotalStat('strength'), 'strength')}
+            ${createStatRow('FOR', getTotalStat('fortitude'), 'fortitude')}
+            ${createStatRow('AGI', getTotalStat('agility'), 'agility')}
+            ${createStatRow('STA', getTotalStat('stamina'), 'stamina')}
+            <hr class="stat-divider">
+            ${createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance')}
+            ${createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind')}
+            <hr class="stat-divider">
+            <div class="stat-item">
+                <span class="stat-label">Gold</span>
+                <div class="gold-rewards-row">
+                    <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
+                    <span class="edgestone-display"><span>♦️</span><span>${(gameState.edgeStones || 0).toFixed(4)}</span></span>
+                    <span class="orb-display"><span>🔮</span><span>${(gameState.orbs || 0).toFixed(1)}</span></span>
+                    <span class="potion-display"><span>🧪</span><span>${gameState.healthPotions || 0}</span></span>
+                    <button id="rewards-btn" title="View Daily & Weekly Rewards">📅</button>
                 </div>
             </div>
+        `;
+    
+        // The panel now only contains the core stats and the button
+        playerStatPanel.innerHTML = `
+            ${coreStatsHtml}
             <button id="toggle-modifiers-btn">Show Details</button>
         `;
     
@@ -1088,55 +1082,55 @@ function returnEffectToPool(type, element) {
         updatePartnerUI();
       }
       function renderAndShowDetailedStats() {
-        const listContainer = document.getElementById('detailed-stats-list');
-        const modal = document.getElementById('detailed-stats-modal');
-        listContainer.innerHTML = ''; // Clear previous stats
-    
-        let modifiersHtml = '';
-    
-        // Potentials
-        Object.keys(potentialsData).forEach(id => {
-            const level = gameState.immortalGrowth.potentials[id] || 0;
-            if (level > 0) {
-                const data = potentialsData[id];
-                const bonus = level * data.bonusPerLevel;
-                const gradeInfo = calculateGradeInfo(level);
-                modifiersHtml += `<div class="modifier-row"><span class="modifier-label"><span class="modifier-grade" style="color: ${gradeInfo.color};">[${gradeInfo.grade}]</span>${data.name}</span> <span class="modifier-value">+${bonus.toFixed(2)}%</span></div>`;
+            const listContainer = document.getElementById('detailed-stats-list');
+            const modal = document.getElementById('detailed-stats-modal');
+            listContainer.innerHTML = ''; // Clear previous stats
+        
+            let modifiersHtml = '';
+        
+            // Potentials
+            Object.keys(potentialsData).forEach(id => {
+                const level = gameState.immortalGrowth.potentials[id] || 0;
+                if (level > 0) {
+                    const data = potentialsData[id];
+                    const bonus = level * data.bonusPerLevel;
+                    const gradeInfo = calculateGradeInfo(level);
+                    modifiersHtml += `<div class="modifier-row"><span class="modifier-label"><span class="modifier-grade" style="color: ${gradeInfo.color};">[${gradeInfo.grade}]</span>${data.name}</span> <span class="modifier-value">+${bonus.toFixed(2)}%</span></div>`;
+                }
+            });
+        
+            // Awakening
+            Object.keys(awakeningData).forEach(id => {
+                const level = gameState.immortalGrowth.awakening[id] || 0;
+                if (level > 0) {
+                    const data = awakeningData[id];
+                    let bonusText = '';
+                    if (id === 'weaponMastery') bonusText = `+${level * 10} STR`;
+                    else if (id === 'armorMastery') bonusText = `+${level * 10} FOR`;
+                    else if (id === 'attackSpeed') bonusText = `+${level * 1}% Attack Speed`;
+                    else if (id === 'wisdom') bonusText = `+${level * 5}% XP Gain`;
+                    else if (id === 'stamina') bonusText = `+${level * 25} Max Energy`;
+                    modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">${bonusText}</span></div>`;
+                }
+            });
+        
+            // Skills
+            Object.keys(skillsData).forEach(id => {
+                const level = gameState.immortalGrowth.skills[id] || 0;
+                if (level > 0) {
+                    const data = skillsData[id];
+                    const bonus = level * data.bonusPerLevel;
+                    modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">+${bonus.toFixed(1)}% Damage</span></div>`;
+                }
+            });
+        
+            if (modifiersHtml === '') {
+                modifiersHtml = '<p style="text-align: center; opacity: 0.7;">No active modifiers yet. Upgrade them in the Growth menu!</p>';
             }
-        });
-    
-        // Awakening
-        Object.keys(awakeningData).forEach(id => {
-            const level = gameState.immortalGrowth.awakening[id] || 0;
-            if (level > 0) {
-                const data = awakeningData[id];
-                let bonusText = '';
-                if (id === 'weaponMastery') bonusText = `+${level * 10} STR`;
-                else if (id === 'armorMastery') bonusText = `+${level * 10} FOR`;
-                else if (id === 'attackSpeed') bonusText = `+${level * 1}% Attack Speed`;
-                else if (id === 'wisdom') bonusText = `+${level * 5}% XP Gain`;
-                else if (id === 'stamina') bonusText = `+${level * 25} Max Energy`;
-                modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">${bonusText}</span></div>`;
-            }
-        });
-    
-        // Skills
-        Object.keys(skillsData).forEach(id => {
-            const level = gameState.immortalGrowth.skills[id] || 0;
-            if (level > 0) {
-                const data = skillsData[id];
-                const bonus = level * data.bonusPerLevel;
-                modifiersHtml += `<div class="modifier-row"><span class="modifier-label">${data.name} (Lv. ${level})</span> <span class="modifier-value">+${bonus.toFixed(1)}% Damage</span></div>`;
-            }
-        });
-    
-        if (modifiersHtml === '') {
-            modifiersHtml = '<p style="text-align: center; opacity: 0.7;">No active modifiers yet. Upgrade them in the Growth menu!</p>';
+        
+            listContainer.innerHTML = modifiersHtml;
+            modal.classList.add('visible');
         }
-    
-        listContainer.innerHTML = modifiersHtml;
-        modal.classList.add('visible');
-    }
       
       function addXP(character, amount) { 
           if(character.isPartner && gameState.expedition.active) return;
@@ -2860,10 +2854,6 @@ function getSkillBonus(skillId) {
 function renderSkillsModal() {
     const container = document.getElementById('skills-tree-container');
     container.innerHTML = '';
-    
-    // Update the orb count at the top of the modal
-    document.querySelector('#skills-orb-display span:last-child').textContent = (gameState.orbs || 0).toFixed(1);
-
     for (const id in skillsData) {
 
         const data = skillsData[id];
@@ -3249,7 +3239,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 manualDestination: null,
                 isDashing: false,
                 dashTarget: null,
-                dashDuration:280,
+                dashDuration:380,
                 dashCooldown: 1200,
                 lastDashTime: 0,
                 thunderStrikeCooldown: 2500,
@@ -3508,7 +3498,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             } else {
                 if (genesisState.enemies.length >= MAX_ENEMIES) return;
 
-                const baseSpawnInterval = 680;
+                const baseSpawnInterval = 380;
                 const minSpawnInterval = 50;
                 const enemyCountRatio = genesisState.enemies.length / MAX_ENEMIES;
                 const spawnRateModifier = 1 / (1 - enemyCountRatio * 0.45); // This value grows exponentially as we near the cap
@@ -4313,12 +4303,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
             if (genesisState.currentWave === genesisState.totalWaves) {
                 // It's the Boss Wave!
-                genesisState.enemiesToSpawnThisWave = 50; // Minions for the boss
+                genesisState.enemiesToSpawnThisWave = 30; // Minions for the boss
                 spawnBoss();
             } else {
                 // Regular wave: 10 enemies on wave 1, scaling up to 75 on wave 19
-                const baseMinEnemies = 13;
-                const baseMaxEnemies = 33;
+                const baseMinEnemies = 9;
+                const baseMaxEnemies = 25;
                 const waveBonus = Math.floor(genesisState.currentWave * 1.5);
                 const minEnemies = baseMinEnemies + waveBonus;
                 const maxEnemies = baseMaxEnemies + waveBonus;
@@ -5113,7 +5103,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         // --- END OF NEW LOGIC ---
     }
        // --- EVENT LISTENERS ---
-       
+       const detailedStatsModal = document.getElementById('detailed-stats-modal');
+       const detailedStatsCloseBtn = document.getElementById('detailed-stats-close-btn');
        immortalGrowthBtn.addEventListener('click', () => {
            renderPotentialsTree();
            immortalGrowthModal.classList.add('visible');
@@ -5202,30 +5193,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
        }, { passive: false });
       dojoDummySprite.addEventListener('touchend', stopDojoSession);
       dojoDummySprite.addEventListener('touchcancel', stopDojoSession);
-      inventoryViewStatsBtn.addEventListener('click', () => {
-            // Hide the inventory modal first
-            inventoryModal.classList.remove('visible');
-            
-            // Use a short timeout to let Safari process the first modal closing.
-            // This is a common and necessary fix for iOS Safari bugs.
-            setTimeout(() => {
-                renderAndShowDetailedStats();
-            }, 50); // 50 milliseconds is instant to a user but an eternity for a browser.
-        });
       gameScreen.addEventListener('click', (event) => {
-                if (event.target.id === 'rewards-btn') {
-                    showRewardsModal();
-                }
-                // Updated to call our new function
-                if (event.target.id === 'toggle-modifiers-btn') {
-                    renderAndShowDetailedStats();
-                }
-            }); 
-        closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
-        closeOfflineRewardsBtn.addEventListener('click', () => offlineRewardsModal.classList.remove('visible'));
-        detailedStatsCloseBtn.addEventListener('click', () => { // <-- ADD THIS
-                detailedStatsModal.classList.remove('visible');
-            });
+            if (event.target.id === 'rewards-btn') {
+                showRewardsModal();
+            }
+            // Updated to call our new function
+            if (event.target.id === 'toggle-modifiers-btn') {
+                renderAndShowDetailedStats();
+            }
+        }); 
       closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
       closeOfflineRewardsBtn.addEventListener('click', () => offlineRewardsModal.classList.remove('visible'));
       detailedStatsCloseBtn.addEventListener('click', () => {
