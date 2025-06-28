@@ -3246,7 +3246,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 manualDestination: null,
                 isDashing: false,
                 dashTarget: null,
-                dashDuration:380,
+                dashDuration:280,
                 dashCooldown: 1200,
                 lastDashTime: 0,
                 thunderStrikeCooldown: 2500,
@@ -3505,7 +3505,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             } else {
                 if (genesisState.enemies.length >= MAX_ENEMIES) return;
 
-                const baseSpawnInterval = 380;
+                const baseSpawnInterval = 680;
                 const minSpawnInterval = 50;
                 const enemyCountRatio = genesisState.enemies.length / MAX_ENEMIES;
                 const spawnRateModifier = 1 / (1 - enemyCountRatio * 0.45); // This value grows exponentially as we near the cap
@@ -4310,12 +4310,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
 
             if (genesisState.currentWave === genesisState.totalWaves) {
                 // It's the Boss Wave!
-                genesisState.enemiesToSpawnThisWave = 30; // Minions for the boss
+                genesisState.enemiesToSpawnThisWave = 50; // Minions for the boss
                 spawnBoss();
             } else {
                 // Regular wave: 10 enemies on wave 1, scaling up to 75 on wave 19
-                const baseMinEnemies = 9;
-                const baseMaxEnemies = 25;
+                const baseMinEnemies = 13;
+                const baseMaxEnemies = 33;
                 const waveBonus = Math.floor(genesisState.currentWave * 1.5);
                 const minEnemies = baseMinEnemies + waveBonus;
                 const maxEnemies = baseMaxEnemies + waveBonus;
