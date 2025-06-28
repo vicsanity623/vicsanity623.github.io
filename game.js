@@ -101,7 +101,7 @@ function returnEffectToPool(type, element) {
         // NEW: Battle Mode state
         isBattleMode: false,
         currentWave: 0,
-        totalWaves: 20,
+        totalWaves: 10,
         enemiesToSpawnThisWave: 0,
         enemiesSpawnedThisWave: 0,
         boss: null,
