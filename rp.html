@@ -13,6 +13,7 @@ crossorigin="anonymous"></script>
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <link rel="manifest" href="manifest.json">
 <title>Tap Guardian</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
@@ -1640,6 +1641,18 @@ input[type="range"] { flex-grow: 1; }
 #toggle-modifiers-btn:hover {
     background-color: #4a4a4a;
 }
+<script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((reg) => {
+              console.log('Service worker registered.', reg);
+            })
+            .catch((err) => {
+              console.error('Service worker registration failed:', err);
+            });
+        });
+      }
 </style>
 </head>
 <body>
