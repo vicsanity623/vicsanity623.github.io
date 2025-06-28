@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = 1.1.4; // Updated version for new features
+      const GAME_VERSION = "1.1.4"; // Updated version for new features
       
       let gameState = {};
       let audioCtx = null;
