@@ -102,8 +102,8 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 }
 #top-hud-container {
     display: flex;
-    gap: 10px; /* Adds a nice space between the stat panel and the hunger bar */
-    align-items: stretch; /* Makes them the same height */
+    gap: 10px;
+    align-items: flex-start; /* This is the fix */
     width: 100%;
 }
 
