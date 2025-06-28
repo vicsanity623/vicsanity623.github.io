@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = "1.1.8"; // Updated version for ascend keep weapons, armor, gold, edgesetones, orbs
+      const GAME_VERSION = "1.1.9"; // Updated version for xpbubble spawn chance from 0.005 to 0.25
       
       let gameState = {};
       let audioCtx = null;
@@ -1313,7 +1313,7 @@ function returnEffectToPool(type, element) {
                   createXpOrb(event, 0.5, partner);
               }
           } else {
-              if (Math.random() < 0.005) {
+              if (Math.random() < 0.25) {
                 createXpBubble();
               }
               if (gameState.resources.energy <= 0) return;
