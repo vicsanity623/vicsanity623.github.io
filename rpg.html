@@ -1715,6 +1715,29 @@ input[type="range"] { flex-grow: 1; }
 #toggle-modifiers-btn:hover {
     background-color: #4a4a4a;
 }
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 15px; /* Adds space between header and inventory grid */
+}
+
+#inventory-view-stats-btn {
+    padding: 8px 12px;
+    font-size: 0.9em;
+    font-weight: bold;
+    background-color: var(--accent-color); /* Matches your theme */
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#inventory-view-stats-btn:hover {
+    background-color: #57a8a0; /* A slightly lighter shade for hover */
+}
 </style>
 </head>
 <body>
@@ -1903,7 +1926,10 @@ input[type="range"] { flex-grow: 1; }
     
     <div id="inventory-modal" class="modal">
         <div class="modal-content">
-            <h2>Inventory</h2>
+            <div class="modal-header">
+                <h2>Inventory</h2>
+                <button id="inventory-view-stats-btn">📊 View Stats</button>
+            </div>
             <p id="inventory-prompt-text"></p>
             <div id="inventory-columns">
                 <div class="inventory-column">
