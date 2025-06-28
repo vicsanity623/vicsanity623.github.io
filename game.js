@@ -3511,11 +3511,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 if (genesisState.enemies.length >= MAX_ENEMIES) return;
 
                 const baseSpawnInterval = 380;
-                const minSpawnInterval = 50;
+                const minSpawnInterval = 150;
                 const enemyCountRatio = genesisState.enemies.length / MAX_ENEMIES;
                 const spawnRateModifier = 1 / (1 - enemyCountRatio * 0.45); // This value grows exponentially as we near the cap
 
-                let dynamicSpawnInterval = Math.max(minSpawnInterval, (baseSpawnInterval / genesisState.difficultyLevel) * spawnRateModifier);
+                const difficultyDivisor = 1 + (genesisState.difficultyLevel - 1) * 0.08;
+        let dynamicSpawnInterval = Math.max(minSpawnInterval, (baseSpawnInterval / difficultyDivisor) * spawnRateModifier);
                 const arenaRect = genesisArena.getBoundingClientRect();
 
                 if (timestamp - genesisState.lastEnemySpawn > dynamicSpawnInterval && arenaRect.width > 0) {
