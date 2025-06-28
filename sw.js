@@ -1,15 +1,12 @@
 // A version number for your cache. Change this when you update files.
-const CACHE_VERSION = 'v1.4';
+const CACHE_VERSION = 'v1.6';
 const CACHE_NAME = `tap-guardian-cache-${CACHE_VERSION}`;
 
 // A list of all the files your game needs to work offline.
 const FILES_TO_CACHE = [
   './rpg.html',
   // Your JS files
-  './Stats.js',
-  './Combat.js',
-  './Ui.js',
-  './Game.js',
+  './game.js',
   // Your image files
   './player.PNG',
   './egg.png',
