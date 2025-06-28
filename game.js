@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = "1.1.9"; // Updated version for xpbubble spawn chance from 0.005 to 0.25
+      const GAME_VERSION = "1.2.2"; // Updated version for bugs
       
       let gameState = {};
       let audioCtx = null;
@@ -1198,7 +1198,9 @@ function returnEffectToPool(type, element) {
         }
         else {
             checkAllAchievements();
-            submitScoreToLeaderboard();
+            if (genesisState.isActive || battleState.isActive) {
+                submitScoreToLeaderboard();
+            }
             updateAscensionVisuals();
     
             let screenX, screenY;
@@ -1602,6 +1604,24 @@ function returnEffectToPool(type, element) {
               });
           } catch (error) { console.error("Error fetching leaderboard: ", error); targetList.innerHTML = "<li>Error loading scores.</li>"; }
       }
+      async function submitScoreToLeaderboard() {
+            if (!gameState.playerName || gameState.playerName === "Guardian") return;
+            
+            const score = { 
+                name: gameState.playerName, 
+                level: gameState.level, 
+                tier: gameState.ascension.tier, 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+            };
+    
+            try {
+                // Use player name for public leaderboard, but a UID for personal saves is better.
+                // For now, this uses player name as the document ID.
+                await db.collection("leaderboard").doc(gameState.playerName).set(score, { merge: true });
+            } catch (error) { 
+                console.error("Error submitting score: ", error); 
+            }
+        }
       
       function generateItem(forceRarity = null) {
         let chosenRarityKey = forceRarity;
