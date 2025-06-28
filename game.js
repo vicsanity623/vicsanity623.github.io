@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = "1.1.4"; // Updated version for new features
+      const GAME_VERSION = "1.1.5"; // Updated version for new features
       
       let gameState = {};
       let audioCtx = null;
@@ -411,7 +411,7 @@ function returnEffectToPool(type, element) {
         // Refill the meter when feeding
         replenish() {
             // We can also make the replenish amount more significant
-            gameState.satiation = Math.min(gameState.maxSatiation, gameState.satiation + 500); 
+            gameState.satiation = Math.min(gameState.maxSatiation, gameState.satiation + 50); 
             this.isExhausted = false; // Player is no longer exhausted
             this.updateBar();
         },
