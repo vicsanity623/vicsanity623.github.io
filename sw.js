@@ -6,9 +6,9 @@ const CACHE_NAME = `tap-guardian-cache-${CACHE_VERSION}`;
 const FILES_TO_CACHE = [
   './rpg.html',
   // Your JS files
-  './Stats.js',
-  './Combat.js',
-  './Ui.js',
+  './stats.js',
+  './combat.js',
+  './ui.js',
   './game.js',
   // Your image files
   './player.PNG',
