@@ -4319,8 +4319,8 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 spawnBoss();
             } else {
                 // Regular wave: 10 enemies on wave 1, scaling up to 75 on wave 19
-                const baseMinEnemies = 9;
-                const baseMaxEnemies = 25;
+                const baseMinEnemies = 12;
+                const baseMaxEnemies = 45;
                 const waveBonus = Math.floor(genesisState.currentWave * 1.5);
                 const minEnemies = baseMinEnemies + waveBonus;
                 const maxEnemies = baseMaxEnemies + waveBonus;
