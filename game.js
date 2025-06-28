@@ -730,7 +730,8 @@ function returnEffectToPool(type, element) {
     }
       
       // --- FIXED/MERGED ---: Integrated init with Auth logic.
-      function init() { 
+      function init() {
+           document.getElementById('game-version-display').textContent = `v${GAME_VERSION}`;
           displayTopPlayersOnMenu();
           createWindEffect(); createStarfield(); startBackgroundAssetLoading();
           
