@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = "1.2.2"; // Updated version for bugs
+      const GAME_VERSION = "1.2.3"; // Updated version for xpbubble nerf
       
       let gameState = {};
       let audioCtx = null;
@@ -1315,7 +1315,7 @@ function returnEffectToPool(type, element) {
                   createXpOrb(event, 0.5, partner);
               }
           } else {
-              if (Math.random() < 0.25) {
+              if (Math.random() < 0.02) {
                 createXpBubble();
               }
               if (gameState.resources.energy <= 0) return;
@@ -1916,7 +1916,7 @@ function returnEffectToPool(type, element) {
             if (bubbleEl.classList.contains('popped')) return;
 
             // Grant a large, random amount of XP
-            const reward = Math.floor(getXpForNextLevel(gameState.level) * (Math.random() * 0.03 + 0.01)); // 5% to 20% of next level's XP
+            const reward = 50 + (gameState.level * 10);
             addXP(gameState, reward);
             showToast(`+${reward} XP!`);
             playSound('feed', 1, 'sine', 400, 800, 0.2); // A nice "collect" sound
