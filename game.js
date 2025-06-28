@@ -5203,11 +5203,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
       dojoDummySprite.addEventListener('touchend', stopDojoSession);
       dojoDummySprite.addEventListener('touchcancel', stopDojoSession);
       inventoryViewStatsBtn.addEventListener('click', () => {
-            // Hide the inventory modal for a cleaner view
+            // Hide the inventory modal first
             inventoryModal.classList.remove('visible');
             
-            // Call the existing function to show the stats modal
-            renderAndShowDetailedStats();
+            // Use a short timeout to let Safari process the first modal closing.
+            // This is a common and necessary fix for iOS Safari bugs.
+            setTimeout(() => {
+                renderAndShowDetailedStats();
+            }, 50); // 50 milliseconds is instant to a user but an eternity for a browser.
         });
       gameScreen.addEventListener('click', (event) => {
                 if (event.target.id === 'rewards-btn') {
