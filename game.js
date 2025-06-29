@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.4.0.0"; 
+    const GAME_VERSION = "1.4.2.2";  // hide all button fixed
       
     let gameState = {};
     let audioCtx = null;
@@ -361,6 +361,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
       const ASCENSION_LEVEL = 50;
       const BATTLE_UNLOCK_LEVEL = 20;
+      const ENDLESS_UNLOCK_LEVEL = 30;
+      const RIFT_UNLOCK_LEVEL = 40;
       const MAX_ENEMIES = 15;
       const FORGE_UNLOCK_LEVEL = 10;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
@@ -513,6 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- DOJO ELEMENTS ---
       const dojoBtn = document.getElementById('dojo-btn');
       const dojoScreen = document.getElementById('dojo-screen');
+      const riftUnlockText = document.getElementById('rift-unlock-text');
       const dojoExitBtn = document.getElementById('dojo-exit-btn');
       const dojoDummySprite = document.getElementById('dojo-dummy-sprite');
       const dojoPersonalBestDisplay = document.getElementById('dojo-personal-best');
@@ -623,6 +626,14 @@ document.addEventListener('DOMContentLoaded', () => {
         screens.forEach(s => s.classList.remove('active')); 
         const screenToShow = document.getElementById(screenId);
         if(screenToShow) screenToShow.classList.add('active'); 
+
+        // --- THIS IS THE LOGIC THAT NEEDS TO BE ADDED BACK ---
+        const toggleBtn = document.getElementById('toggle-ui-btn');
+        if (toggleBtn) {
+            // This line makes the "Hide UI" button appear ONLY on the game screen.
+            toggleBtn.style.display = (screenId === 'game-screen') ? 'flex' : 'none';
+        }
+        // --- END OF FIX ---
     
         if (screenId !== 'game-screen' && genesisState.isActive) {
             stopGameGenesis();
@@ -708,14 +719,42 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- FIXED/MERGED ---: Restored full startGame logic.
       async function startGame() {
         initAudio();
-        let playerName = ""; let isNameValid = false;
+        let playerName = ""; 
+        let isNameValid = false;
+
         while (!isNameValid) {
             const defaultName = auth.currentUser ? auth.currentUser.displayName.split(' ')[0] : "";
             const inputName = prompt("Enter your Guardian's name (3-15 chars):", defaultName);
-            if (inputName === null) { return; } 
-            if (inputName.length < 3 || inputName.length > 15) { alert("Name must be between 3 and 15 characters."); continue; }
-            playerName = inputName; isNameValid = true;
+
+            if (inputName === null) { // User cancelled the prompt
+                return; 
+            } 
+            if (inputName.length < 3 || inputName.length > 15) {
+                alert("Name must be between 3 and 15 characters.");
+                continue; // Ask for a name again
+            }
+
+            // --- NEW: Check if the name is already taken in the database ---
+            try {
+                const nameCheckDoc = await db.collection("leaderboard").doc(inputName).get();
+
+                if (nameCheckDoc.exists) {
+                    alert("This name is already taken. Please choose another.");
+                    continue; // Name is taken, so we loop again
+                } else {
+                    // Name is available, we can proceed
+                    playerName = inputName; 
+                    isNameValid = true; // This will break the while loop
+                }
+            } catch (error) {
+                console.error("Error checking player name:", error);
+                alert("Could not verify player name due to a network error. Please try again.");
+                return; // Exit the function if we can't connect to the DB
+            }
+            // --- END OF NEW SECTION ---
         }
+
+        // --- The rest of the function remains the same ---
         gameState = JSON.parse(JSON.stringify(defaultState));
         gameState.playerName = playerName;
         
@@ -724,7 +763,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAscensionVisuals();
         showScreen('game-screen');
     
-        // --- LATER PLAYER EXPERIENCE FIX: Ensure new games always start on the Grow screen ---
         characterArea.style.display = 'flex';
         genesisArena.style.display = 'none';
     
@@ -856,7 +894,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showScreen('game-screen');
                 
                 // --- LATER PLAYER EXPERIENCE FIX: Decide where to start based on level ---
-                if (gameState.level >= 10) {
+                if (gameState.level >= ENDLESS_UNLOCK_LEVEL) {
                     // Player is level 10 or higher, start in Endless mode
                     characterArea.style.display = 'none';
                     genesisArena.style.display = 'block';
@@ -985,7 +1023,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        const ENDLESS_UNLOCK_LEVEL = 5;
         if (gameState.level < ENDLESS_UNLOCK_LEVEL) {
             growBtn.textContent = `Endless (Lvl ${ENDLESS_UNLOCK_LEVEL})`;
         } else {
@@ -1054,6 +1091,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const canUsePvp = gameState.level >= PVP_UNLOCK_LEVEL;
         pvpBtn.disabled = onExpedition || !canUsePvp;
         pvpUnlockText.textContent = canUsePvp ? "" : `Unlocks at LVL ${PVP_UNLOCK_LEVEL}`;
+        const canUseRift = gameState.level >= RIFT_UNLOCK_LEVEL;
+        const enterRiftBtn = document.getElementById('enter-rift-btn');
+        if (enterRiftBtn) {
+            enterRiftBtn.disabled = onExpedition || !canUseRift;
+        }
+        if (riftUnlockText) {
+            riftUnlockText.textContent = canUseRift ? "" : `Unlocks at LVL ${RIFT_UNLOCK_LEVEL}`;
+        }
         feedBtn.disabled = onExpedition; 
         inventoryBtn.disabled = onExpedition; 
         shopBtn.disabled = onExpedition;
@@ -1119,19 +1164,20 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.classList.add('visible');
         }
       
-      function addXP(character, amount) { 
-          if(character.isPartner && gameState.expedition.active) return;
-          const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
-          let finalAmount = amount * tierMultiplier;
-          if (gameState.activeBuffs.xpBoost && !character.isPartner) { finalAmount *= 1.5; }
-          finalAmount *= (1 + getPotentialBonus('xp_gain_percent') / 100);
-          finalAmount *= (1 + (getAwakeningBonus('wisdom') * 0.05));
-          character.xp += finalAmount;
-          if (character.xp >= getXpForNextLevel(character.level)) {
-              levelUp(character);
-          }
-          updateUI();
-      }
+        function addXP(character, amount) { 
+            if(character.isPartner && gameState.expedition.active) return;
+            const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
+            let finalAmount = amount * tierMultiplier;
+            if (gameState.activeBuffs.xpBoost && !character.isPartner) { finalAmount *= 1.5; }
+            finalAmount *= (1 + getPotentialBonus('xp_gain_percent') / 100);
+            finalAmount *= (1 + (getAwakeningBonus('wisdom') * 0.05));
+            character.xp += finalAmount;
+            // This loop handles multiple level-ups from a single XP gain.
+            while (character.xp >= getXpForNextLevel(character.level)) {
+                levelUp(character);
+            }
+            updateUI();
+        }
   
       function levelUp(character) {
         const xpOver = character.xp - getXpForNextLevel(character.level);
@@ -2436,7 +2482,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const minutesOffline = effectiveOfflineTime / 60;
         const goldPerSecond = 110.6 * playerPower * (1 + getTotalStat('goldFind') / 100);
         const totalGold = Math.floor(goldPerSecond * effectiveOfflineTime);
-        const xpPerSecond = 3150.2 * playerPower;
+        
+        // --- THIS IS THE MODIFIED LINE FOR XP REWARDS ---
+        const xpPerSecond = 30 * Math.log(gameState.level + 1); 
+
         const totalXp = Math.floor(xpPerSecond * effectiveOfflineTime);
         const enemiesDefeated = Math.max(1, Math.floor(effectiveOfflineTime / 30));
         const edgeStonesPerMinute = 0.1;
@@ -2992,8 +3041,7 @@ function exitDojo() {
     if (dojoState.isActive) {
         stopDojoSession();
     }
-    showScreen('game-screen');
-    startGameGenesis();
+    returnToMainGameArea(); // Use the new helper function
 }
 
 function updateDojoUI() {
@@ -3347,20 +3395,27 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             bossHealthContainer.style.display = 'none';
             genesisState.isBattleMode = false;
         }
-        function toggleGrowthMode() {
-            const UNLOCK_LEVEL = 5; // Level required to unlock Endless mode
-
-            // Check if the Genesis Arena (Endless Mode) is currently active
-            if (genesisState.isActive) {
-                // If it is, stop it and show the static character (Grow Mode)
-                stopGameGenesis();
+        function returnToMainGameArea() {
+            showScreen('game-screen');
+            if (gameState.level >= ENDLESS_UNLOCK_LEVEL) {
+                // Player is high enough level, start Endless mode
+                startGameGenesis();
+            } else {
+                // Player is too low level, go back to Grow mode
+                stopGameGenesis(); // Ensure endless mode is fully stopped
                 characterArea.style.display = 'flex';
                 genesisArena.style.display = 'none';
-                growBtn.textContent = `Endless (Lvl ${UNLOCK_LEVEL})`;
+            }
+            updateUI(); // Update UI to ensure button text is correct
+        }
+        function toggleGrowthMode() {
+            // Check if the Genesis Arena (Endless Mode) is currently active
+            if (genesisState.isActive) {
+                // ...
             } else {
                 // If it's not active, check if the player is high enough level
-                if (gameState.level < UNLOCK_LEVEL) {
-                    showToast(`You must reach Level ${UNLOCK_LEVEL} to unlock Endless mode.`);
+                if (gameState.level < ENDLESS_UNLOCK_LEVEL) {
+                    showToast(`You must reach Level ${ENDLESS_UNLOCK_LEVEL} to unlock Endless mode.`);
                     playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15); // Error sound
                     return;
                 }
@@ -4593,13 +4648,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             }
             
-            stopGameGenesis();
             setTimeout(() => { 
-                showScreen('game-screen');
-                startGameGenesis(); 
+                returnToMainGameArea(); // Use the helper function here too
                 if (title) showNotification(title, rewardText);
                 saveGame(); 
-                updateUI(); 
+                // updateUI() is now called inside the helper, so it can be removed from here
             }, 500);
         }
   
@@ -6423,8 +6476,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         gtag('config', 'G-4686TXHCHN', { 'page_path': '/shop' });
     });
     expeditionCancelBtn.addEventListener('click', () => {
-    showScreen('game-screen');
-    startGameGenesis();
+        returnToMainGameArea(); // Use the helper function here as well
     });
     ingameMenuBtn.addEventListener('click', () => {
         ingameMenuModal.classList.add('visible');
@@ -6556,6 +6608,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     const enterRiftBtn = document.getElementById('enter-rift-btn');
     if (enterRiftBtn) {
         enterRiftBtn.addEventListener('click', () => {
+            if (gameState.level < RIFT_UNLOCK_LEVEL) {
+                showToast(`The Endless Rift requires Level ${RIFT_UNLOCK_LEVEL}.`);
+                return;
+            }
             if (gameState.expedition && gameState.expedition.active) {
                 showToast("Cannot enter the Rift while on an expedition.");
                 return;
