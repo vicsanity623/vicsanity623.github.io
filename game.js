@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
   document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = "1.2.3"; // Updated version for xpbubble nerf
+      const GAME_VERSION = "1.2.9"; // Updated version for refresh and xpbubble scaled
       
       let gameState = {};
       let audioCtx = null;
@@ -734,7 +734,44 @@ function returnEffectToPool(type, element) {
         let virtualPagePath = '/' + screenId.replace('-screen', '');
         gtag('config', 'G-4686TXHCHN', { 'page_path': virtualPagePath });
     }
-      
+    function listenForServiceWorkerUpdate() {
+        if ('serviceWorker' in navigator) {
+            let newWorker;
+            navigator.serviceWorker.ready.then(reg => {
+                reg.addEventListener('updatefound', () => {
+                    // A new service worker has been found and is installing.
+                    newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        // Has the new worker finished installing and is it ready to take over?
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // Show a notification to the user.
+                            showUpdateNotification();
+                        }
+                    });
+                });
+            });
+        }
+    }
+    
+    function showUpdateNotification() {
+        // You can use your existing showToast function or create a more permanent banner
+        const toast = document.createElement('div');
+        toast.className = 'toast update-toast'; // Add a new class for styling
+        toast.innerHTML = 'A new version is available! <button id="reload-btn">Refresh</button>';
+        
+        // Add the toast to the container
+        const toastContainer = document.getElementById('toast-container');
+        toastContainer.appendChild(toast);
+    
+        // Make the refresh button work
+        document.getElementById('reload-btn').addEventListener('click', () => {
+            window.location.reload();
+        });
+    }
+    
+    // Call this function when your game initializes
+    // init(); // You already have this
+    listenForServiceWorkerUpdate(); // Add this call  
       // --- FIXED/MERGED ---: Integrated init with Auth logic.
       function init() {
            document.getElementById('game-version-display').textContent = `v${GAME_VERSION}`;
@@ -1916,7 +1953,7 @@ function returnEffectToPool(type, element) {
             if (bubbleEl.classList.contains('popped')) return;
 
             // Grant a large, random amount of XP
-            const reward = 50 + (gameState.level * 10);
+            const reward = Math.floor((100 + gameState.level * 25) * Math.pow(1.04, gameState.level));
             addXP(gameState, reward);
             showToast(`+${reward} XP!`);
             playSound('feed', 1, 'sine', 400, 800, 0.2); // A nice "collect" sound
