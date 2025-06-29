@@ -1,19 +1,16 @@
 // A version number for your cache. Change this when you update files.
-const CACHE_VERSION = 'v3.2';
+const CACHE_VERSION = 'v3.3'; // Use a new version number
 const CACHE_NAME = `tap-guardian-cache-${CACHE_VERSION}`;
 
-// A list of all the files your game needs to work offline.
+// A list of the essential files your game needs to work.
+// ONLY list files that actually exist in your project right now.
 const FILES_TO_CACHE = [
+  '/', // Caches the root of your site
   './rpg.html',
-  // Your JS files
   './game.js',
-  // Your image files
+  // Add 'rift.js' and other files here ONLY when they are created and uploaded.
   './player.PNG',
   './egg.png',
-  './player-192x192.PNG',
-  './player-512x512.PNG',
-  './player-maskable-512x512.PNG',
-  // Your sound files
   './main.mp3',
   './battle.mp3',
   './expedition.mp3'
@@ -22,14 +19,16 @@ const FILES_TO_CACHE = [
 // The 'install' event is fired when the service worker is first installed.
 self.addEventListener('install', (event) => {
   console.log('[ServiceWorker] Install');
-  // waitUntil() ensures the service worker doesn't install until the code inside has finished.
   event.waitUntil(
-    // Open the cache.
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('[ServiceWorker] Caching app shell');
-        // Add all the files from our list to the cache.
         return cache.addAll(FILES_TO_CACHE);
+      })
+      .then(() => {
+        // This forces the waiting service worker to become the active service worker.
+        console.log('[ServiceWorker] Skip waiting on install');
+        return self.skipWaiting();
       })
   );
 });
@@ -48,8 +47,12 @@ self.addEventListener('activate', (event) => {
         }
       }));
     })
+    .then(() => {
+        // This tells the service worker to take control of the page immediately.
+        console.log('[ServiceWorker] Claiming clients');
+        return self.clients.claim();
+    })
   );
-  return self.clients.claim();
 });
 
 // The 'fetch' event is fired for every network request the page makes.
@@ -59,10 +62,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  console.log('[ServiceWorker] Fetch', event.request.url);
-  // respondWith() hijacks the request and lets us control the response.
   event.respondWith(
-    // Check the cache for a response to this request.
+    // Cache-first strategy: Check the cache for a response to this request.
     caches.match(event.request)
       .then((response) => {
         // If a response is found in the cache, return it.
