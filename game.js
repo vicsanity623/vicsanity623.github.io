@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.6.0.3"; //  joystick
+    const GAME_VERSION = "1.6.0.4"; //  bug duplicate
       
     let gameState = {};
     let audioCtx = null;
@@ -5341,55 +5341,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.bindEvents();
             this.nextWave();
             this.gameLoop();
-        },
-
-        initializeBackground: function() {
-            this.state.background.stars = [];
-            const starCount = 200;
-            for (let i = 0; i < starCount; i++) {
-                this.state.background.stars.push({
-                    x: Math.random() * window.innerWidth,
-                    y: Math.random() * window.innerHeight,
-                    radius: Math.random() * 1.5,
-                    speed: 0.1 + Math.random() * 0.4 // Slow, subtle movement
-                });
-            }
-        },
-        
-        updateBackground: function() {
-            this.state.background.stars.forEach(star => {
-                star.y += star.speed;
-                if (star.y > window.innerHeight) {
-                    star.y = 0;
-                    star.x = Math.random() * window.innerWidth;
-                }
-            });
-        },
-        
-        drawBackground: function() {
-            const ctx = this.elements.backgroundCtx;
-            const canvas = this.elements.backgroundCanvas;
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        
-            // Draw solid black as a base
-            ctx.fillStyle = 'black';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-            // Draw the nebula image if it's loaded
-            if (this.state.background.imageLoaded) {
-                ctx.globalAlpha = 0.4; // Make it a subtle background texture
-                ctx.drawImage(this.state.background.nebulaImage, 0, 0, canvas.width, canvas.height);
-                ctx.globalAlpha = 1.0;
-            }
-        
-            // Draw the moving stars
-            ctx.fillStyle = 'white';
-            this.state.background.stars.forEach(star => {
-                ctx.beginPath();
-                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-                ctx.fill();
-            });
         },
         
         resetState: function() {
