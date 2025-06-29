@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.5.0.0"; // Updated version for smarter rift ai
+    const GAME_VERSION = "1.6.0.0"; 
       
     let gameState = {};
     let audioCtx = null;
@@ -697,9 +697,10 @@ document.addEventListener('DOMContentLoaded', () => {
                   showScreen('main-menu-screen'); 
               }
           }, 1500);
-  
-          // Start all game loop intervals
+
+          // --- EGG TIMER FIX: This block starts the core game intervals ---
           buffInterval = setInterval(updateBuffs, 1000);
+          // This is the crucial line. It should already be here, but we're confirming.
           partnerTimerInterval = setInterval(checkEggHatch, 1000);
           setInterval(passiveResourceRegen, 1000);
       }
@@ -2314,21 +2315,32 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       function checkEggHatch() {
-          if (gameState.partner && gameState.partner.hatchTime && Date.now() > gameState.partner.hatchTime) {
-              gameState.partner.isHatched = true;
-              gameState.partner.hatchTime = null;
-              gameState.partner.name = "Newborn Guardian";
-              gameState.partner.level = 1;
-              gameState.partner.xp = 0;
-              gameState.partner.stats = { strength: 5, agility: 5, fortitude: 5, stamina: 5 };
-              gameState.partner.resources = { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 };
-              
-              showNotification("A Mysterious Egg Hatched!", "A newborn guardian has joined you! You can switch to it from the main screen.");
-              playSound('victory', 1, 'sawtooth', 200, 1000, 1);
-              updatePartnerUI();
-              saveGame();
-          }
-      }
+            if (!gameState.partner || gameState.partner.isHatched) {
+                return; // No need to check if there's no partner or if it's already hatched.
+            }
+        
+            // --- EGG TIMER FIX: This function now handles both checking for hatch and updating the UI every second ---
+            if (gameState.partner.hatchTime) {
+                if (Date.now() > gameState.partner.hatchTime) {
+                    // THE EGG IS HATCHING NOW!
+                    gameState.partner.isHatched = true;
+                    gameState.partner.hatchTime = null;
+                    gameState.partner.name = "Newborn Guardian";
+                    gameState.partner.level = 1;
+                    gameState.partner.xp = 0;
+                    gameState.partner.stats = { strength: 5, agility: 5, fortitude: 5, stamina: 5 };
+                    gameState.partner.resources = { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 };
+                    
+                    showNotification("A Mysterious Egg Hatched!", "A newborn guardian has joined you! You can switch to it from the main screen.");
+                    playSound('victory', 1, 'sawtooth', 200, 1000, 1);
+                    saveGame();
+                }
+                
+                // This will now be called every second, regardless of whether the egg has hatched,
+                // which is what makes the timer count down visually.
+                updatePartnerUI();
+            }
+        }
       
       function updatePartnerUI() {
           if (!gameState.hasEgg) return;
@@ -6237,7 +6249,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             cancelAnimationFrame(this.state.gameLoopId);
             let upgradeHtml = `<h2>Rift Upgrades</h2><p>Your Orbs: ${gameState.orbs.toFixed(1)} 🔮</p>`;
             const upgrades = {
-                moveSpeed: { name: 'Celerity', desc: '+5% Move Speed', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                moveSpeed: { name: 'Celerity', desc: '+5% Move Speed', cost: (level) => Math.floor(0.10 * Math.pow(1.5, level)) },
                 magnetRadius: { name: 'Greed', desc: '+10% Collection Radius', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
                 goldFind: { name: 'Fortune', desc: '+10% Gold from Rift', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
                 xpGain: { name: 'Insight', desc: '+10% XP from Rift', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
