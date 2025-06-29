@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.4.2.2";  // hide all button fixed
+    const GAME_VERSION = "1.4.2.3";  // return fix
       
     let gameState = {};
     let audioCtx = null;
@@ -3455,12 +3455,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         function gameLoop(timestamp) {
             if (!genesisState.isActive || !genesisState.player) return;
-
+        
             // --- Player Damage Flash Reset ---
             if (timestamp - genesisState.player.lastDamagedTime > 200) {
                 genesisState.player.element.style.filter = '';
             }
-
+        
             // --- ENDLESS MODE: Difficulty Scaling ---
             if (!genesisState.isBattleMode) {
                 const DIFFICULTY_INTERVAL = 15000;
@@ -3473,26 +3473,23 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     genesisState.lastDifficultyIncrease = timestamp;
                 }
             }
-
+        
             // --- BATTLE MODE: Wave Completion Check ---
             if (genesisState.isBattleMode &&
                 genesisState.enemies.length === 0 &&
                 genesisState.enemiesSpawnedThisWave >= genesisState.enemiesToSpawnThisWave &&
                 !genesisState.waveTransitionActive &&
-                genesisState.currentWave < genesisState.totalWaves // <-- This condition is correct
+                genesisState.currentWave < genesisState.totalWaves
             ) {
                 genesisState.waveTransitionActive = true;
             
-                // 1. Immediately show that the wave is cleared.
                 genesisWaveDisplay.textContent = `Wave ${genesisState.currentWave} Cleared!`;
                 genesisWaveDisplay.style.display = 'block';
                 playSound('levelUp', 0.6, 'triangle', 440, 880, 0.3);
             
-                // 2. After 1.5 seconds, update the text to prepare the player for the next wave.
                 setTimeout(() => {
                     if (!genesisState.isActive || !genesisState.waveTransitionActive) return;
             
-                    // Check if the NEXT wave is the final (boss) wave
                     if (genesisState.currentWave + 1 === genesisState.totalWaves) {
                         genesisWaveDisplay.textContent = 'BOSS INCOMING!';
                         playSound('ascend', 0.7, 'sawtooth', 500, 100, 0.4);
@@ -3502,7 +3499,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             
                 }, 1500);
             
-                // 3. After a total of 3 seconds, start the actual next wave.
                 setTimeout(() => {
                     if (!genesisState.isActive) return;
                     startNextBattleWave(); 
@@ -3511,14 +3507,14 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     }
                 }, 3000);
             }
-
+        
             // --- Core Updates ---
             updatePlayerTarget();
             movePlayer();
             moveEnemies();
             moveLootOrbs();
             handleBurnDamage(timestamp);
-
+        
             // --- Attacks ---
             let actionTaken = false;
             actionTaken = handleGenesisThunderStrike(timestamp);
@@ -3534,7 +3530,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (genesisState.isBattleMode) {
                 handleEnemyAttacks(timestamp);
             }
-
+        
             // --- Post-action updates ---
             handleLootCollection();
             if(genesisState.boss) updateBossHealthBar();
@@ -3551,23 +3547,28 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 const orbTranslateY = orb.y - (orb.element.offsetHeight / 2);
                 orb.element.style.transform = `translate(${orbTranslateX}px, ${orbTranslateY}px)`;
             });
-
+        
             spawnEnemies(timestamp);
             
-            // --- FIX: WIN/LOSS CONDITIONS ---
-            // Win Condition: The boss exists, is defeated, and the game is still active.
-            if (genesisState.isBattleMode && genesisState.boss && genesisState.boss.hp <= 0 && genesisState.isActive) {
-                genesisState.isActive = false; // Prevent this from firing multiple times
-                endBattle(true);
-                return; // Stop the loop
+            // --- BATTLE WIN/LOSS FIX ---
+            // The previous win condition was slightly flawed. This new logic is more robust.
+            if (genesisState.isActive) {
+                // Loss Condition (Applies to both modes)
+                if (gameState.resources.hp <= 0) {
+                    genesisState.isActive = false; // Prevent multiple calls
+                    endBattle(false);
+                    return; // Stop the loop
+                }
+                
+                // Win Condition (Only for Battle Mode)
+                // Check if it's battle mode, the boss has been spawned, and the boss's HP is 0 or less.
+                if (genesisState.isBattleMode && genesisState.boss && genesisState.boss.hp <= 0) {
+                    genesisState.isActive = false; // Prevent this from firing multiple times
+                    endBattle(true);
+                    return; // Stop the loop
+                }
             }
-            
-            // Loss Condition
-            if (gameState.resources.hp <= 0 && genesisState.isActive) {
-                genesisState.isActive = false; // Prevent multiple calls
-                endBattle(false);
-                return; // Stop the loop
-            }
+            // --- END OF FIX ---
             
             genesisState.gameLoopId = requestAnimationFrame(gameLoop);
         }
