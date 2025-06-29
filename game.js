@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.3.1.9"; // Updated version for smarter rift background fix
+    const GAME_VERSION = "1.3.6.0"; // Updated version for smarter rift ai
       
     let gameState = {};
     let audioCtx = null;
@@ -5324,10 +5324,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.state.isActive = true;
             this.state.player.sprite.src = 'player.PNG';
         
-            // --- RIFT BACKGROUND: Load image and initialize effects ---
             if (!this.state.background.imageLoaded) {
-                // --- BACKGROUND FIX: Replaced the dead Imgur link with a new, reliable one ---
-                this.state.background.nebulaImage.src = 'https://www.publicdomainpictures.net/pictures/30000/velka/evening-sky-background.jpg'; 
+                // --- BACKGROUND FIX: Replaced the blocked image link with a new, CORS-friendly one ---
+                this.state.background.nebulaImage.src = 'https://live.staticflickr.com/3850/14849289579_5a59f53229_b.jpg'; 
+                this.state.background.nebulaImage.crossOrigin = "Anonymous"; // Important for loading external images
                 this.state.background.nebulaImage.onload = () => {
                     this.state.background.imageLoaded = true;
                 };
@@ -5342,6 +5342,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.nextWave();
             this.gameLoop();
         },
+
         initializeBackground: function() {
             this.state.background.stars = [];
             const starCount = 200;
@@ -5424,15 +5425,18 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (!this.state.isActive) return;
             console.log("Exiting the Endless Rift...");
             this.state.isActive = false;
-    
+        
             cancelAnimationFrame(this.state.gameLoopId);
             this.destroyControls();
-    
+        
             if (isPlayerDefeated) {
                 showNotification("Defeated in the Rift!", `You were overwhelmed at Rift Level ${this.state.currentWave}. You keep all loot found.`);
                 playSound('defeat', 1, 'sine', 440, 110, 0.8);
+                
+                // --- GOLD PENALTY FIX: The penalty logic is now completely removed from this function. ---
+                // Player is simply returned to the game screen.
             }
-    
+        
             showScreen('game-screen');
             updateUI(); 
             saveGame(); 
@@ -5547,7 +5551,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const loot = this.state.loot;
         
             if (enemies.length === 0) {
-                // No enemies? Go for the closest loot.
                 const nearestLoot = this.findNearest(loot);
                 if (nearestLoot) {
                     this.moveToTarget(nearestLoot);
@@ -5557,29 +5560,37 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 return;
             }
         
-            // --- NEW AGGRESSIVE/DEFENSIVE AI LOGIC ---
+            // --- NEW LOOT-AWARE AI LOGIC ---
             const boss = enemies.find(e => e.isBoss);
             let target;
         
             if (boss) {
-                // --- DEFENSIVE MODE: A boss is on screen! ---
-                // Prioritize kiting the boss to survive.
+                // DEFENSIVE MODE (vs. Boss): Always kite the boss. Survival is top priority.
                 target = this.getKitingPosition(boss);
-        
             } else {
-                // --- AGGRESSIVE MODE: No boss, so clear the mobs efficiently. ---
-                // 1. Opportunity Assessment: Check for nearby loot.
-                const nearestLoot = this.findNearest(loot);
-                const distToLoot = nearestLoot ? Math.hypot(player.x - nearestLoot.x, player.y - nearestLoot.y) : Infinity;
+                // AGGRESSIVE MODE (vs. Regular Enemies): Decide between fighting and looting.
         
-                // 2. Find the densest cluster of enemies to maximize AoE damage.
+                // 1. Safety Check: Only consider loot if health is above 50%.
+                const isHealthLow = gameState.resources.hp < (gameState.resources.maxHp * 0.5);
+                
+                // 2. Evaluate Loot Opportunity
+                const nearestLoot = this.findNearest(loot);
+                let lootScore = 0;
+                if (nearestLoot && !isHealthLow) {
+                    const distToLoot = Math.hypot(player.x - nearestLoot.x, player.y - nearestLoot.y);
+                    // The score is very high if loot is close, and drops off sharply.
+                    if (distToLoot < 250) { 
+                        lootScore = 10000 / (distToLoot + 1); 
+                    }
+                }
+        
+                // 3. Evaluate Combat Opportunity
                 let bestClusterCenter = null;
                 let maxEnemiesInCluster = 0;
-                
                 enemies.forEach(enemy => {
                     let nearbyCount = 0;
                     enemies.forEach(otherEnemy => {
-                        if (Math.hypot(enemy.x - otherEnemy.x, enemy.y - otherEnemy.y) < 150) { // 150px cluster radius
+                        if (Math.hypot(enemy.x - otherEnemy.x, enemy.y - otherEnemy.y) < 150) {
                             nearbyCount++;
                         }
                     });
@@ -5588,13 +5599,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         bestClusterCenter = enemy;
                     }
                 });
-                
-                // 3. Decide on a target.
-                // If loot is very close and we're not surrounded, grab it quickly.
-                if (nearestLoot && distToLoot < 120 && maxEnemiesInCluster < 4) {
+                // The combat score is based on the number of enemies in the cluster.
+                const combatScore = maxEnemiesInCluster * 100;
+        
+                // 4. Make the decision
+                if (lootScore > combatScore) {
+                    // The loot is a more valuable target right now.
                     target = nearestLoot;
                 } else {
-                    // Otherwise, move towards the center of the biggest group of enemies.
+                    // It's better to engage the enemy cluster.
                     target = bestClusterCenter || this.findNearest(enemies);
                 }
             }
@@ -5970,14 +5983,24 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.state.loot.push({x, y, type: 'gold', amount: 100 * this.state.currentWave, color: 'gold'});
             if (Math.random() < 0.1 + (this.state.currentWave * 0.005)) this.state.loot.push({x, y, type: 'orbs', amount: 1, color: '#87CEFA'});
             if (Math.random() < 0.05 + (this.state.currentWave * 0.002)) this.state.loot.push({x, y, type: 'edgestones', amount: 0.1, color: '#00FFFF'});
-            if (this.state.currentWave >= 50 && Math.random() < 0.01) {
+            if (this.state.currentWave >= 10 && Math.random() < 0.1) {
+                this.state.loot.push({x, y, type: 'health', amount: 4, color: '#ff4136'});
+            }
+        
+            // --- LEGENDARY DROP RATE FIX: Lowered the base chance and scaling ---
+            // Old: if (this.state.currentWave >= 50 && Math.random() < 0.01)
+            if (this.state.currentWave >= 50 && Math.random() < 0.001) { // Now a 0.1% base chance
                 const item = generateItem('legendary');
                 showToast(`A Legendary item dropped in the Rift!`);
                 gameState.inventory.push(item);
-            }
-            // --- HEALTH ORB: Add a chance to drop a health orb on wave 10+ ---
-            if (this.state.currentWave >= 35 && Math.random() < 0.05) { // 5% chance to drop
-                this.state.loot.push({x, y, type: 'health', amount: 4, color: '#ff4136'});
+
+                this.state.loot.push({
+                    x, y,
+                    type: 'legendary_item',
+                    color: itemData.rarities.legendary.color || '#ff8000', 
+                    text: item.type === 'weapon' ? '⚔️' : '🛡️', 
+                    isLegendary: true
+                });
             }
         },
         
@@ -6057,41 +6080,111 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             });
         },
+        drawAura: function(ctx, x, y, radius, level, timestamp) {
+            const baseAuraSize = radius * 1.5;
+            const sizeMultiplier = 1 + (level - 1) * 0.25; // Aura gets 25% bigger each 100 levels
+        
+            const flicker = Math.sin(timestamp / 50) * 0.1 + 0.9; // Fast, subtle flicker
+            const pulse = Math.sin(timestamp / 300) * 0.1 + 0.95; // Slower, larger pulse
+        
+            // Layer 1: Inner, sharp yellow glow
+            const grad1 = ctx.createRadialGradient(x, y, radius * 0.8, x, y, baseAuraSize * pulse * 0.8 * sizeMultiplier);
+            grad1.addColorStop(0, 'rgba(255, 255, 0, 0.6)');
+            grad1.addColorStop(1, 'rgba(255, 255, 0, 0)');
+            ctx.fillStyle = grad1;
+            ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        
+            // Layer 2: Outer, softer golden halo
+            const grad2 = ctx.createRadialGradient(x, y, radius, x, y, baseAuraSize * pulse * sizeMultiplier);
+            grad2.addColorStop(0, 'rgba(255, 204, 0, 0.4)');
+            grad2.addColorStop(1, 'rgba(255, 204, 0, 0)');
+            ctx.fillStyle = grad2;
+            ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        
+            // Layer 3: Flickering energy particles
+            const particleCount = 20 * level; // More particles for higher levels
+            for (let i = 0; i < particleCount; i++) {
+                const angle = (timestamp / 200 + i * 137.5) % (Math.PI * 2);
+                const distance = (radius + Math.random() * (baseAuraSize * 0.5 * sizeMultiplier)) * flicker;
+                const px = x + Math.cos(angle) * distance;
+                const py = y + Math.sin(angle) * distance;
+                ctx.fillStyle = `rgba(255, 255, 224, ${Math.random() * 0.8})`;
+                ctx.beginPath();
+                ctx.arc(px, py, Math.random() * 2 * level, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        },
     
         draw: function(timestamp) {
             const ctx = this.elements.ctx;
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             this.state.loot.forEach(item => {
-                ctx.beginPath();
-                ctx.arc(item.x, item.y, this.config.lootRadius, 0, Math.PI * 2);
-                ctx.fillStyle = item.color; ctx.shadowColor = item.color;
-                ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0;
+                if (item.isLegendary) {
+                    const pulse = 1 + Math.sin(timestamp / 150) * 0.2;
+                    const glowRadius = this.config.lootRadius * 3 * pulse;
+                    const grad = ctx.createRadialGradient(item.x, item.y, this.config.lootRadius, item.x, item.y, glowRadius);
+                    grad.addColorStop(0, 'rgba(255, 128, 0, 0.6)');
+                    grad.addColorStop(1, 'rgba(255, 128, 0, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                    ctx.beginPath();
+                    ctx.arc(item.x, item.y, this.config.lootRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = item.color;
+                    ctx.shadowColor = item.color;
+                    ctx.shadowBlur = 15;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.font = '16px Poppins';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(item.text, item.x, item.y);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(item.x, item.y, this.config.lootRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = item.color;
+                    ctx.shadowColor = item.color;
+                    ctx.shadowBlur = 10;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
             });
         
             const player = this.state.player;
             const playerDamageFlash = timestamp - player.lastDamagedTime < 200;
             const playerAttackFlash = timestamp - player.lastAttackFlashTime < 150;
-            
-            // --- ZOOM DASH: Calculate the zoom scale based on dash progress ---
-            let zoomScale = 1.0;
-            if (player.isDashing) {
-                const dashDuration = 350; // Must match the setTimeout duration
-                const dashProgress = Math.min(1, (timestamp - player.lastDashStartTime) / dashDuration);
-                // Use a sine curve for a smooth zoom-in and zoom-out effect
-                zoomScale = 1.0 + Math.sin(dashProgress * Math.PI) * 0.5;
         
-                ctx.filter = `blur(${zoomScale * 2}px) brightness(1.5)`;
-            } else if (playerDamageFlash) {
-                ctx.filter = 'brightness(2) drop-shadow(0 0 5px red)';
-            } else if (playerAttackFlash) {
-                ctx.filter = 'brightness(1.5) drop-shadow(0 0 8px white)';
+            // --- SUPER SAIYAN AURA: Logic to calculate and draw auras ---
+            if (this.state.currentWave >= 100) {
+                const auraLevel = Math.floor(this.state.currentWave / 100);
+                
+                // Aura for the player
+                this.drawAura(ctx, player.x, player.y, this.config.playerRadius, auraLevel, timestamp);
+        
+                // Aura for any bosses on screen
+                this.state.enemies.forEach(enemy => {
+                    if (enemy.isBoss) {
+                        this.drawAura(ctx, enemy.x, enemy.y, enemy.radius, auraLevel, timestamp);
+                    }
+                });
             }
         
-            // --- ZOOM DASH: Apply the zoom to the player's size ---
-            const zoomedPlayerRadius = this.config.playerRadius * zoomScale;
-            ctx.drawImage(player.sprite, player.x - zoomedPlayerRadius, player.y - zoomedPlayerRadius, zoomedPlayerRadius * 2, zoomedPlayerRadius * 2);
+            if (player.isDashing) {
+                const dashDuration = 350;
+                const dashProgress = Math.min(1, (timestamp - player.lastDashStartTime) / dashDuration);
+                const zoomScale = 1.0 + Math.sin(dashProgress * Math.PI) * 0.5;
+                const zoomedPlayerRadius = this.config.playerRadius * zoomScale;
+                ctx.filter = `blur(${zoomScale * 2}px) brightness(1.5)`;
+                ctx.drawImage(player.sprite, player.x - zoomedPlayerRadius, player.y - zoomedPlayerRadius, zoomedPlayerRadius * 2, zoomedPlayerRadius * 2);
+            } else {
+                if (playerDamageFlash) {
+                    ctx.filter = 'brightness(2) drop-shadow(0 0 5px red)';
+                } else if (playerAttackFlash) {
+                    ctx.filter = 'brightness(1.5) drop-shadow(0 0 8px white)';
+                }
+                ctx.drawImage(player.sprite, player.x - this.config.playerRadius, player.y - this.config.playerRadius, this.config.playerRadius*2, this.config.playerRadius*2);
+            }
             ctx.filter = 'none';
-        
+            
             this.state.enemies.forEach(enemy => {
                 let enemyFilter = `hue-rotate(${enemy.hue}deg) saturate(1.5)`;
                 if (enemy.burn) {
@@ -6105,7 +6198,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 ctx.fillStyle = 'red';
                 ctx.fillRect(enemy.x - enemy.radius, enemy.y - enemy.radius - 10, (enemy.radius*2) * (enemy.hp / enemy.maxHp), 5);
             });
-        
             this.state.particles.forEach(p => {
                 const initialLife = p.isDamageNumber ? 60 : (p.isLightning || p.isShockwave ? p.maxLife : (p.isDashGhost ? 20 : 30));
                 ctx.globalAlpha = p.life / initialLife;
@@ -6126,9 +6218,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     ctx.stroke();
                 }
                 else if (p.isDashGhost) {
-                    // --- ZOOM DASH: Apply zoom to the ghost trail as well ---
+                    const dashDuration = 350;
+                    const dashProgress = Math.min(1, (timestamp - this.state.player.lastDashStartTime) / dashDuration);
+                    const zoomScale = 1.0 + Math.sin(dashProgress * Math.PI) * 0.5;
                     const ghostZoomedRadius = p.radius * zoomScale;
-                    ctx.globalAlpha = (p.life / 20) * 0.4; // Fade from 40% opacity to 0
+                    ctx.globalAlpha = (p.life / 20) * 0.4;
                     ctx.drawImage(this.state.player.sprite, p.x - ghostZoomedRadius, p.y - ghostZoomedRadius, ghostZoomedRadius * 2, ghostZoomedRadius * 2);
                 }
                 else {
