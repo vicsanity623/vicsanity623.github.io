@@ -53,45 +53,45 @@ function returnEffectToPool(type, element) {
 }
 
 
-  document.addEventListener('DOMContentLoaded', () => {
-      const GAME_VERSION = "1.2.9"; // Updated version for refresh and xpbubble scaled
+document.addEventListener('DOMContentLoaded', () => {
+    const GAME_VERSION = "1.3.1.9"; // Updated version for smarter rift background fix
       
-      let gameState = {};
-      let audioCtx = null;
-      let buffInterval = null;
-      let lightningInterval = null;
-      let skillsModalInterval = null;
-      let isUiHidden = false;
+    let gameState = {};
+    let audioCtx = null;
+    let buffInterval = null;
+    let lightningInterval = null;
+    let skillsModalInterval = null;
+    let isUiHidden = false;
       
-      // Centralized state for the battle system.
-      let battleState = {
-          isActive: false,
-          currentWave: 0,
-          totalWaves: 5,
-          playerHp: 0,
-          enemy: null,
-          totalXp: 0,
-          totalGold: 0,
-          totalDamage: 0
-      };
+    // Centralized state for the battle system.
+    let battleState = {
+        isActive: false,
+        currentWave: 0,
+        totalWaves: 5,
+        playerHp: 0,
+        enemy: null,
+        totalXp: 0,
+        totalGold: 0,
+        totalDamage: 0
+    };
   
-      let availableExpeditions = [];
-      let forgeSlots = [null, null];
-      let currentForgeSelectionTarget = null;
-      let partnerTimerInterval = null;
-      const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
-      const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
-      let tapCombo = { 
-            counter: 0, 
-            lastTapTime: 0, 
-            currentMultiplier: 1, 
-            maxMultiplier: 5000, // The highest the combo can go
-            frenzyTimeout: null 
-        };
-      let expeditionInterval = null;
-      let dojoState = { isActive: false, timerId: null, damageIntervalId: null, beamAnimationId: null, totalSessionDamage: 0 };
-      // --- GENESIS ARENA STATE ---
-      let genesisState = {
+    let availableExpeditions = [];
+    let forgeSlots = [null, null];
+    let currentForgeSelectionTarget = null;
+    let partnerTimerInterval = null;
+    const musicFileUrls = { main: 'main.mp3', battle: 'battle.mp3', expedition: 'expedition.mp3' };
+    const musicManager = { isInitialized: false, audio: {}, currentTrack: null, fadeInterval: null };
+    let tapCombo = { 
+        counter: 0, 
+        lastTapTime: 0, 
+        currentMultiplier: 1, 
+        maxMultiplier: 5000, // The highest the combo can go
+        frenzyTimeout: null 
+    };
+    let expeditionInterval = null;
+    let dojoState = { isActive: false, timerId: null, damageIntervalId: null, beamAnimationId: null, totalSessionDamage: 0 };
+    // --- GENESIS ARENA STATE ---
+    let genesisState = {
         isActive: false,
         gameLoopId: null,
         player: null,
@@ -113,42 +113,41 @@ function returnEffectToPool(type, element) {
         boss: null,
         waveTransitionActive: false,
         totalDamageDealtThisBattle: 0, // --- FIX: Added variable to track damage in battles.
-      };
-      let pvpState = {
+    };
+    let pvpState = {
         isActive: false,
         timerId: null,
         playerDamage: 0,
         opponentDamage: 0,
         opponentData: null,
-      };
+    };
       
   
-      // --- FIXED/MERGED ---: Added all missing constant data from the working file.
-      const achievements = {
-          tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 500 } },
-          tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 1000000 } },
-          tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false, reward: { type: 'gold', amount: 10000000 } },
-          level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'rare' } },
-          level25: { name: "Seasoned Guardian", desc: "Reach level 15.", target: 15, unlocked: false, reward: { type: 'item', rarity: 'rare' } },
-          level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false, reward: { type: 'gold', amount: 50000000 } },
-          defeat10: { name: "Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100000 } },
-          defeat100: { name: "Monster Hunter", desc: "Defeat 100 enemies.", target: 100, unlocked: false, reward: { type: 'gold', amount: 5000000 } },
-          defeat500: { name: "Death Bringer", desc: "Defeat 500 enemies.", target: 500, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
-          ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
-          ascend5: { name: "World Walker", desc: "Reach Ascension Tier 5.", target: 5, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
-          battle1: { name: "Battle Runner", desc: "Complete a Battle sequence once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000000 } },
-          forge1: { name: "Apprentice Blacksmith", desc: "Forge an item once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 75000 } },
-          findLegendary: { name: "A Glimmer of Power", desc: "Find your first Legendary item.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2500000 } },
-          masterGuardian: { name: "Master Guardian", desc: "Reach Ascension Tier 5 and Level 50.", target: 1, unlocked: false, reward: { type: 'egg' } }
-      };
-      const perks = {
-          vigor: { name: "Guardian's Vigor", desc: "+10 Max HP & Energy per level.", maxLevel: 1000, cost: [1, 1, 2, 2, 3] },
-          tapXp: { name: "Tapper's Insight", desc: "+10% XP from Taps per level.", maxLevel: 1000, cost: [1, 1, 2, 2, 3] },
-          goldBoost: { name: "Fortune's Favor", desc: "+5% Gold from all sources per level.", maxLevel: 1000, cost: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4] },
-          expeditionSpeed: { name: "Expeditionary Leader", desc: "-5% Expedition Duration per level.", maxLevel: 1000, cost: [1, 2, 2, 3, 3] }
-      };
-      const itemData = {
-        // We keep the old rarities for weights and affix counts
+    // --- FIXED/MERGED ---: Added all missing constant data from the working file.
+    const achievements = {
+        tap100: { name: "Novice Tapper", desc: "Tap 100 times.", target: 100, unlocked: false, reward: { type: 'gold', amount: 500 } },
+        tap1000: { name: "Adept Tapper", desc: "Tap 1,000 times.", target: 1000, unlocked: false, reward: { type: 'gold', amount: 1000000 } },
+        tap10000: { name: "Master Tapper", desc: "Tap 10,000 times.", target: 10000, unlocked: false, reward: { type: 'gold', amount: 10000000 } },
+        level10: { name: "Getting Stronger", desc: "Reach level 10.", target: 10, unlocked: false, reward: { type: 'item', rarity: 'rare' } },
+        level25: { name: "Seasoned Guardian", desc: "Reach level 15.", target: 15, unlocked: false, reward: { type: 'item', rarity: 'rare' } },
+        level50: { name: "True Champion", desc: "Reach the Ascension level.", target: 50, unlocked: false, reward: { type: 'gold', amount: 50000000 } },
+        defeat10: { name: "Slayer", desc: "Defeat 10 enemies.", target: 10, unlocked: false, reward: { type: 'gold', amount: 100000 } },
+        defeat100: { name: "Monster Hunter", desc: "Defeat 100 enemies.", target: 100, unlocked: false, reward: { type: 'gold', amount: 5000000 } },
+        defeat500: { name: "Death Bringer", desc: "Defeat 500 enemies.", target: 500, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
+        ascend1: { name: "New Beginning", desc: "Ascend for the first time.", target: 1, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
+        ascend5: { name: "World Walker", desc: "Reach Ascension Tier 5.", target: 5, unlocked: false, reward: { type: 'item', rarity: 'legendary' } },
+        battle1: { name: "Battle Runner", desc: "Complete a Battle sequence once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2000000 } },
+        forge1: { name: "Apprentice Blacksmith", desc: "Forge an item once.", target: 1, unlocked: false, reward: { type: 'gold', amount: 75000 } },
+        findLegendary: { name: "A Glimmer of Power", desc: "Find your first Legendary item.", target: 1, unlocked: false, reward: { type: 'gold', amount: 2500000 } },
+        masterGuardian: { name: "Master Guardian", desc: "Reach Ascension Tier 5 and Level 50.", target: 1, unlocked: false, reward: { type: 'egg' } }
+    };
+    const perks = {
+        vigor: { name: "Guardian's Vigor", desc: "+10 Max HP & Energy per level.", maxLevel: 1000, cost: [1, 1, 2, 2, 3] },
+        tapXp: { name: "Tapper's Insight", desc: "+10% XP from Taps per level.", maxLevel: 1000, cost: [1, 1, 2, 2, 3] },
+        goldBoost: { name: "Fortune's Favor", desc: "+5% Gold from all sources per level.", maxLevel: 1000, cost: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4] },
+        expeditionSpeed: { name: "Expeditionary Leader", desc: "-5% Expedition Duration per level.", maxLevel: 1000, cost: [1, 2, 2, 3, 3] }
+    };
+    const itemData = {
         rarities: { 
             common: { weight: 70, budget: 1, affixes: 1 }, 
             uncommon: { weight: 20, budget: 1.4, affixes: 2 }, 
@@ -156,25 +155,24 @@ function returnEffectToPool(type, element) {
             epic: { weight: 2.5, budget: 2.5, affixes: 3 }, 
             legendary: { weight: 0.5, budget: 3.5, affixes: 4 } 
         },
-        // NEW: Tier-based color schemes
         rarityTiers: [ 'common', 'uncommon', 'rare', 'epic', 'legendary' ],
-        weaponColors: ['#BDBDBD', '#4CAF50', '#FF9800', '#F44336', '#E91E63'], // Grey, Green, Orange, Red, Pink
-        armorColors: ['#CD7F32', '#2196F3', '#9C27B0', '#FFC107', '#FFFFFF'], // Bronze, Blue, Purple, Gold, White
+        weaponColors: ['#BDBDBD', '#4CAF50', '#FF9800', '#F44336', '#E91E63'],
+        armorColors: ['#CD7F32', '#2196F3', '#9C27B0', '#FFC107', '#FFFFFF'],
         types: { weapon: { base: ['Katana', 'Hammer', 'Axe', 'Knife'], primary: 'strength' }, armor: { base: ['Helmet', 'Jacket', 'Boots', 'Armor'], primary: 'fortitude' } },
         prefixes: { strength: 'Rusty', fortitude: 'Sturdy', agility: 'Swift', critChance: 'Deadly', goldFind: 'Lucky' },
         suffixes: { strength: 'of Death', fortitude: 'of the tank', agility: 'of the Viper', critChance: 'of Piercing', goldFind: 'of Greed' },
         affixes: ['agility', 'critChance', 'goldFind']
-      };
-      const shopItems = {
-          storableHealthPotion: { name: "Health Potion", desc: "A storable potion for battle. Restores 50% HP.", cost: 550, type: 'consumable' },
-          energyPotion: { name: "Energy Potion", desc: "Instantly restores 10% of your Max Energy.", cost: 500, type: 'consumable' },
-          xpBoost: { name: "Scroll of Wisdom", desc: "+50% XP from all sources for 15 minutes.", cost: 500, type: 'buff', duration: 900 }
-      };
-      const permanentShopUpgrades = {
-          strTraining: { name: "Strength Training", desc: "Permanently increases base Strength.", stat: 'strength', bonus: 3, levelReq: 10, maxLevel: 10000, cost: (level) => 1 * Math.pow(1.5, level) },
-          forTraining: { name: "Fortitude Training", desc: "Permanently increases base Fortitude.", stat: 'fortitude', bonus: 3, levelReq: 10, maxLevel: 10000, cost: (level) => 1 * Math.pow(1.5, level) },
-          agiTraining: { name: "Agility Training", desc: "Permanently increases base Agility.", stat: 'agility', bonus: 1, levelReq: 10, maxLevel: 5000, cost: (level) => 1 * Math.pow(3.79, level) },
-          energyTraining: { 
+    };
+    const shopItems = {
+        storableHealthPotion: { name: "Health Potion", desc: "A storable potion for battle. Restores 50% HP.", cost: 550, type: 'consumable' },
+        energyPotion: { name: "Energy Potion", desc: "Instantly restores 10% of your Max Energy.", cost: 500, type: 'consumable' },
+        xpBoost: { name: "Scroll of Wisdom", desc: "+50% XP from all sources for 15 minutes.", cost: 500, type: 'buff', duration: 900 }
+    };
+    const permanentShopUpgrades = {
+        strTraining: { name: "Strength Training", desc: "Permanently increases base Strength.", stat: 'strength', bonus: 3, levelReq: 10, maxLevel: 10000, cost: (level) => 1 * Math.pow(1.5, level) },
+        forTraining: { name: "Fortitude Training", desc: "Permanently increases base Fortitude.", stat: 'fortitude', bonus: 3, levelReq: 10, maxLevel: 10000, cost: (level) => 1 * Math.pow(1.5, level) },
+        agiTraining: { name: "Agility Training", desc: "Permanently increases base Agility.", stat: 'agility', bonus: 1, levelReq: 10, maxLevel: 5000, cost: (level) => 1 * Math.pow(3.79, level) },
+        energyTraining: { 
             name: "Energy Discipline", 
             desc: "Permanently increases Max Energy by 25.", 
             bonus: 25, 
@@ -182,197 +180,100 @@ function returnEffectToPool(type, element) {
             maxLevel: 1000, 
             cost: (level) => 1500 * Math.pow(2.2, level) 
         }
-      };
-      const expeditionData = {
-          actions: ["Explore", "Patrol", "Scour", "Delve into", "Investigate"],
-          locations: ["the Glimmering Caves", "the Whispering Woods", "the Forgotten Ruins", "the Sunken City", "the Dragon's Pass"],
-          modifiers: {
-              gold: { name: "Rich", description: "High chance of Gold", goldMod: 1.5, itemMod: 0.8 },
-              item: { name: "Mysterious", description: "High chance of Items", goldMod: 0.8, itemMod: 1.5 },
-              xp: { name: "Dangerous", description: "High XP reward", goldMod: 1, itemMod: 1, xpMod: 1.5 },
-          }
-      };
-      const reforgeNameData = {
-          prefixes: ["Forged", "Tempered", "Masterwork", "Infused", "Runed", "Shaped"],
-          bases: {
-              weapon: ["Smasher", "Edge", "Cleaver", "Point", "Ripper", "Breaker"],
-              armor: ["Bulwark", "Aegis", "Carapace", "Wall", "Guard", "Bastion"]
-          },
-          suffixes: ["of Power", "of Doom", "of Glory", "of the Forge", "of Titans"]
-      };
-      const dailyRewards = [
-        { day: 1, rewards: [
-            { type: 'gold', amount: 5000 }
-        ]},
-        { day: 2, rewards: [
-            { type: 'gold', amount: 1000000 }
-        ]},
-        // MODIFICATION: Day 3 now has two rewards in its array
-        { day: 3, rewards: [
-            { type: 'consumable', id: 'storableHealthPotion', amount: 200 },
-            { type: 'edgestones', amount: 25 }
-        ]},
-        { day: 4, rewards: [
-            { type: 'gold', amount: 2500000 }
-        ]},
-        { day: 5, rewards: [
-            { type: 'consumable', id: 'storableHealthPotion', amount: 500 }
-        ]},
-        // MODIFICATION: Day 6 now has two rewards
-        { day: 6, rewards: [
-            { type: 'gold', amount: 5000000 },
-            { type: 'edgestones', amount: 75 }
-        ]},
-        { day: 7, rewards: [
-            { type: 'item', rarity: 'rare' }
-        ]}
-      ];
-      const skillsData = {
-            aoeSlash: {
-                name: 'Guardian\'s Blade',
-                desc: 'Increases the damage of your basic attacks.',
-                bonusPerLevel: 1, // Each level adds +1% damage
-                cost: (level) => Math.floor(5 * Math.pow(1.12, level)),
-                maxLevel: 1000
-            },
-            dash: {
-                name: 'Dash',
-                desc: 'Increases the damage of Dash impacts.',
-                bonusPerLevel: 2, // Each level adds +2% damage
-                cost: (level) => Math.floor(10 * Math.pow(1.15, level)),
-                maxLevel: 1000
-            },
-            thunderStrike: {
-                name: 'Thunder Strike',
-                desc: 'Increases the damage of Thunder Strike.',
-                bonusPerLevel: 2, // Each level adds +2% damage
-                cost: (level) => Math.floor(10 * Math.pow(1.15, level)),
-                maxLevel: 1000
-            },
-            havocRage: {
-                name: 'Havoc Rage',
-                desc: 'Increases the damage-over-time of Havoc Rage.',
-                bonusPerLevel: 3, // Each level adds +3% damage
-                cost: (level) => Math.floor(15 * Math.pow(1.18, level)),
-                maxLevel: 1000
-            },
-        };
-      const potentialsData = {
-        attack_power_percent: {
-            name: 'Attack Power (%)',
-            icon: 'https://i.imgur.com/KxISF7H.png', // Sword Icon
-            cost: (level) => Math.pow(1.25, level) * 0.0001,
-            bonusPerLevel: 0.5, // 0.5% bonus per level
-            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
-        },
-        hp_percent: {
-            name: 'Health (%)',
-            icon: 'https://i.imgur.com/vHq4D3x.png', // Heart Icon
-            cost: (level) => Math.pow(1.24, level) * 0.0001,
-            bonusPerLevel: 0.8, // 0.8% bonus per level
-            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
-        },
-        crit_damage_percent: {
-            name: 'Crit Damage (%)',
-            icon: 'https://i.imgur.com/gYg28r0.png', // Crit Icon
-            cost: (level) => Math.pow(1.3, level) * 0.0002,
-            bonusPerLevel: 1.5, // 1.5% crit damage per level
-            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
-        },
-        gold_find_percent: {
-            name: 'Gold Find (%)',
-            icon: 'https://i.imgur.com/l2sOKe8.png', // Gold Icon
-            cost: (level) => Math.pow(1.2, level) * 0.00005,
-            bonusPerLevel: 1, // 1% gold find per level
-            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
-        },
-        xp_gain_percent: {
-            name: 'Experience Gain (%)',
-            icon: 'https://i.imgur.com/rN5g4dF.png', // XP Icon
-            cost: (level) => Math.pow(1.22, level) * 0.00008,
-            bonusPerLevel: 1, // 1% XP gain per level
-            formatBonus: (bonus) => `+${bonus.toFixed(2)}%`
+    };
+    const expeditionData = {
+        actions: ["Explore", "Patrol", "Scour", "Delve into", "Investigate"],
+        locations: ["the Glimmering Caves", "the Whispering Woods", "the Forgotten Ruins", "the Sunken City", "the Dragon's Pass"],
+        modifiers: {
+            gold: { name: "Rich", description: "High chance of Gold", goldMod: 1.5, itemMod: 0.8 },
+            item: { name: "Mysterious", description: "High chance of Items", goldMod: 0.8, itemMod: 1.5 },
+            xp: { name: "Dangerous", description: "High XP reward", goldMod: 1, itemMod: 1, xpMod: 1.5 },
         }
-      };
-      const awakeningData = {
-          stamina: {
-              name: 'Stamina',
-              desc: 'Increases Max Energy and passive Energy Regeneration.',
-              icon: 'https://i.imgur.com/your-stamina-icon.png', // Replace with your icon URL
-              cost: (level) => Math.floor(1000 * Math.pow(1.25, level)) 
-          },
-          wisdom: {
-              name: 'Wisdom',
-              desc: 'Increases all Experience gained from combat and rewards.',
-              icon: 'https://i.imgur.com/your-wisdom-icon.png', // Replace with your icon URL
-              cost: (level) => Math.floor(1500 * Math.pow(1.27, level))
-          },
-          weaponMastery: {
-              name: 'Weapon Damage',
-              desc: 'Increases all damage dealt and Legendary Weapon drop rates.',
-              icon: 'https://i.imgur.com/your-weapon-icon.png', // Replace with your icon URL
-              cost: (level) => Math.floor(2000 * Math.pow(1.3, level))
-          },
-          armorMastery: {
-              name: 'Armor Protection',
-              desc: 'Increases Fortitude and Legendary Armor drop rates.',
-              icon: 'https://i.imgur.com/your-armor-icon.png', // Replace with your icon URL
-              cost: (level) => Math.floor(2000 * Math.pow(1.3, level))
-          },
-          attackSpeed: {
-              name: 'Attack Speed',
-              desc: 'Slightly increases your attack speed in combat.',
-              icon: 'https://i.imgur.com/your-speed-icon.png', // Replace with your icon URL
-              cost: (level) => Math.floor(5000 * Math.pow(1.35, level))
-          }
-      };
-      const defaultState = {
-          version: GAME_VERSION,
-          playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 30,
-          edgeStones: 0,
-          highestBattleLevelCompleted: 0,
-          stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
-          satiation: 2000, 
-          maxSatiation: 2000,
-          resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
-          equipment: { weapon: null, armor: null }, 
-          inventory: [], hasEgg: false, partner: null,
-          expedition: { active: false, returnTime: 0 },
-          ascension: { tier: 1, points: 0, perks: {} },
-          permanentUpgrades: {},
-          activeBuffs: {},
-          achievements: JSON.parse(JSON.stringify(achievements)), // Deep copy achievements
-          counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
-          lastWeeklyRewardClaim: 0,
-          settings: { musicVolume: 0.5, sfxVolume: 1.0, isMuted: false, isAutoBattle: false }, dojoPersonalBest: 0,
-          pvpPersonalBest: 0,
-          lastDailyClaim: 0,
-          dailyStreak: 0,
-          lastLogin: Date.now(),
-          orbs: 0,
-          immortalGrowth: {
+    };
+    const reforgeNameData = {
+        prefixes: ["Forged", "Tempered", "Masterwork", "Infused", "Runed", "Shaped"],
+        bases: {
+            weapon: ["Smasher", "Edge", "Cleaver", "Point", "Ripper", "Breaker"],
+            armor: ["Bulwark", "Aegis", "Carapace", "Wall", "Guard", "Bastion"]
+        },
+        suffixes: ["of Power", "of Doom", "of Glory", "of the Forge", "of Titans"]
+    };
+    const dailyRewards = [
+        { day: 1, rewards: [{ type: 'gold', amount: 5000 }]},
+        { day: 2, rewards: [{ type: 'gold', amount: 1000000 }]},
+        { day: 3, rewards: [{ type: 'consumable', id: 'storableHealthPotion', amount: 200 }, { type: 'edgestones', amount: 25 }]},
+        { day: 4, rewards: [{ type: 'gold', amount: 2500000 }]},
+        { day: 5, rewards: [{ type: 'consumable', id: 'storableHealthPotion', amount: 500 }]},
+        { day: 6, rewards: [{ type: 'gold', amount: 5000000 }, { type: 'edgestones', amount: 75 }]},
+        { day: 7, rewards: [{ type: 'item', rarity: 'rare' }]}
+    ];
+    const skillsData = {
+        aoeSlash: { name: 'Guardian\'s Blade', desc: 'Increases the damage of your basic attacks.', bonusPerLevel: 1, cost: (level) => Math.floor(5 * Math.pow(1.12, level)), maxLevel: 1000 },
+        dash: { name: 'Dash', desc: 'Increases the damage of Dash impacts.', bonusPerLevel: 2, cost: (level) => Math.floor(10 * Math.pow(1.15, level)), maxLevel: 1000 },
+        thunderStrike: { name: 'Thunder Strike', desc: 'Increases the damage of Thunder Strike.', bonusPerLevel: 2, cost: (level) => Math.floor(10 * Math.pow(1.15, level)), maxLevel: 1000 },
+        havocRage: { name: 'Havoc Rage', desc: 'Increases the damage-over-time of Havoc Rage.', bonusPerLevel: 3, cost: (level) => Math.floor(15 * Math.pow(1.18, level)), maxLevel: 1000 },
+    };
+    const potentialsData = {
+        attack_power_percent: { name: 'Attack Power (%)', icon: 'https://i.imgur.com/KxISF7H.png', cost: (level) => Math.pow(1.25, level) * 0.0001, bonusPerLevel: 0.5, formatBonus: (bonus) => `+${bonus.toFixed(2)}%`},
+        hp_percent: { name: 'Health (%)', icon: 'https://i.imgur.com/vHq4D3x.png', cost: (level) => Math.pow(1.24, level) * 0.0001, bonusPerLevel: 0.8, formatBonus: (bonus) => `+${bonus.toFixed(2)}%`},
+        crit_damage_percent: { name: 'Crit Damage (%)', icon: 'https://i.imgur.com/gYg28r0.png', cost: (level) => Math.pow(1.3, level) * 0.0002, bonusPerLevel: 1.5, formatBonus: (bonus) => `+${bonus.toFixed(2)}%`},
+        gold_find_percent: { name: 'Gold Find (%)', icon: 'https://i.imgur.com/l2sOKe8.png', cost: (level) => Math.pow(1.2, level) * 0.00005, bonusPerLevel: 1, formatBonus: (bonus) => `+${bonus.toFixed(2)}%`},
+        xp_gain_percent: { name: 'Experience Gain (%)', icon: 'https://i.imgur.com/rN5g4dF.png', cost: (level) => Math.pow(1.22, level) * 0.00008, bonusPerLevel: 1, formatBonus: (bonus) => `+${bonus.toFixed(2)}%`}
+    };
+    const awakeningData = {
+        stamina: { name: 'Stamina', desc: 'Increases Max Energy and passive Energy Regeneration.', icon: 'https://i.imgur.com/your-stamina-icon.png', cost: (level) => Math.floor(1000 * Math.pow(1.25, level)) },
+        wisdom: { name: 'Wisdom', desc: 'Increases all Experience gained from combat and rewards.', icon: 'https://i.imgur.com/your-wisdom-icon.png', cost: (level) => Math.floor(1500 * Math.pow(1.27, level))},
+        weaponMastery: { name: 'Weapon Damage', desc: 'Increases all damage dealt and Legendary Weapon drop rates.', icon: 'https://i.imgur.com/your-weapon-icon.png', cost: (level) => Math.floor(2000 * Math.pow(1.3, level))},
+        armorMastery: { name: 'Armor Protection', desc: 'Increases Fortitude and Legendary Armor drop rates.', icon: 'https://i.imgur.com/your-armor-icon.png', cost: (level) => Math.floor(2000 * Math.pow(1.3, level))},
+        attackSpeed: { name: 'Attack Speed', desc: 'Slightly increases your attack speed in combat.', icon: 'https://i.imgur.com/your-speed-icon.png', cost: (level) => Math.floor(5000 * Math.pow(1.35, level))}
+    };
+    const defaultState = {
+        version: GAME_VERSION,
+        playerName: "Guardian", tutorialCompleted: false, level: 1, xp: 0, gold: 0, healthPotions: 30,
+        edgeStones: 0,
+        highestBattleLevelCompleted: 0,
+        stats: { strength: 5, agility: 5, fortitude: 5, stamina: 5 },
+        satiation: 2000, 
+        maxSatiation: 2000,
+        resources: { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 },
+        equipment: { weapon: null, armor: null }, 
+        inventory: [], hasEgg: false, partner: null,
+        expedition: { active: false, returnTime: 0 },
+        ascension: { tier: 1, points: 0, perks: {} },
+        permanentUpgrades: {},
+        activeBuffs: {},
+        achievements: JSON.parse(JSON.stringify(achievements)),
+        counters: { taps: 0, enemiesDefeated: 0, ascensionCount: 0, battlesCompleted: 0, itemsForged: 0, legendariesFound: 0 },
+        lastWeeklyRewardClaim: 0,
+        settings: { musicVolume: 0.5, sfxVolume: 1.0, isMuted: false, isAutoBattle: false }, dojoPersonalBest: 0,
+        pvpPersonalBest: 0,
+        lastDailyClaim: 0,
+        dailyStreak: 0,
+        lastLogin: Date.now(),
+        orbs: 0,
+        riftProgress: {
+            moveSpeed: 0,
+            magnetRadius: 0,
+            goldFind: 0,
+            xpGain: 0,
+            // --- RIFT ABILITIES: Add skill levels to save data ---
+            highestRiftLevel: 0,
+            rift_dash: 0,
+            rift_thunderStrike: 0,
+            rift_havocRage: 0
+        },
+        immortalGrowth: {
             potentials: {
-                attack_power_percent: 0,
-                hp_percent: 0,
-                crit_damage_percent: 0,
-                gold_find_percent: 0,
-                xp_gain_percent: 0
+                attack_power_percent: 0, hp_percent: 0, crit_damage_percent: 0, gold_find_percent: 0, xp_gain_percent: 0
             },
             awakening: {
-                stamina: 0,
-                wisdom: 0,
-                weaponMastery: 0,
-                armorMastery: 0,
-                attackSpeed: 0
+                stamina: 0, wisdom: 0, weaponMastery: 0, armorMastery: 0, attackSpeed: 0
             },
             skills: {
-                aoeSlash: 0,
-                dash: 0,
-                thunderStrike: 0,
-                havocRage: 0
+                aoeSlash: 0, dash: 0, thunderStrike: 0, havocRage: 0
             }
         } 
-      };
+    };
       
       // ----- NEW: HUNGER SYSTEM MODULE -----
       const HungerSystem = {
@@ -805,29 +706,30 @@ function returnEffectToPool(type, element) {
       
       // --- FIXED/MERGED ---: Restored full startGame logic.
       async function startGame() {
-          initAudio();
-          let playerName = ""; let isNameValid = false;
-          while (!isNameValid) {
-              const defaultName = auth.currentUser ? auth.currentUser.displayName.split(' ')[0] : "";
-              const inputName = prompt("Enter your Guardian's name (3-15 chars):", defaultName);
-              if (inputName === null) { return; } 
-              if (inputName.length < 3 || inputName.length > 15) { alert("Name must be between 3 and 15 characters."); continue; }
-              playerName = inputName; isNameValid = true;
-          }
-          gameState = JSON.parse(JSON.stringify(defaultState));
-          gameState.playerName = playerName;
-          
-          updateSettingsUI();
-          updateUI(); 
-          updateAscensionVisuals();
-          showScreen('game-screen');
-          const characterArea = document.getElementById('character-area');
-          const genesisArena = document.getElementById('genesis-arena');
-          characterArea.style.display = 'flex'; // Or 'block' if you use that
-          genesisArena.style.display = 'none';
-          checkWeeklyRewards();
-          checkDailyRewards(); 
-          await saveGame(); 
+        initAudio();
+        let playerName = ""; let isNameValid = false;
+        while (!isNameValid) {
+            const defaultName = auth.currentUser ? auth.currentUser.displayName.split(' ')[0] : "";
+            const inputName = prompt("Enter your Guardian's name (3-15 chars):", defaultName);
+            if (inputName === null) { return; } 
+            if (inputName.length < 3 || inputName.length > 15) { alert("Name must be between 3 and 15 characters."); continue; }
+            playerName = inputName; isNameValid = true;
+        }
+        gameState = JSON.parse(JSON.stringify(defaultState));
+        gameState.playerName = playerName;
+        
+        updateSettingsUI();
+        updateUI(); 
+        updateAscensionVisuals();
+        showScreen('game-screen');
+    
+        // --- LATER PLAYER EXPERIENCE FIX: Ensure new games always start on the Grow screen ---
+        characterArea.style.display = 'flex';
+        genesisArena.style.display = 'none';
+    
+        checkWeeklyRewards();
+        checkDailyRewards(); 
+        await saveGame(); 
       }
   
       function rehydrateItemRarity(item) {
@@ -882,6 +784,13 @@ function returnEffectToPool(type, element) {
             }
     
             loadedState.orbs = loadedState.orbs || 0;
+
+            if (!loadedState.riftProgress) {
+                loadedState.riftProgress = JSON.parse(JSON.stringify(defaultState.riftProgress));
+            } else {
+                // --- RIFT CHECKPOINT: Ensure old saves get the new property ---
+                loadedState.riftProgress.highestRiftLevel = loadedState.riftProgress.highestRiftLevel || 0;
+            }
           
             if (loadedState.equipment.weapon) {
                 rehydrateItemRarity(loadedState.equipment.weapon);
@@ -900,64 +809,73 @@ function returnEffectToPool(type, element) {
   
       // --- FIXED/MERGED ---: Robust load game logic with cloud-first approach.
       async function loadGame() {
-          initAudio();
-          let loadedState = null;
-          let fromCloud = false;
-  
-          if (auth.currentUser) {
-              try {
-                  const docRef = db.collection('playerSaves').doc(auth.currentUser.uid);
-                  const doc = await docRef.get();
-                  if (doc.exists) {
-                      loadedState = doc.data();
-                      fromCloud = true;
-                  }
-              } catch (error) {
-                  console.error("Error loading from cloud:", error);
-                  showToast("Cloud save failed! Trying local save.");
-              }
-          }
-  
-          if (!loadedState) {
-              const savedData = localStorage.getItem('tapGuardianSave');
-              if (savedData) {
-                  loadedState = JSON.parse(savedData);
-                   if (auth.currentUser) { showToast("No cloud save found, loaded local save instead."); }
-              }
-          }
-          
-          if (loadedState) {
-              loadedState = await migrateSaveData(loadedState);
-              gameState = JSON.parse(JSON.stringify(defaultState));
-              for (const key in loadedState) {
+            initAudio();
+            let loadedState = null;
+            let fromCloud = false;
+        
+            if (auth.currentUser) {
+                try {
+                    const docRef = db.collection('playerSaves').doc(auth.currentUser.uid);
+                    const doc = await docRef.get();
+                    if (doc.exists) {
+                        loadedState = doc.data();
+                        fromCloud = true;
+                    }
+                } catch (error) {
+                    console.error("Error loading from cloud:", error);
+                    showToast("Cloud save failed! Trying local save.");
+                }
+            }
+        
+            if (!loadedState) {
+                const savedData = localStorage.getItem('tapGuardianSave');
+                if (savedData) {
+                    loadedState = JSON.parse(savedData);
+                    if (auth.currentUser) { showToast("No cloud save found, loaded local save instead."); }
+                }
+            }
+            
+            if (loadedState) {
+                loadedState = await migrateSaveData(loadedState);
+                gameState = JSON.parse(JSON.stringify(defaultState));
+                for (const key in loadedState) {
                 if (typeof loadedState[key] === 'object' && !Array.isArray(loadedState[key]) && loadedState[key] !== null) {
                     gameState[key] = { ...gameState[key], ...loadedState[key] };
                 } else {
                 gameState[key] = loadedState[key];
-                  }
-              }
-              checkOfflineRewards();
-              if(fromCloud) showToast("Cloud save loaded!");
-              
-              updateSettingsUI();
-              checkExpeditionStatus();
-              updateUI(); 
-              updateAscensionVisuals();
-              showScreen('game-screen');
-              const characterArea = document.getElementById('character-area');
-              const genesisArena = document.getElementById('genesis-arena');
-              characterArea.style.display = 'flex'; // Or 'block'
-              genesisArena.style.display = 'none';
-              checkWeeklyRewards();
-              checkDailyRewards();
-              await saveGame();
-          } else if (auth.currentUser) {
-               showToast("No saves found. Starting a new game.");
-               startGame();
-          } else {
-               // Do nothing, wait for user to click "Start Game" or "Load Game" (if available)
-          }
-      }
+                    }
+                }
+                checkOfflineRewards();
+                if(fromCloud) showToast("Cloud save loaded!");
+                
+                updateSettingsUI();
+                checkExpeditionStatus();
+                updateUI(); 
+                updateAscensionVisuals();
+                showScreen('game-screen');
+                
+                // --- LATER PLAYER EXPERIENCE FIX: Decide where to start based on level ---
+                if (gameState.level >= 10) {
+                    // Player is level 10 or higher, start in Endless mode
+                    characterArea.style.display = 'none';
+                    genesisArena.style.display = 'block';
+                    startGameGenesis();
+                } else {
+                    // Player is below level 10, start in Grow mode
+                    characterArea.style.display = 'flex';
+                    genesisArena.style.display = 'none';
+                }
+        
+                checkWeeklyRewards();
+                checkDailyRewards();
+                await saveGame();
+            } else if (auth.currentUser) {
+                showToast("No saves found. Starting a new game.");
+                startGame();
+            } else {
+                // Do nothing, wait for user to click "Start Game" or "Load Game" (if available)
+            }
+        }
   
       // --- FIXED/MERGED ---: Kept the superior save logic from the new file.
       async function saveGame(showToastNotification = false) {
@@ -2475,7 +2393,6 @@ function returnEffectToPool(type, element) {
                   }
                   
                   // FIX #2: REMOVED the insecure line that tried to write to the database.
-                  // The client is no longer allowed to (and shouldn't) reset the timer for everyone.
                   // const nextTime = now + weekInMs;
                   // await rewardDocRef.set({ nextRewardTime: nextTime });
               }
@@ -4650,27 +4567,29 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                   gameState.inventory.push(bonusItem);
               }
           } else { // Player lost
-              playSound('defeat', 1, 'sine', 440, 110, 0.8);
-              if (gameState.resources.hp <= 0) {
-                  title = "Defeated!";
-                  rewardText = "You black out and wake up back home. You lost half your current gold.";
-                  gameState.gold = Math.floor(gameState.gold / 2);
-                  gameState.resources.hp = 1; // Restore 1 HP so the player isn't stuck
-              } else {
-                  title = "Fled from Battle";
-                  rewardText = "You escaped, but gained no rewards.";
-              }
-          }
-          
-          stopGameGenesis(); // Stop the arena visualization
-          setTimeout(() => { 
-              showScreen('game-screen');
-              startGameGenesis(); // Restart in endless mode
-              if (title) showNotification(title, rewardText);
-              saveGame(); 
-              updateUI(); 
-          }, 500); // A short delay before showing the results
-      }
+                playSound('defeat', 1, 'sine', 440, 110, 0.8);
+            
+                // --- RIFT DEFEAT FIX: Only apply penalty if NOT in the Rift ---
+                if (gameState.resources.hp <= 0 && !Rift.state.isActive) {
+                    title = "Defeated!";
+                    rewardText = "You black out and wake up back home. You lost half your current gold.";
+                    gameState.gold = Math.floor(gameState.gold / 2);
+                    gameState.resources.hp = 1; // Restore 1 HP so the player isn't stuck
+                } else if (!Rift.state.isActive) { // This handles fleeing from non-Rift battles
+                    title = "Fled from Battle";
+                    rewardText = "You escaped, but gained no rewards.";
+                }
+            }
+            
+            stopGameGenesis();
+            setTimeout(() => { 
+                showScreen('game-screen');
+                startGameGenesis(); 
+                if (title) showNotification(title, rewardText);
+                saveGame(); 
+                updateUI(); 
+            }, 500);
+        }
   
       function feedInBattle() {
           if (!battleState.isActive) return;
@@ -5108,7 +5027,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     createSlamEffect(combatantSprite.offsetLeft, combatantSprite.offsetTop);
                     createFloatingText("Slam!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#D2691E', fontSize: '1.8em' });
                     
-                    const damage = getPvpCombatantStat(combatant, 'strength') * 8 * (1 + getSkillBonus('slam') / 100);
+                    const damage = getPvpCombatantStat
+
+                    (combatant, 'strength') * 8 * (1 + getSkillBonus('slam') / 100);
                     if (isPlayer) pvpState.playerDamage += damage; else pvpState.opponentDamage += damage;
                     createPvpDamageNumber(damage, isPlayer);
                 });
@@ -5123,7 +5044,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 });
             } else if (roll < 0.45) {
                 performAttack(() => {
-                    createDashExplosionEffect(targetSprite.offsetLeft + targetSprite.offsetWidth / 2, targetSprite.offsetTop + targetSprite.offsetHeight / 2);
+                    createDashExplosionEffect(targetSprite.offsetLeft + targetSprite.offsetWidth / 2, targetSprite.offsetTop + targetSprite.offsetHeight / 2, 50);
                     createFloatingText("Dash!", combatantSprite.offsetLeft, combatantSprite.offsetTop - 40, { color: '#ff8c00', fontSize: '1.8em' });
                     const damage = getPvpCombatantStat(combatant, 'strength') * 5 * (1 + getSkillBonus('dash') / 100);
                     const finalDamage = damage * (isCrit ? (1 + critDamageBonus) : 1);
@@ -5238,283 +5159,1304 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         // --- END OF NEW LOGIC ---
     }
-       // --- EVENT LISTENERS ---
-       const detailedStatsModal = document.getElementById('detailed-stats-modal');
-       const detailedStatsCloseBtn = document.getElementById('detailed-stats-close-btn');
-       immortalGrowthBtn.addEventListener('click', () => {
-           renderPotentialsTree();
-           immortalGrowthModal.classList.add('visible');
-           // Track this view in Google Analytics, just like your other modals
-           gtag('config', 'G-4686TXHCHN', { 'page_path': '/immortal-growth' });
-        });
-        
-        immortalGrowthCloseFooterBtn.addEventListener('click', () => {
-            immortalGrowthModal.classList.remove('visible');
-        });
-        
-        resetPotentialsBtn.addEventListener('click', resetPotentials);
-        
-        // Use event delegation for all upgrade buttons inside the tree
-        potentialsTreeContainer.addEventListener('click', (event) => {
-            const button = event.target.closest('.immortal-upgrade-btn');
-            if (button) {
-                const statId = button.getAttribute('data-stat-id');
-                if (statId) {
-                    upgradePotentialStat(statId);
-                }
-            }
-        });
-        awakeningBtn.addEventListener('click', () => {
-            // Open the new modal instead of the old one
-            immortalGrowthModal.classList.remove('visible'); // Close the current modal
-            renderAwakeningTree();
-            awakeningModal.classList.add('visible');
-            gtag('config', 'G-4686TXHCHN', { 'page_path': '/awakening' });
-        });
-        
-        awakeningCloseBtn.addEventListener('click', () => {
-            awakeningModal.classList.remove('visible');
-            // Re-open the previous modal for a smooth
-            immortalGrowthModal.classList.add('visible'); 
-        });
-        
-        awakeningTreeContainer.addEventListener('click', (event) => {
-            const button = event.target.closest('.awakening-upgrade-btn');
-            if (button) {
-                const statId = button.getAttribute('data-stat-id');
-                if (statId) {
-                    upgradeAwakeningStat(statId);
-                }
-            }
-        });
-        skillsBtn.addEventListener('click', () => {
-            // We are now in the main menu, so just open the skills modal.
-            renderSkillsModal();
-            skillsModal.classList.add('visible');
-            if (skillsModalInterval) clearInterval(skillsModalInterval);
-            skillsModalInterval = setInterval(renderSkillsModal, 1000); // 1000ms = 1 second
-        });
-        
-        closeSkillsBtn.addEventListener('click', () => {
-            if (skillsModalInterval) {
-                clearInterval(skillsModalInterval);
-                skillsModalInterval = null; // Reset the variable
-            }
-            skillsModal.classList.remove('visible'); // This is all it needs to do.
-        });
-        
-        skillsTreeContainer.addEventListener('click', (event) => {
-            const button = event.target.closest('.skill-upgrade-btn');
-            if (button) {
-                const skillId = button.getAttribute('data-skill-id');
-                if (skillId) {
-                    upgradeSkill(skillId);
-                }
-            }
-        });
-       startGameBtn.addEventListener('click', startGame);
-       loadGameBtn.addEventListener('click', loadGame);
-       characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
-       characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], false); }, {passive: false});
-       partnerSprite.addEventListener('click', (e) => handleTap(e, true)); 
-       partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
-       modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
-       feedBtn.addEventListener('click', feed); 
-       // --- DOJO EVENT LISTENERS ---
-      dojoBtn.addEventListener('click', enterDojo);
-      dojoExitBtn.addEventListener('click', exitDojo);
 
-        // Handle both mouse and touch for the hold-to-attack mechanic
-      dojoDummySprite.addEventListener('mousedown', startDojoSession);
-      dojoDummySprite.addEventListener('mouseup', stopDojoSession);
-      dojoDummySprite.addEventListener('mouseleave', stopDojoSession); // Stop if mouse leaves the dummy
-      dojoDummySprite.addEventListener('touchstart', (e) => {
-           e.preventDefault(); // Important for mobile to prevent scrolling
-           startDojoSession();
-       }, { passive: false });
-      dojoDummySprite.addEventListener('touchend', stopDojoSession);
-      dojoDummySprite.addEventListener('touchcancel', stopDojoSession);
-      gameScreen.addEventListener('click', (event) => {
-            if (event.target.id === 'rewards-btn') {
-                showRewardsModal();
+    const Rift = {
+        state: {
+            isActive: false,
+            gameLoopId: null,
+            currentWave: 0,
+            enemies: [],
+            loot: [],
+            particles: [],
+            background: {
+                stars: [],
+                nebulaImage: new Image(),
+                imageLoaded: false
+            },
+            player: { 
+                x: 0, y: 0, 
+                moveVector: { x: 0, y: 0 },
+                lastAttackTime: 0,
+                lastDamagedTime: 0,
+                sprite: new Image(),
+                lastAttackFlashTime: 0,
+                lastDashTime: 0,
+                isDashing: false,
+                lastGhostTime: 0,
+                // --- ZOOM DASH: Add a property to track the start of the dash animation ---
+                lastDashStartTime: 0,
+                lastThunderStrikeTime: 0,
+                lastHavocRageTime: 0
+            },
+            isAutoMode: false,
+            keys: {}
+        },
+    
+        config: {
+            playerBaseSpeed: 3,
+            magnetBaseRadius: 150,
+            enemiesBasePerWave: 5,
+            playerRadius: 30,
+            enemyRadius: 25,
+            lootRadius: 10,
+            collectionRadius: 40,
+            playerAttackCooldown: 400,
+            enemyAttackCooldown: 1500,
+            riftUpgradeCost: (level) => Math.floor(10 * Math.pow(1.5, level)),
+            // --- RIFT ABILITIES: NEW ABILITY CONFIGURATION ---
+            dashCooldown: 5000,
+            thunderStrikeCooldown: 8000,
+            havocRageCooldown: 12000
+        },
+    
+        elements: {
+            screen: document.getElementById('rift-screen'),
+            backgroundCanvas: document.getElementById('rift-background-canvas'),
+            backgroundCtx: document.getElementById('rift-background-canvas').getContext('2d'),
+            canvas: document.getElementById('rift-canvas'),
+            ctx: document.getElementById('rift-canvas').getContext('2d'),
+            upgradeBtn: document.getElementById('rift-upgrade-btn'),
+            exitBtn: document.getElementById('rift-exit-btn'),
+            resetBtn: document.getElementById('rift-reset-btn'),
+            autoCheckbox: document.getElementById('rift-auto-checkbox'),
+            hpBarFill: document.querySelector('#rift-player-hp-bar .stat-bar-fill'),
+            hpBarLabel: document.querySelector('#rift-player-hp-bar .stat-bar-label'),
+            xpBarFill: document.querySelector('#rift-player-xp-bar .stat-bar-fill'),
+            xpBarLabel: document.querySelector('#rift-player-xp-bar .stat-bar-label'),
+            waveDisplay: document.getElementById('rift-wave-display'),
+            joystickZone: document.getElementById('rift-joystick-zone'),
+        },
+    
+        joystick: null,
+
+        // --- RIFT ABILITIES: NEW CANVAS-BASED VISUAL EFFECTS ---
+        // These functions draw directly onto the Rift's canvas, they do not create DOM elements.
+        drawCanvasChainLightning: function(ctx, targets) {
+            if (targets.length < 2) return;
+            for (let i = 0; i < targets.length - 1; i++) {
+                const start = targets[i];
+                const end = targets[i+1];
+                this.drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(0, 255, 255, 0.2)', 20, 15);
+                this.drawLightningSegment(ctx, start.x, start.y, end.x, end.y, 'rgba(255, 255, 255, 0.5)', 10, 12);
+                this.drawLightningSegment(ctx, start.x, start.y, end.x, end.y, '#FFFFFF', 4, 10);
             }
-            // Updated to call our new function
-            if (event.target.id === 'toggle-modifiers-btn') {
-                renderAndShowDetailedStats();
+        },
+
+        drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness) {
+            const segments = 15;
+            const dx = (x2 - x1) / segments;
+            const dy = (y2 - y1) / segments;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            for (let i = 1; i < segments; i++) {
+                ctx.lineTo(x1 + dx * i + (Math.random() - 0.5) * jaggedness, y1 + dy * i + (Math.random() - 0.5) * jaggedness);
             }
-        }); 
-      closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
-      closeOfflineRewardsBtn.addEventListener('click', () => offlineRewardsModal.classList.remove('visible'));
-      detailedStatsCloseBtn.addEventListener('click', () => {
-            detailedStatsModal.classList.remove('visible');
-        });
-      battleBtn.addEventListener('click', startBattle);
-      attackBtn.addEventListener('click', handlePlayerAttack);
-      feedBattleBtn.addEventListener('click', feedInBattle); 
-      fleeBtn.addEventListener('click', () => endBattle(false));
-      pvpBtn.addEventListener('click', enterPvpSelection);
-      pvpSelectionBackBtn.addEventListener('click', () => showScreen('game-screen'));
- 
-      expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
- 
-      shopBtn.addEventListener('click', () => { 
-          updateShopUI(); 
-          shopModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/shop' });
-      });
-      
- 
-      expeditionCancelBtn.addEventListener('click', () => {
-        showScreen('game-screen');
-        startGameGenesis(); // <-- ADD THIS LINE
-      });
- 
-      ingameMenuBtn.addEventListener('click', () => {
-          /*if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
-              ascensionBtn.style.display = 'block';
-          } else {
-              ascensionBtn.style.display = 'none';
-          }*/
-          ingameMenuModal.classList.add('visible');
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/menu' });
-      });
- 
-      returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
-      saveGameBtn.addEventListener('click', () => saveGame(true));
-      quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
- 
-      inventoryBtn.addEventListener('click', () => { 
-          currentForgeSelectionTarget = null; 
-          updateInventoryUI(); 
-          inventoryModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/inventory' });
-      });
-      closeInventoryBtn.addEventListener('click', () => { 
-          currentForgeSelectionTarget = null; 
-          inventoryModal.classList.remove('visible'); 
-      });
-  
-      leaderboardBtn.addEventListener('click', () => {
-          showLeaderboard('level');
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/leaderboard' });
-      });
-      leaderboardTabs.forEach(tab => {
-          tab.addEventListener('click', () => showLeaderboard(tab.dataset.type));
-      });
-      closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.classList.remove('visible'); });
-  
-      achievementsBtn.addEventListener('click', () => { 
-          updateAchievementsUI(); 
-          achievementsModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/achievements' }); 
-      }); 
-      closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
-  
-      ascensionBtn.addEventListener('click', () => { 
-          updatePerksUI(); 
-          ascensionModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/ascension' });
-      });
-      closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); }); confirmAscensionBtn.addEventListener('click', ascend);
-  
-      closeShopBtn.addEventListener('click', () => { shopModal.classList.remove('visible'); });
-  
-      forgeBtn.addEventListener('click', () => { 
-          updateForgeUI(); 
-          forgeModal.classList.add('visible'); 
-          gtag('config', 'G-4686TXHCHN', { 'page_path': '/forge' });
-      });
-      closeForgeBtn.addEventListener('click', () => { forgeSlots = [null, null]; forgeModal.classList.remove('visible'); });
-      forgeBtnAction.addEventListener('click', forgeItems);
-      autoForgeBtn.addEventListener('click', autoForge);
-      function openInventoryForForgeSelection(slotIndex) {
-        currentForgeSelectionTarget = slotIndex;
-        updateInventoryUI(); // Update inventory to use forge selection logic
-        forgeModal.classList.remove('visible');
-        inventoryModal.classList.add('visible');
-        // Update prompt text in inventory
-        document.getElementById("inventory-prompt-text").textContent = `Select an item for Forge Slot ${slotIndex + 1}.`;
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.shadowColor = 'cyan';
+            ctx.shadowBlur = 15;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        },
+
+        createCanvasDashExplosion: function(x, y) {
+            for (let i=0; i < 30; i++) {
+                this.state.particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 40,
+                    color: Math.random() < 0.5 ? 'orangered' : 'yellow'
+                });
+            }
+        },
+        initializeBackground: function() {
+            this.state.background.stars = [];
+            const starCount = 200;
+            for (let i = 0; i < starCount; i++) {
+                this.state.background.stars.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    radius: Math.random() * 1.5,
+                    speed: 0.1 + Math.random() * 0.4 // Slow, subtle movement
+                });
+            }
+        },
+        
+        updateBackground: function() {
+            this.state.background.stars.forEach(star => {
+                star.y += star.speed;
+                if (star.y > window.innerHeight) {
+                    star.y = 0;
+                    star.x = Math.random() * window.innerWidth;
+                }
+            });
+        },
+        
+        drawBackground: function() {
+            const ctx = this.elements.backgroundCtx;
+            const canvas = this.elements.backgroundCanvas;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        
+            // Draw solid black as a base
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+            // Draw the nebula image if it's loaded
+            if (this.state.background.imageLoaded) {
+                ctx.globalAlpha = 0.4; // Make it a subtle background texture
+                ctx.drawImage(this.state.background.nebulaImage, 0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1.0;
+            }
+        
+            // Draw the moving stars
+            ctx.fillStyle = 'white';
+            this.state.background.stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        },
+        start: function() {
+            console.log("Entering the Endless Rift...");
+            this.state.isActive = true;
+            this.state.player.sprite.src = 'player.PNG';
+        
+            // --- RIFT BACKGROUND: Load image and initialize effects ---
+            if (!this.state.background.imageLoaded) {
+                // --- BACKGROUND FIX: Replaced the dead Imgur link with a new, reliable one ---
+                this.state.background.nebulaImage.src = 'https://www.publicdomainpictures.net/pictures/30000/velka/evening-sky-background.jpg'; 
+                this.state.background.nebulaImage.onload = () => {
+                    this.state.background.imageLoaded = true;
+                };
+            }
+            this.initializeBackground();
+        
+            showScreen('rift-screen');
+            this.resetState();
+            this.setupCanvas();
+            this.setupControls();
+            this.bindEvents();
+            this.nextWave();
+            this.gameLoop();
+        },
+        initializeBackground: function() {
+            this.state.background.stars = [];
+            const starCount = 200;
+            for (let i = 0; i < starCount; i++) {
+                this.state.background.stars.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    radius: Math.random() * 1.5,
+                    speed: 0.1 + Math.random() * 0.4 // Slow, subtle movement
+                });
+            }
+        },
+        
+        updateBackground: function() {
+            this.state.background.stars.forEach(star => {
+                star.y += star.speed;
+                if (star.y > window.innerHeight) {
+                    star.y = 0;
+                    star.x = Math.random() * window.innerWidth;
+                }
+            });
+        },
+        
+        drawBackground: function() {
+            const ctx = this.elements.backgroundCtx;
+            const canvas = this.elements.backgroundCanvas;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        
+            // Draw solid black as a base
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+            // Draw the nebula image if it's loaded
+            if (this.state.background.imageLoaded) {
+                ctx.globalAlpha = 0.4; // Make it a subtle background texture
+                ctx.drawImage(this.state.background.nebulaImage, 0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1.0;
+            }
+        
+            // Draw the moving stars
+            ctx.fillStyle = 'white';
+            this.state.background.stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        },
+        
+        resetState: function() {
+            const startLevel = (gameState.riftProgress.highestRiftLevel || 0) >= 10 
+                ? gameState.riftProgress.highestRiftLevel 
+                : 0;
+        
+            this.state.currentWave = startLevel;
+            this.state.enemies = [];
+            this.state.loot = [];
+            this.state.particles = [];
+            this.state.player.x = window.innerWidth / 2;
+            this.state.player.y = window.innerHeight / 2;
+            this.state.player.moveVector = { x: 0, y: 0 };
+            this.state.player.isDashing = false;
+            this.state.isAutoMode = this.elements.autoCheckbox.checked;
+            gameState.resources.hp = gameState.resources.maxHp;
+        
+            // --- RIFT CHECKPOINT: Show the upgrade button if the player has passed wave 10 before ---
+            if (startLevel >= 10) {
+                this.elements.upgradeBtn.classList.remove('hidden');
+            } else {
+                this.elements.upgradeBtn.classList.add('hidden');
+            }
+        },
+        
+        setupCanvas: function() {
+            this.elements.canvas.width = window.innerWidth;
+            this.elements.canvas.height = window.innerHeight;
+        },
+    
+        exit: function(isPlayerDefeated = false) {
+            if (!this.state.isActive) return;
+            console.log("Exiting the Endless Rift...");
+            this.state.isActive = false;
+    
+            cancelAnimationFrame(this.state.gameLoopId);
+            this.destroyControls();
+    
+            if (isPlayerDefeated) {
+                showNotification("Defeated in the Rift!", `You were overwhelmed at Rift Level ${this.state.currentWave}. You keep all loot found.`);
+                playSound('defeat', 1, 'sine', 440, 110, 0.8);
+            }
+    
+            showScreen('game-screen');
+            updateUI(); 
+            saveGame(); 
+            startGameGenesis(); 
+        },
+    
+        gameLoop: function(timestamp) {
+            if (!this.state.isActive) return;
+            const loop = this.gameLoop.bind(this);
+        
+            // --- RIFT BACKGROUND: Update background elements first ---
+            this.updateBackground();
+            this.drawBackground();
+        
+            this.handleInput();
+            this.updatePlayer(timestamp);
+            this.updateEnemies(timestamp);
+            this.updateLoot();
+            this.updateParticles();
+            this.updateBurnDamage(timestamp);
+            this.handleCollisions();
+            
+            if (this.state.enemies.length === 0) {
+                this.nextWave();
+            }
+        
+            this.updateRiftUI();
+            this.draw(timestamp); // This draws the main game on the transparent canvas
+        
+            if (gameState.resources.hp <= 0) {
+                this.exit(true);
+                return;
+            }
+        
+            this.state.gameLoopId = requestAnimationFrame(loop);
+        },
+    
+        bindEvents: function() {
+            this.elements.exitBtn.onclick = () => this.exit(false);
+            this.elements.autoCheckbox.onchange = (e) => { this.state.isAutoMode = e.target.checked; };
+            this.elements.resetBtn.onclick = () => this.resetRiftProgress();
+            this.elements.autoCheckbox.onchange = (e) => {
+                this.state.isAutoMode = e.target.checked;
+            };
+            window.onresize = () => this.setupCanvas();
+        },
+
+        resetRiftProgress: function() {
+            if (confirm("Are you sure you want to reset your Rift progress? Your highest level will be reset to 1, but you will keep all of your Rift Upgrades. This will restart the Rift from Level 1.")) {
+                // Reset the saved progress
+                gameState.riftProgress.highestRiftLevel = 0;
+                saveGame();
+        
+                // Stop the current game loop to restart
+                cancelAnimationFrame(this.state.gameLoopId);
+                this.destroyControls();
+        
+                // Restart the Rift from the beginning
+                this.start();
+                showToast("Rift progress has been reset!");
+            }
+        },
+    
+        setupControls: function() {
+            this.joystick = nipplejs.create({
+                zone: this.elements.joystickZone, mode: 'static', position: { left: '25%', top: '75%' }, color: 'white', size: 150
+            });
+            this.joystick.on('move', (evt, data) => {
+                if (data.vector) this.state.player.moveVector = data.vector;
+            });
+            this.joystick.on('end', () => this.state.player.moveVector = { x: 0, y: 0 });
+            this.handleKeyDown = (e) => { this.state.keys[e.key.toLowerCase()] = true; };
+            this.handleKeyUp = (e) => { this.state.keys[e.key.toLowerCase()] = false; };
+            window.addEventListener('keydown', this.handleKeyDown);
+            window.addEventListener('keyup', this.handleKeyUp);
+        },
+        
+        destroyControls: function() {
+            if (this.joystick) this.joystick.destroy();
+            this.joystick = null;
+            window.removeEventListener('keydown', this.handleKeyDown);
+            window.removeEventListener('keyup', this.handleKeyUp);
+            this.state.keys = {};
+        },
+    
+        handleInput: function() {
+            if (this.state.player.isDashing) {
+                this.state.player.moveVector = { x: 0, y: 0 };
+                return;
+            }
+            if (this.state.isAutoMode) {
+                this.handleAutoModeAI();
+            } else {
+                let moveX = 0, moveY = 0;
+                if (this.state.keys['w'] || this.state.keys['arrowup']) moveY = -1;
+                if (this.state.keys['s'] || this.state.keys['arrowdown']) moveY = 1;
+                if (this.state.keys['a'] || this.state.keys['arrowleft']) moveX = -1;
+                if (this.state.keys['d'] || this.state.keys['arrowright']) moveX = 1;
+                
+                if (moveX !== 0 || moveY !== 0) {
+                    const length = Math.sqrt(moveX * moveX + moveY * moveY);
+                    this.state.player.moveVector = { x: moveX / length, y: moveY / length };
+                } else if (!this.joystick.get(0)?.vector) {
+                     this.state.player.moveVector = { x: 0, y: 0 };
+                }
+            }
+        },
+        
+        handleAutoModeAI: function() {
+            const player = this.state.player;
+            const enemies = this.state.enemies;
+            const loot = this.state.loot;
+        
+            if (enemies.length === 0) {
+                // No enemies? Go for the closest loot.
+                const nearestLoot = this.findNearest(loot);
+                if (nearestLoot) {
+                    this.moveToTarget(nearestLoot);
+                } else {
+                    this.state.player.moveVector = { x: 0, y: 0 };
+                }
+                return;
+            }
+        
+            // --- NEW AGGRESSIVE/DEFENSIVE AI LOGIC ---
+            const boss = enemies.find(e => e.isBoss);
+            let target;
+        
+            if (boss) {
+                // --- DEFENSIVE MODE: A boss is on screen! ---
+                // Prioritize kiting the boss to survive.
+                target = this.getKitingPosition(boss);
+        
+            } else {
+                // --- AGGRESSIVE MODE: No boss, so clear the mobs efficiently. ---
+                // 1. Opportunity Assessment: Check for nearby loot.
+                const nearestLoot = this.findNearest(loot);
+                const distToLoot = nearestLoot ? Math.hypot(player.x - nearestLoot.x, player.y - nearestLoot.y) : Infinity;
+        
+                // 2. Find the densest cluster of enemies to maximize AoE damage.
+                let bestClusterCenter = null;
+                let maxEnemiesInCluster = 0;
+                
+                enemies.forEach(enemy => {
+                    let nearbyCount = 0;
+                    enemies.forEach(otherEnemy => {
+                        if (Math.hypot(enemy.x - otherEnemy.x, enemy.y - otherEnemy.y) < 150) { // 150px cluster radius
+                            nearbyCount++;
+                        }
+                    });
+                    if (nearbyCount > maxEnemiesInCluster) {
+                        maxEnemiesInCluster = nearbyCount;
+                        bestClusterCenter = enemy;
+                    }
+                });
+                
+                // 3. Decide on a target.
+                // If loot is very close and we're not surrounded, grab it quickly.
+                if (nearestLoot && distToLoot < 120 && maxEnemiesInCluster < 4) {
+                    target = nearestLoot;
+                } else {
+                    // Otherwise, move towards the center of the biggest group of enemies.
+                    target = bestClusterCenter || this.findNearest(enemies);
+                }
+            }
+            
+            this.moveToTarget(target);
+        },
+
+        getKitingPosition: function(threatCenter) {
+            const player = this.state.player;
+            const optimalDistance = 200; // The ideal distance to keep from the enemy group
+        
+            const dx = player.x - threatCenter.x;
+            const dy = player.y - threatCenter.y;
+            const currentDistance = Math.hypot(dx, dy);
+        
+            // If we are too close, find a point to back away to.
+            if (currentDistance < optimalDistance) {
+                const angle = Math.atan2(dy, dx); // Angle away from the threat
+                return {
+                    x: player.x + Math.cos(angle) * 20,
+                    y: player.y + Math.sin(angle) * 20
+                };
+            } else {
+                // If we are at a good distance or too far, move towards the threat.
+                return threatCenter;
+            }
+        },
+        
+        /**
+         * Sets the player's move vector to move towards a target position.
+         * @param {object} target - The {x, y} coordinates to move towards.
+         */
+        moveToTarget: function(target) {
+            if (!target) {
+                this.state.player.moveVector = { x: 0, y: 0 };
+                return;
+            }
+            const dx = target.x - this.state.player.x;
+            const dy = target.y - this.state.player.y;
+            const dist = Math.hypot(dx, dy);
+        
+            if (dist > 1) {
+                this.state.player.moveVector = { x: dx / dist, y: dy / dist };
+            } else {
+                this.state.player.moveVector = { x: 0, y: 0 };
+            }
+        },
+        
+        findNearest: function(objectArray) {
+            let nearest = null, minDistance = Infinity;
+            objectArray.forEach(obj => {
+                const distance = Math.hypot(obj.x - this.state.player.x, obj.y - this.state.player.y);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearest = obj;
+                }
+            });
+            return nearest;
+        },
+    
+        updatePlayer: function(timestamp) {
+            const player = this.state.player;
+            const speedMultiplier = 1 + (gameState.riftProgress.moveSpeed * 0.05);
+            let currentSpeed = this.config.playerBaseSpeed * speedMultiplier;
+        
+            if (player.isDashing) {
+                currentSpeed *= 4; // Dash speed
+        
+                // --- DASH VISUALS: Create a ghost trail particle every 50ms ---
+                if (timestamp - player.lastGhostTime > 50) {
+                    player.lastGhostTime = timestamp;
+                    this.state.particles.push({
+                        x: player.x,
+                        y: player.y,
+                        isDashGhost: true, // Special identifier for our trail effect
+                        life: 20,          // The trail will fade out quickly
+                        radius: this.config.playerRadius
+                    });
+                }
+            }
+            
+            player.x += player.moveVector.x * currentSpeed;
+            player.y += player.moveVector.y * currentSpeed;
+        
+            player.x = Math.max(0, Math.min(this.elements.canvas.width, player.x));
+            player.y = Math.max(0, Math.min(this.elements.canvas.height, player.y));
+            
+            this.handlePlayerCombat(timestamp);
+        },
+        
+        updateEnemies: function(timestamp) {
+            this.state.enemies.forEach(enemy => {
+                const dist = Math.hypot(this.state.player.x - enemy.x, this.state.player.y - enemy.y);
+                // --- CHANGE: Use the enemy's own radius for the check ---
+                if (dist > enemy.radius) { 
+                    enemy.x += (this.state.player.x - enemy.x) / dist * enemy.speed;
+                    enemy.y += (this.state.player.y - enemy.y) / dist * enemy.speed;
+                }
+                this.handleEnemyCombat(enemy, timestamp);
+            });
+        },
+    
+        updateLoot: function() {
+            const magnetMultiplier = 1 + (gameState.riftProgress.magnetRadius * 0.1);
+            const magnetRadius = this.config.magnetBaseRadius * magnetMultiplier;
+    
+            this.state.loot.forEach(item => {
+                const dist = Math.hypot(this.state.player.x - item.x, this.state.player.y - item.y);
+                if (dist < magnetRadius) {
+                    item.x += (this.state.player.x - item.x) / dist * 5;
+                    item.y += (this.state.player.y - item.y) / dist * 5;
+                }
+            });
+        },
+    
+        handlePlayerCombat: function(timestamp) {
+            const player = this.state.player;
+            if (player.isDashing) return;
+        
+            // Priority 1: Dash
+            if ((gameState.riftProgress.rift_dash > 0) && (timestamp - player.lastDashTime > this.config.dashCooldown)) {
+                let bestTarget = this.findNearest(this.state.enemies);
+                if (bestTarget) {
+                    player.lastDashTime = timestamp;
+                    // --- ZOOM DASH: Record the exact start time of the dash ---
+                    player.lastDashStartTime = timestamp; 
+                    player.isDashing = true;
+                    
+                    const dx = bestTarget.x - player.x;
+                    const dy = bestTarget.y - player.y;
+                    const dist = Math.hypot(dx, dy);
+                    player.moveVector = { x: dx/dist, y: dy/dist }; 
+                    playSound('hit', 1, 'sawtooth', 800, 200, 0.2);
+        
+                    setTimeout(() => {
+                        if (!this.state.isActive) return;
+                        player.isDashing = false;
+                        this.createCanvasDashExplosion(player.x, player.y);
+                        playSound('crit', 1, 'square', 400, 50, 0.4);
+                        triggerScreenShake(200);
+        
+                        const dashDamage = getTotalStat('strength') * (2 + gameState.riftProgress.rift_dash);
+                        const explosionRadius = 100 + (gameState.riftProgress.rift_dash * 10);
+        
+                        this.state.enemies.forEach(enemy => {
+                            if (Math.hypot(player.x - enemy.x, player.y - enemy.y) <= explosionRadius) {
+                                enemy.hp -= dashDamage;
+                                this.createDamageNumber(enemy.x, enemy.y, Math.floor(dashDamage), true);
+                            }
+                        });
+                    }, 350);
+                    return; // Action taken, end combat check for this frame
+                }
+            }
+        
+            // Priority 2: Havoc Rage
+            if ((gameState.riftProgress.rift_havocRage > 0) && (timestamp - player.lastHavocRageTime > this.config.havocRageCooldown)) {
+                player.lastHavocRageTime = timestamp;
+                playSound('crit', 1, 'sawtooth', 300, 50, 0.5);
+                triggerScreenShake(300);
+        
+                // --- HAVOC RAGE VISUAL: Create the shockwave and particle burst ---
+                this.createParticleEffect(player.x, player.y, 50, '#dc143c'); // Creates a burst of crimson particles
+                this.state.particles.push({
+                    x: player.x,
+                    y: player.y,
+                    isShockwave: true, // Special identifier for our new animation
+                    life: 60,          // Animation duration in frames (1 second at 60fps)
+                    maxLife: 60,
+                    color: '#dc143c'   // The color of the shockwave ring
+                });
+        
+                this.state.enemies.forEach(enemy => {
+                    enemy.burn = {
+                        expiryTime: timestamp + 5000,
+                        damagePerTick: getTotalStat('strength') * (0.1 + gameState.riftProgress.rift_havocRage * 0.05),
+                        lastTickTime: timestamp
+                    };
+                });
+                return;
+            }
+        
+            // Priority 3: Thunder Strike
+            if ((gameState.riftProgress.rift_thunderStrike > 0) && (timestamp - player.lastThunderStrikeTime > this.config.thunderStrikeCooldown)) {
+                let potentialTargets = [...this.state.enemies];
+                if (potentialTargets.length > 0) {
+                    player.lastThunderStrikeTime = timestamp;
+                    playSound('ascend', 0.8, 'sawtooth', 100, 800, 0.3);
+                    let chainCount = 3 + gameState.riftProgress.rift_thunderStrike;
+                    let lastTarget = player;
+                    let chainedTargets = [];
+                    for(let i=0; i < chainCount && potentialTargets.length > 0; i++) {
+                        let closest = null;
+                        let minDist = Infinity;
+                        potentialTargets.forEach(enemy => {
+                            const dist = Math.hypot(lastTarget.x - enemy.x, lastTarget.y - enemy.y);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                closest = enemy;
+                            }
+                        });
+                        if(closest) {
+                            chainedTargets.push(closest);
+                            lastTarget = closest;
+                            potentialTargets = potentialTargets.filter(e => e !== closest);
+                        }
+                    }
+                    if (chainedTargets.length > 0) {
+                        this.state.particles.push({
+                            isLightning: true, life: 20, targets: [player, ...chainedTargets]
+                        });
+                        const strikeDamage = getTotalStat('strength') * 2;
+                        chainedTargets.forEach(enemy => {
+                            enemy.hp -= strikeDamage;
+                            this.createDamageNumber(enemy.x, enemy.y, Math.floor(strikeDamage), false);
+                        });
+                    }
+                    return;
+                }
+            }
+            
+            // Priority 4: Basic Attack
+            if (timestamp - player.lastAttackTime > this.config.playerAttackCooldown) {
+                let attacked = false;
+                this.state.enemies.forEach(enemy => {
+                    if (Math.hypot(enemy.x - player.x, enemy.y - player.y) < (50 + getTotalStat('agility') * 0.5)) {
+                        const damage = getTotalStat('strength');
+                        const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+                        const finalDamage = isCrit ? damage * 2 : damage;
+                        enemy.hp -= finalDamage;
+                        this.createParticleEffect(enemy.x, enemy.y, 5, isCrit ? 'gold' : 'white');
+                        this.createDamageNumber(enemy.x, enemy.y, Math.floor(finalDamage), isCrit);
+                        attacked = true;
+                    }
+                });
+                if (attacked) {
+                    player.lastAttackTime = timestamp;
+                    player.lastAttackFlashTime = timestamp;
+                    playSound('hit', 0.4, 'square', 400, 100, 0.1);
+                }
+            }
+        },
+    
+        handleEnemyCombat: function(enemy, timestamp) {
+            // --- BOSS BATTLES: Bosses hit harder and have a different cooldown ---
+            const attackCooldown = enemy.isBoss ? 1000 : this.config.enemyAttackCooldown;
+            const baseDamage = enemy.isBoss ? 50 : 10;
+        
+            if (timestamp - enemy.lastAttackTime > attackCooldown) {
+                const dist = Math.hypot(this.state.player.x - enemy.x, this.state.player.y - enemy.y);
+                if (dist < this.config.playerRadius + enemy.radius) {
+                    enemy.lastAttackTime = timestamp;
+                    const damage = Math.max(1, (baseDamage * this.state.currentWave) - getTotalStat('fortitude'));
+                    gameState.resources.hp -= damage;
+                    this.state.player.lastDamagedTime = timestamp;
+                    playSound('hit', 0.8, 'sawtooth', 200, 50, 0.15);
+                    triggerScreenShake(enemy.isBoss ? 300 : 150); // Stronger shake for boss hits
+                }
+            }
+        },
+        
+        handleCollisions: function() {
+            this.state.loot = this.state.loot.filter(item => {
+                if (Math.hypot(item.x - this.state.player.x, item.y - this.state.player.y) < this.config.collectionRadius) {
+                    this.collectItem(item); return false;
+                }
+                return true;
+            });
+        
+            this.state.enemies = this.state.enemies.filter(enemy => {
+                if (enemy.hp <= 0) {
+                    // --- BOSS BATTLES: Check if the defeated enemy was a boss ---
+                    if (enemy.isBoss) {
+                        this.createBossLootDrop(enemy.x, enemy.y);
+                    } else {
+                        this.createLootDrop(enemy.x, enemy.y);
+                    }
+                    this.createParticleEffect(enemy.x, enemy.y, enemy.isBoss ? 100 : 20, 'red'); // Bigger explosion for bosses
+                    return false;
+                }
+                return true;
+            });
+        },
+    
+        collectItem: function(item) {
+            playSound('feed', 0.5, 'sine', 600, 800, 0.1);
+            const goldGainBonus = 1 + (gameState.riftProgress.goldFind * 0.1);
+            const xpGainBonus = 1 + (gameState.riftProgress.xpGain * 0.1);
+        
+            switch(item.type) {
+                case 'gold': gameState.gold += Math.floor(item.amount * goldGainBonus); break;
+                case 'orbs': gameState.orbs = (gameState.orbs || 0) + item.amount; break;
+                case 'edgestones': gameState.edgeStones = (gameState.edgeStones || 0) + item.amount; break;
+                case 'xp': addXP(gameState, Math.floor(item.amount * xpGainBonus)); break;
+                // --- HEALTH ORB: Add a case to handle healing from the new orb ---
+                case 'health':
+                    gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + item.amount);
+                    break;
+            }
+        },
+    
+        nextWave: function() {
+            this.state.currentWave++;
+        
+            // --- RIFT CHECKPOINT: Update the player's highest level record ---
+            if (this.state.currentWave > (gameState.riftProgress.highestRiftLevel || 0)) {
+                gameState.riftProgress.highestRiftLevel = this.state.currentWave;
+            }
+        
+            showToast(`Rift Level ${this.state.currentWave} starting!`);
+            if (this.state.currentWave > 1 && this.state.currentWave % 10 === 0) {
+                this.elements.upgradeBtn.classList.remove('hidden');
+            }
+            this.elements.upgradeBtn.onclick = () => this.showUpgradeModal();
+            this.spawnWave();
+        },
+    
+        spawnWave: function() {
+            // --- BOSS BATTLES: Check if this is a boss wave ---
+            const isBossWave = this.state.currentWave >= 50 && (this.state.currentWave % 10 === 0);
+            
+            // Regular enemies still spawn, but fewer during a boss wave to reduce clutter
+            const numEnemies = isBossWave 
+                ? Math.floor(this.config.enemiesBasePerWave / 2) 
+                : this.config.enemiesBasePerWave + Math.floor(this.state.currentWave * 1.5);
+        
+            for (let i = 0; i < numEnemies; i++) {
+                const edge = Math.floor(Math.random() * 4), canvas = this.elements.canvas;
+                let x, y;
+                if (edge === 0) { x = Math.random() * canvas.width; y = -50; }
+                else if (edge === 1) { x = canvas.width + 50; y = Math.random() * canvas.height; }
+                else if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height + 50; }
+                else { x = -50; y = Math.random() * canvas.height; }
+                
+                const randomRadius = this.config.enemyRadius * (0.7 + Math.random() * 0.6);
+                const randomSpeed = (1 + Math.random() * 1.0 + (this.state.currentWave * 0.02)) * (this.config.enemyRadius / randomRadius);
+                const randomHue = Math.random() * 360;
+        
+                this.state.enemies.push({
+                    x, y,
+                    hp: 100 * this.state.currentWave, maxHp: 100 * this.state.currentWave,
+                    speed: randomSpeed, radius: randomRadius, hue: randomHue,
+                    lastAttackTime: 0, sprite: this.state.player.sprite
+                });
+            }
+        
+            // --- BOSS BATTLES: If it's a boss wave, spawn the boss ---
+            if (isBossWave) {
+                showToast("A RIFT OVERLORD APPEARS!");
+                const canvas = this.elements.canvas;
+                const bossStats = {
+                    hp: 2000 * this.state.currentWave,
+                    maxHp: 2000 * this.state.currentWave,
+                    radius: this.config.enemyRadius * 3, // 3x the base size
+                    speed: 0.8 + (this.state.currentWave * 0.01),
+                    isBoss: true
+                };
+        
+                this.state.enemies.push({
+                    x: canvas.width / 2, y: -100, // Spawns at the top-center
+                    hp: bossStats.hp, maxHp: bossStats.maxHp,
+                    speed: bossStats.speed, radius: bossStats.radius,
+                    hue: 330, // A distinct demonic red/pink hue
+                    lastAttackTime: 0,
+                    sprite: this.state.player.sprite,
+                    isBoss: bossStats.isBoss
+                });
+            }
+        },
+    
+        createLootDrop: function(x, y) {
+            this.state.loot.push({x, y, type: 'xp', amount: 50 * this.state.currentWave, color: '#ffdc00'});
+            this.state.loot.push({x, y, type: 'gold', amount: 100 * this.state.currentWave, color: 'gold'});
+            if (Math.random() < 0.1 + (this.state.currentWave * 0.005)) this.state.loot.push({x, y, type: 'orbs', amount: 1, color: '#87CEFA'});
+            if (Math.random() < 0.05 + (this.state.currentWave * 0.002)) this.state.loot.push({x, y, type: 'edgestones', amount: 0.1, color: '#00FFFF'});
+            if (this.state.currentWave >= 50 && Math.random() < 0.01) {
+                const item = generateItem('legendary');
+                showToast(`A Legendary item dropped in the Rift!`);
+                gameState.inventory.push(item);
+            }
+            // --- HEALTH ORB: Add a chance to drop a health orb on wave 10+ ---
+            if (this.state.currentWave >= 35 && Math.random() < 0.05) { // 5% chance to drop
+                this.state.loot.push({x, y, type: 'health', amount: 4, color: '#ff4136'});
+            }
+        },
+        
+        createBossLootDrop: function(x, y) {
+            showToast("RIFT OVERLORD DEFEATED!");
+            playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+        
+            // --- BOSS BATTLES: Generate epic rewards ---
+            // Epic XP and Gold
+            this.state.loot.push({x: x-20, y: y-20, type: 'xp', amount: 5000 * this.state.currentWave, color: '#ffdc00'});
+            this.state.loot.push({x: x+20, y: y-20, type: 'gold', amount: 10000 * this.state.currentWave, color: 'gold'});
+            
+            // Epic Orbs
+            this.state.loot.push({x: x, y: y, type: 'orbs', amount: 50 + this.state.currentWave, color: '#87CEFA'});
+        
+            // --- S-TIER ITEM DROP ---
+            // The `generateItem` function in your main game needs to support an 's_tier' parameter
+            // Assuming 's_tier' is a valid rarity in your generateItem function.
+            // We'll generate one weapon and one armor, and the player gets both.
+            const sTierWeapon = generateItem('legendary'); // Using legendary as a stand-in for S-Tier
+            const sTierArmor = generateItem('legendary');
+            
+            gameState.inventory.push(sTierWeapon);
+            gameState.inventory.push(sTierArmor);
+            showNotification("Overlord Vanquished!", `You found legendary items!<br><strong style="color:${sTierWeapon.rarity.color}">${sTierWeapon.name}</strong><br><strong style="color:${sTierArmor.rarity.color}">${sTierArmor.name}</strong>`);
+        },
+    
+        updateRiftUI: function() {
+            this.elements.hpBarFill.style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
+            this.elements.hpBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
+            const xpForNext = getXpForNextLevel(gameState.level);
+            this.elements.xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
+            this.elements.xpBarLabel.textContent = `XP: ${formatNumber(Math.floor(gameState.xp))} / ${formatNumber(xpForNext)}`;
+            this.elements.waveDisplay.textContent = `Rift Level: ${this.state.currentWave}`;
+        },
+    
+        createParticleEffect: function(x, y, count, color) {
+            for (let i = 0; i < count; i++) {
+                this.state.particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    life: 30, color: color
+                });
+            }
+        },
+        
+        createDamageNumber: function(x, y, amount, isCrit) {
+            this.state.particles.push({
+                x, y,
+                vy: -2,
+                life: 60, text: amount,
+                color: isCrit ? 'gold' : 'white',
+                isDamageNumber: true,
+                fontSize: isCrit ? 24 : 16
+            });
+        },
+    
+        updateParticles: function() {
+            this.state.particles = this.state.particles.filter(p => {
+                p.x += p.vx || 0;
+                p.y += p.vy || 0;
+                p.life--;
+                if(p.isDamageNumber) p.vy *= 0.98;
+                return p.life > 0;
+            });
+        },
+
+        updateBurnDamage: function(timestamp) {
+            this.state.enemies.forEach(enemy => {
+                if (enemy.burn && timestamp > enemy.burn.lastTickTime + 250) {
+                    enemy.hp -= enemy.burn.damagePerTick / 4;
+                    enemy.burn.lastTickTime = timestamp;
+                    if (timestamp > enemy.burn.expiryTime) {
+                        delete enemy.burn;
+                    }
+                }
+            });
+        },
+    
+        draw: function(timestamp) {
+            const ctx = this.elements.ctx;
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            this.state.loot.forEach(item => {
+                ctx.beginPath();
+                ctx.arc(item.x, item.y, this.config.lootRadius, 0, Math.PI * 2);
+                ctx.fillStyle = item.color; ctx.shadowColor = item.color;
+                ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0;
+            });
+        
+            const player = this.state.player;
+            const playerDamageFlash = timestamp - player.lastDamagedTime < 200;
+            const playerAttackFlash = timestamp - player.lastAttackFlashTime < 150;
+            
+            // --- ZOOM DASH: Calculate the zoom scale based on dash progress ---
+            let zoomScale = 1.0;
+            if (player.isDashing) {
+                const dashDuration = 350; // Must match the setTimeout duration
+                const dashProgress = Math.min(1, (timestamp - player.lastDashStartTime) / dashDuration);
+                // Use a sine curve for a smooth zoom-in and zoom-out effect
+                zoomScale = 1.0 + Math.sin(dashProgress * Math.PI) * 0.5;
+        
+                ctx.filter = `blur(${zoomScale * 2}px) brightness(1.5)`;
+            } else if (playerDamageFlash) {
+                ctx.filter = 'brightness(2) drop-shadow(0 0 5px red)';
+            } else if (playerAttackFlash) {
+                ctx.filter = 'brightness(1.5) drop-shadow(0 0 8px white)';
+            }
+        
+            // --- ZOOM DASH: Apply the zoom to the player's size ---
+            const zoomedPlayerRadius = this.config.playerRadius * zoomScale;
+            ctx.drawImage(player.sprite, player.x - zoomedPlayerRadius, player.y - zoomedPlayerRadius, zoomedPlayerRadius * 2, zoomedPlayerRadius * 2);
+            ctx.filter = 'none';
+        
+            this.state.enemies.forEach(enemy => {
+                let enemyFilter = `hue-rotate(${enemy.hue}deg) saturate(1.5)`;
+                if (enemy.burn) {
+                    enemyFilter += ' sepia(1) hue-rotate(330deg) saturate(5)';
+                }
+                ctx.filter = enemyFilter;
+                ctx.drawImage(enemy.sprite, enemy.x - enemy.radius, enemy.y - enemy.radius, enemy.radius*2, enemy.radius*2);
+                ctx.filter = 'none';
+                ctx.fillStyle = '#333';
+                ctx.fillRect(enemy.x - enemy.radius, enemy.y - enemy.radius - 10, enemy.radius*2, 5);
+                ctx.fillStyle = 'red';
+                ctx.fillRect(enemy.x - enemy.radius, enemy.y - enemy.radius - 10, (enemy.radius*2) * (enemy.hp / enemy.maxHp), 5);
+            });
+        
+            this.state.particles.forEach(p => {
+                const initialLife = p.isDamageNumber ? 60 : (p.isLightning || p.isShockwave ? p.maxLife : (p.isDashGhost ? 20 : 30));
+                ctx.globalAlpha = p.life / initialLife;
+                if (p.isDamageNumber) {
+                    ctx.font = `bold ${p.fontSize}px Poppins`;
+                    ctx.fillStyle = p.color;
+                    ctx.fillText(p.text, p.x, p.y);
+                } else if (p.isLightning) {
+                    this.drawCanvasChainLightning(ctx, p.targets);
+                } 
+                else if (p.isShockwave) {
+                    const progress = (p.maxLife - p.life) / p.maxLife;
+                    const currentRadius = progress * 250;
+                    ctx.beginPath();
+                    ctx.strokeStyle = p.color;
+                    ctx.lineWidth = 10 * (1 - progress);
+                    ctx.arc(p.x, p.y, currentRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                else if (p.isDashGhost) {
+                    // --- ZOOM DASH: Apply zoom to the ghost trail as well ---
+                    const ghostZoomedRadius = p.radius * zoomScale;
+                    ctx.globalAlpha = (p.life / 20) * 0.4; // Fade from 40% opacity to 0
+                    ctx.drawImage(this.state.player.sprite, p.x - ghostZoomedRadius, p.y - ghostZoomedRadius, ghostZoomedRadius * 2, ghostZoomedRadius * 2);
+                }
+                else {
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, 3, 3);
+                }
+                ctx.globalAlpha = 1.0;
+            });
+        },
+        
+        showUpgradeModal: function() {
+            cancelAnimationFrame(this.state.gameLoopId);
+            let upgradeHtml = `<h2>Rift Upgrades</h2><p>Your Orbs: ${gameState.orbs.toFixed(1)} 🔮</p>`;
+            const upgrades = {
+                moveSpeed: { name: 'Celerity', desc: '+5% Move Speed', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                magnetRadius: { name: 'Greed', desc: '+10% Collection Radius', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                goldFind: { name: 'Fortune', desc: '+10% Gold from Rift', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                xpGain: { name: 'Insight', desc: '+10% XP from Rift', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                // --- RIFT ABILITIES: Add new skills to the upgrade modal ---
+                rift_dash: { name: 'Rift Dash', desc: 'Periodically dash through enemies, dealing AoE damage. Upgrades increase damage and radius.', cost: (level) => 50 * (level + 1) },
+                rift_thunderStrike: { name: 'Rift Thunder', desc: 'Call down lightning that chains between foes. Upgrades add more chains.', cost: (level) => 75 * (level + 1) },
+                rift_havocRage: { name: 'Rift Rage', desc: 'Unleash a wave of energy that sets all enemies on fire. Upgrades increase burn damage.', cost: (level) => 100 * (level + 1) }
+            };
+    
+            for (const key in upgrades) {
+                const level = gameState.riftProgress[key] || 0;
+                const cost = upgrades[key].cost(level);
+                upgradeHtml += `
+                    <div class="shop-item">
+                        <div class="shop-info">
+                            <strong>${upgrades[key].name} (Lv. ${level})</strong>
+                            <div class="shop-desc">${upgrades[key].desc}</div>
+                        </div>
+                        <button onclick="Rift.applyUpgrade('${key}')" ${gameState.orbs < cost ? 'disabled' : ''}>
+                            Up (${cost} 🔮)
+                        </button>
+                    </div>
+                `;
+            }
+            showNotification("Rift Upgrades", upgradeHtml);
+            const loop = this.gameLoop.bind(this);
+            modalCloseBtn.onclick = () => {
+                modal.classList.remove('visible');
+                this.state.gameLoopId = requestAnimationFrame(loop);
+            };
+        },
+        
+        applyUpgrade: function(key) {
+             const upgrades = { // Re-define costs here to access them
+                moveSpeed: { cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                magnetRadius: { cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                goldFind: { cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                xpGain: { cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                rift_dash: { cost: (level) => 50 * (level + 1) },
+                rift_thunderStrike: { cost: (level) => 75 * (level + 1) },
+                rift_havocRage: { cost: (level) => 100 * (level + 1) }
+            };
+            const level = gameState.riftProgress[key] || 0;
+            const cost = upgrades[key].cost(level);
+            if (gameState.orbs >= cost) {
+                gameState.orbs -= cost;
+                gameState.riftProgress[key]++;
+                playSound('levelUp', 0.8, 'sine', 600, 1200, 0.2);
+                this.showUpgradeModal(); 
+            } else {
+                showToast("Not enough Orbs!");
+            }
+        }
+    };
+    
+    window.Rift = Rift;
+    // --- RIFT INTEGRATION END ---
+
+
+    // --- EVENT LISTENERS ---
+    const detailedStatsModal = document.getElementById('detailed-stats-modal');
+    const detailedStatsCloseBtn = document.getElementById('detailed-stats-close-btn');
+    immortalGrowthBtn.addEventListener('click', () => {
+        renderPotentialsTree();
+        immortalGrowthModal.classList.add('visible');
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/immortal-growth' });
+    });
+    
+    immortalGrowthCloseFooterBtn.addEventListener('click', () => {
+        immortalGrowthModal.classList.remove('visible');
+    });
+    
+    resetPotentialsBtn.addEventListener('click', resetPotentials);
+    
+    potentialsTreeContainer.addEventListener('click', (event) => {
+        const button = event.target.closest('.immortal-upgrade-btn');
+        if (button) {
+            const statId = button.getAttribute('data-stat-id');
+            if (statId) {
+                upgradePotentialStat(statId);
+            }
+        }
+    });
+    awakeningBtn.addEventListener('click', () => {
+        immortalGrowthModal.classList.remove('visible'); 
+        renderAwakeningTree();
+        awakeningModal.classList.add('visible');
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/awakening' });
+    });
+    
+    awakeningCloseBtn.addEventListener('click', () => {
+        awakeningModal.classList.remove('visible');
+        immortalGrowthModal.classList.add('visible'); 
+    });
+    
+    awakeningTreeContainer.addEventListener('click', (event) => {
+        const button = event.target.closest('.awakening-upgrade-btn');
+        if (button) {
+            const statId = button.getAttribute('data-stat-id');
+            if (statId) {
+                upgradeAwakeningStat(statId);
+            }
+        }
+    });
+    skillsBtn.addEventListener('click', () => {
+        renderSkillsModal();
+        skillsModal.classList.add('visible');
+        if (skillsModalInterval) clearInterval(skillsModalInterval);
+        skillsModalInterval = setInterval(renderSkillsModal, 1000);
+    });
+    
+    closeSkillsBtn.addEventListener('click', () => {
+        if (skillsModalInterval) {
+            clearInterval(skillsModalInterval);
+            skillsModalInterval = null;
+        }
+        skillsModal.classList.remove('visible');
+    });
+    
+    skillsTreeContainer.addEventListener('click', (event) => {
+        const button = event.target.closest('.skill-upgrade-btn');
+        if (button) {
+            const skillId = button.getAttribute('data-skill-id');
+            if (skillId) {
+                upgradeSkill(skillId);
+            }
+        }
+    });
+    startGameBtn.addEventListener('click', startGame);
+    loadGameBtn.addEventListener('click', loadGame);
+    characterSprite.addEventListener('click', (e) => handleTap(e, false)); 
+    characterSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], false); }, {passive: false});
+    partnerSprite.addEventListener('click', (e) => handleTap(e, true)); 
+    partnerSprite.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0], true); }, {passive: false});
+    modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
+    feedBtn.addEventListener('click', feed); 
+    dojoBtn.addEventListener('click', enterDojo);
+    dojoExitBtn.addEventListener('click', exitDojo);
+    dojoDummySprite.addEventListener('mousedown', startDojoSession);
+    dojoDummySprite.addEventListener('mouseup', stopDojoSession);
+    dojoDummySprite.addEventListener('mouseleave', stopDojoSession);
+    dojoDummySprite.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startDojoSession();
+    }, { passive: false });
+    dojoDummySprite.addEventListener('touchend', stopDojoSession);
+    dojoDummySprite.addEventListener('touchcancel', stopDojoSession);
+    gameScreen.addEventListener('click', (event) => {
+        if (event.target.id === 'rewards-btn') {
+            showRewardsModal();
+        }
+        if (event.target.id === 'toggle-modifiers-btn') {
+            renderAndShowDetailedStats();
+        }
+    }); 
+    closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
+    closeOfflineRewardsBtn.addEventListener('click', () => offlineRewardsModal.classList.remove('visible'));
+    detailedStatsCloseBtn.addEventListener('click', () => {
+        detailedStatsModal.classList.remove('visible');
+    });
+    battleBtn.addEventListener('click', startBattle);
+    attackBtn.addEventListener('click', handlePlayerAttack);
+    feedBattleBtn.addEventListener('click', feedInBattle); 
+    fleeBtn.addEventListener('click', () => endBattle(false));
+    pvpBtn.addEventListener('click', enterPvpSelection);
+    pvpSelectionBackBtn.addEventListener('click', () => showScreen('game-screen'));
+    expeditionBtn.addEventListener('click', () => { generateAndShowExpeditions(); showScreen('expedition-screen'); }); 
+    shopBtn.addEventListener('click', () => { 
+        updateShopUI(); 
+        shopModal.classList.add('visible'); 
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/shop' });
+    });
+    expeditionCancelBtn.addEventListener('click', () => {
+    showScreen('game-screen');
+    startGameGenesis();
+    });
+    ingameMenuBtn.addEventListener('click', () => {
+        ingameMenuModal.classList.add('visible');
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/menu' });
+    });
+    returnToGameBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); });
+    saveGameBtn.addEventListener('click', () => saveGame(true));
+    quitToTitleBtn.addEventListener('click', () => { ingameMenuModal.classList.remove('visible'); showScreen('main-menu-screen'); });
+    inventoryBtn.addEventListener('click', () => { 
+        currentForgeSelectionTarget = null; 
+        updateInventoryUI(); 
+        inventoryModal.classList.add('visible'); 
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/inventory' });
+    });
+    closeInventoryBtn.addEventListener('click', () => { 
+        currentForgeSelectionTarget = null; 
+        inventoryModal.classList.remove('visible'); 
+    });
+    leaderboardBtn.addEventListener('click', () => {
+        showLeaderboard('level');
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/leaderboard' });
+    });
+    leaderboardTabs.forEach(tab => {
+        tab.addEventListener('click', () => showLeaderboard(tab.dataset.type));
+    });
+    closeLeaderboardBtn.addEventListener('click', () => { leaderboardModal.classList.remove('visible'); });
+    achievementsBtn.addEventListener('click', () => { 
+        updateAchievementsUI(); 
+        achievementsModal.classList.add('visible'); 
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/achievements' }); 
+    }); 
+    closeAchievementsBtn.addEventListener('click', () => { achievementsModal.classList.remove('visible'); });
+    ascensionBtn.addEventListener('click', () => { 
+        updatePerksUI(); 
+        ascensionModal.classList.add('visible'); 
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/ascension' });
+    });
+    closeAscensionBtn.addEventListener('click', () => { ascensionModal.classList.remove('visible'); }); confirmAscensionBtn.addEventListener('click', ascend);
+    closeShopBtn.addEventListener('click', () => { shopModal.classList.remove('visible'); });
+    forgeBtn.addEventListener('click', () => { 
+        updateForgeUI(); 
+        forgeModal.classList.add('visible'); 
+        gtag('config', 'G-4686TXHCHN', { 'page_path': '/forge' });
+    });
+    closeForgeBtn.addEventListener('click', () => { forgeSlots = [null, null]; forgeModal.classList.remove('visible'); });
+    forgeBtnAction.addEventListener('click', forgeItems);
+    autoForgeBtn.addEventListener('click', autoForge);
+    function openInventoryForForgeSelection(slotIndex) {
+    currentForgeSelectionTarget = slotIndex;
+    updateInventoryUI();
+    forgeModal.classList.remove('visible');
+    inventoryModal.classList.add('visible');
+    document.getElementById("inventory-prompt-text").textContent = `Select an item for Forge Slot ${slotIndex + 1}.`;
     }
-      
-      [forgeSlot1Div, forgeSlot2Div].forEach((slot, index) => {
-          slot.addEventListener('click', () => {
-              if (forgeSlots[index]) {
-                  // If slot is filled, click to clear it
-                  forgeSlots[index] = null;
-                  updateForgeUI();
-              } else {
-                  // If slot is empty, click to open inventory for selection
-                  openInventoryForForgeSelection(index);
-              }
-          });
-      });
-      switchCharacterBtn.addEventListener('click', () => showScreen('partner-screen'));
-      switchToMainBtn.addEventListener('click', () => showScreen('game-screen'));
-      
-      // Auth and Settings listeners
-      optionsBtn.addEventListener('click', () => { 
-        updateSettingsUI(); 
-        optionsModal.classList.add('visible'); 
-        gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' }); // <-- Now it's inside
-      });      
-      closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
-      googleSigninBtn.addEventListener('click', () => {
-          if(auth.currentUser) { signOut(); }
-          else { signInWithGoogle(); }
-      });
-      muteAllCheckbox.addEventListener('change', (e) => {
-          gameState.settings.isMuted = e.target.checked;
-          updateSettingsUI(); // Re-apply settings
-      });
-      musicVolumeSlider.addEventListener('input', (e) => {
-          gameState.settings.musicVolume = parseFloat(e.target.value);
-          updateSettingsUI(); // Re-apply settings
-      });
-      sfxVolumeSlider.addEventListener('input', (e) => { 
-          gameState.settings.sfxVolume = parseFloat(e.target.value); 
-      });
-      autoBattleCheckbox.addEventListener('change', (e) => { 
-        gameState.settings.isAutoBattle = e.target.checked; 
-      });
-        
-      closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
-      
-      const handleVisualTap = (e) => {
-          if (gameState.expedition.active || (e.currentTarget.id === 'character-sprite' && gameState.resources.energy <= 0) || (e.currentTarget.id === 'partner-sprite' && gameState.partner && gameState.partner.isHatched && gameState.partner.resources.energy <= 0)) return;
-          const targetSprite = e.currentTarget;
-          const area = targetSprite.parentElement;
-          const spriteRect = targetSprite.getBoundingClientRect();
-          const areaRect = area.getBoundingClientRect();
-          const flash = document.createElement('div');
-          flash.className = 'tap-flash-overlay';
-          flash.style.width = `${spriteRect.width}px`;
-          flash.style.height = `${spriteRect.height}px`;
-          flash.style.left = `${spriteRect.left - areaRect.left}px`;
-          flash.style.top = `${spriteRect.top - areaRect.top}px`;
-          area.appendChild(flash); setTimeout(() => { flash.remove(); }, 200);
-      };
-      characterSprite.addEventListener('click', handleVisualTap); 
-      characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
-      partnerSprite.addEventListener('click', handleVisualTap);
-      partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
-      growBtn.addEventListener('click', toggleGrowthMode);
-      genesisArena.addEventListener('click', (e) => {
-        if (!genesisState.isActive || !genesisState.player) return;
     
-        const arenaRect = genesisArena.getBoundingClientRect();
-        const clickX = e.clientX - arenaRect.left;
-        const clickY = e.clientY - arenaRect.top;
+    [forgeSlot1Div, forgeSlot2Div].forEach((slot, index) => {
+        slot.addEventListener('click', () => {
+            if (forgeSlots[index]) {
+                forgeSlots[index] = null;
+                updateForgeUI();
+            } else {
+                openInventoryForForgeSelection(index);
+            }
+        });
+    });
+    switchCharacterBtn.addEventListener('click', () => showScreen('partner-screen'));
+    switchToMainBtn.addEventListener('click', () => showScreen('game-screen'));
+    optionsBtn.addEventListener('click', () => { 
+    updateSettingsUI(); 
+    optionsModal.classList.add('visible'); 
+    gtag('config', 'G-4686TXHCHN', { 'page_path': '/options' });
+    });      
+    closeOptionsBtn.addEventListener('click', () => { saveGame(); optionsModal.classList.remove('visible'); });
+    googleSigninBtn.addEventListener('click', () => {
+        if(auth.currentUser) { signOut(); }
+        else { signInWithGoogle(); }
+    });
+    muteAllCheckbox.addEventListener('change', (e) => {
+        gameState.settings.isMuted = e.target.checked;
+        updateSettingsUI();
+    });
+    musicVolumeSlider.addEventListener('input', (e) => {
+        gameState.settings.musicVolume = parseFloat(e.target.value);
+        updateSettingsUI();
+    });
+    sfxVolumeSlider.addEventListener('input', (e) => { 
+        gameState.settings.sfxVolume = parseFloat(e.target.value); 
+    });
+    autoBattleCheckbox.addEventListener('change', (e) => { 
+    gameState.settings.isAutoBattle = e.target.checked; 
+    });
     
-        genesisState.player.manualDestination = { x: clickX, y: clickY };
-      });
+    closeRewardsBtn.addEventListener('click', () => rewardsModal.classList.remove('visible'));
+    
+    const handleVisualTap = (e) => {
+        if (gameState.expedition.active || (e.currentTarget.id === 'character-sprite' && gameState.resources.energy <= 0) || (e.currentTarget.id === 'partner-sprite' && gameState.partner && gameState.partner.isHatched && gameState.partner.resources.energy <= 0)) return;
+        const targetSprite = e.currentTarget;
+        const area = targetSprite.parentElement;
+        const spriteRect = targetSprite.getBoundingClientRect();
+        const areaRect = area.getBoundingClientRect();
+        const flash = document.createElement('div');
+        flash.className = 'tap-flash-overlay';
+        flash.style.width = `${spriteRect.width}px`;
+        flash.style.height = `${spriteRect.height}px`;
+        flash.style.left = `${spriteRect.left - areaRect.left}px`;
+        flash.style.top = `${spriteRect.top - areaRect.top}px`;
+        area.appendChild(flash); setTimeout(() => { flash.remove(); }, 200);
+    };
+    characterSprite.addEventListener('click', handleVisualTap); 
+    characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
+    partnerSprite.addEventListener('click', handleVisualTap);
+    partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
+    growBtn.addEventListener('click', toggleGrowthMode);
+    genesisArena.addEventListener('click', (e) => {
+    if (!genesisState.isActive || !genesisState.player) return;
 
-      // --- FIX: The listener is now outside and independent ---
-      toggleUiBtn.addEventListener('click', () => {
-          isUiHidden = !isUiHidden;
-          // This line targets the entire game screen, which is more powerful
-          gameScreen.classList.toggle('ui-hidden', isUiHidden); 
-          toggleUiBtn.textContent = isUiHidden ? '👁️‍🗨️' : '👁️';
-      });
+    const arenaRect = genesisArena.getBoundingClientRect();
+    const clickX = e.clientX - arenaRect.left;
+    const clickY = e.clientY - arenaRect.top;
 
-      init();
-  });
+    genesisState.player.manualDestination = { x: clickX, y: clickY };
+    });
+    toggleUiBtn.addEventListener('click', () => {
+        isUiHidden = !isUiHidden;
+        gameScreen.classList.toggle('ui-hidden', isUiHidden); 
+        toggleUiBtn.textContent = isUiHidden ? '👁️‍🗨️' : '👁️';
+    });
+
+    const enterRiftBtn = document.getElementById('enter-rift-btn');
+    if (enterRiftBtn) {
+        enterRiftBtn.addEventListener('click', () => {
+            if (gameState.expedition && gameState.expedition.active) {
+                showToast("Cannot enter the Rift while on an expedition.");
+                return;
+            }
+            Rift.start();
+        });
+    }
+
+    init();
+});
