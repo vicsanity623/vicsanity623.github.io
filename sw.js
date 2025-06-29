@@ -1,5 +1,5 @@
 // A version number for your cache. Change this when you update files.
-const CACHE_VERSION = 'v3.3'; // Use a new version number
+const CACHE_VERSION = 'v4.3.3'; // Use a new version number
 const CACHE_NAME = `tap-guardian-cache-${CACHE_VERSION}`;
 
 // A list of the essential files your game needs to work.
