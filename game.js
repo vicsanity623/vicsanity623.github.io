@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.6.0.4"; //  bug duplicate
+    const GAME_VERSION = "1.6.0.5"; // revert
       
     let gameState = {};
     let audioCtx = null;
@@ -5342,6 +5342,55 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.nextWave();
             this.gameLoop();
         },
+
+        initializeBackground: function() {
+            this.state.background.stars = [];
+            const starCount = 200;
+            for (let i = 0; i < starCount; i++) {
+                this.state.background.stars.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    radius: Math.random() * 1.5,
+                    speed: 0.1 + Math.random() * 0.4 // Slow, subtle movement
+                });
+            }
+        },
+        
+        updateBackground: function() {
+            this.state.background.stars.forEach(star => {
+                star.y += star.speed;
+                if (star.y > window.innerHeight) {
+                    star.y = 0;
+                    star.x = Math.random() * window.innerWidth;
+                }
+            });
+        },
+        
+        drawBackground: function() {
+            const ctx = this.elements.backgroundCtx;
+            const canvas = this.elements.backgroundCanvas;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        
+            // Draw solid black as a base
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+            // Draw the nebula image if it's loaded
+            if (this.state.background.imageLoaded) {
+                ctx.globalAlpha = 0.4; // Make it a subtle background texture
+                ctx.drawImage(this.state.background.nebulaImage, 0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1.0;
+            }
+        
+            // Draw the moving stars
+            ctx.fillStyle = 'white';
+            this.state.background.stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        },
         
         resetState: function() {
             const startLevel = (gameState.riftProgress.highestRiftLevel || 0) >= 10 
@@ -5450,53 +5499,50 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 showToast("Rift progress has been reset!");
             }
         },
-        handleKeyDown: function(e) { 
-            this.state.keys[e.key.toLowerCase()] = true; 
-        },
-        handleKeyUp: function(e) { 
-            this.state.keys[e.key.toLowerCase()] = false; 
-        },
     
         setupControls: function() {
-            // --- NIPPLEJS FIX: Add the eventOptions block with passive: false ---
-            const options = {
-                zone: this.elements.joystickZone,
-                mode: 'static',
-                position: { left: '25%', top: '75%' },
-                color: 'white',
-                size: 150,
-                eventOptions: { passive: false } // This is the crucial addition
-            };
-        
-            this.joystick = nipplejs.create(options);
-            
+            this.joystick = nipplejs.create({
+                zone: this.elements.joystickZone, mode: 'static', position: { left: '25%', top: '75%' }, color: 'white', size: 150
+            });
             this.joystick.on('move', (evt, data) => {
                 if (data.vector) this.state.player.moveVector = data.vector;
             });
-            this.joystick.on('end', () => {
-                // Only reset vector if keyboard isn't also being used
-                if (!this.state.keys['w'] && !this.state.keys['a'] && !this.state.keys['s'] && !this.state.keys['d']) {
-                    this.state.player.moveVector = { x: 0, y: 0 };
-                }
-            });
-        
-            // It's good practice to bind the event handlers to 'this'
-            this.handleKeyDown = this.handleKeyDown.bind(this);
-            this.handleKeyUp = this.handleKeyUp.bind(this);
+            this.joystick.on('end', () => this.state.player.moveVector = { x: 0, y: 0 });
+            this.handleKeyDown = (e) => { this.state.keys[e.key.toLowerCase()] = true; };
+            this.handleKeyUp = (e) => { this.state.keys[e.key.toLowerCase()] = false; };
             window.addEventListener('keydown', this.handleKeyDown);
             window.addEventListener('keyup', this.handleKeyUp);
         },
-        destroyControls: function() {
-            if (this.joystick) {
-                // The nipplejs library handles its own touch/mouse event removal on destroy
-                this.joystick.destroy();
-            }
-            this.joystick = null;
         
-            // --- NIPPLEJS FIX: Ensure our specific keyboard listeners are removed ---
+        destroyControls: function() {
+            if (this.joystick) this.joystick.destroy();
+            this.joystick = null;
             window.removeEventListener('keydown', this.handleKeyDown);
             window.removeEventListener('keyup', this.handleKeyUp);
             this.state.keys = {};
+        },
+    
+        handleInput: function() {
+            if (this.state.player.isDashing) {
+                this.state.player.moveVector = { x: 0, y: 0 };
+                return;
+            }
+            if (this.state.isAutoMode) {
+                this.handleAutoModeAI();
+            } else {
+                let moveX = 0, moveY = 0;
+                if (this.state.keys['w'] || this.state.keys['arrowup']) moveY = -1;
+                if (this.state.keys['s'] || this.state.keys['arrowdown']) moveY = 1;
+                if (this.state.keys['a'] || this.state.keys['arrowleft']) moveX = -1;
+                if (this.state.keys['d'] || this.state.keys['arrowright']) moveX = 1;
+                
+                if (moveX !== 0 || moveY !== 0) {
+                    const length = Math.sqrt(moveX * moveX + moveY * moveY);
+                    this.state.player.moveVector = { x: moveX / length, y: moveY / length };
+                } else if (!this.joystick.get(0)?.vector) {
+                     this.state.player.moveVector = { x: 0, y: 0 };
+                }
+            }
         },
         
         handleAutoModeAI: function() {
