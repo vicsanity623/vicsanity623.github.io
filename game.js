@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.0.2.4";  // Revert rift joystick fix
+    const GAME_VERSION = "1.0.2.9";  // Revert rift exit fix
       
     let gameState = {};
     let audioCtx = null;
@@ -5136,6 +5136,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             isActive: false,
             gameLoopId: null,
             currentWave: 0,
+            waveTransitionLock: false,
             sessionLoot: {
                 gold: 0,
                 orbs: 0,
@@ -5297,32 +5298,35 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             });
         },
         start: function() {
+            // Stop the main game's loop BEFORE starting the Rift
+            if (typeof stopGameGenesis === 'function') {
+                stopGameGenesis();
+            }
+            
             console.log("Entering the Endless Rift...");
             this.state.isActive = true;
             this.state.player.sprite.src = 'player.PNG';
         
             if (!this.state.background.imageLoaded) {
-                // --- THIS IS THE FIX ---
-                // Point to your local image file
-                this.state.background.nebulaImage.src = 'clouds.PNG'; 
-        
-                // We no longer need crossOrigin for local files, but it doesn't hurt to leave it
+                this.state.background.nebulaImage.src = 'nebula.gif'; 
                 this.state.background.nebulaImage.crossOrigin = "Anonymous";
-                
-                this.state.background.nebulaImage.onload = () => {
-                    this.state.background.imageLoaded = true;
-                };
+                this.state.background.nebulaImage.onload = () => { this.state.background.imageLoaded = true; };
+                this.state.background.nebulaImage.onerror = () => { console.error("Failed to load nebula.gif."); };
             }
+            
             this.initializeBackground();
-            this.initializeBackground();
-        
             showScreen('rift-screen');
-            this.resetState();
+            this.resetState(); // This sets enemies to [] and currentWave to 0 (or checkpoint)
             this.setupCanvas();
             this.setupControls();
             this.bindEvents();
-            this.nextWave();
-            this.gameLoop();
+            
+            // --- THIS IS THE FIX ---
+            // The next line was causing the double-wave bug. By removing it,
+            // we let the gameLoop handle the first wave correctly.
+            // this.nextWave(); // <--- DELETE THIS LINE
+        
+            this.gameLoop(); // Now, the first gameLoop will see 0 enemies and call nextWave() ONCE.
         },
 
         initializeBackground: function() {
@@ -5379,16 +5383,33 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 ? gameState.riftProgress.highestRiftLevel 
                 : 0;
         
-            this.state.sessionLoot = { gold: 0, orbs: 0, edgestones: 0, items: 0 };
+            // --- FULL RESET FIX: Add resets for all player state and timers ---
             this.state.currentWave = startLevel;
+            this.state.sessionLoot = { gold: 0, orbs: 0, edgestones: 0, items: 0 };
             this.state.enemies = [];
             this.state.loot = [];
             this.state.particles = [];
+            
+            // Reset player position and movement
             this.state.player.x = window.innerWidth / 2;
             this.state.player.y = window.innerHeight / 2;
             this.state.player.moveVector = { x: 0, y: 0 };
+        
+            // Reset player combat state and ability cooldowns
             this.state.player.isDashing = false;
+            this.state.player.lastAttackTime = 0;
+            this.state.player.lastDamagedTime = 0;
+            this.state.player.lastDashTime = 0;
+            this.state.player.lastHavocRageTime = 0;
+            this.state.player.lastThunderStrikeTime = 0;
+            this.state.player.lastGhostTime = 0;
+            this.state.player.lastDashStartTime = 0;
+            this.state.player.lastAttackFlashTime = 0;
+        
+            // Reset UI state
             this.state.isAutoMode = this.elements.autoCheckbox.checked;
+            
+            // Reset global game state relevant to the Rift
             gameState.resources.hp = gameState.resources.maxHp;
         
             // --- RIFT CHECKPOINT: Show the upgrade button if the player has passed wave 10 before ---
@@ -5415,46 +5436,68 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (isPlayerDefeated) {
                 showNotification("Defeated in the Rift!", `You were overwhelmed at Rift Level ${this.state.currentWave}. You keep all loot found.`);
                 playSound('defeat', 1, 'sine', 440, 110, 0.8);
-                
-                // --- GOLD PENALTY FIX: The penalty logic is now completely removed from this function. ---
-                // Player is simply returned to the game screen.
             }
         
+            // --- RIFT EXIT FIX ---
+            // Show the main game screen and update the UI.
+            // Crucially, we REMOVE the call to startGameGenesis().
             showScreen('game-screen');
             updateUI(); 
             saveGame(); 
-            startGameGenesis(); 
+            
+            // The main game screen's logic should handle what to display next,
+            // which is usually the Endless mode if the player is high enough level.
+            // We can ensure this by calling returnToMainGameArea if it exists.
+            if (typeof returnToMainGameArea === 'function') {
+                returnToMainGameArea();
+            }
         },
     
         gameLoop: function(timestamp) {
             if (!this.state.isActive) return;
-            const loop = this.gameLoop.bind(this);
-        
-            // --- RIFT BACKGROUND: Update background elements first ---
+            
+            // --- UPDATE AND DRAW LOGIC (Unchanged) ---
             this.updateBackground();
             this.drawBackground();
-        
             this.handleInput();
             this.updatePlayer(timestamp);
             this.updateEnemies(timestamp);
             this.updateLoot();
             this.updateParticles();
             this.updateBurnDamage(timestamp);
-            this.handleCollisions();
-            
-            if (this.state.enemies.length === 0) {
-                this.nextWave();
+            this.handleCollisions(); // This function removes enemies from the array if they die
+        
+            // --- WAVE TRANSITION FIX (The key change is here) ---
+            // If there are no enemies left AND we are not already locked into a wave transition...
+            if (this.state.enemies.length === 0 && !this.state.waveTransitionLock) {
+                
+                // 1. Lock the state immediately. This prevents this block from running again on the next frame.
+                this.state.waveTransitionLock = true;
+        
+                // 2. Use a short, non-blocking delay to start the next wave.
+                // This is crucial. It ensures we exit the current game loop completely
+                // before setting up the next wave, breaking the single-frame race condition.
+                setTimeout(() => {
+                    if (!this.state.isActive) return; // Safety check in case the player exited during the delay
+                    
+                    this.nextWave(); // This will increment the wave and spawn new enemies.
+        
+                    // 3. Unlock the state AFTER the new enemies have been spawned.
+                    this.state.waveTransitionLock = false;
+        
+                }, 250); // A 250ms delay between waves.
             }
+            // --- END OF FIX ---
         
             this.updateRiftUI();
-            this.draw(timestamp); // This draws the main game on the transparent canvas
-        
+            this.draw(timestamp);
+            
             if (gameState.resources.hp <= 0) {
                 this.exit(true);
                 return;
             }
-        
-            this.state.gameLoopId = requestAnimationFrame(loop);
+            
+            this.state.gameLoopId = requestAnimationFrame(this.gameLoop.bind(this));
         },
     
         bindEvents: function() {
@@ -6585,6 +6628,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 showToast("Cannot enter the Rift while on an expedition.");
                 return;
             }
+            
+            // --- RIFT LEVEL FIX: Also stop the main loop here for good measure ---
+            if (typeof stopGameGenesis === 'function') {
+                stopGameGenesis();
+            }
+
             Rift.start();
         });
     }
