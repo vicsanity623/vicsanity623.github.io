@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.6.0.5"; // revert
+    const GAME_VERSION = "1.6.1.0"; // Updated version for smarter rift ai
       
     let gameState = {};
     let audioCtx = null;
