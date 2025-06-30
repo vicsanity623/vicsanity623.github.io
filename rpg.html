@@ -565,7 +565,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     padding: 0;
     margin: 0;
     z-index: 199; /* Below modals, but above the game */
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
 }
@@ -1895,6 +1895,20 @@ input[type="range"] { flex-grow: 1; }
     height: 20px;
     accent-color: var(--accent-color); /* Modern way to color checkboxes */
 }
+#rift-session-loot {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 10px;
+    color: white;
+    font-size: 1.1em;
+    text-shadow: 1px 1px 2px black;
+}
+#rift-session-loot span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
 
 </style>
 </head>
@@ -1977,10 +1991,16 @@ input[type="range"] { flex-grow: 1; }
         </div>
         
         <div id="action-buttons">
+            <!-- The "Grow" button is now first -->
             <div class="action-button-container"><button id="grow-btn">Grow</button></div>
+            <!-- The "Endless" button is second, and now has the unlock text span -->
+            <div class="action-button-container">
+                <button id="endless-btn">Endless</button>
+                <span id="endless-unlock-text" class="unlock-text"></span>
+            </div>
+            <!-- The "Feed" button is third -->
             <div class="action-button-container"><button id="feed-btn">Feed (5k Gold)</button></div>
-            <div class="action-button-container"><button id="battle-btn">Battle</button><span id="battle-unlock-text" class="unlock-text"></span></div>
-            <div class="action-button-container"><button id="enter-rift-btn">Rift</button></div>
+            <div class="action-button-container"><button id="enter-rift-btn">Rift</button><span id="rift-unlock-text" class="unlock-text"></span></div>
             <div class="action-button-container"><button id="pvp-btn">PvP</button><span id="pvp-unlock-text" class="unlock-text"></span></div>
             <div class="action-button-container"><button id="expedition-btn">Expedition</button></div>
             <div class="action-button-container"><button id="dojo-btn">Dojo</button></div>
@@ -2309,6 +2329,12 @@ input[type="range"] { flex-grow: 1; }
                 <!-- Re-using your existing stat-bar classes for a consistent look -->
                 <div id="rift-player-hp-bar" class="stat-bar health-bar"><div class="stat-bar-fill"></div><div class="stat-bar-label">HP: 100/100</div></div>
                 <div id="rift-player-xp-bar" class="stat-bar xp-bar" style="margin-top: 5px;"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0/100</span></div>
+            </div>
+            <div id="rift-session-loot">
+                <span id="rift-loot-gold">0 💰</span>
+                <span id="rift-loot-orbs">0 🔮</span>
+                <span id="rift-loot-edgestones">0.0 ♦️</span>
+                <span id="rift-loot-items"></span>
             </div>
 
             <div id="rift-controls">
