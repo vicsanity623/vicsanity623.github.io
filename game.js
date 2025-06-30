@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.6.1.0"; // Updated version for smarter rift ai
+    const GAME_VERSION = "1.0.2.1";  // Revert rift joystick fix
       
     let gameState = {};
     let audioCtx = null;
@@ -252,7 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
         lastLogin: Date.now(),
         orbs: 0,
         riftProgress: {
-            moveSpeed: 0,
+            attackSpeed: 0,
+            attackPower: 0,
+            fortitude: 0,
             magnetRadius: 0,
             goldFind: 0,
             xpGain: 0,
@@ -361,6 +363,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
       const ASCENSION_LEVEL = 50;
       const BATTLE_UNLOCK_LEVEL = 20;
+      const ENDLESS_UNLOCK_LEVEL = 10;
+      const RIFT_UNLOCK_LEVEL = 25;
       const MAX_ENEMIES = 15;
       const FORGE_UNLOCK_LEVEL = 10;
       const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
@@ -383,7 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const worldTierDisplay = document.getElementById('world-tier-display');
       const hungerBarFill = document.getElementById('hunger-bar-fill');
       const startGameBtn = document.getElementById('start-game-btn');
-      const growBtn = document.getElementById('grow-btn');
       const feedBtn = document.getElementById('feed-btn');
       const battleBtn = document.getElementById('battle-btn');
       const battleUnlockText = document.getElementById('battle-unlock-text');
@@ -513,6 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- DOJO ELEMENTS ---
       const dojoBtn = document.getElementById('dojo-btn');
       const dojoScreen = document.getElementById('dojo-screen');
+      const riftUnlockText = document.getElementById('rift-unlock-text');
       const dojoExitBtn = document.getElementById('dojo-exit-btn');
       const dojoDummySprite = document.getElementById('dojo-dummy-sprite');
       const dojoPersonalBestDisplay = document.getElementById('dojo-personal-best');
@@ -623,6 +627,14 @@ document.addEventListener('DOMContentLoaded', () => {
         screens.forEach(s => s.classList.remove('active')); 
         const screenToShow = document.getElementById(screenId);
         if(screenToShow) screenToShow.classList.add('active'); 
+
+        // --- THIS IS THE LOGIC THAT NEEDS TO BE ADDED BACK ---
+        const toggleBtn = document.getElementById('toggle-ui-btn');
+        if (toggleBtn) {
+            // This line makes the "Hide UI" button appear ONLY on the game screen.
+            toggleBtn.style.display = (screenId === 'game-screen') ? 'flex' : 'none';
+        }
+        // --- END OF FIX ---
     
         if (screenId !== 'game-screen' && genesisState.isActive) {
             stopGameGenesis();
@@ -697,9 +709,10 @@ document.addEventListener('DOMContentLoaded', () => {
                   showScreen('main-menu-screen'); 
               }
           }, 1500);
-  
-          // Start all game loop intervals
+
+          // --- EGG TIMER FIX: This block starts the core game intervals ---
           buffInterval = setInterval(updateBuffs, 1000);
+          // This is the crucial line. It should already be here, but we're confirming.
           partnerTimerInterval = setInterval(checkEggHatch, 1000);
           setInterval(passiveResourceRegen, 1000);
       }
@@ -707,14 +720,42 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- FIXED/MERGED ---: Restored full startGame logic.
       async function startGame() {
         initAudio();
-        let playerName = ""; let isNameValid = false;
+        let playerName = ""; 
+        let isNameValid = false;
+
         while (!isNameValid) {
             const defaultName = auth.currentUser ? auth.currentUser.displayName.split(' ')[0] : "";
             const inputName = prompt("Enter your Guardian's name (3-15 chars):", defaultName);
-            if (inputName === null) { return; } 
-            if (inputName.length < 3 || inputName.length > 15) { alert("Name must be between 3 and 15 characters."); continue; }
-            playerName = inputName; isNameValid = true;
+
+            if (inputName === null) { // User cancelled the prompt
+                return; 
+            } 
+            if (inputName.length < 3 || inputName.length > 15) {
+                alert("Name must be between 3 and 15 characters.");
+                continue; // Ask for a name again
+            }
+
+            // --- NEW: Check if the name is already taken in the database ---
+            try {
+                const nameCheckDoc = await db.collection("leaderboard").doc(inputName).get();
+
+                if (nameCheckDoc.exists) {
+                    alert("This name is already taken. Please choose another.");
+                    continue; // Name is taken, so we loop again
+                } else {
+                    // Name is available, we can proceed
+                    playerName = inputName; 
+                    isNameValid = true; // This will break the while loop
+                }
+            } catch (error) {
+                console.error("Error checking player name:", error);
+                alert("Could not verify player name due to a network error. Please try again.");
+                return; // Exit the function if we can't connect to the DB
+            }
+            // --- END OF NEW SECTION ---
         }
+
+        // --- The rest of the function remains the same ---
         gameState = JSON.parse(JSON.stringify(defaultState));
         gameState.playerName = playerName;
         
@@ -723,7 +764,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAscensionVisuals();
         showScreen('game-screen');
     
-        // --- LATER PLAYER EXPERIENCE FIX: Ensure new games always start on the Grow screen ---
         characterArea.style.display = 'flex';
         genesisArena.style.display = 'none';
     
@@ -790,6 +830,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // --- RIFT CHECKPOINT: Ensure old saves get the new property ---
                 loadedState.riftProgress.highestRiftLevel = loadedState.riftProgress.highestRiftLevel || 0;
+                loadedState.riftProgress.attackSpeed = loadedState.riftProgress.attackSpeed || 0;
+                loadedState.riftProgress.attackPower = loadedState.riftProgress.attackPower || 0;
+                loadedState.riftProgress.fortitude = loadedState.riftProgress.fortitude || 0;
             }
           
             if (loadedState.equipment.weapon) {
@@ -855,7 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showScreen('game-screen');
                 
                 // --- LATER PLAYER EXPERIENCE FIX: Decide where to start based on level ---
-                if (gameState.level >= 10) {
+                if (gameState.level >= ENDLESS_UNLOCK_LEVEL) {
                     // Player is level 10 or higher, start in Endless mode
                     characterArea.style.display = 'none';
                     genesisArena.style.display = 'block';
@@ -984,7 +1027,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        const ENDLESS_UNLOCK_LEVEL = 5;
         if (gameState.level < ENDLESS_UNLOCK_LEVEL) {
             growBtn.textContent = `Endless (Lvl ${ENDLESS_UNLOCK_LEVEL})`;
         } else {
@@ -1031,15 +1073,7 @@ document.addEventListener('DOMContentLoaded', () => {
         characterSprite.style.display = onExpedition ? 'none' : 'block';
         expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
         windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
-  
-        const canUseBattle = gameState.level >= BATTLE_UNLOCK_LEVEL;
-        battleBtn.disabled = onExpedition || !canUseBattle;
-        battleUnlockText.textContent = canUseBattle ? "" : `Unlocks at LVL ${BATTLE_UNLOCK_LEVEL}`;
-        if (canUseBattle) {
-            battleBtn.textContent = `Battle (Lvl ${gameState.highestBattleLevelCompleted + 1})`;
-        } else {
-            battleBtn.textContent = 'Battle';
-        }                
+                  
         const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
         forgeBtn.disabled = onExpedition || !canUseForge;
         forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
@@ -1053,6 +1087,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const canUsePvp = gameState.level >= PVP_UNLOCK_LEVEL;
         pvpBtn.disabled = onExpedition || !canUsePvp;
         pvpUnlockText.textContent = canUsePvp ? "" : `Unlocks at LVL ${PVP_UNLOCK_LEVEL}`;
+        const canUseRift = gameState.level >= RIFT_UNLOCK_LEVEL;
+        const enterRiftBtn = document.getElementById('enter-rift-btn');
+        if (enterRiftBtn) {
+            enterRiftBtn.disabled = onExpedition || !canUseRift;
+        }
+        if (riftUnlockText) {
+            riftUnlockText.textContent = canUseRift ? "" : `Unlocks at LVL ${RIFT_UNLOCK_LEVEL}`;
+        }
         feedBtn.disabled = onExpedition; 
         inventoryBtn.disabled = onExpedition; 
         shopBtn.disabled = onExpedition;
@@ -1118,19 +1160,20 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.classList.add('visible');
         }
       
-      function addXP(character, amount) { 
-          if(character.isPartner && gameState.expedition.active) return;
-          const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
-          let finalAmount = amount * tierMultiplier;
-          if (gameState.activeBuffs.xpBoost && !character.isPartner) { finalAmount *= 1.5; }
-          finalAmount *= (1 + getPotentialBonus('xp_gain_percent') / 100);
-          finalAmount *= (1 + (getAwakeningBonus('wisdom') * 0.05));
-          character.xp += finalAmount;
-          if (character.xp >= getXpForNextLevel(character.level)) {
-              levelUp(character);
-          }
-          updateUI();
-      }
+        function addXP(character, amount) { 
+            if(character.isPartner && gameState.expedition.active) return;
+            const tierMultiplier = Math.pow(1.2, gameState.ascension.tier - 1);
+            let finalAmount = amount * tierMultiplier;
+            if (gameState.activeBuffs.xpBoost && !character.isPartner) { finalAmount *= 1.5; }
+            finalAmount *= (1 + getPotentialBonus('xp_gain_percent') / 100);
+            finalAmount *= (1 + (getAwakeningBonus('wisdom') * 0.05));
+            character.xp += finalAmount;
+            // This loop handles multiple level-ups from a single XP gain.
+            while (character.xp >= getXpForNextLevel(character.level)) {
+                levelUp(character);
+            }
+            updateUI();
+        }
   
       function levelUp(character) {
         const xpOver = character.xp - getXpForNextLevel(character.level);
@@ -2314,21 +2357,32 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       function checkEggHatch() {
-          if (gameState.partner && gameState.partner.hatchTime && Date.now() > gameState.partner.hatchTime) {
-              gameState.partner.isHatched = true;
-              gameState.partner.hatchTime = null;
-              gameState.partner.name = "Newborn Guardian";
-              gameState.partner.level = 1;
-              gameState.partner.xp = 0;
-              gameState.partner.stats = { strength: 5, agility: 5, fortitude: 5, stamina: 5 };
-              gameState.partner.resources = { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 };
-              
-              showNotification("A Mysterious Egg Hatched!", "A newborn guardian has joined you! You can switch to it from the main screen.");
-              playSound('victory', 1, 'sawtooth', 200, 1000, 1);
-              updatePartnerUI();
-              saveGame();
-          }
-      }
+            if (!gameState.partner || gameState.partner.isHatched) {
+                return; // No need to check if there's no partner or if it's already hatched.
+            }
+        
+            // --- EGG TIMER FIX: This function now handles both checking for hatch and updating the UI every second ---
+            if (gameState.partner.hatchTime) {
+                if (Date.now() > gameState.partner.hatchTime) {
+                    // THE EGG IS HATCHING NOW!
+                    gameState.partner.isHatched = true;
+                    gameState.partner.hatchTime = null;
+                    gameState.partner.name = "Newborn Guardian";
+                    gameState.partner.level = 1;
+                    gameState.partner.xp = 0;
+                    gameState.partner.stats = { strength: 5, agility: 5, fortitude: 5, stamina: 5 };
+                    gameState.partner.resources = { hp: 100, maxHp: 100, energy: 100, maxEnergy: 100 };
+                    
+                    showNotification("A Mysterious Egg Hatched!", "A newborn guardian has joined you! You can switch to it from the main screen.");
+                    playSound('victory', 1, 'sawtooth', 200, 1000, 1);
+                    saveGame();
+                }
+                
+                // This will now be called every second, regardless of whether the egg has hatched,
+                // which is what makes the timer count down visually.
+                updatePartnerUI();
+            }
+        }
       
       function updatePartnerUI() {
           if (!gameState.hasEgg) return;
@@ -2424,7 +2478,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const minutesOffline = effectiveOfflineTime / 60;
         const goldPerSecond = 110.6 * playerPower * (1 + getTotalStat('goldFind') / 100);
         const totalGold = Math.floor(goldPerSecond * effectiveOfflineTime);
-        const xpPerSecond = 3150.2 * playerPower;
+        
+        // --- THIS IS THE MODIFIED LINE FOR XP REWARDS ---
+        const xpPerSecond = 30 * Math.log(gameState.level + 1); 
+
         const totalXp = Math.floor(xpPerSecond * effectiveOfflineTime);
         const enemiesDefeated = Math.max(1, Math.floor(effectiveOfflineTime / 30));
         const edgeStonesPerMinute = 0.1;
@@ -2980,8 +3037,7 @@ function exitDojo() {
     if (dojoState.isActive) {
         stopDojoSession();
     }
-    showScreen('game-screen');
-    startGameGenesis();
+    returnToMainGameArea(); // Use the new helper function
 }
 
 function updateDojoUI() {
@@ -3335,20 +3391,27 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             bossHealthContainer.style.display = 'none';
             genesisState.isBattleMode = false;
         }
-        function toggleGrowthMode() {
-            const UNLOCK_LEVEL = 5; // Level required to unlock Endless mode
-
-            // Check if the Genesis Arena (Endless Mode) is currently active
-            if (genesisState.isActive) {
-                // If it is, stop it and show the static character (Grow Mode)
-                stopGameGenesis();
+        function returnToMainGameArea() {
+            showScreen('game-screen');
+            if (gameState.level >= ENDLESS_UNLOCK_LEVEL) {
+                // Player is high enough level, start Endless mode
+                startGameGenesis();
+            } else {
+                // Player is too low level, go back to Grow mode
+                stopGameGenesis(); // Ensure endless mode is fully stopped
                 characterArea.style.display = 'flex';
                 genesisArena.style.display = 'none';
-                growBtn.textContent = `Endless (Lvl ${UNLOCK_LEVEL})`;
+            }
+            updateUI(); // Update UI to ensure button text is correct
+        }
+        function toggleGrowthMode() {
+            // Check if the Genesis Arena (Endless Mode) is currently active
+            if (genesisState.isActive) {
+                // ...
             } else {
                 // If it's not active, check if the player is high enough level
-                if (gameState.level < UNLOCK_LEVEL) {
-                    showToast(`You must reach Level ${UNLOCK_LEVEL} to unlock Endless mode.`);
+                if (gameState.level < ENDLESS_UNLOCK_LEVEL) {
+                    showToast(`You must reach Level ${ENDLESS_UNLOCK_LEVEL} to unlock Endless mode.`);
                     playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15); // Error sound
                     return;
                 }
@@ -3388,70 +3451,33 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         }
         function gameLoop(timestamp) {
             if (!genesisState.isActive || !genesisState.player) return;
-
+        
             // --- Player Damage Flash Reset ---
             if (timestamp - genesisState.player.lastDamagedTime > 200) {
                 genesisState.player.element.style.filter = '';
             }
-
+        
             // --- ENDLESS MODE: Difficulty Scaling ---
-            if (!genesisState.isBattleMode) {
-                const DIFFICULTY_INTERVAL = 15000;
-                if (timestamp - genesisState.lastDifficultyIncrease > DIFFICULTY_INTERVAL) {
-                    if (genesisState.lastDifficultyIncrease !== 0) {
-                        genesisState.difficultyLevel++;
-                        showToast(`Challenge Level ${genesisState.difficultyLevel}!`);
-                        playSound('levelUp', 0.5, 'sawtooth', 300, 400, 0.2);
-                    }
-                    genesisState.lastDifficultyIncrease = timestamp;
+            // This logic now runs anytime the genesis arena is active.
+            const DIFFICULTY_INTERVAL = 15000;
+            if (timestamp - genesisState.lastDifficultyIncrease > DIFFICULTY_INTERVAL) {
+                if (genesisState.lastDifficultyIncrease !== 0) {
+                    genesisState.difficultyLevel++;
+                    showToast(`Challenge Level ${genesisState.difficultyLevel}!`);
+                    playSound('levelUp', 0.5, 'sawtooth', 300, 400, 0.2);
                 }
+                genesisState.lastDifficultyIncrease = timestamp;
             }
-
-            // --- BATTLE MODE: Wave Completion Check ---
-            if (genesisState.isBattleMode &&
-                genesisState.enemies.length === 0 &&
-                genesisState.enemiesSpawnedThisWave >= genesisState.enemiesToSpawnThisWave &&
-                !genesisState.waveTransitionActive &&
-                genesisState.currentWave < genesisState.totalWaves // <-- This condition is correct
-            ) {
-                genesisState.waveTransitionActive = true;
-            
-                // 1. Immediately show that the wave is cleared.
-                genesisWaveDisplay.textContent = `Wave ${genesisState.currentWave} Cleared!`;
-                genesisWaveDisplay.style.display = 'block';
-                playSound('levelUp', 0.6, 'triangle', 440, 880, 0.3);
-            
-                // 2. After 1.5 seconds, update the text to prepare the player for the next wave.
-                setTimeout(() => {
-                    if (!genesisState.isActive || !genesisState.waveTransitionActive) return;
-            
-                    // Check if the NEXT wave is the final (boss) wave
-                    if (genesisState.currentWave + 1 === genesisState.totalWaves) {
-                        genesisWaveDisplay.textContent = 'BOSS INCOMING!';
-                        playSound('ascend', 0.7, 'sawtooth', 500, 100, 0.4);
-                    } else {
-                        genesisWaveDisplay.textContent = 'Next Wave Incoming...';
-                    }
-            
-                }, 1500);
-            
-                // 3. After a total of 3 seconds, start the actual next wave.
-                setTimeout(() => {
-                    if (!genesisState.isActive) return;
-                    startNextBattleWave(); 
-                    if (genesisState.isActive) {
-                        genesisState.waveTransitionActive = false;
-                    }
-                }, 3000);
-            }
-
+        
+            // --- The old BATTLE MODE WAVE LOGIC has been completely removed. ---
+        
             // --- Core Updates ---
             updatePlayerTarget();
             movePlayer();
             moveEnemies();
             moveLootOrbs();
             handleBurnDamage(timestamp);
-
+        
             // --- Attacks ---
             let actionTaken = false;
             actionTaken = handleGenesisThunderStrike(timestamp);
@@ -3464,13 +3490,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (!actionTaken) {
                 handleGenesisPlayerAttack(timestamp);
             }
-            if (genesisState.isBattleMode) {
-                handleEnemyAttacks(timestamp);
-            }
-
+            // handleEnemyAttacks is no longer needed since it was part of battle mode.
+        
             // --- Post-action updates ---
             handleLootCollection();
-            if(genesisState.boss) updateBossHealthBar();
+            // updateBossHealthBar is no longer needed here.
             
             // --- Update Positions ---
             genesisState.player.element.style.left = `${genesisState.player.x}px`;
@@ -3484,21 +3508,13 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 const orbTranslateY = orb.y - (orb.element.offsetHeight / 2);
                 orb.element.style.transform = `translate(${orbTranslateX}px, ${orbTranslateY}px)`;
             });
-
+        
             spawnEnemies(timestamp);
             
-            // --- FIX: WIN/LOSS CONDITIONS ---
-            // Win Condition: The boss exists, is defeated, and the game is still active.
-            if (genesisState.isBattleMode && genesisState.boss && genesisState.boss.hp <= 0 && genesisState.isActive) {
-                genesisState.isActive = false; // Prevent this from firing multiple times
-                endBattle(true);
-                return; // Stop the loop
-            }
-            
-            // Loss Condition
+            // --- SIMPLIFIED LOSS CONDITION ---
             if (gameState.resources.hp <= 0 && genesisState.isActive) {
                 genesisState.isActive = false; // Prevent multiple calls
-                endBattle(false);
+                endEndlessMode(true); // Call our new, clean function
                 return; // Stop the loop
             }
             
@@ -4508,84 +4524,24 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
           else { if (gameState.settings && gameState.settings.isAutoBattle) { setTimeout(handlePlayerAttack, 1000); } else { attackBtn.disabled = false; fleeBtn.disabled = false; feedBattleBtn.disabled = false; } }
       }
   
-      async function endBattle(playerWon) {
-          // --- FIX: This block now handles damage submission for the new Genesis battle system. ---
-          if (genesisState.isBattleMode && genesisState.totalDamageDealtThisBattle > gameState.dojoPersonalBest) {
-              gameState.dojoPersonalBest = genesisState.totalDamageDealtThisBattle;
-              showToast("New Personal Damage Record!");
-              playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-              updateDojoUI(); // This will update the text on the dojo screen for next time
-      
-              // Submit the new high score to the damage leaderboard
-              try {
-                  await db.collection("damageLeaderboard").doc(gameState.playerName).set({
-                      name: gameState.playerName,
-                      totalDamage: Math.floor(gameState.dojoPersonalBest)
-                  }, { merge: true });
-                  showToast("New damage score submitted to leaderboard!");
-              } catch(e) {
-                  console.error("Failed to submit damage score", e);
-              }
-          }
-      
-          // This part handles the old turn-based battle system state
-          battleState.isActive = false;
-          gameState.healthPotions = (gameState.healthPotions || 0) - battleState.potionsUsedThisBattle;
-          
-          let title = ""; 
-          let rewardText = "";
-      
-          if (playerWon) {
-              // This is the logic path for winning a Genesis Arena battle
-              if (genesisState.isBattleMode) {
-                  const battleLevel = gameState.highestBattleLevelCompleted + 1;
-                  gameState.highestBattleLevelCompleted = battleLevel;
-                  gameState.counters.battlesCompleted = (gameState.counters.battlesCompleted || 0) + 1;
-                  checkAllAchievements();
-                  playSound('victory', 1, 'triangle', 523, 1046, 0.4);
-                  
-                  let bonusItem = generateItem();
-                  title = `Battle Level ${battleLevel} Complete!`;
-                  
-                  const goldReward = 10000 * battleLevel;
-                  const xpReward = 20000 * battleLevel;
-                  gameState.gold += goldReward;
-                  addXP(gameState, xpReward);
-                  
-                  const totalDamageDealt = Math.floor(genesisState.totalDamageDealtThisBattle);
-                  
-                  // --- FIX: The reward prompt now includes the total damage dealt. ---
-                  rewardText = `You are victorious!<br><br>Total Rewards:<br>+${goldReward.toLocaleString()} Gold<br>+${xpReward.toLocaleString()} XP<br>Total Damage Dealt: ${totalDamageDealt.toLocaleString()}<br><br>Completion Bonus:<br><strong style="color:${bonusItem.rarity.color}">${bonusItem.name}</strong>`;
-                  const edgeStoneReward = 3.50 * (gameState.ascension.tier); // Scale reward with tier
-                  gameState.edgeStones = (gameState.edgeStones || 0) + edgeStoneReward;
-                  
-                  // Add it to the reward text
-                  rewardText += `<br>Found <span style="color: #00FFFF;">♦️ ${edgeStoneReward.toFixed(4)} EdgeStones</span>`;
-                  const orbReward = 10 * battleLevel; // Scales with battle level
-                  gameState.orbs = (gameState.orbs || 0) + orbReward;
-                  rewardText += `<br>Found <strong style="color: #87CEFA;">${orbReward} 🔮 Orbs</strong>`;
-                  gameState.inventory.push(bonusItem);
-              }
-          } else { // Player lost
+      function endEndlessMode(playerWasDefeated) {
+            // This function now only handles one case: being defeated in the Endless Arena.
+            if (playerWasDefeated) {
                 playSound('defeat', 1, 'sine', 440, 110, 0.8);
-            
-                // --- RIFT DEFEAT FIX: Only apply penalty if NOT in the Rift ---
-                if (gameState.resources.hp <= 0 && !Rift.state.isActive) {
-                    title = "Defeated!";
-                    rewardText = "You black out and wake up back home. You lost half your current gold.";
-                    gameState.gold = Math.floor(gameState.gold / 2);
-                    gameState.resources.hp = 1; // Restore 1 HP so the player isn't stuck
-                } else if (!Rift.state.isActive) { // This handles fleeing from non-Rift battles
-                    title = "Fled from Battle";
-                    rewardText = "You escaped, but gained no rewards.";
-                }
+                showNotification("Overwhelmed!", "You were defeated in the Endless Arena. You lost half your current gold.");
+                gameState.gold = Math.floor(gameState.gold / 2);
+                gameState.resources.hp = 1; // Restore 1 HP so the player isn't stuck
             }
             
-            stopGameGenesis();
+            stopGameGenesis(); // This correctly stops the current game loop.
+        
+            // A short delay before returning to the main screen.
             setTimeout(() => { 
                 showScreen('game-screen');
-                startGameGenesis(); 
-                if (title) showNotification(title, rewardText);
+                // Since Endless mode is over, return the player to the "Grow" (tapping) screen.
+                characterArea.style.display = 'flex';
+                genesisArena.style.display = 'none';
+                
                 saveGame(); 
                 updateUI(); 
             }, 500);
@@ -5165,6 +5121,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             isActive: false,
             gameLoopId: null,
             currentWave: 0,
+            sessionLoot: {
+                gold: 0,
+                orbs: 0,
+                edgestones: 0,
+                items: 0
+            },
             enemies: [],
             loot: [],
             particles: [],
@@ -5200,7 +5162,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             enemyRadius: 25,
             lootRadius: 10,
             collectionRadius: 40,
-            playerAttackCooldown: 400,
+            playerAttackCooldown: (level) => 400 * Math.pow(0.98, level),
             enemyAttackCooldown: 1500,
             riftUpgradeCost: (level) => Math.floor(10 * Math.pow(1.5, level)),
             // --- RIFT ABILITIES: NEW ABILITY CONFIGURATION ---
@@ -5325,13 +5287,18 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.state.player.sprite.src = 'player.PNG';
         
             if (!this.state.background.imageLoaded) {
-                // --- BACKGROUND FIX: Replaced the blocked image link with a new, CORS-friendly one ---
-                this.state.background.nebulaImage.src = 'https://live.staticflickr.com/3850/14849289579_5a59f53229_b.jpg'; 
-                this.state.background.nebulaImage.crossOrigin = "Anonymous"; // Important for loading external images
+                // --- THIS IS THE FIX ---
+                // Point to your local image file
+                this.state.background.nebulaImage.src = 'clouds.PNG'; 
+        
+                // We no longer need crossOrigin for local files, but it doesn't hurt to leave it
+                this.state.background.nebulaImage.crossOrigin = "Anonymous";
+                
                 this.state.background.nebulaImage.onload = () => {
                     this.state.background.imageLoaded = true;
                 };
             }
+            this.initializeBackground();
             this.initializeBackground();
         
             showScreen('rift-screen');
@@ -5397,6 +5364,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 ? gameState.riftProgress.highestRiftLevel 
                 : 0;
         
+            this.state.sessionLoot = { gold: 0, orbs: 0, edgestones: 0, items: 0 };
             this.state.currentWave = startLevel;
             this.state.enemies = [];
             this.state.loot = [];
@@ -5499,17 +5467,44 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 showToast("Rift progress has been reset!");
             }
         },
+        handleKeyDown: function(e) { 
+            this.state.keys[e.key.toLowerCase()] = true; 
+        },
+        handleKeyUp: function(e) { 
+            this.state.keys[e.key.toLowerCase()] = false; 
+        },
+        // --- END OF FIX ---
     
         setupControls: function() {
-            this.joystick = nipplejs.create({
-                zone: this.elements.joystickZone, mode: 'static', position: { left: '25%', top: '75%' }, color: 'white', size: 150
-            });
+            const options = {
+                zone: this.elements.joystickZone,
+                mode: 'static',
+                position: { left: '25%', top: '75%' },
+                color: 'white',
+                size: 150,
+                // --- THIS IS THE KEY CHANGE ---
+                eventOptions: { passive: false } 
+            };
+        
+            this.joystick = nipplejs.create(options);
+            
             this.joystick.on('move', (evt, data) => {
-                if (data.vector) this.state.player.moveVector = data.vector;
+                if (data.vector) {
+                    // Invert the Y-axis value here.
+                    data.vector.y *= -1; 
+                    this.state.player.moveVector = data.vector;
+                }
             });
-            this.joystick.on('end', () => this.state.player.moveVector = { x: 0, y: 0 });
-            this.handleKeyDown = (e) => { this.state.keys[e.key.toLowerCase()] = true; };
-            this.handleKeyUp = (e) => { this.state.keys[e.key.toLowerCase()] = false; };
+        
+            this.joystick.on('end', () => {
+                // This line is now simpler. It just resets the vector.
+                this.state.player.moveVector = { x: 0, y: 0 };
+            });
+        
+            // These lines are updated for better code structure,
+            // which is important for correctly removing the listeners later.
+            this.handleKeyDown = this.handleKeyDown.bind(this);
+            this.handleKeyUp = this.handleKeyUp.bind(this);
             window.addEventListener('keydown', this.handleKeyDown);
             window.addEventListener('keyup', this.handleKeyUp);
         },
@@ -5524,24 +5519,31 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     
         handleInput: function() {
             if (this.state.player.isDashing) {
-                this.state.player.moveVector = { x: 0, y: 0 };
-                return;
+                // If dashing, prevent any other movement input
+                return; 
             }
+        
             if (this.state.isAutoMode) {
+                // If in auto mode, let the AI take over
                 this.handleAutoModeAI();
             } else {
+                // --- MANUAL CONTROL LOGIC ---
                 let moveX = 0, moveY = 0;
+                
+                // Prioritize Keyboard Input
                 if (this.state.keys['w'] || this.state.keys['arrowup']) moveY = -1;
                 if (this.state.keys['s'] || this.state.keys['arrowdown']) moveY = 1;
                 if (this.state.keys['a'] || this.state.keys['arrowleft']) moveX = -1;
                 if (this.state.keys['d'] || this.state.keys['arrowright']) moveX = 1;
                 
                 if (moveX !== 0 || moveY !== 0) {
-                    const length = Math.sqrt(moveX * moveX + moveY * moveY);
+                    // If keyboard keys are pressed, use them to set the direction
+                    const length = Math.hypot(moveX, moveY); // Using Math.hypot is slightly cleaner
                     this.state.player.moveVector = { x: moveX / length, y: moveY / length };
-                } else if (!this.joystick.get(0)?.vector) {
-                     this.state.player.moveVector = { x: 0, y: 0 };
-                }
+                } 
+                // --- THIS IS THE KEY CHANGE ---
+                // By removing the "else if" block, we allow the joystick's moveVector
+                // (set by the 'move' event listener) to be used if no keys are pressed.
             }
         },
         
@@ -5670,8 +5672,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     
         updatePlayer: function(timestamp) {
             const player = this.state.player;
-            const speedMultiplier = 1 + (gameState.riftProgress.moveSpeed * 0.05);
-            let currentSpeed = this.config.playerBaseSpeed * speedMultiplier;
+            let currentSpeed = this.config.playerBaseSpeed;
         
             if (player.isDashing) {
                 currentSpeed *= 4; // Dash speed
@@ -5732,26 +5733,21 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 let bestTarget = this.findNearest(this.state.enemies);
                 if (bestTarget) {
                     player.lastDashTime = timestamp;
-                    // --- ZOOM DASH: Record the exact start time of the dash ---
                     player.lastDashStartTime = timestamp; 
                     player.isDashing = true;
-                    
                     const dx = bestTarget.x - player.x;
                     const dy = bestTarget.y - player.y;
                     const dist = Math.hypot(dx, dy);
                     player.moveVector = { x: dx/dist, y: dy/dist }; 
                     playSound('hit', 1, 'sawtooth', 800, 200, 0.2);
-        
                     setTimeout(() => {
                         if (!this.state.isActive) return;
                         player.isDashing = false;
                         this.createCanvasDashExplosion(player.x, player.y);
                         playSound('crit', 1, 'square', 400, 50, 0.4);
                         triggerScreenShake(200);
-        
                         const dashDamage = getTotalStat('strength') * (2 + gameState.riftProgress.rift_dash);
                         const explosionRadius = 100 + (gameState.riftProgress.rift_dash * 10);
-        
                         this.state.enemies.forEach(enemy => {
                             if (Math.hypot(player.x - enemy.x, player.y - enemy.y) <= explosionRadius) {
                                 enemy.hp -= dashDamage;
@@ -5759,7 +5755,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                             }
                         });
                     }, 350);
-                    return; // Action taken, end combat check for this frame
+                    return;
                 }
             }
         
@@ -5768,18 +5764,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 player.lastHavocRageTime = timestamp;
                 playSound('crit', 1, 'sawtooth', 300, 50, 0.5);
                 triggerScreenShake(300);
-        
-                // --- HAVOC RAGE VISUAL: Create the shockwave and particle burst ---
-                this.createParticleEffect(player.x, player.y, 50, '#dc143c'); // Creates a burst of crimson particles
+                this.createParticleEffect(player.x, player.y, 50, '#dc143c');
                 this.state.particles.push({
-                    x: player.x,
-                    y: player.y,
-                    isShockwave: true, // Special identifier for our new animation
-                    life: 60,          // Animation duration in frames (1 second at 60fps)
-                    maxLife: 60,
-                    color: '#dc143c'   // The color of the shockwave ring
+                    x: player.x, y: player.y, isShockwave: true, life: 60, maxLife: 60, color: '#dc143c'
                 });
-        
                 this.state.enemies.forEach(enemy => {
                     enemy.burn = {
                         expiryTime: timestamp + 5000,
@@ -5800,14 +5788,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     let lastTarget = player;
                     let chainedTargets = [];
                     for(let i=0; i < chainCount && potentialTargets.length > 0; i++) {
-                        let closest = null;
-                        let minDist = Infinity;
+                        let closest = null; let minDist = Infinity;
                         potentialTargets.forEach(enemy => {
                             const dist = Math.hypot(lastTarget.x - enemy.x, lastTarget.y - enemy.y);
-                            if (dist < minDist) {
-                                minDist = dist;
-                                closest = enemy;
-                            }
+                            if (dist < minDist) { minDist = dist; closest = enemy; }
                         });
                         if(closest) {
                             chainedTargets.push(closest);
@@ -5816,9 +5800,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                         }
                     }
                     if (chainedTargets.length > 0) {
-                        this.state.particles.push({
-                            isLightning: true, life: 20, targets: [player, ...chainedTargets]
-                        });
+                        this.state.particles.push({ isLightning: true, life: 20, targets: [player, ...chainedTargets] });
                         const strikeDamage = getTotalStat('strength') * 2;
                         chainedTargets.forEach(enemy => {
                             enemy.hp -= strikeDamage;
@@ -5830,13 +5812,19 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             }
             
             // Priority 4: Basic Attack
-            if (timestamp - player.lastAttackTime > this.config.playerAttackCooldown) {
+            const currentAttackCooldown = this.config.playerAttackCooldown(gameState.riftProgress.attackSpeed || 0);
+            if (timestamp - player.lastAttackTime > currentAttackCooldown) {
                 let attacked = false;
                 this.state.enemies.forEach(enemy => {
                     if (Math.hypot(enemy.x - player.x, enemy.y - player.y) < (50 + getTotalStat('agility') * 0.5)) {
-                        const damage = getTotalStat('strength');
+                        
+                        const attackPowerBonus = 1 + ((gameState.riftProgress.attackPower || 0) * 0.1);
+                        const damage = getTotalStat('strength') * attackPowerBonus;
                         const isCrit = Math.random() < (getTotalStat('critChance') / 100);
+                        
+                        // --- THIS IS THE FIX: The line below was missing ---
                         const finalDamage = isCrit ? damage * 2 : damage;
+                        
                         enemy.hp -= finalDamage;
                         this.createParticleEffect(enemy.x, enemy.y, 5, isCrit ? 'gold' : 'white');
                         this.createDamageNumber(enemy.x, enemy.y, Math.floor(finalDamage), isCrit);
@@ -5859,8 +5847,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             if (timestamp - enemy.lastAttackTime > attackCooldown) {
                 const dist = Math.hypot(this.state.player.x - enemy.x, this.state.player.y - enemy.y);
                 if (dist < this.config.playerRadius + enemy.radius) {
-                    enemy.lastAttackTime = timestamp;
-                    const damage = Math.max(1, (baseDamage * this.state.currentWave) - getTotalStat('fortitude'));
+                    const fortitudeBonus = 1 + ((gameState.riftProgress.fortitude || 0) * 0.1);
+                    const totalFortitude = getTotalStat('fortitude') * fortitudeBonus;
+                    const damage = Math.max(1, (baseDamage * this.state.currentWave) - totalFortitude);
+
                     gameState.resources.hp -= damage;
                     this.state.player.lastDamagedTime = timestamp;
                     playSound('hit', 0.8, 'sawtooth', 200, 50, 0.15);
@@ -5894,17 +5884,29 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     
         collectItem: function(item) {
             playSound('feed', 0.5, 'sine', 600, 800, 0.1);
-            const goldGainBonus = 1 + (gameState.riftProgress.goldFind * 0.1);
-            const xpGainBonus = 1 + (gameState.riftProgress.xpGain * 0.1);
+            const goldGainBonus = 1 + ((gameState.riftProgress.goldFind || 0) * 0.1);
+            const xpGainBonus = 1 + ((gameState.riftProgress.xpGain || 0) * 0.1);
         
             switch(item.type) {
-                case 'gold': gameState.gold += Math.floor(item.amount * goldGainBonus); break;
-                case 'orbs': gameState.orbs = (gameState.orbs || 0) + item.amount; break;
-                case 'edgestones': gameState.edgeStones = (gameState.edgeStones || 0) + item.amount; break;
+                case 'gold': 
+                    const goldAmount = Math.floor(item.amount * goldGainBonus);
+                    gameState.gold += goldAmount;
+                    this.state.sessionLoot.gold += goldAmount; // Track session gold
+                    break;
+                case 'orbs': 
+                    gameState.orbs = (gameState.orbs || 0) + item.amount;
+                    this.state.sessionLoot.orbs += item.amount; // Track session orbs
+                    break;
+                case 'edgestones': 
+                    gameState.edgeStones = (gameState.edgeStones || 0) + item.amount;
+                    this.state.sessionLoot.edgestones += item.amount; // Track session edgestones
+                    break;
                 case 'xp': addXP(gameState, Math.floor(item.amount * xpGainBonus)); break;
-                // --- HEALTH ORB: Add a case to handle healing from the new orb ---
                 case 'health':
                     gameState.resources.hp = Math.min(gameState.resources.maxHp, gameState.resources.hp + item.amount);
+                    break;
+                case 'legendary_item':
+                    this.state.sessionLoot.items++; // Track session items
                     break;
             }
         },
@@ -6035,6 +6037,10 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.elements.xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
             this.elements.xpBarLabel.textContent = `XP: ${formatNumber(Math.floor(gameState.xp))} / ${formatNumber(xpForNext)}`;
             this.elements.waveDisplay.textContent = `Rift Level: ${this.state.currentWave}`;
+            document.getElementById('rift-loot-gold').innerHTML = `${formatNumber(this.state.sessionLoot.gold)} 💰`;
+            document.getElementById('rift-loot-orbs').innerHTML = `${this.state.sessionLoot.orbs.toFixed(0)} 🔮`;
+            document.getElementById('rift-loot-edgestones').innerHTML = `${this.state.sessionLoot.edgestones.toFixed(1)} ♦️`;
+            document.getElementById('rift-loot-items').innerHTML = `${this.state.sessionLoot.items > 0 ? '⚔️'.repeat(this.state.sessionLoot.items) : ''}`;
         },
     
         createParticleEffect: function(x, y, count, color) {
@@ -6237,11 +6243,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             cancelAnimationFrame(this.state.gameLoopId);
             let upgradeHtml = `<h2>Rift Upgrades</h2><p>Your Orbs: ${gameState.orbs.toFixed(1)} 🔮</p>`;
             const upgrades = {
-                moveSpeed: { name: 'Celerity', desc: '+5% Move Speed', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                attackSpeed: { name: 'Alacrity', desc: '-5% Attack Cooldown', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+                
+                // --- NEW UPGRADES: Add these two new lines ---
+                attackPower: { name: 'Might', desc: '+10% Attack Power in Rift', cost: (level) => Math.floor(15 * Math.pow(1.5, level)) },
+                fortitude: { name: 'Bastion', desc: '+10% Fortitude in Rift', cost: (level) => Math.floor(15 * Math.pow(1.5, level)) },
+
                 magnetRadius: { name: 'Greed', desc: '+10% Collection Radius', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
                 goldFind: { name: 'Fortune', desc: '+10% Gold from Rift', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
                 xpGain: { name: 'Insight', desc: '+10% XP from Rift', cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
-                // --- RIFT ABILITIES: Add new skills to the upgrade modal ---
                 rift_dash: { name: 'Rift Dash', desc: 'Periodically dash through enemies, dealing AoE damage. Upgrades increase damage and radius.', cost: (level) => 50 * (level + 1) },
                 rift_thunderStrike: { name: 'Rift Thunder', desc: 'Call down lightning that chains between foes. Upgrades add more chains.', cost: (level) => 75 * (level + 1) },
                 rift_havocRage: { name: 'Rift Rage', desc: 'Unleash a wave of energy that sets all enemies on fire. Upgrades increase burn damage.', cost: (level) => 100 * (level + 1) }
@@ -6271,8 +6281,13 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         },
         
         applyUpgrade: function(key) {
-             const upgrades = { // Re-define costs here to access them
-                moveSpeed: { cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+            const upgrades = { 
+                attackSpeed: { cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
+
+                // --- NEW UPGRADES: Add these two new lines ---
+                attackPower: { cost: (level) => Math.floor(15 * Math.pow(1.5, level)) },
+                fortitude: { cost: (level) => Math.floor(15 * Math.pow(1.5, level)) },
+                
                 magnetRadius: { cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
                 goldFind: { cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
                 xpGain: { cost: (level) => Math.floor(10 * Math.pow(1.5, level)) },
@@ -6295,11 +6310,17 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     
     window.Rift = Rift;
     // --- RIFT INTEGRATION END ---
+    
 
 
     // --- EVENT LISTENERS ---
+
     const detailedStatsModal = document.getElementById('detailed-stats-modal');
     const detailedStatsCloseBtn = document.getElementById('detailed-stats-close-btn');
+    const growBtn = document.getElementById('grow-btn');
+    if (growBtn) {
+        growBtn.addEventListener('click', toggleGrowthMode);
+    }
     immortalGrowthBtn.addEventListener('click', () => {
         renderPotentialsTree();
         immortalGrowthModal.classList.add('visible');
@@ -6398,7 +6419,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     detailedStatsCloseBtn.addEventListener('click', () => {
         detailedStatsModal.classList.remove('visible');
     });
-    battleBtn.addEventListener('click', startBattle);
     attackBtn.addEventListener('click', handlePlayerAttack);
     feedBattleBtn.addEventListener('click', feedInBattle); 
     fleeBtn.addEventListener('click', () => endBattle(false));
@@ -6411,8 +6431,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         gtag('config', 'G-4686TXHCHN', { 'page_path': '/shop' });
     });
     expeditionCancelBtn.addEventListener('click', () => {
-    showScreen('game-screen');
-    startGameGenesis();
+        returnToMainGameArea(); // Use the helper function here as well
     });
     ingameMenuBtn.addEventListener('click', () => {
         ingameMenuModal.classList.add('visible');
@@ -6525,7 +6544,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     characterSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
     partnerSprite.addEventListener('click', handleVisualTap);
     partnerSprite.addEventListener('touchstart', handleVisualTap, { passive: true });
-    growBtn.addEventListener('click', toggleGrowthMode);
     genesisArena.addEventListener('click', (e) => {
     if (!genesisState.isActive || !genesisState.player) return;
 
@@ -6544,11 +6562,26 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     const enterRiftBtn = document.getElementById('enter-rift-btn');
     if (enterRiftBtn) {
         enterRiftBtn.addEventListener('click', () => {
+            if (gameState.level < RIFT_UNLOCK_LEVEL) {
+                showToast(`The Endless Rift requires Level ${RIFT_UNLOCK_LEVEL}.`);
+                return;
+            }
             if (gameState.expedition && gameState.expedition.active) {
                 showToast("Cannot enter the Rift while on an expedition.");
                 return;
             }
             Rift.start();
+        });
+    }
+    const endlessBtn = document.getElementById('endless-btn');
+    if(endlessBtn) {
+        endlessBtn.addEventListener('click', () => {
+            // This re-uses the existing genesis system for Endless mode
+            stopGameGenesis(); 
+            genesisState.isBattleMode = false; // Ensure it's set to endless mode
+            gameState.resources.hp = gameState.resources.maxHp;
+            updateUI();
+            startGameGenesis();
         });
     }
 
