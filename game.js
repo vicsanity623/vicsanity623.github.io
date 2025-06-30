@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.0.2.1";  // Revert rift joystick fix
+    const GAME_VERSION = "1.0.2.4";  // Revert rift joystick fix
       
     let gameState = {};
     let audioCtx = null;
@@ -973,142 +973,167 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       function updateUI() {
-        if (!gameState.stats) return;
-        HungerSystem.updateBar();
-    
-        const oldMaxHp = gameState.resources.maxHp;
-        const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
-        const baseMaxHp = 100 + (gameState.level - 1) * 10;
-        const baseMaxEnergy = 100 + (gameState.level - 1) * 5;
-        let energyUpgradeBonus = 0;
-        if (gameState.permanentUpgrades.energyTraining) {
-            const upgradeLevel = gameState.permanentUpgrades.energyTraining;
-            const upgradeData = permanentShopUpgrades.energyTraining;
-            energyUpgradeBonus = upgradeLevel * upgradeData.bonus;
-        }
-        const hpPotentialBonus = getPotentialBonus('hp_percent');
-        gameState.resources.maxHp = Math.round((baseMaxHp + vigorBonus) * (1 + hpPotentialBonus / 100));
-        const staminaBonus = getAwakeningBonus('stamina') * 25;
-        gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus + energyUpgradeBonus + staminaBonus;
-        if (gameState.resources.maxHp > oldMaxHp) {
-            const hpIncrease = gameState.resources.maxHp - oldMaxHp;
-            gameState.resources.hp += hpIncrease;
-        }
-        gameState.resources.hp = Math.min(gameState.resources.hp, gameState.resources.maxHp);
+            if (!gameState.stats) return;
         
-        playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
-        worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
-        const xpForNext = getXpForNextLevel(gameState.level);
-        healthBarFill.style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
-        healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
-        energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
-        energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
-        xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
-        xpBarLabel.textContent = `XP: ${formatNumber(Math.floor(gameState.xp))} / ${formatNumber(xpForNext)}`;
-    
-        const defaultStatColor = 'var(--text-color)';
-        const statColors = {};
-        const statSourceRarityIndex = {};
-        const statKeys = ['strength', 'fortitude', 'agility', 'stamina', 'critChance', 'goldFind'];
-        statKeys.forEach(key => {
-            statColors[key] = defaultStatColor;
-            statSourceRarityIndex[key] = -1;
-        });
-    
-        for (const slot in gameState.equipment) {
-            const item = gameState.equipment[slot];
-            if (item) {
-                const itemRarityIndex = RARITY_ORDER.indexOf(item.rarity.key);
-                for (const statName in item.stats) {
-                    if (statSourceRarityIndex.hasOwnProperty(statName) && itemRarityIndex > statSourceRarityIndex[statName]) {
-                        statSourceRarityIndex[statName] = itemRarityIndex;
-                        statColors[statName] = item.rarity.color;
+            // --- THIS IS THE FIX: Declare all element variables at the top ---
+            const endlessBtn = document.getElementById('endless-btn');
+            const endlessUnlockText = document.getElementById('endless-unlock-text');
+            const forgeBtn = document.getElementById('forge-btn');
+            const forgeUnlockText = document.getElementById('forge-unlock-text');
+            const pvpBtn = document.getElementById('pvp-btn');
+            const pvpUnlockText = document.getElementById('pvp-unlock-text');
+            const enterRiftBtn = document.getElementById('enter-rift-btn');
+            const riftUnlockText = document.getElementById('rift-unlock-text');
+            const expeditionBtn = document.getElementById('expedition-btn');
+            const inventoryBtn = document.getElementById('inventory-btn');
+            const shopBtn = document.getElementById('shop-btn');
+            const ascensionBtn = document.getElementById('ascension-btn');
+            // --- END OF FIX ---
+        
+            HungerSystem.updateBar();
+        
+            const onExpedition = gameState.expedition.active;
+            const oldMaxHp = gameState.resources.maxHp;
+            const vigorBonus = (gameState.ascension.perks.vigor || 0) * 10;
+            const baseMaxHp = 100 + (gameState.level - 1) * 10;
+            const baseMaxEnergy = 100 + (gameState.level - 1) * 5;
+            let energyUpgradeBonus = 0;
+            if (gameState.permanentUpgrades.energyTraining) {
+                const upgradeLevel = gameState.permanentUpgrades.energyTraining;
+                const upgradeData = permanentShopUpgrades.energyTraining;
+                energyUpgradeBonus = upgradeLevel * upgradeData.bonus;
+            }
+            const hpPotentialBonus = getPotentialBonus('hp_percent');
+            gameState.resources.maxHp = Math.round((baseMaxHp + vigorBonus) * (1 + hpPotentialBonus / 100));
+            const staminaBonus = getAwakeningBonus('stamina') * 25;
+            gameState.resources.maxEnergy = baseMaxEnergy + vigorBonus + energyUpgradeBonus + staminaBonus;
+            if (gameState.resources.maxHp > oldMaxHp) {
+                const hpIncrease = gameState.resources.maxHp - oldMaxHp;
+                gameState.resources.hp += hpIncrease;
+            }
+            gameState.resources.hp = Math.min(gameState.resources.hp, gameState.resources.maxHp);
+            
+            playerNameLevel.textContent = `${gameState.playerName} Lv. ${gameState.level}`;
+            worldTierDisplay.textContent = `World Tier: ${gameState.ascension.tier}`;
+            const xpForNext = getXpForNextLevel(gameState.level);
+            healthBarFill.style.width = `${(gameState.resources.hp / gameState.resources.maxHp) * 100}%`;
+            healthBarLabel.textContent = `HP: ${Math.floor(gameState.resources.hp)} / ${gameState.resources.maxHp}`;
+            energyBarFill.style.width = `${(gameState.resources.energy / gameState.resources.maxEnergy) * 100}%`;
+            energyBarLabel.textContent = `Energy: ${Math.floor(gameState.resources.energy)} / ${gameState.resources.maxEnergy}`;
+            xpBarFill.style.width = `${(gameState.xp / xpForNext) * 100}%`;
+            xpBarLabel.textContent = `XP: ${formatNumber(Math.floor(gameState.xp))} / ${formatNumber(xpForNext)}`;
+        
+            const defaultStatColor = 'var(--text-color)';
+            const statColors = {};
+            const statSourceRarityIndex = {};
+            const statKeys = ['strength', 'fortitude', 'agility', 'stamina', 'critChance', 'goldFind'];
+            statKeys.forEach(key => {
+                statColors[key] = defaultStatColor;
+                statSourceRarityIndex[key] = -1;
+            });
+        
+            for (const slot in gameState.equipment) {
+                const item = gameState.equipment[slot];
+                if (item) {
+                    const itemRarityIndex = RARITY_ORDER.indexOf(item.rarity.key);
+                    for (const statName in item.stats) {
+                        if (statSourceRarityIndex.hasOwnProperty(statName) && itemRarityIndex > statSourceRarityIndex[statName]) {
+                            statSourceRarityIndex[statName] = itemRarityIndex;
+                            statColors[statName] = item.rarity.color;
+                        }
                     }
                 }
             }
-        }
-        if (gameState.level < ENDLESS_UNLOCK_LEVEL) {
-            growBtn.textContent = `Endless (Lvl ${ENDLESS_UNLOCK_LEVEL})`;
-        } else {
-            // If Endless mode is active, the button should say "Grow"
-            // If not active, it should say "Endless"
-            growBtn.textContent = genesisState.isActive ? 'Grow' : 'Endless';
-        }
-    
-        const createStatRow = (label, value, statKey) => {
-            const color = statColors[statKey] || defaultStatColor;
-            const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
-            return `<div class="stat-item"><span class="stat-label">${label}</span><span class="stat-value" style="color: ${color};">${value} ${starIcon}</span></div>`;
-        };
-    
-        let coreStatsHtml = `
-            ${createStatRow('STR', getTotalStat('strength'), 'strength')}
-            ${createStatRow('FOR', getTotalStat('fortitude'), 'fortitude')}
-            ${createStatRow('AGI', getTotalStat('agility'), 'agility')}
-            ${createStatRow('STA', getTotalStat('stamina'), 'stamina')}
-            <hr class="stat-divider">
-            ${createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance')}
-            ${createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind')}
-            <hr class="stat-divider">
-            <div class="stat-item">
-                <span class="stat-label">Gold</span>
-                <div class="gold-rewards-row">
-                    <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
-                    <span class="edgestone-display"><span>♦️</span><span>${(gameState.edgeStones || 0).toFixed(4)}</span></span>
-                    <span class="orb-display"><span>🔮</span><span>${(gameState.orbs || 0).toFixed(1)}</span></span>
-                    <span class="potion-display"><span>🧪</span><span>${gameState.healthPotions || 0}</span></span>
-                    <button id="rewards-btn" title="View Daily & Weekly Rewards">📅</button>
-                </div>
-            </div>
-        `;
-    
-        // The panel now only contains the core stats and the button
-        playerStatPanel.innerHTML = `
-            ${coreStatsHtml}
-            <button id="toggle-modifiers-btn">Show Details</button>
-        `;
-    
-        updateBuffDisplay();
-        const onExpedition = gameState.expedition.active;
-        characterSprite.style.display = onExpedition ? 'none' : 'block';
-        expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
-        windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
-                  
-        const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
-        forgeBtn.disabled = onExpedition || !canUseForge;
-        forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
-        if (ascensionBtn) {
-          if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
-              ascensionBtn.style.display = 'block';
-          } else {
-              ascensionBtn.style.display = 'none';
-          }
-        }
-        const canUsePvp = gameState.level >= PVP_UNLOCK_LEVEL;
-        pvpBtn.disabled = onExpedition || !canUsePvp;
-        pvpUnlockText.textContent = canUsePvp ? "" : `Unlocks at LVL ${PVP_UNLOCK_LEVEL}`;
-        const canUseRift = gameState.level >= RIFT_UNLOCK_LEVEL;
-        const enterRiftBtn = document.getElementById('enter-rift-btn');
-        if (enterRiftBtn) {
-            enterRiftBtn.disabled = onExpedition || !canUseRift;
-        }
-        if (riftUnlockText) {
-            riftUnlockText.textContent = canUseRift ? "" : `Unlocks at LVL ${RIFT_UNLOCK_LEVEL}`;
-        }
-        feedBtn.disabled = onExpedition; 
-        inventoryBtn.disabled = onExpedition; 
-        shopBtn.disabled = onExpedition;
-  
-        if (onExpedition) {
-            expeditionBtn.textContent = `On Expedition`; expeditionBtn.disabled = true;
-            if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
-        } else { expeditionBtn.textContent = `Expedition`; expeditionBtn.disabled = false; }
         
-        if (gameState.tutorialCompleted) { tutorialOverlay.classList.remove('visible'); } else { tutorialOverlay.classList.add('visible'); }
-  
-        switchCharacterBtn.style.display = gameState.hasEgg ? 'block' : 'none';
-        updatePartnerUI();
-      }
+            const createStatRow = (label, value, statKey) => {
+                const color = statColors[statKey] || defaultStatColor;
+                const starIcon = color !== defaultStatColor ? '<span class="equipped-icon">⭐</span>' : '';
+                return `<div class="stat-item"><span class="stat-label">${label}</span><span class="stat-value" style="color: ${color};">${value} ${starIcon}</span></div>`;
+            };
+        
+            let coreStatsHtml = `
+                ${createStatRow('STR', getTotalStat('strength'), 'strength')}
+                ${createStatRow('FOR', getTotalStat('fortitude'), 'fortitude')}
+                ${createStatRow('AGI', getTotalStat('agility'), 'agility')}
+                ${createStatRow('STA', getTotalStat('stamina'), 'stamina')}
+                <hr class="stat-divider">
+                ${createStatRow('Crit %', `${getTotalStat('critChance').toFixed(2)}%`, 'critChance')}
+                ${createStatRow('Gold %', `${getTotalStat('goldFind').toFixed(2)}%`, 'goldFind')}
+                <hr class="stat-divider">
+                <div class="stat-item">
+                    <span class="stat-label">Gold</span>
+                    <div class="gold-rewards-row">
+                        <span class="stat-value stat-value-gold">${formatNumber(Math.floor(gameState.gold))}</span>
+                        <span class="edgestone-display"><span>♦️</span><span>${(gameState.edgeStones || 0).toFixed(4)}</span></span>
+                        <span class="orb-display"><span>🔮</span><span>${(gameState.orbs || 0).toFixed(1)}</span></span>
+                        <span class="potion-display"><span>🧪</span><span>${gameState.healthPotions || 0}</span></span>
+                        <button id="rewards-btn" title="View Daily & Weekly Rewards">📅</button>
+                    </div>
+                </div>
+            `;
+        
+            playerStatPanel.innerHTML = `${coreStatsHtml}<button id="toggle-modifiers-btn">Show Details</button>`;
+            updateBuffDisplay();
+            characterSprite.style.display = onExpedition ? 'none' : 'block';
+            expeditionTimerDisplay.style.display = onExpedition ? 'block' : 'none';
+            windAnimationContainer.style.display = onExpedition ? 'block' : 'none';
+                    
+            const canUseForge = gameState.level >= FORGE_UNLOCK_LEVEL;
+            if(forgeBtn) forgeBtn.disabled = onExpedition || !canUseForge;
+            if(forgeUnlockText) forgeUnlockText.textContent = canUseForge ? "" : `Unlocks at LVL ${FORGE_UNLOCK_LEVEL}`;
+            
+            if (ascensionBtn) {
+            if (gameState.level >= ASCENSION_LEVEL || gameState.ascension.tier > 1) {
+                ascensionBtn.style.display = 'block';
+            } else {
+                ascensionBtn.style.display = 'none';
+            }
+            }
+            const canUsePvp = gameState.level >= PVP_UNLOCK_LEVEL;
+            if(pvpBtn) pvpBtn.disabled = onExpedition || !canUsePvp;
+            if(pvpUnlockText) pvpUnlockText.textContent = canUsePvp ? "" : `Unlocks at LVL ${PVP_UNLOCK_LEVEL}`;
+            
+            const canUseRift = gameState.level >= RIFT_UNLOCK_LEVEL;
+            if (enterRiftBtn) {
+                enterRiftBtn.disabled = onExpedition || !canUseRift;
+            }
+            if (riftUnlockText) {
+                riftUnlockText.textContent = canUseRift ? "" : `Unlocks at LVL ${RIFT_UNLOCK_LEVEL}`;
+            }
+        
+            const canUseEndless = gameState.level >= ENDLESS_UNLOCK_LEVEL;
+            if (endlessBtn) {
+                endlessBtn.disabled = onExpedition || !canUseEndless;
+            }
+            if (endlessUnlockText) {
+                endlessUnlockText.textContent = canUseEndless ? "" : `Unlocks at LVL ${ENDLESS_UNLOCK_LEVEL}`;
+            }
+        
+            if(feedBtn) feedBtn.disabled = onExpedition; 
+            if(inventoryBtn) inventoryBtn.disabled = onExpedition; 
+            if(shopBtn) shopBtn.disabled = onExpedition;
+        
+            if (onExpedition) {
+                if(expeditionBtn) {
+                    expeditionBtn.textContent = `On Expedition`;
+                    expeditionBtn.disabled = true;
+                }
+                if (!expeditionInterval) { expeditionInterval = setInterval(updateExpeditionTimer, 1000); updateExpeditionTimer(); }
+            } else {
+                if(expeditionBtn) {
+                    expeditionBtn.textContent = `Expedition`;
+                    expeditionBtn.disabled = false;
+                }
+            }
+            
+            if (tutorialOverlay) {
+                if (gameState.tutorialCompleted) { tutorialOverlay.classList.remove('visible'); } 
+                else { tutorialOverlay.classList.add('visible'); }
+            }
+        
+            if(switchCharacterBtn) switchCharacterBtn.style.display = gameState.hasEgg ? 'block' : 'none';
+            updatePartnerUI();
+        }
       function renderAndShowDetailedStats() {
             const listContainer = document.getElementById('detailed-stats-list');
             const modal = document.getElementById('detailed-stats-modal');
@@ -3405,22 +3430,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             updateUI(); // Update UI to ensure button text is correct
         }
         function toggleGrowthMode() {
-            // Check if the Genesis Arena (Endless Mode) is currently active
+            // This function's only job is to stop Endless Mode if it's active.
             if (genesisState.isActive) {
-                // ...
-            } else {
-                // If it's not active, check if the player is high enough level
-                if (gameState.level < ENDLESS_UNLOCK_LEVEL) {
-                    showToast(`You must reach Level ${ENDLESS_UNLOCK_LEVEL} to unlock Endless mode.`);
-                    playSound('hit', 0.6, 'sawtooth', 200, 50, 0.15); // Error sound
-                    return;
-                }
-
-                // If they are, start the Endless mode
-                genesisArena.style.display = 'block';
-                characterArea.style.display = 'none';
-                startGameGenesis();
-                growBtn.textContent = 'Grow'; // Button now lets you go back to Grow mode
+                stopGameGenesis(); // Stop the game loop
+                characterArea.style.display = 'flex'; // Show the "Grow" character
+                genesisArena.style.display = 'none'; // Hide the Endless arena
+                updateUI(); // Refresh the UI to show the correct button states
             }
         }
         function handleLootCollection() {
@@ -6576,6 +6591,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     const endlessBtn = document.getElementById('endless-btn');
     if(endlessBtn) {
         endlessBtn.addEventListener('click', () => {
+            // Add the level check back in
+            if (gameState.level < ENDLESS_UNLOCK_LEVEL) {
+                showToast(`You must reach Level ${ENDLESS_UNLOCK_LEVEL} to unlock Endless mode.`);
+                return;
+            }
             // This re-uses the existing genesis system for Endless mode
             stopGameGenesis(); 
             genesisState.isBattleMode = false; // Ensure it's set to endless mode
