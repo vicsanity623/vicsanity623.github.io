@@ -1,5 +1,5 @@
 // A version number for your cache. Change this when you update files.
-const CACHE_VERSION = 'v5.0.9'; // Use a new version number
+const CACHE_VERSION = 'v1.0.2.4'; // Use a new version number
 const CACHE_NAME = `tap-guardian-cache-${CACHE_VERSION}`;
 
 // A list of the essential files your game needs to work.
@@ -10,6 +10,7 @@ const FILES_TO_CACHE = [
   './game.js',
   // Add 'rift.js' and other files here ONLY when they are created and uploaded.
   './player.PNG',
+  './clouds.PNG',
   './egg.png',
   './main.mp3',
   './battle.mp3',
