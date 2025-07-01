@@ -3,8 +3,22 @@ import { enemyPath, spawnEnemy, updateEnemies } from './enemies.js';
 import { fireProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber } from './attacks_skills.js';
 import { initRift, expandWorld, getBackgroundCanvas } from './rift.js';
 
+// --- Firebase Variables (Declared but not initialized) ---
+let auth, firestore, googleProvider, currentUser;
+
+// --- Firebase Config (This is safe to define here) ---
+const firebaseConfig = {
+    apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
+    authDomain: "tap-guardian-rpg.firebaseapp.com",
+    projectId: "tap-guardian-rpg",
+    storageBucket: "tap-guardian-rpg.firebasestorage.app",
+    messagingSenderId: "50272459426",
+    appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
+    measurementId: "G-XJRE7YNPZR"
+};
+
 // --- Global State ---
-let gameState = { isRunning: true, isAutoMode: false, gameTime: 0, lastTime: 0, enemySpawnTimer: 0, enemySpawnInterval: 1500, saveIntervalId: null, animationFrameId: null };
+let gameState = { isRunning: false, isAutoMode: false, gameTime: 0, lastTime: 0, enemySpawnTimer: 0, enemySpawnInterval: 1500, saveIntervalId: null, animationFrameId: null };
 let enemies = [], projectiles = [], xpOrbs = [], particles = [], damageNumbers = [], lightningBolts = [], volcanicEruptions = [], visualEffects = [], skillTotems = [];
 let world = { width: 3000, height: 2000 };
 let safeHouse = {};
@@ -13,23 +27,47 @@ let screenFlash = { value: 0 };
 let screenRedFlash = { value: 0 };
 
 // --- DOM and Canvas ---
-let canvas, ctx, hudElements;
+let canvas, ctx, hudElements, menuElements;
 const keys = { w: false, a: false, s: false, d: false };
 const joystick = { active: false, baseX: 0, baseY: 0, handleX: 0, handleY: 0, radius: 60, handleRadius: 25 };
 
-// --- Upgrade Pool ---
+// --- Upgrade Pool (Unchanged) ---
 const UPGRADE_POOL = [ { id: "might", title: "Might", maxLevel: 5, description: (level) => `Increase projectile damage by 5. (Lvl ${level + 1})`, apply: (p) => { p.weapon.damage += 5; } }, { id: "haste", title: "Haste", maxLevel: 5, description: (level) => `Attack 15% faster. (Lvl ${level + 1})`, apply: (p) => { p.weapon.cooldown *= 0.85; } }, { id: "vitality", title: "Vitality", description: (level) => `Increase Max HP by 25. (Lvl ${level + 1})`, apply: (p) => { p.maxHealth += 25; p.health += 25; } }, { id: "recovery", title: "Recovery", maxLevel: 3, description: (level) => `Heal ${0.5 * (level + 1)} HP/sec. (Lvl ${level + 1})`, apply: (p) => { p.healthRegen += 0.5; } }, { id: "agility", title: "Agility", maxLevel: 3, description: (level) => `Increase movement speed. (Lvl ${level + 1})`, apply: (p) => { p.speed *= 1.10; } }, { id: "multishot", title: "Multi-Shot", maxLevel: 4, description: (level) => `Fire ${level + 2} total projectiles.`, apply: (p) => { p.weapon.count += 1; } }, { id: "impact", title: "Greater Impact", maxLevel: 3, description: (level) => `Increase projectile size. (Lvl ${level + 1})`, apply: (p) => { p.weapon.size.h *= 1.25; } }, { id: "pierce", title: "Piercing Shots", maxLevel: 3, description: (level) => `Projectiles pierce ${level + 1} more enemies.`, apply: (p) => { p.weapon.pierce += 1; } }, { id: "wisdom", title: "Wisdom", maxLevel: 3, description: (level) => `Gain ${20 * (level + 1)}% more XP. (Lvl ${level + 1})`, apply: (p) => { p.xpGainModifier += 0.20; } }, { id: "greed", title: "Greed", maxLevel: 3, description: (level) => `Increase XP pickup radius. (Lvl ${level + 1})`, apply: (p) => { p.pickupRadius += 75; } }, { id: "lethality", title: "Lethality", maxLevel: 5, description: (level) => `+10% chance to deal double damage. (Lvl ${level + 1})`, apply: (p) => { p.weapon.critChance += 0.1; } }, { id: "soul_vortex", title: "Soul Vortex", maxLevel: 1, description: (level) => `Gain an orbiting soul that damages enemies.`, apply: (p) => { p.abilities.orbitingShield.enabled = true; } }, { id: "rear_guard", title: "Rear Guard", maxLevel: 1, description: (level) => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; } }, { id: "crossfire", title: "Crossfire", maxLevel: 1, description: (level) => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; } }, { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: (level) => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(p, 50, 200); } }, { id: "volcano_damage", title: "Magma Core", maxLevel: 5, skill: "volcano", description: (level) => `Increase eruption damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.damage += 10; } }, { id: "volcano_radius", title: "Wide Eruption", maxLevel: 3, skill: "volcano", description: (level) => `Increase eruption radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.radius *= 1.2; } }, { id: "volcano_cooldown", title: "Frequent Fissures", maxLevel: 3, skill: "volcano", description: (level) => `Eruptions occur more frequently. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.cooldown *= 0.8; } }, { id: "lightning_chains", title: "Chain Lightning", maxLevel: 4, skill: "lightning", description: (level) => `Lightning chains to ${level + 2} enemies.`, apply: (p) => { p.skills.lightning.chains += 1; } }, { id: "lightning_damage", title: "High Voltage", maxLevel: 5, skill: "lightning", description: (level) => `Increase lightning damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.damage += 5; } }, { id: "lightning_shock", title: "Static Field", maxLevel: 3, skill: "lightning", description: (level) => `Lightning shocks enemies, dealing damage over time. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.shockDuration += 1000; } }, ];
 
+// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
+    // *** CORE FIX: Initialize Firebase here ***
+    firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    firestore = firebase.firestore();
+    googleProvider = new firebase.auth.GoogleAuthProvider();
+    // ****************************************
+
+    // Select all DOM elements
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
-    hudElements = { level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'), };
+    menuElements = {
+        mainMenu: document.getElementById('main-menu'),
+        newGameBtn: document.getElementById('newGameBtn'),
+        loadOptionsContainer: document.getElementById('load-options-container'),
+        googleSignInBtn: document.getElementById('googleSignInBtn'),
+        userStatus: document.getElementById('userStatus'),
+        userDisplay: document.getElementById('user-display'),
+        userName: document.getElementById('userName'),
+        signOutBtn: document.getElementById('signOutBtn'),
+    };
+    hudElements = { 
+        gameContainer: document.getElementById('game-container'),
+        level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'), 
+    };
     
+    // Setup initial state and listeners
     initRift();
     setupEventListeners();
-    initGame();
+    checkSaveStates();
 });
 
+// --- EVENT LISTENERS ---
 function setupEventListeners() {
     function resizeCanvas() {
         canvas.width = canvas.clientWidth;
@@ -46,88 +84,209 @@ function setupEventListeners() {
     canvas.addEventListener('touchend', (e) => { e.preventDefault(); joystick.active = false; }, { passive: false });
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-    hudElements.restartButton.addEventListener('click', () => initGame(true));
+    
+    // Menu and Auth Buttons
+    menuElements.newGameBtn.addEventListener('click', () => startGame(true));
+    menuElements.googleSignInBtn.addEventListener('click', signInWithGoogle);
+    menuElements.signOutBtn.addEventListener('click', () => auth.signOut());
+    
+    // In-Game Buttons
+    hudElements.restartButton.addEventListener('click', () => {
+        hudElements.gameOverScreen.classList.remove('visible');
+        menuElements.mainMenu.classList.add('visible');
+        hudElements.gameContainer.style.visibility = 'hidden';
+        checkSaveStates();
+    });
     hudElements.autoModeButton.addEventListener('click', () => { gameState.isAutoMode = !gameState.isAutoMode; hudElements.autoModeButton.textContent = gameState.isAutoMode ? 'AUTO ON' : 'AUTO OFF'; hudElements.autoModeButton.classList.toggle('auto-on', gameState.isAutoMode); });
+
+    // Firebase Auth Listener
+    auth.onAuthStateChanged(user => {
+        currentUser = user;
+        if (user) {
+            menuElements.userStatus.textContent = `Signed in as ${user.displayName}.`;
+            menuElements.googleSignInBtn.style.display = 'none';
+            menuElements.userDisplay.style.display = 'block';
+            menuElements.userName.textContent = user.displayName;
+        } else {
+            menuElements.userStatus.textContent = 'Sign in for cloud saves.';
+            menuElements.googleSignInBtn.style.display = 'flex';
+            menuElements.userDisplay.style.display = 'none';
+        }
+        checkSaveStates();
+    });
 }
 
-function initGame(forceNew = false) {
+// --- AUTH & SAVE/LOAD ---
+function signInWithGoogle() {
+    auth.signInWithPopup(googleProvider).catch(error => {
+        console.error("Google Sign-In Error:", error);
+        alert("Could not sign in with Google. Please try again.");
+    });
+}
+
+async function checkSaveStates() {
+    const localSaveExists = !!localStorage.getItem('survivorSaveData');
+    let cloudSaveExists = false;
+
+    if (currentUser) {
+        const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
+        const doc = await saveRef.get().catch(e => console.error(e));
+        if (doc && doc.exists) {
+            cloudSaveExists = true;
+        }
+    }
+
+    menuElements.loadOptionsContainer.innerHTML = ''; // Clear previous buttons
+
+    if (cloudSaveExists) {
+        const cloudBtn = document.createElement('button');
+        cloudBtn.id = 'loadCloudBtn';
+        cloudBtn.className = 'menu-button';
+        cloudBtn.textContent = 'Load Cloud Save';
+        cloudBtn.onclick = () => startGame(false, 'cloud');
+        menuElements.loadOptionsContainer.appendChild(cloudBtn);
+    }
+    
+    if (localSaveExists) {
+        const localBtn = document.createElement('button');
+        localBtn.id = 'loadLocalBtn';
+        localBtn.className = 'menu-button';
+        localBtn.textContent = 'Load Local Save';
+        localBtn.onclick = () => startGame(false, 'local');
+        menuElements.loadOptionsContainer.appendChild(localBtn);
+    }
+
+    if (!cloudSaveExists && !localSaveExists) {
+        const noSaveBtn = document.createElement('button');
+        noSaveBtn.id = 'loadGameBtn';
+        noSaveBtn.className = 'menu-button';
+        noSaveBtn.textContent = 'No Save Found';
+        noSaveBtn.disabled = true;
+        menuElements.loadOptionsContainer.appendChild(noSaveBtn);
+    }
+}
+
+async function saveGame() {
+    if (!player || !gameState.isRunning) return;
+    // Create a clean savable object from the player proxy
+    const savablePlayer = JSON.parse(JSON.stringify(player));
+    const saveData = {
+        player: savablePlayer,
+        gameTime: gameState.gameTime,
+        skillTotems: skillTotems,
+        world: world,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (currentUser) {
+        const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
+        try {
+            await saveRef.set(saveData);
+        } catch (error) {
+            console.error("Error saving to cloud:", error);
+        }
+    }
+    
+    localStorage.setItem('survivorSaveData', JSON.stringify(saveData));
+}
+
+async function loadGame(source) {
+    let savedData = null;
+    try {
+        if (source === 'cloud' && currentUser) {
+            const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
+            const doc = await saveRef.get();
+            if (doc.exists) {
+                savedData = doc.data();
+                console.log("Game loaded from cloud.");
+            }
+        } else if (source === 'local') {
+            const localData = localStorage.getItem('survivorSaveData');
+            if (localData) savedData = JSON.parse(localData);
+            console.log("Game loaded locally.");
+        }
+    } catch(error) {
+        console.error("Error loading game:", error);
+        return false;
+    }
+    
+    if (savedData) {
+        loadPlayer(savedData.player);
+        gameState.gameTime = savedData.gameTime;
+        skillTotems = savedData.skillTotems || [];
+        if (savedData.world) {
+            world.width = savedData.world.width;
+            world.height = savedData.world.height;
+        }
+        return true;
+    }
+    return false;
+}
+
+function clearSave() {
+    localStorage.removeItem('survivorSaveData');
+    if (currentUser) {
+        firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default').delete().catch(e => console.error("Error clearing cloud save:", e));
+    }
+}
+
+// --- GAME LIFECYCLE ---
+async function startGame(forceNew, loadSource = 'cloud') {
+    menuElements.mainMenu.classList.remove('visible');
+    hudElements.gameContainer.style.visibility = 'visible';
+    
     gameState.isAutoMode = false;
     if (gameState.saveIntervalId) clearInterval(gameState.saveIntervalId);
 
-    if (!forceNew && loadGame()) {
-        gameState.isRunning = true;
-        gameState.lastTime = performance.now();
-        gameState.enemySpawnTimer = 0;
-        gameState.enemySpawnInterval = Math.max(100, 1500 * Math.pow(0.985, gameState.gameTime / 1000));
-        enemies.length = 0; projectiles.length = 0; xpOrbs.length = 0; particles.length = 0; damageNumbers.length = 0; lightningBolts.length = 0; volcanicEruptions.length = 0; visualEffects.length = 0;
-        safeHouse = { x: world.width / 2, y: world.height / 2, radius: 150, healingRate: 10 };
-    } else {
+    let loadedSuccessfully = false;
+    if (!forceNew) {
+        // Prioritize cloud save if logged in and that's the source
+        const sourceToLoad = currentUser ? loadSource : 'local';
+        loadedSuccessfully = await loadGame(sourceToLoad);
+    }
+    
+    if (forceNew || !loadedSuccessfully) {
         clearSave();
         world.width = 3000; world.height = 2000;
         initPlayer(world);
         gameState.gameTime = 0;
-        gameState.enemySpawnInterval = 1500;
-        enemies.length = 0; projectiles.length = 0; xpOrbs.length = 0; particles.length = 0; damageNumbers.length = 0; lightningBolts.length = 0; volcanicEruptions.length = 0; visualEffects.length = 0;
-        safeHouse = { x: world.width / 2, y: world.height / 2, radius: 150, healingRate: 10 };
         skillTotems = [ { x: world.width / 2 - 200, y: world.height / 2 - 200, radius: 30, skill: 'lightning', color: 'var(--lightning-color)', icon: '⚡' }, { x: world.width / 2 + 200, y: world.height / 2 + 200, radius: 30, skill: 'volcano', color: 'var(--volcano-color)', icon: '🔥' } ];
     }
-
+    
+    initRift();
+    
+    gameState.lastTime = performance.now();
+    gameState.enemySpawnTimer = 0;
+    gameState.enemySpawnInterval = Math.max(100, 1500 * Math.pow(0.985, gameState.gameTime / 1000));
+    enemies.length = 0; projectiles.length = 0; xpOrbs.length = 0; particles.length = 0; damageNumbers.length = 0; lightningBolts.length = 0; volcanicEruptions.length = 0; visualEffects.length = 0;
+    safeHouse = { x: world.width / 2, y: world.height / 2, radius: 150, healingRate: 10 };
+    
     hudElements.levelUpWindow.classList.remove('visible');
     hudElements.gameOverScreen.classList.remove('visible');
     hudElements.autoModeButton.textContent = 'AUTO OFF';
     hudElements.autoModeButton.classList.remove('auto-on');
     gameState.isRunning = true;
     gameState.saveIntervalId = setInterval(saveGame, 10000);
+    
     if (gameState.animationFrameId) cancelAnimationFrame(gameState.animationFrameId);
     gameLoop(performance.now());
 }
 
-function getAiMovementVector() {
-    const DANGER_RADIUS = 150; const XP_PRIORITY_RADIUS = 200;
-    const REPULSION_WEIGHT = 1.5; const ATTRACTION_WEIGHT = 1.0; const TOTEM_WEIGHT = 2.0;
-    let repulsion = { x: 0, y: 0 }; let attraction = { x: 0, y: 0 };
-
-    enemies.forEach(enemy => {
-        const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-        if (dist < DANGER_RADIUS && dist > 0) {
-            const force = 1 / (dist * dist);
-            repulsion.x -= (enemy.x - player.x) / dist * force;
-            repulsion.y -= (enemy.y - player.y) / dist * force;
-        }
-    });
-
-    let closestOrb = null, closestOrbDist = Infinity;
-    xpOrbs.forEach(orb => {
-        const dist = Math.hypot(orb.x - player.x, orb.y - player.y);
-        if (dist < closestOrbDist) { closestOrbDist = dist; closestOrb = orb; }
-    });
-
-    let closestEnemy = null, closestEnemyDist = Infinity;
-    enemies.forEach(enemy => {
-        const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-        if (dist < closestEnemyDist) { closestEnemyDist = dist; closestEnemy = enemy; }
-    });
-    
-    let closestTotem = null, closestTotemDist = Infinity;
-    skillTotems.forEach(totem => {
-        const dist = Math.hypot(totem.x - player.x, totem.y - player.y);
-        if(dist < closestTotemDist) { closestTotemDist = dist; closestTotem = totem; }
-    });
-
-    let target = closestEnemy;
-    if (closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) target = closestOrb;
-    if (closestTotem) target = closestTotem;
-
-    if (target) {
-        const dist = Math.hypot(target.x - player.x, target.y - player.y);
-        if (dist > 0) {
-            const weight = (target === closestTotem) ? TOTEM_WEIGHT : ATTRACTION_WEIGHT;
-            attraction.x = (target.x - player.x) / dist * weight;
-            attraction.y = (target.y - player.y) / dist * weight;
-        }
-    }
-    return { x: attraction.x + (repulsion.x * REPULSION_WEIGHT), y: attraction.y + (repulsion.y * REPULSION_WEIGHT) };
+function gameOver() {
+    gameState.isRunning = false;
+    clearInterval(gameState.saveIntervalId);
+    gameState.saveIntervalId = null;
+    // Don't clear save on game over, let user decide from menu
+    // clearSave(); 
+    cancelAnimationFrame(gameState.animationFrameId);
+    hudElements.finalTime.textContent = formatTime(gameState.gameTime);
+    hudElements.finalLevel.textContent = player.level;
+    hudElements.finalKills.textContent = player.kills;
+    hudElements.gameOverScreen.classList.add('visible');
 }
+
+// ... Rest of the file is unchanged ...
+// (gameLoop, update, draw functions etc.)
 
 function gameLoop(timestamp) {
     if (!gameState.isRunning) return;
@@ -248,6 +407,8 @@ function handleCollisions() {
 }
 
 function draw() {
+    if(!gameState.isRunning && !hudElements.gameOverScreen.classList.contains('visible')) return;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
@@ -566,47 +727,5 @@ function selectUpgrade(upgrade) {
     requestAnimationFrame(gameLoop);
 }
 
-function gameOver() {
-    gameState.isRunning = false;
-    clearInterval(gameState.saveIntervalId);
-    gameState.saveIntervalId = null;
-    clearSave();
-    cancelAnimationFrame(gameState.animationFrameId);
-    hudElements.finalTime.textContent = formatTime(gameState.gameTime);
-    hudElements.finalLevel.textContent = player.level;
-    hudElements.finalKills.textContent = player.kills;
-    hudElements.gameOverScreen.classList.add('visible');
-}
-
-function saveGame() {
-    if (!player) return;
-    const saveData = {
-        player: player,
-        gameTime: gameState.gameTime,
-        skillTotems: skillTotems,
-        world: world
-    };
-    localStorage.setItem('survivorSaveData', JSON.stringify(saveData));
-}
-
-function loadGame() {
-    const savedData = localStorage.getItem('survivorSaveData');
-    if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        loadPlayer(parsedData.player);
-        gameState.gameTime = parsedData.gameTime;
-        skillTotems = parsedData.skillTotems;
-        if (parsedData.world) {
-            world.width = parsedData.world.width;
-            world.height = parsedData.world.height;
-        }
-        return true;
-    }
-    return false;
-}
-
-function clearSave() {
-    localStorage.removeItem('survivorSaveData');
-}
-
+// Export necessary variables for other modules
 export { gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles, damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems, safeHouse, screenFlash, screenRedFlash, UPGRADE_POOL };
