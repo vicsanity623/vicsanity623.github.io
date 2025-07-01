@@ -49,9 +49,7 @@ function loadPlayer(savedPlayer) {
     player = savedPlayer;
 }
 
-function updatePlayer(deltaTime, world, enemies, moveVector) {
-    // *** CORE FIX: Removed the entire if/else block for determining movement. ***
-    // We now ONLY use the moveVector provided by systemsmanager.js
+function updatePlayer(deltaTime, world, gameState, enemies, moveVector) {
     if (moveVector.dx !== 0 || moveVector.dy !== 0) {
         const mag = Math.hypot(moveVector.dx, moveVector.dy);
         player.x += (moveVector.dx / mag) * player.speed;
@@ -104,7 +102,7 @@ function gainXP(amount, showLevelUpOptionsCallback, expandWorldCallback, trigger
         }
 
         if (player.level > 0 && player.level % 20 === 0) {
-            expandWorldCallback(camera, player);
+            expandWorldCallback(camera);
         }
 
         player.xp = xpOver;
