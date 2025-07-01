@@ -1,4 +1,4 @@
-const CACHE_NAME = 'survivor-clone-cache-v1';
+const CACHE_NAME = 'survivor-clone-cache-v1.0.3';
 const urlsToCache = [
   '/',
   'index.html',
