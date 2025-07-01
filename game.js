@@ -54,7 +54,7 @@ function returnEffectToPool(type, element) {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const GAME_VERSION = "1.0.2.9";  // Revert rift exit fix
+    const GAME_VERSION = "1.0.3.0";  // Revert Rift overload bug fix
       
     let gameState = {};
     let audioCtx = null;
@@ -1247,7 +1247,30 @@ document.addEventListener('DOMContentLoaded', () => {
         saveGame();
       }
   
-      function showNotification(title, text) { modal.classList.add('visible'); modalTitle.textContent = title; modalText.innerHTML = text; }
+      function showNotification(title, text, onCloseCallback = null) {
+          // 1. Get references to the modal elements
+          const modal = document.getElementById('notification-modal');
+          const modalTitle = document.getElementById('modal-title');
+          const modalText = document.getElementById('modal-text');
+          const modalCloseBtn = document.getElementById('modal-close-btn');
+      
+          // 2. Populate and show the modal
+          modalTitle.textContent = title;
+          modalText.innerHTML = text;
+          modal.classList.add('visible');
+      
+          // 3. Set up the close button's behavior
+          // We use .onclick to ensure we replace any previous listener.
+          modalCloseBtn.onclick = () => {
+              // First, always hide the modal.
+              modal.classList.remove('visible');
+      
+              // Then, if a specific callback function was provided, execute it.
+              if (typeof onCloseCallback === 'function') {
+                  onCloseCallback();
+              }
+          };
+      }
       
       function updateFrenzyVisuals() {
             const multiplier = tapCombo.currentMultiplier;
@@ -6065,27 +6088,36 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         },
         
         createBossLootDrop: function(x, y) {
-            showToast("RIFT OVERLORD DEFEATED!");
-            playSound('victory', 1, 'triangle', 523, 1046, 0.4);
+            this.state.gameApi.showToast("RIFT OVERLORD DEFEATED!");
+            this.state.gameApi.playSound('victory', 1, 'triangle', 523, 1046, 0.4);
         
-            // --- BOSS BATTLES: Generate epic rewards ---
-            // Epic XP and Gold
-            this.state.loot.push({x: x-20, y: y-20, type: 'xp', amount: 5000 * this.state.currentWave, color: '#ffdc00'});
-            this.state.loot.push({x: x+20, y: y-20, type: 'gold', amount: 10000 * this.state.currentWave, color: 'gold'});
-            
-            // Epic Orbs
-            this.state.loot.push({x: x, y: y, type: 'orbs', amount: 50 + this.state.currentWave, color: '#87CEFA'});
+            // --- PAUSE AND RESUME FIX ---
         
-            // --- S-TIER ITEM DROP ---
-            // The `generateItem` function in your main game needs to support an 's_tier' parameter
-            // Assuming 's_tier' is a valid rarity in your generateItem function.
-            // We'll generate one weapon and one armor, and the player gets both.
-            const sTierWeapon = generateItem('legendary'); // Using legendary as a stand-in for S-Tier
-            const sTierArmor = generateItem('legendary');
+            // 1. Pause the Rift's game loop BEFORE showing the modal. This is critical.
+            cancelAnimationFrame(this.state.gameLoopId);
+            this.state.gameLoopId = null; // Set to null to indicate it's paused.
+        
+            // 2. Generate the rewards (this part is unchanged).
+            const sTierWeapon = this.state.gameApi.generateItem('legendary');
+            const sTierArmor = this.state.gameApi.generateItem('legendary');
             
+            // Add items to the main game state's inventory.
             gameState.inventory.push(sTierWeapon);
             gameState.inventory.push(sTierArmor);
-            showNotification("Overlord Vanquished!", `You found legendary items!<br><strong style="color:${sTierWeapon.rarity.color}">${sTierWeapon.name}</strong><br><strong style="color:${sTierArmor.rarity.color}">${sTierArmor.name}</strong>`);
+            
+            // Prepare the notification text.
+            const notificationText = `You found legendary items!<br><strong style="color:${sTierWeapon.rarity.color}">${sTierWeapon.name}</strong><br><strong style="color:${sTierArmor.rarity.color}">${sTierArmor.name}</strong>`;
+        
+            // 3. Define the "resume" function that will be our callback.
+            const resumeCallback = () => {
+                // Safety check: Only resume if the Rift is still supposed to be active and the loop isn't already running.
+                if (this.state.isActive && !this.state.gameLoopId) {
+                    this.state.gameLoopId = requestAnimationFrame(this.gameLoop.bind(this));
+                }
+            };
+        
+            // 4. Call the new, smarter showNotification, passing our resume function as the third argument.
+            this.state.gameApi.showNotification("Overlord Vanquished!", notificationText, resumeCallback);
         },
     
         updateRiftUI: function() {
