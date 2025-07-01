@@ -1,4 +1,4 @@
-const CACHE_NAME = 'survive-it-cache-v1.0.3';
+const CACHE_NAME = 'survive-it-cache-v1.0.5';
 const urlsToCache = [
   '/',
   'index.html',
