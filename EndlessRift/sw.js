@@ -1,7 +1,14 @@
-const CACHE_NAME = 'surviv-it-cache-v1.0.4';
+const CACHE_NAME = 'survive-it-cache-v1.0.3';
 const urlsToCache = [
   '/',
   'index.html',
+  'apple-touch-icon.png',
+  'favicon-16x16.png',
+  'favicon-32x32.png',
+  'favicon.ico',
+  'icon-192.png',
+  'icon-192.png',
+  'icon-512.png',
   'styles.css',
   'systemsmanager.js',
   'player.js',
