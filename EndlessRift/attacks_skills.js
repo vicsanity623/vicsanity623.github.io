@@ -1,4 +1,5 @@
 import { gameState, enemies, projectiles, xpOrbs, particles, damageNumbers, lightningBolts, volcanicEruptions, visualEffects, screenFlash, camera } from './systemsmanager.js';
+// Removed import from player.js to break the circular dependency
 
 function fireProjectile(p) {
     const fire = (angleOffset) => {
@@ -11,11 +12,6 @@ function fireProjectile(p) {
                 vy: Math.sin(angle) * p.weapon.speed,
                 damage: p.weapon.damage, pierce: p.weapon.pierce,
                 size: p.weapon.size, critChance: p.weapon.critChance,
-                // ADDED: Pass new weapon properties to the projectile object
-                critDamage: p.weapon.critDamage,
-                explodesOnImpact: p.weapon.explodesOnImpact,
-                explosionRadius: p.weapon.explosionRadius,
-                explosionDamage: p.weapon.explosionDamage,
                 life: 1000, hitEnemies: [], trail: [],
                 update(dt) {
                     this.x += this.vx; this.y += this.vy;
@@ -34,7 +30,7 @@ function fireProjectile(p) {
 
 function triggerNova(p, damage = 50, radius = 200) {
     visualEffects.push({
-        type: 'shockwave', x: p.x, y: p.y, radius: 20, maxRadius: radius, life: 400, // MODIFIED: Use passed radius
+        type: 'shockwave', x: p.x, y: p.y, radius: 20, maxRadius: 250, life: 400,
         update(dt) { this.radius += (this.maxRadius / 400) * dt; this.life -= dt; return this.life <= 0; }
     });
     enemies.forEach(e => {
@@ -67,15 +63,10 @@ function createXpOrb(x, y, value, player, gainXPCallback) {
             const dx = player.x - this.x, dy = player.y - this.y;
             const dist = Math.hypot(dx, dy);
             if (dist < player.pickupRadius) {
-                // MODIFIED: Use magnetism property
-                this.x += (dx / dist) * 8 * player.magnetism;
-                this.y += (dy / dist) * 8 * player.magnetism;
+                this.x += (dx / dist) * 8;
+                this.y += (dy / dist) * 8;
             }
             if (dist < 20) {
-                // MODIFIED: Check for heal on XP pickup
-                if (player.abilities.healOnXp && Math.random() < 0.1) {
-                    player.health = Math.min(player.maxHealth, player.health + 1);
-                }
                 gainXPCallback(value);
                 return true;
             }
@@ -123,9 +114,6 @@ function updateLightning(deltaTime, player) {
         let lastTarget = player;
         let potentialTargets = [...enemies];
         for (let i = 0; i <= skill.chains; i++) {
-            if(i > 0 && skill.forkChance && Math.random() < skill.forkChance) { // ADDED: Fork logic
-                lastTarget = player; 
-            }
             let closestTarget = null;
             let minDist = Infinity;
             potentialTargets.forEach(target => {
@@ -162,99 +150,42 @@ function updateVolcano(deltaTime, player) {
     const skill = player.skills.volcano;
     if (gameState.gameTime - skill.lastEruption > skill.cooldown) {
         if (enemies.length > 0) {
-            const eruptionCount = skill.count || 1; // ADDED: Multiple eruptions
-            for (let i=0; i < eruptionCount; i++) {
-                const targetEnemy = enemies[Math.floor(Math.random() * enemies.length)];
-                volcanicEruptions.push({
-                    x: targetEnemy.x, y: targetEnemy.y, radius: skill.radius,
-                    damage: skill.damage, burnDuration: skill.burnDuration,
-                    life: skill.burnDuration, hitEnemies: [],
+            const targetEnemy = enemies[Math.floor(Math.random() * enemies.length)];
+            volcanicEruptions.push({
+                x: targetEnemy.x, y: targetEnemy.y, radius: skill.radius,
+                damage: skill.damage, burnDuration: skill.burnDuration,
+                life: skill.burnDuration, hitEnemies: [],
+                update(dt) {
+                    enemies.forEach(e => {
+                        if (!this.hitEnemies.includes(e) && Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
+                            e.health -= this.damage * (dt / 1000);
+                        }
+                    });
+                    this.life -= dt;
+                    return this.life <= 0;
+                }
+            });
+            for (let i = 0; i < 30; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 3;
+                particles.push({
+                    x: targetEnemy.x, y: targetEnemy.y,
+                    life: 800 + Math.random() * 400,
+                    vx: Math.cos(angle) * speed * 0.3, vy: -speed,
+                    type: 'ember', alpha: 1,
                     update(dt) {
-                        enemies.forEach(e => {
-                            if (!this.hitEnemies.includes(e) && Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
-                                e.health -= this.damage * (dt / 1000);
-                            }
-                        });
-                        this.life -= dt;
+                        this.x += this.vx; this.y += this.vy; this.vy += 0.1;
+                        this.life -= dt; this.alpha = this.life / 1000;
                         return this.life <= 0;
                     }
                 });
-                for (let j = 0; j < 30; j++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 6 + 3;
-                    particles.push({
-                        x: targetEnemy.x, y: targetEnemy.y,
-                        life: 800 + Math.random() * 400,
-                        vx: Math.cos(angle) * speed * 0.3, vy: -speed,
-                        type: 'ember', alpha: 1,
-                        update(dt) {
-                            this.x += this.vx; this.y += this.vy; this.vy += 0.1;
-                            this.life -= dt; this.alpha = this.life / 1000;
-                            return this.life <= 0;
-                        }
-                    });
-                }
-                targetEnemy.health -= skill.damage;
-                spawnDamageNumber(targetEnemy.x, targetEnemy.y, Math.round(skill.damage), false);
             }
+            targetEnemy.health -= skill.damage;
+            spawnDamageNumber(targetEnemy.x, targetEnemy.y, Math.round(skill.damage), false);
             skill.lastEruption = gameState.gameTime;
         }
     }
 }
 
-// --- ADDED: NEW SKILL FUNCTIONS ---
 
-function updateFrostNova(deltaTime, player) {
-    if (!player.skills.frostNova.isUnlocked) return;
-    const skill = player.skills.frostNova;
-    if (gameState.gameTime - skill.lastCast > skill.cooldown) {
-        visualEffects.push({
-            type: 'frostwave', x: player.x, y: player.y, radius: 20, maxRadius: skill.radius, life: 500,
-            update(dt) { this.radius += (this.maxRadius / 500) * dt; this.life -= dt; return this.life <= 0; }
-        });
-        enemies.forEach(e => {
-            if (Math.hypot(e.x - player.x, e.y - player.y) < skill.radius) {
-                e.health -= skill.damage;
-                e.slowTimer = skill.slowDuration;
-                e.slowAmount = skill.slowAmount;
-                spawnDamageNumber(e.x, e.y, skill.damage, false);
-            }
-        });
-        skill.lastCast = gameState.gameTime;
-    }
-}
-
-function updateBlackHole(deltaTime, player) {
-    if (!player.skills.blackHole.isUnlocked) return;
-    const skill = player.skills.blackHole;
-    if (gameState.gameTime - skill.lastCast > skill.cooldown) {
-        if (enemies.length > 0) {
-            const targetEnemy = enemies[Math.floor(Math.random() * enemies.length)];
-            visualEffects.push({
-                type: 'blackHole', x: targetEnemy.x, y: targetEnemy.y,
-                radius: skill.radius, life: skill.duration,
-                pullStrength: skill.pullStrength, damage: skill.damage,
-                update(dt) {
-                    this.life -= dt;
-                    enemies.forEach(e => {
-                        const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                        if (dist < this.radius && dist > 10) { // Keep enemies from collapsing to the center
-                            e.x -= (e.x - this.x) / dist * this.pullStrength;
-                            e.y -= (e.y - this.y) / dist * this.pullStrength;
-                            if (Math.random() < 0.1) { // Deal damage periodically
-                                e.health -= this.damage;
-                                spawnDamageNumber(e.x, e.y, this.damage, false);
-                            }
-                        }
-                    });
-                    return this.life <= 0;
-                }
-            });
-            skill.lastCast = gameState.gameTime;
-        }
-    }
-}
-
-
-// MODIFIED: Export the new functions
-export { fireProjectile, triggerNova, createXpOrb, createImpactParticles, spawnDamageNumber, updateLightning, updateVolcano, updateFrostNova, updateBlackHole };
+export { fireProjectile, triggerNova, createXpOrb, createImpactParticles, spawnDamageNumber, updateLightning, updateVolcano };
