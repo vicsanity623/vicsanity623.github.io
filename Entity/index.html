@@ -7,6 +7,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;700&display=swap" rel="stylesheet">
+        <link rel="manifest" href="manifest.json">
+    <!-- Theme color for Safari on iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#00ffff">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* VISUAL ENHANCEMENT: Animated Grid Background */
@@ -235,6 +240,7 @@
     </style>
 </head>
 <body>
+
     <canvas id="gameCanvas"></canvas>
     
     <div id="top-entities-panel">
@@ -598,6 +604,22 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => { initSimulation(); lastFrameTime = performance.now(); requestAnimationFrame(gameLoop); });
+    </script>
+    <!-- Add this script block just before your closing </body> tag -->
+
+    <script>
+      // Register the Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then((registration) => {
+              console.log('Service Worker registered successfully with scope:', registration.scope);
+            })
+            .catch((error) => {
+              console.error('Service Worker registration failed:', error);
+            });
+        });
+      }
     </script>
 </body>
 </html>
