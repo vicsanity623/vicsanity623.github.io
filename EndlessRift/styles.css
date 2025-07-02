@@ -14,7 +14,53 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: radial-g
 #game-container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
 canvas { background: transparent; image-rendering: auto; width: 100%; height: 100%; cursor: default; }
 .hud { position: absolute; display: flex; align-items: center; padding: 5px 15px; background: var(--hud-bg); border-radius: 5px; z-index: 10; }
-#hud-top-left { top: 20px; left: 20px; flex-direction: column; align-items: flex-start; gap: 8px; }
+#hud-top-left {
+    top: 20px;
+    left: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px; /* Original gap between elements */
+    padding: 10px 15px; /* Slightly more padding for the whole top-left HUD */
+}
+
+/* NEW: Styles for the upgrade stats list */
+#upgrade-stats-list {
+    margin-top: 15px; /* Space between HP bar and upgrade list */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px; /* Tight spacing between individual stat lines */
+    max-height: 200px; /* Limit height to prevent it from growing too big */
+    overflow-y: auto; /* Add scrollbar if content exceeds max-height */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--player-aura-color) transparent; /* Firefox */
+    padding-right: 5px; /* Space for potential scrollbar */
+}
+
+/* For Webkit browsers (Chrome, Safari) */
+#upgrade-stats-list::-webkit-scrollbar {
+    width: 6px;
+}
+#upgrade-stats-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+#upgrade-stats-list::-webkit-scrollbar-thumb {
+    background-color: var(--player-aura-color);
+    border-radius: 3px;
+}
+
+
+.upgrade-stat-item {
+    font-family: 'Roboto', sans-serif; /* Readable font for stats */
+    font-size: 14px; /* Clear but not too large */
+    color: #b0c4de; /* Slightly muted color to differentiate from main HUD text */
+    white-space: nowrap; /* Prevent text wrapping within a stat line */
+}
+
+/* Optional: Make current values stand out a bit more */
+.upgrade-stat-item strong {
+    color: var(--player-aura-color);
+}
 .hud-main-stats { display: flex; align-items: center; gap: 15px; }
 #hud-top-right { top: 50%; right: 20px; transform: translateY(-50%); flex-direction: column; align-items: flex-end; gap: 5px; }
 #timer-text { font-size: 22px; }
