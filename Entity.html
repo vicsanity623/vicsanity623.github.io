@@ -4,12 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ecosystem Evolution Simulation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- NEW: Include Chart.js library from a CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* VISUAL ENHANCEMENT: Animated Grid Background */
+        @keyframes subtle-scroll {
+            from { background-position: 0 0; }
+            to { background-position: -256px 0; }
+        }
+
         /* Basic Resets & Body Styles */
         body {
             margin: 0;
-            background-color: #000; /* Fallback */
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #01040a; /* Fallback */
+            /* VISUAL ENHANCEMENT: Futuristic grid background */
+            background-image:
+                linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 32px 32px;
+            animation: subtle-scroll 10s linear infinite;
+            font-family: 'Exo 2', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* VISUAL ENHANCEMENT: New font */
             color: #eee;
             display: flex; /* Use flexbox for layout */
             flex-direction: column; /* Stack canvas and stats panel vertically */
@@ -20,6 +37,7 @@
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
+            overflow: hidden; /* Prevent scrollbars from animated background */
         }
 
         /* Canvas Styles */
@@ -28,7 +46,7 @@
             width: 100%;
             flex-grow: 1; /* Allow canvas to take up available vertical space */
             background-color: transparent; /* Canvas background will be drawn dynamically by JS */
-            cursor: grab; /* Indicate draggable */
+            cursor: crosshair; /* NEW: Indicate that clicking/selecting is possible */
         }
         canvas.dragging {
             cursor: grabbing;
@@ -39,10 +57,12 @@
             position: fixed; /* Keep fixed to float over canvas */
             top: 20px;
             right: 20px;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(5, 15, 25, 0.8); /* VISUAL ENHANCEMENT: Darker, more thematic background */
+            backdrop-filter: blur(5px); /* VISUAL ENHANCEMENT: Frosted glass effect */
+            -webkit-backdrop-filter: blur(5px);
             border-radius: 10px;
             padding: 15px;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.4), 0 0 20px rgba(0, 255, 255, 0.2); /* VISUAL ENHANCEMENT: Softer, layered glow */
             max-width: 300px;
             z-index: 10; /* Highest Z-index for main panel */
             display: flex;
@@ -67,8 +87,9 @@
             margin-top: 0;
             margin-bottom: 15px;
             color: #0ff;
-            text-shadow: 0 0 5px #0ff;
+            text-shadow: 0 0 5px #0ff, 0 0 10px rgba(0, 255, 255, 0.5); /* VISUAL ENHANCEMENT: Stronger title glow */
             text-align: center;
+            font-weight: 700;
         }
 
         .param-group {
@@ -89,11 +110,12 @@
             -webkit-appearance: none;
             height: 8px;
             border-radius: 5px;
-            background: #555;
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.2) 0%, rgba(0, 100, 100, 0.2) 100%); /* VISUAL ENHANCEMENT: Gradient track */
             outline: none;
             opacity: 0.7;
             -webkit-transition: .2s;
             transition: opacity .2s;
+            border: 1px solid rgba(0, 255, 255, 0.1);
         }
         .param-group input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -103,7 +125,8 @@
             border-radius: 50%;
             background: #0ff;
             cursor: pointer;
-            box-shadow: 0 0 5px #0ff;
+            box-shadow: 0 0 8px #0ff, 0 0 12px rgba(0,255,255,0.7); /* VISUAL ENHANCEMENT: Enhanced thumb glow */
+            border: 2px solid #fff;
         }
         .param-group input[type="range"]::-moz-range-thumb {
             width: 16px;
@@ -111,7 +134,8 @@
             border-radius: 50%;
             background: #0ff;
             cursor: pointer;
-            box-shadow: 0 0 5px #0ff;
+            box-shadow: 0 0 8px #0ff, 0 0 12px rgba(0,255,255,0.7);
+            border: 2px solid #fff;
         }
 
         /* Common Button Styles */
@@ -119,26 +143,119 @@
             padding: 10px 15px;
             font-size: 1em;
             font-weight: bold;
+            font-family: 'Exo 2', sans-serif;
             background-color: #007bff;
+            background-image: linear-gradient(45deg, rgba(0, 123, 255, 0.8) 0%, rgba(0, 200, 255, 0.8) 100%); /* VISUAL ENHANCEMENT: Gradient background */
             color: white;
-            border: none;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5); /* VISUAL ENHANCEMENT: Text legibility */
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.1s ease;
-            box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
+            transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.5), inset 0 0 5px rgba(255,255,255,0.2);
             text-align: center;
         }
         .ui-button:hover {
             background-color: #0056b3;
-            transform: translateY(-1px);
+            transform: translateY(-2px); /* VISUAL ENHANCEMENT: More pronounced hover effect */
+            box-shadow: 0 0 12px rgba(0, 180, 255, 0.8), inset 0 0 8px rgba(255,255,255,0.3);
         }
         .ui-button:active {
             transform: translateY(0);
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5), inset 0 0 10px rgba(0,0,0,0.3);
         }
 
         /* Specific Button Margins */
         #start-pause-button, #toggle-panel-button {
             margin-top: 10px;
+        }
+        
+        /* NEW: Styles for the top entities panel */
+        #top-entities-panel {
+            background-color: rgba(10, 10, 15, 0.5);
+            padding: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.4);
+            border-top: 1px solid rgba(0, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+            flex-shrink: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .top-entity-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .top-entity-group strong {
+            font-size: 0.9em;
+            text-shadow: 1px 1px 2px #000;
+        }
+        .top-entity-button {
+            padding: 5px 10px;
+            font-size: 0.8em;
+            border-radius: 5px;
+            transition: transform 0.1s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-weight: bold;
+        }
+        .top-entity-button:hover {
+            transform: translateY(-1px);
+        }
+        .prey-btn { background-color: #0f0; color: #000; box-shadow: 0 0 5px #0f0; }
+        .predator-btn { background-color: #f00; color: #fff; box-shadow: 0 0 5px #f00; }
+        .hunter-btn { background-color: #f0f; color: #fff; box-shadow: 0 0 5px #f0f; }
+        
+        /* NEW: Styles for NN Visualization Panel */
+        #nn-visualization-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(5, 15, 25, 0.8);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 0 8px rgba(0, 255, 0, 0.4), 0 0 20px rgba(0, 255, 0, 0.2);
+            width: 350px;
+            max-width: 90vw;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            transform: translateX(0);
+            opacity: 1;
+        }
+        #nn-visualization-panel.hidden {
+            transform: translateX(-110%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        #nn-visualization-panel h3 {
+            margin: 0;
+            color: #0f0;
+            text-shadow: 0 0 5px #0f0;
+            text-align: center;
+        }
+        #toggle-nn-panel-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9;
+            opacity: 0;
+            transform: translateX(-100%);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        #toggle-nn-panel-button.visible {
+            opacity: 1;
+            transform: translateX(0);
         }
 
         /* Zoom Controls */
@@ -146,7 +263,9 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(5, 15, 25, 0.8);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
             border-radius: 10px;
             padding: 10px;
             box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
@@ -196,14 +315,17 @@
         /* Stats Panel - Now below canvas */
         #stats-panel {
             position: static; /* No longer fixed, part of flex layout */
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(15, 5, 25, 0.8); /* VISUAL ENHANCEMENT: Different color for stats */
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
             border-radius: 10px;
             padding: 15px;
-            box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+            box-shadow: 0 0 8px rgba(255, 0, 255, 0.4), 0 0 20px rgba(255, 0, 255, 0.2); /* VISUAL ENHANCEMENT: Softer glow */
             z-index: 1; /* Less important for static position */
             display: flex;
-            flex-direction: column;
-            gap: 5px;
+            flex-wrap: wrap; /* VISUAL ENHANCEMENT: Allow wrapping on small screens */
+            justify-content: space-around; /* VISUAL ENHANCEMENT: Better spacing */
+            gap: 5px 20px; /* row-gap column-gap */
             border: 1px solid rgba(255, 0, 255, 0.3);
             font-size: 0.9em;
             width: calc(100% - 20px);
@@ -216,10 +338,11 @@
             display: flex;
             justify-content: space-between;
             color: #ccc;
+            gap: 10px; /* VISUAL ENHANCEMENT: Add gap between label and value */
         }
         #stats-panel strong {
             color: #fff;
-            text-shadow: 0 0 3px #fff;
+            text-shadow: 0 0 5px #fff, 0 0 8px rgba(255, 0, 255, 0.7); /* VISUAL ENHANCEMENT: Match panel glow color */
         }
 
         /* Game Over Overlay */
@@ -229,7 +352,9 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background-color: rgba(0, 0, 0, 0.9);
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             z-index: 20;
             display: flex;
             flex-direction: column;
@@ -249,9 +374,10 @@
         }
         #game-over-overlay h1 {
             color: #f00;
-            font-size: 3em;
+            font-size: 4em; /* VISUAL ENHANCEMENT: Larger text */
+            font-weight: 700;
             margin-bottom: 20px;
-            text-shadow: 0 0 15px #f00, 0 0 20px #f00;
+            text-shadow: 0 0 15px #f00, 0 0 30px #f00, 0 0 50px #f00; /* VISUAL ENHANCEMENT: Intense glow */
         }
         #game-over-overlay p {
             margin: 5px 0;
@@ -260,12 +386,13 @@
         }
         #game-over-overlay .final-stats {
             margin-top: 20px;
-            padding: 15px;
+            padding: 20px;
             background-color: rgba(0, 0, 0, 0.5);
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
             max-width: 80%;
             display: inline-block;
+            border: 1px solid rgba(255, 0, 255, 0.4);
         }
         #game-over-overlay .final-stats strong {
             color: #0ff;
@@ -274,18 +401,66 @@
             margin-top: 30px;
             padding: 15px 30px;
             font-size: 1.5em;
-            background-color: #00ff00;
-            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+            background-image: linear-gradient(45deg, #00cc00, #00ff00); /* VISUAL ENHANCEMENT: Gradient for restart button */
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7), inset 0 0 5px rgba(255,255,255,0.3);
             color: #000;
+            font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.4);
         }
         #game-over-overlay button:hover {
             background-color: #00cc00;
+            box-shadow: 0 0 25px rgba(0, 255, 0, 1), inset 0 0 8px rgba(255,255,255,0.4);
         }
 
 
+        /* NEW: Styles for the entity following indicator (unchanged) */
+        #follow-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            border: 2px solid rgba(0, 255, 255, 0.8);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.9), 0 0 20px rgba(0, 255, 255, 0.6);
+            pointer-events: none; /* So it doesn't interfere with clicks */
+            z-index: 5;
+            transition: width 0.2s ease, height 0.2s ease, transform 0.05s linear, opacity 0.3s ease;
+            opacity: 0;
+            will-change: transform, opacity; /* Performance hint for browser */
+        }
+        #follow-indicator.visible {
+            opacity: 1;
+        }
+        
+        /* NEW: Styles for the follow status text (unchanged) */
+        #follow-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(5, 15, 25, 0.8);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 8px 15px;
+            z-index: 9;
+            font-size: 0.9em;
+            color: #0ff;
+            text-shadow: 0 0 5px #0ff;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+        #follow-status.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
         /* Responsive adjustments for smaller screens */
         @media (max-width: 768px) {
-            #ui-panel {
+            body {
+                overflow: auto; /* Allow scrolling on small devices if content overflows */
+            }
+            #ui-panel, #nn-visualization-panel {
                 top: auto;
                 bottom: 10px;
                 left: 10px;
@@ -293,52 +468,48 @@
                 max-width: unset;
                 max-height: 40vh;
                 padding: 10px;
+                width: auto;
             }
-            #ui-panel.hidden {
-                transform: translateY(100%);
+            #ui-panel.hidden, #nn-visualization-panel.hidden {
+                transform: translateY(110%);
                 opacity: 0;
             }
-            #ui-panel h2 {
-                font-size: 1.2em;
-                margin-bottom: 10px;
-            }
-            .ui-button {
-                padding: 10px 15px;
-                font-size: 1em;
-            }
-            #zoom-controls {
-                top: 10px;
-                bottom: auto;
-                left: auto;
-                right: 10px;
-                transform: translateX(100%);
-            }
-            #zoom-controls.visible {
-                transform: translateX(0);
-            }
-            #show-panel-button {
-                top: 70px;
-                right: 10px;
-            }
-            #stats-panel {
-                width: calc(100% - 20px);
-                margin: 10px;
-            }
-            #game-over-overlay h1 {
-                font-size: 2em;
-            }
-            #game-over-overlay p {
-                font-size: 0.9em;
-            }
-            #game-over-overlay button {
-                padding: 10px 20px;
-                font-size: 1.2em;
-            }
+            #nn-visualization-panel { bottom: 50vh; }
+            #ui-panel h2 { font-size: 1.2em; margin-bottom: 10px; }
+            .ui-button { padding: 10px 15px; font-size: 1em; }
+            #zoom-controls { top: 10px; bottom: auto; left: auto; right: 10px; transform: translateX(100%); }
+            #zoom-controls.visible { transform: translateX(0); }
+            #show-panel-button { top: 70px; right: 10px; }
+            #toggle-nn-panel-button { top: 70px; left: 10px; }
+            #stats-panel, #top-entities-panel { width: calc(100% - 20px); margin: 10px; padding: 10px; justify-content: flex-start; }
+            #game-over-overlay h1 { font-size: 2.5em; }
+            #game-over-overlay p { font-size: 1em; }
+            #game-over-overlay button { padding: 10px 20px; font-size: 1.2em; }
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+    
+    <!-- NEW: Top Entities Panel -->
+    <div id="top-entities-panel">
+        <div class="top-entity-group">
+            <strong>Prey:</strong>
+            <div id="top-prey-list"></div>
+        </div>
+        <div class="top-entity-group">
+            <strong>Predators:</strong>
+            <div id="top-predators-list"></div>
+        </div>
+        <div class="top-entity-group">
+            <strong>Hunters:</strong>
+            <div id="top-hunters-list"></div>
+        </div>
+    </div>
+    
+    <!-- Follow indicator and status elements -->
+    <div id="follow-indicator"></div>
+    <div id="follow-status"></div>
 
     <!-- Stats Panel - Now below canvas -->
     <div id="stats-panel">
@@ -346,9 +517,9 @@
         <div>Predators: <strong id="predatorCount">0</strong></div>
         <div>Hunters: <strong id="hunterCount">0</strong></div>
         <div>Food: <strong id="foodCount">0</strong></div>
-        <div>Prey Survival: <strong id="totalPreySurvivalTime">0</strong></div>
-        <div>Predator Survival: <strong id="totalPredatorSurvivalTime">0</strong></div>
-        <div>Hunter Survival: <strong id="totalHunterSurvivalTime">0</strong></div>
+        <div>Prey Survival: <strong id="totalPreySurvivalTime">00:00:00</strong></div>
+        <div>Predator Survival: <strong id="totalPredatorSurvivalTime">00:00:00</strong></div>
+        <div>Hunter Survival: <strong id="totalHunterSurvivalTime">00:00:00</strong></div>
         <div>Births: <strong id="totalBirths">0</strong></div>
         <div>Mutations: <strong id="totalGeneticMutations">0</strong></div>
         <div>Ticks: <strong id="simulationTicks">0</strong></div>
@@ -364,52 +535,52 @@
             <label for="timeScale">World Speed: <span id="timeScaleValue"></span></label>
             <input type="range" id="timeScale" min="0.1" max="5" step="0.1">
         </div>
-
+        <!-- ... other sliders ... -->
         <div class="param-group">
             <label for="mutationRate">Mutation Rate: <span id="mutationRateValue"></span></label>
             <input type="range" id="mutationRate" min="0.001" max="0.1" step="0.001">
         </div>
-
         <div class="param-group">
             <label for="foodSpawnRate">Food Spawn Rate: <span id="foodSpawnRateValue"></span></label>
             <input type="range" id="foodSpawnRate" min="0.1" max="2" step="0.1">
         </div>
-
         <div class="param-group">
             <label for="foodEnergy">Food Energy: <span id="foodEnergyValue"></span></label>
             <input type="range" id="foodEnergy" min="10" max="200" step="5">
         </div>
-
         <div class="param-group">
             <label for="preyTargetPopulation">Prey Target Pop: <span id="preyTargetPopulationValue"></span></label>
             <input type="range" id="preyTargetPopulation" min="50" max="500" step="10">
         </div>
-
         <div class="param-group">
             <label for="predatorTargetPopulation">Predator Target Pop: <span id="predatorTargetPopulationValue"></span></label>
             <input type="range" id="predatorTargetPopulation" min="10" max="100" step="5">
         </div>
-
         <div class="param-group">
             <label for="hunterTargetPopulation">Hunter Target Pop: <span id="hunterTargetPopulationValue"></span></label>
             <input type="range" id="hunterTargetPopulation" min="0" max="50" step="5">
         </div>
-
         <div class="param-group">
             <label for="preyMaxSpeed">Prey Max Speed: <span id="preyMaxSpeedValue"></span></label>
             <input type="range" id="preyMaxSpeed" min="1" max="5" step="0.1">
         </div>
-
         <div class="param-group">
             <label for="predatorMaxSpeed">Predator Max Speed: <span id="predatorMaxSpeedValue"></span></label>
             <input type="range" id="predatorMaxSpeed" min="1" max="5" step="0.1">
         </div>
-
         <div class="param-group">
             <label for="hunterMaxSpeed">Hunter Max Speed: <span id="hunterMaxSpeedValue"></span></label>
             <input type="range" id="hunterMaxSpeed" min="1" max="5" step="0.1">
         </div>
     </div>
+    
+    <!-- NEW: NN Visualization Panel -->
+    <div id="nn-visualization-panel">
+        <h3>Genetic Improvement (Avg. Age)</h3>
+        <canvas id="nnChartCanvas"></canvas>
+        <button id="hide-nn-panel-button" class="ui-button">Hide Chart</button>
+    </div>
+    <button id="toggle-nn-panel-button" class="ui-button">Show Chart</button>
 
     <!-- Zoom Controls -->
     <div id="zoom-controls">
@@ -439,74 +610,19 @@
     <script>
         // --- Game Configuration and Global Variables ---
         const config = {
-            // Simulation World Dimensions (Virtual World, can be larger than canvas)
-            worldWidth: 2000,           // The virtual width of the simulation world
-            worldHeight: 1500,          // The virtual height of the simulation world
-            tileSize: 32,               // Size of each landscape tile in world units
-
-            // Biome Colors
-            biomeColors: {
-                water: 'hsl(200, 70%, 25%)', // Deep blue for water
-                forest: 'hsl(80, 50%, 20%)', // Muted green for forest
-                desert: 'hsl(40, 60%, 40%)'  // Tan/orange for desert
-            },
-            // Perlin noise parameters for landscape generation
-            noise: {
-                scale: 0.005,       // How zoomed in the noise is (smaller = larger features)
-                octaves: 4,         // Number of noise layers
-                persistence: 0.5,   // How much each octave contributes
-                waterLevel: -0.3,   // Noise value below which is water
-                forestLevel: 0.2,   // Noise value below which is forest (above water level)
-                waterBiasStrength: 0.5 // How strongly the center biases towards water
-            },
-
-
-            // Simulation Parameters
-            timeScale: 1.0,             // Controls the overall simulation speed (1.0 = normal)
-            zoomLevel: 1.0,             // Controls rendering zoom (will be auto-adjusted initially)
-            mutationRate: 0.01,         // Chance of a gene mutating during reproduction
-            mutationColorRange: 20,     // Max hue shift for visual mutations (+/- degrees)
-            foodSpawnRate: 0.5,         // Number of food items to try and spawn per update tick
-            foodEnergy: 50,             // Health gained per food item eaten
-
-            // Population Targets (simulation will try to maintain these numbers)
-            preyTargetPopulation: 200,
-            predatorTargetPopulation: 50,
-            hunterTargetPopulation: 10, // New: Target population for hunters
-
-            // Creature Base Stats (these influence initial spawns and serve as evolutionary baselines)
-            creatureSize: 8,            // Base visual size for creatures
-            preyMaxSpeed: 2.5,          // Initial max speed for prey
-            predatorMaxSpeed: 3.5,      // Initial max speed for predators
-            hunterMaxSpeed: 4.0,        // New: Initial max speed for hunters
-
-            // Health & Energy Mechanics
-            preyMaxHealth: 100,         // Maximum health for prey
-            predatorMaxHealth: 150,     // Maximum health for predators
-            hunterMaxHealth: 200,       // New: Maximum health for hunters
-            preyReproductionThreshold: 80,  // Health needed for a prey to reproduce
-            predatorReproductionThreshold: 120, // Health needed for a predator to reproduce
-            hunterReproductionThreshold: 160, // New: Health needed for a hunter to reproduce
-            preyEnergyConsumption: 0.1,     // Health lost per tick for prey (survival cost)
-            predatorEnergyConsumption: 0.2, // Health lost per tick for predators
-            hunterEnergyConsumption: 0.3, // New: Health lost per tick for hunters
-            reproductionCost: 50,           // Health cost incurred by parent upon reproduction
-
-            // Vision & Senses
-            preyVisionRange: 150,       // Distance prey can "see"
-            predatorVisionRange: 200,   // Distance predators can "see"
-            hunterVisionRange: 250,     // New: Distance hunters can "see"
-
-            // World Regions (percentages of world width, not canvas width)
-            foodZoneWidth: 0.4,         // Left 40% of the world
-            desolateZoneWidth: 0.2,     // Middle 20%
-            predatorDenWidth: 0.4,      // Right 40%
-
-            // Quadtree Configuration
-            quadtreeCapacity: 4,        // Max entities per quadtree node before subdividing
-
-            // Global Limits
-            maxEntities: 1000           // Cap for total entities to prevent runaway growth
+            // ... (rest of config is unchanged) ...
+            worldWidth: 2000, worldHeight: 1500, tileSize: 32,
+            biomeColors: { water: 'hsl(200, 70%, 25%)', forest: 'hsl(80, 50%, 20%)', desert: 'hsl(40, 60%, 40%)' },
+            noise: { scale: 0.005, octaves: 4, persistence: 0.5, waterLevel: -0.3, forestLevel: 0.2, waterBiasStrength: 0.5 },
+            timeScale: 1.0, zoomLevel: 1.0, mutationRate: 0.01, mutationColorRange: 20, foodSpawnRate: 0.5, foodEnergy: 50,
+            preyTargetPopulation: 200, predatorTargetPopulation: 50, hunterTargetPopulation: 10,
+            creatureSize: 8, preyMaxSpeed: 2.5, predatorMaxSpeed: 3.5, hunterMaxSpeed: 4.0,
+            preyMaxHealth: 100, predatorMaxHealth: 150, hunterMaxHealth: 200,
+            preyReproductionThreshold: 80, predatorReproductionThreshold: 120, hunterReproductionThreshold: 160,
+            preyEnergyConsumption: 0.1, predatorEnergyConsumption: 0.2, hunterEnergyConsumption: 0.3, reproductionCost: 50,
+            preyVisionRange: 150, predatorVisionRange: 200, hunterVisionRange: 250,
+            foodZoneWidth: 0.4, desolateZoneWidth: 0.2, predatorDenWidth: 0.4,
+            quadtreeCapacity: 4, maxEntities: 1000
         };
 
         let canvas, ctx;
@@ -514,7 +630,7 @@
         let lastFrameTime = 0;
         let entities = [];
         let quadtree;
-        let entityIdCounter = 0; // Unique ID for each entity
+        let entityIdCounter = 0; 
 
         // Camera State
         let cameraX = 0;
@@ -522,839 +638,144 @@
         let isDragging = false;
         let lastMouseX = 0;
         let lastMouseY = 0;
+        
+        // For entity following and smooth camera
+        let followedEntity = null;
+        let targetZoom = 1.0;
+        let targetCameraX = 0;
+        let targetCameraY = 0;
+        const CAMERA_LERP_SPEED = 0.08; 
+
+        // NEW: For NN Visualization Chart
+        let nnChart;
+        let chartLabels = [];
+        let avgPreyAgeData = [];
+        let avgPredatorAgeData = [];
+        let avgHunterAgeData = [];
+        const CHART_UPDATE_INTERVAL = 120; // Update chart every 120 ticks (2 seconds at 60fps)
+        const MAX_CHART_POINTS = 100; // Keep the chart from getting too crowded
 
         // Statistics counters
         let currentPreyCount = 0;
         let currentPredatorCount = 0;
-        let currentHunterCount = 0; // New: Hunter count
+        let currentHunterCount = 0; 
         let currentFoodCount = 0;
         let totalPreySurvivalTicks = 0;
         let totalPredatorSurvivalTicks = 0;
-        let totalHunterSurvivalTicks = 0; // New: Total survival time for hunters
+        let totalHunterSurvivalTicks = 0; 
         let totalBirths = 0;
         let totalGeneticMutations = 0;
         let simulationTicks = 0;
-        let gameOver = false; // Flag to indicate game over state
+        let gameOver = false; 
 
         // --- Neural Network Learning Explanation (unchanged) ---
-        /*
-        The Neural Network (NN) in this simulation "learns" through a Genetic Algorithm, not within a creature's lifetime.
-        Here's how it works:
-        1.  **Genes (NN Weights & Biases):** Each creature's "brain" is a simple feed-forward Neural Network. The values of its weights and biases are its "genes."
-        2.  **Survival of the Fittest:** Creatures with NNs that allow them to find food, avoid threats, and reproduce effectively will survive longer and have more offspring. Poorly adapted NNs lead to early death.
-        3.  **Reproduction (Crossover):** When two healthy creatures reproduce, their offspring's NN is created by combining the weights and biases from both parents (crossover). This allows successful "traits" (NN connections) to be passed down and combined.
-        4.  **Mutation:** After crossover, a small chance of random alteration (mutation) is applied to the offspring's NN weights and biases (controlled by the "Mutation Rate" slider). These mutations introduce new, random "traits" into the gene pool. Most are detrimental, but some might be beneficial.
-        5.  **Evolution:** Over many generations, beneficial combinations of weights and biases (genes) are naturally selected for, as creatures possessing them out-survive and out-reproduce others. This leads to a gradual improvement in the population's overall "intelligence" and adaptation to the environment. The color changes you'll see are a visual representation of these underlying genetic (NN) mutations.
-        */
+        /* ... */
 
-        // --- Perlin Noise Implementation ---
-        // (Simplified Perlin Noise, no external dependencies)
-        const P = new Array(512); // Permutation table doubled for convenience
+        // --- Perlin Noise Implementation (unchanged) ---
+        const P = new Array(512);
         const permutation = [151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,178,243,109,86,242,102,220,83,208,82,60,204,244,196,174,251,193,249,173,192,205,124,150,89,147,48,206,231,38,1,101,163,179,113,228,207,209,17,9,47,61,106,73,202,238,145,155,186,171,154,210,100,211,166,20,230,24,64,104,16,246,250,116,218,114,63,76,181,28,200,12,66,105,107,59,18,65,110,253,254,255,127,199,198,164,180,74,201,141,123,97,25,126,134,138,111,175,98,187,189,248,115,55,135,212,125,146,161,162,176,168,144,226,143,188,93,14,133,121,167,46,108,169,130,172,165,136,191,213,232,156,239,170,39,183,119,112,100,52,29,19,132,122,227,27,253,139,67,100,34,81,185,100,217,215,221,80,214,245,68,2,78,140,241,70,10,235,172,50,49,159,157,177,44,153,195,129,58,77,222,174,182,184,236,195,216,224,197];
-
         function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
         function lerp(t, a, b) { return a + t * (b - a); }
-        function grad(hash, x, y) {
-            const h = hash & 15;
-            const u = h < 8 ? x : y;
-            const v = h < 4 ? y : h === 12 || h === 14 ? x : 0;
-            return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
-        }
-
-        class PerlinNoise {
-            constructor(seed = Date.now()) {
-                this.seed = seed;
-                this._initPermutation();
-            }
-
-            _initPermutation() {
-                // Reset permutation to original
-                for (let i = 0; i < 256; i++) {
-                    P[i] = P[i + 256] = permutation[i];
-                }
-
-                // Simple Linear Congruential Generator for seeding
-                let currentSeed = this.seed;
-                function lcgRandom() {
-                    currentSeed = (currentSeed * 9301 + 49297) % 233280;
-                    return currentSeed / 233280;
-                }
-
-                // Shuffle the permutation table
-                for (let i = 0; i < 256; i++) {
-                    const j = Math.floor(lcgRandom() * 256);
-                    [P[i], P[j]] = [P[j], P[i]];
-                    P[i + 256] = P[i];
-                    P[j + 256] = P[j];
-                }
-            }
-
-            noise(x, y) {
-                const X = Math.floor(x) & 255;
-                const Y = Math.floor(y) & 255;
-
-                x -= Math.floor(x);
-                y -= Math.floor(y);
-
-                const u = fade(x);
-                const v = fade(y);
-
-                // Hash coordinates of the 4 corners
-                const A = P[X] + Y;
-                const AA = P[A];
-                const AB = P[A + 1];
-                const B = P[X + 1] + Y;
-                const BA = P[B];
-                const BB = P[B + 1];
-
-                // Add blended results from 4 corners of the grid.
-                return lerp(v, lerp(u, grad(P[AA], x, y),
-                                     grad(P[BA], x - 1, y)),
-                             lerp(u, grad(P[AB], x, y - 1),
-                                     grad(P[BB], x - 1, y - 1)));
-            }
-        }
-
-        let perlinNoise; // Global instance for landscape generation
-
-        // Function to get layered noise (octaves)
-        function getLayeredNoise(x, y) {
-            let total = 0;
-            let frequency = config.noise.scale;
-            let amplitude = 1;
-            let maxAmplitude = 0; // Used to normalize result to -1 to 1
-
-            for (let i = 0; i < config.noise.octaves; i++) {
-                total += perlinNoise.noise(x * frequency, y * frequency) * amplitude;
-                maxAmplitude += amplitude;
-                amplitude *= config.noise.persistence;
-                frequency *= 2;
-            }
-            return total / maxAmplitude; // Normalize to approx -1 to 1
-        }
+        function grad(hash, x, y) { const h = hash & 15; const u = h < 8 ? x : y; const v = h < 4 ? y : h === 12 || h === 14 ? x : 0; return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v); }
+        class PerlinNoise { constructor(seed = Date.now()) { this.seed = seed; this._initPermutation(); } _initPermutation() { for (let i = 0; i < 256; i++) { P[i] = P[i + 256] = permutation[i]; } let currentSeed = this.seed; function lcgRandom() { currentSeed = (currentSeed * 9301 + 49297) % 233280; return currentSeed / 233280; } for (let i = 0; i < 256; i++) { const j = Math.floor(lcgRandom() * 256); [P[i], P[j]] = [P[j], P[i]]; P[i + 256] = P[i]; P[j + 256] = P[j]; } } noise(x, y) { const X = Math.floor(x) & 255; const Y = Math.floor(y) & 255; x -= Math.floor(x); y -= Math.floor(y); const u = fade(x); const v = fade(y); const A = P[X] + Y, AA = P[A], AB = P[A + 1], B = P[X + 1] + Y, BA = P[B], BB = P[B + 1]; return lerp(v, lerp(u, grad(P[AA], x, y), grad(P[BA], x - 1, y)), lerp(u, grad(P[AB], x, y - 1), grad(P[BB], x - 1, y - 1))); } }
+        let perlinNoise;
+        function getLayeredNoise(x, y) { let total = 0, frequency = config.noise.scale, amplitude = 1, maxAmplitude = 0; for (let i = 0; i < config.noise.octaves; i++) { total += perlinNoise.noise(x * frequency, y * frequency) * amplitude; maxAmplitude += amplitude; amplitude *= config.noise.persistence; frequency *= 2; } return total / maxAmplitude; }
 
         // --- Utility Classes (Vector, Rectangle, QuadTree, NeuralNetwork - unchanged) ---
-        // (Contents for Vector, Rectangle, QuadTree, NeuralNetwork classes are unchanged from previous version)
-
-        /**
-         * Represents a 2D vector for position, velocity, and acceleration.
-         */
-        class Vector {
-            constructor(x = 0, y = 0) {
-                this.x = x;
-                this.y = y;
-            }
-
-            add(other) { return new Vector(this.x + other.x, this.y + other.y); }
-            sub(other) { return new Vector(this.x - other.x, this.y - other.y); }
-            mult(scalar) { return new Vector(this.x * scalar, this.y * scalar); }
-            div(scalar) { return new Vector(this.x / scalar, this.y / scalar); }
-
-            mag() { return Math.sqrt(this.x * this.x + this.y * this.y); }
-
-            normalize() {
-                const m = this.mag();
-                return m > 0 ? this.div(m) : new Vector(0, 0);
-            }
-
-            setMag(magnitude) { return this.normalize().mult(magnitude); }
-
-            limit(max) {
-                if (this.mag() > max) {
-                    return this.setMag(max);
-                }
-                return this;
-            }
-
-            dist(other) { return this.sub(other).mag(); }
-
-            angle() { return Math.atan2(this.y, this.x); }
-
-            static random2D() {
-                const angle = Math.random() * Math.PI * 2;
-                return new Vector(Math.cos(angle), Math.sin(angle));
-            }
-
-            copy() {
-                return new Vector(this.x, this.y);
-            }
-        }
-
-        /**
-         * Represents a rectangular boundary for the Quadtree.
-         */
-        class Rectangle {
-            constructor(x, y, w, h) {
-                this.x = x; // Center X
-                this.y = y; // Center Y
-                this.w = w; // Half-width
-                this.h = h; // Half-height
-            }
-
-            contains(point) {
-                return (point.x >= this.x - this.w &&
-                        point.x <= this.x + this.w &&
-                        point.y >= this.y - this.h &&
-                        point.y <= this.y + this.h);
-            }
-
-            intersects(range) {
-                return !(range.x - range.w > this.x + this.w ||
-                         range.x + range.w < this.x - this.w ||
-                         range.y - range.h > this.y + this.h ||
-                         range.y + range.h < this.y - this.h);
-            }
-        }
-
-        /**
-         * Quadtree data structure for efficient spatial partitioning of entities.
-         */
-        class QuadTree {
-            constructor(boundary, capacity) {
-                this.boundary = boundary;
-                this.capacity = capacity;
-                this.entities = [];
-                this.divided = false;
-            }
-
-            subdivide() {
-                let x = this.boundary.x;
-                let y = this.boundary.y;
-                let w = this.boundary.w / 2;
-                let h = this.boundary.h / 2;
-
-                this.northeast = new QuadTree(new Rectangle(x + w, y - h, w, h), this.capacity);
-                this.northwest = new QuadTree(new Rectangle(x - w, y - h, w, h), this.capacity);
-                this.southeast = new QuadTree(new Rectangle(x + w, y + h, w, h), this.capacity);
-                this.southwest = new QuadTree(new Rectangle(x - w, y + h, w, h), this.capacity);
-
-                this.divided = true;
-
-                // Redistribute entities to new sub-nodes
-                for (let entity of this.entities) {
-                    this.insert(entity);
-                }
-                this.entities = []; // Clear current node's entities after distribution
-            }
-
-            insert(entity) {
-                if (!this.boundary.contains(entity.position)) {
-                    return false;
-                }
-
-                if (this.entities.length < this.capacity && !this.divided) {
-                    this.entities.push(entity);
-                    return true;
-                } else {
-                    if (!this.divided) {
-                        this.subdivide();
-                    }
-                    if (this.northeast.insert(entity)) { return true; }
-                    if (this.northwest.insert(entity)) { return true; }
-                    if (this.southeast.insert(entity)) { return true; }
-                    if (this.southwest.insert(entity)) { return true; }
-                }
-                return false; // Should not happen if boundary.contains is true
-            }
-
-            query(range, found = []) {
-                if (!this.boundary.intersects(range)) {
-                    return found;
-                }
-
-                for (let entity of this.entities) {
-                    if (range.contains(entity.position)) { // More precise check against query range
-                        found.push(entity);
-                    }
-                }
-
-                if (this.divided) {
-                    this.northwest.query(range, found);
-                    this.northeast.query(range, found);
-                    this.southwest.query(range, found);
-                    this.southeast.query(range, found);
-                }
-                return found;
-            }
-
-            clear() {
-                this.entities = [];
-                this.divided = false;
-                this.northeast = null;
-                this.northwest = null;
-                this.southeast = null;
-                this.southwest = null;
-            }
-        }
-
-        /**
-         * Simple Feed-Forward Neural Network used as the "brain" for creatures.
-         */
-        class NeuralNetwork {
-            // NN structure: 11 inputs (health, 5 x (dist, angle) for Food, Prey, Predator, Hunter, Mate),
-            // 10 hidden neurons, 2 outputs (acceleration magnitude, turning strength)
-            static INPUT_SIZE = 1 + (2 * 5); // Health + 5 types of entities (dist, angle)
-            static HIDDEN_SIZE = 10;
-            static OUTPUT_SIZE = 2;
-
-            constructor(...layerSizes) {
-                this.layerSizes = layerSizes.length ? layerSizes : [NeuralNetwork.INPUT_SIZE, NeuralNetwork.HIDDEN_SIZE, NeuralNetwork.OUTPUT_SIZE];
-                this.weights = [];
-                this.biases = [];
-
-                for (let i = 0; i < this.layerSizes.length - 1; i++) {
-                    const rows = this.layerSizes[i + 1];
-                    const cols = this.layerSizes[i];
-                    // Initialize weights and biases randomly between -1 and 1
-                    const weightMatrix = Array.from({ length: rows }, () =>
-                        Array.from({ length: cols }, () => Math.random() * 2 - 1)
-                    );
-                    this.weights.push(weightMatrix);
-
-                    const biasVector = Array.from({ length: rows }, () => Math.random() * 2 - 1);
-                    this.biases.push(biasVector);
-                }
-            }
-
-            // Tanh activation function: maps input to range [-1, 1]
-            static tanh(x) {
-                return Math.tanh(x);
-            }
-
-            /**
-             * Propagates inputs through the network to produce outputs.
-             * @param {Array<number>} inputs - The input values to the network.
-             * @returns {Array<number>} The output values from the network.
-             */
-            feedForward(inputs) {
-                if (inputs.length !== this.layerSizes[0]) {
-                    console.error(`Input size mismatch. Expected ${this.layerSizes[0]}, got ${inputs.length}. Padding/truncating.`);
-                    const paddedInputs = inputs.slice(0, this.layerSizes[0]);
-                    while (paddedInputs.length < this.layerSizes[0]) {
-                        paddedInputs.push(0); // Pad with zeros if inputs are too few
-                    }
-                    inputs = paddedInputs;
-                }
-
-                let currentOutputs = inputs;
-
-                for (let i = 0; i < this.weights.length; i++) {
-                    const nextOutputs = [];
-                    const weightMatrix = this.weights[i];
-                    const biasVector = this.biases[i];
-
-                    for (let r = 0; r < weightMatrix.length; r++) {
-                        let sum = 0;
-                        for (let c = 0; c < weightMatrix[r].length; c++) {
-                            sum += currentOutputs[c] * weightMatrix[r][c];
-                        }
-                        nextOutputs.push(NeuralNetwork.tanh(sum + biasVector[r]));
-                    }
-                    currentOutputs = nextOutputs;
-                }
-                return currentOutputs;
-            }
-
-            /**
-             * Creates a deep copy of the neural network.
-             * @returns {NeuralNetwork} A new NeuralNetwork instance with copied weights and biases.
-             */
-            copy() {
-                const newNN = new NeuralNetwork(...this.layerSizes);
-                newNN.weights = this.weights.map(matrix => matrix.map(row => [...row]));
-                newNN.biases = this.biases.map(bias => [...bias]);
-                return newNN;
-            }
-
-            /**
-             * Mutates the weights and biases of the network with a given rate.
-             * @param {number} rate - The mutation rate (probability).
-             * @returns {number} The number of actual mutations applied.
-             */
-            mutate(rate) {
-                let mutationsCount = 0;
-                for (let i = 0; i < this.weights.length; i++) {
-                    for (let r = 0; r < this.weights[i].length; r++) {
-                        for (let c = 0; c < this.weights[i][r].length; c++) {
-                            if (Math.random() < rate) {
-                                this.weights[i][r][c] += (Math.random() * 2 - 1) * 0.5; // Small random adjustment
-                                mutationsCount++;
-                            }
-                        }
-                    }
-                }
-                for (let i = 0; i < this.biases.length; i++) {
-                    for (let r = 0; r < this.biases[i].length; r++) {
-                        if (Math.random() < rate) {
-                            this.biases[i][r] += (Math.random() * 2 - 1) * 0.5;
-                            mutationsCount++;
-                        }
-                    }
-                }
-                return mutationsCount;
-            }
-
-            /**
-             * Combines two parent neural networks to produce a child network through crossover.
-             * @param {NeuralNetwork} nn1 - The first parent network.
-             * @param {NeuralNetwork} nn2 - The second parent network.
-             * @returns {NeuralNetwork} A new NeuralNetwork instance representing the child.
-             */
-            static crossover(nn1, nn2) {
-                if (nn1.layerSizes.join('-') !== nn2.layerSizes.join('-')) {
-                    throw new Error("Cannot crossover NNs with different architectures.");
-                }
-
-                const childNN = new NeuralNetwork(...nn1.layerSizes);
-
-                for (let i = 0; i < nn1.weights.length; i++) {
-                    const crossoverPointRow = Math.floor(Math.random() * nn1.weights[i].length);
-                    const crossoverPointCol = Math.floor(Math.random() * nn1.weights[i][0].length);
-
-                    for (let r = 0; r < nn1.weights[i].length; r++) {
-                        for (let c = 0; c < nn1.weights[i][r].length; c++) {
-                            // Combine weights: pick from nn1 before crossover point, nn2 after
-                            if (r < crossoverPointRow || (r === crossoverPointRow && c < crossoverPointCol)) {
-                                childNN.weights[i][r][c] = nn1.weights[i][r][c];
-                            } else {
-                                childNN.weights[i][r][c] = nn2.weights[i][r][c];
-                            }
-                        }
-                    }
-                }
-
-                for (let i = 0; i < nn1.biases.length; i++) {
-                    const crossoverPoint = Math.floor(Math.random() * nn1.biases[i].length);
-                    for (let r = 0; r < nn1.biases[i].length; r++) {
-                        // Combine biases: pick from nn1 before crossover point, nn2 after
-                        if (r < crossoverPoint) {
-                            childNN.biases[i][r] = nn1.biases[i][r];
-                        } else {
-                            childNN.biases[i][r] = nn2.biases[i][r];
-                        }
-                    }
-                }
-                return childNN;
-            }
-        }
-
-        // --- Entity Classes ---
-
-        /**
-         * Base class for all entities in the simulation (creatures, food).
-         */
-        class Entity {
-            constructor(x, y, color, size, world) {
-                this.position = new Vector(x, y);
-                this.color = color; // Hue for HSLA
-                this.size = size;
-                this.world = world; // Reference to world dimensions
-                this.id = entityIdCounter++; // Unique ID
-                this.isDead = false; // Flag for removal
-                this.trail = []; // For drawing trails
-                this.maxTrailLength = 5; // How many past positions to store
-            }
-
-            update() {
-                // Update trail
-                this.trail.unshift(this.position.copy()); // Add current position to front
-                if (this.trail.length > this.maxTrailLength) {
-                    this.trail.pop(); // Remove oldest position
-                }
-            }
-            draw(ctx) { /* Override in subclasses */ }
-        }
-
-        /**
-         * Represents a generic creature with a Neural Network brain.
-         * Extended by Prey, Predator, and Hunter classes.
-         */
-        class Creature extends Entity {
-            constructor(x, y, color, size, world, nn, maxHealth, reproductionThreshold, energyConsumption, maxSpeed, visionRange) {
-                super(x, y, color, size, world);
-                this.velocity = Vector.random2D().setMag(maxSpeed * 0.5); // Initial random movement
-                this.acceleration = new Vector(0, 0);
-                this.maxSpeed = maxSpeed;
-                this.maxHealth = maxHealth;
-                this.health = maxHealth; // Starts with full health
-                this.reproductionThreshold = reproductionThreshold;
-                this.energyConsumption = energyConsumption;
-                this.nn = nn;
-                this.visionRange = visionRange;
-                this.age = 0;
-            }
-
-            /**
-             * Helper to normalize distance and angle for NN inputs.
-             */
-            _addNormalizedInputs(inputs, { entity, dist }) {
-                if (entity) {
-                    inputs.push(dist / this.visionRange); // Distance (0-1)
-                    const angleToEntity = entity.position.sub(this.position).angle();
-                    let relativeAngleToEntity = angleToEntity - this.velocity.angle();
-                    relativeAngleToEntity = Math.atan2(Math.sin(relativeAngleToEntity), Math.cos(relativeAngleToEntity)); // Normalize to -PI to PI
-                    inputs.push(relativeAngleToEntity / Math.PI); // Normalize to -1 to 1
-                } else {
-                    inputs.push(1); // No entity detected (max distance)
-                    inputs.push(0); // No angle
-                }
-            }
-
-            /**
-             * The creature's "brain" function. Uses NN to decide movement based on inputs.
-             */
-            think() {
-                // Find nearest entities by type within vision range
-                const searchRange = new Rectangle(this.position.x, this.position.y, this.visionRange / 2, this.visionRange / 2);
-                const nearbyEntities = quadtree.query(searchRange);
-
-                let closestFood = { entity: null, dist: Infinity };
-                let closestPrey = { entity: null, dist: Infinity };
-                let closestPredator = { entity: null, dist: Infinity };
-                let closestHunter = { entity: null, dist: Infinity };
-                let closestMate = { entity: null, dist: Infinity };
-
-
-                for (let entity of nearbyEntities) {
-                    if (entity.id === this.id || entity.isDead) continue;
-                    const dist = this.position.dist(entity.position);
-
-                    if (dist < this.visionRange) {
-                        if (entity instanceof Food) {
-                            if (dist < closestFood.dist) { closestFood = { entity, dist }; }
-                        } else if (entity instanceof Prey) {
-                            if (dist < closestPrey.dist) { closestPrey = { entity, dist }; }
-                            if (this.constructor === entity.constructor && entity.health > entity.reproductionThreshold * 0.8) { // Same type, healthy potential mate
-                                if (dist < closestMate.dist) { closestMate = { entity, dist }; }
-                            }
-                        } else if (entity instanceof Predator) {
-                            if (dist < closestPredator.dist) { closestPredator = { entity, dist }; }
-                            if (this.constructor === entity.constructor && entity.health > entity.reproductionThreshold * 0.8) { // Same type, healthy potential mate
-                                if (dist < closestMate.dist) { closestMate = { entity, dist }; }
-                            }
-                        } else if (entity instanceof Hunter) {
-                            if (dist < closestHunter.dist) { closestHunter = { entity, dist }; }
-                            if (this.constructor === entity.constructor && entity.health > entity.reproductionThreshold * 0.8) { // Same type, healthy potential mate
-                                if (dist < closestMate.dist) { closestMate = { entity, dist }; }
-                            }
-                        }
-                    }
-                }
-
-                // Prepare NN inputs (11 inputs: health, 5 x (dist, angle) for Food, Prey, Predator, Hunter, Mate)
-                const inputs = [];
-                inputs.push(this.health / this.maxHealth); // Own health (0-1)
-
-                this._addNormalizedInputs(inputs, closestFood);
-                this._addNormalizedInputs(inputs, closestPrey);
-                this._addNormalizedInputs(inputs, closestPredator);
-                this._addNormalizedInputs(inputs, closestHunter);
-                this._addNormalizedInputs(inputs, closestMate);
-
-
-                // Feed inputs to NN
-                const outputs = this.nn.feedForward(inputs);
-
-                // Map NN outputs to acceleration and turning force
-                // Outputs are typically between -1 and 1 due to tanh activation
-                const accelerationMag = (outputs[0] + 1) / 2; // Map from -1 to 1 to 0 to 1
-                const turnStrength = outputs[1]; // -1 to 1, determines left/right turn magnitude
-
-                // Apply acceleration based on NN outputs
-                const currentHeading = this.velocity.angle();
-                const desiredHeading = currentHeading + turnStrength * (Math.PI / 8); // Max turn of ~22.5 degrees per tick
-                this.acceleration = new Vector(Math.cos(desiredHeading), Math.sin(desiredHeading)).setMag(accelerationMag * 0.1); // Small constant acceleration scale
-            }
-
-            // Handles movement and boundary wrapping
-            move() {
-                this.velocity = this.velocity.add(this.acceleration);
-                this.velocity = this.velocity.limit(this.maxSpeed);
-                // Apply timeScale to the position update
-                this.position = this.position.add(this.velocity.mult(config.timeScale));
-                this.acceleration = new Vector(0, 0); // Reset acceleration each frame
-
-                // Wrap around edges using world dimensions
-                if (this.position.x < 0) this.position.x = this.world.width;
-                if (this.position.x > this.world.width) this.position.x = 0;
-                if (this.position.y < 0) this.position.y = this.world.height;
-                if (this.position.y > this.world.height) this.position.y = 0;
-            }
-
-            // Consumes energy (health decay) and checks for death
-            updateHealth() {
-                // Apply timeScale to health consumption
-                this.health -= this.energyConsumption * config.timeScale;
-                if (this.health <= 0) {
-                    this.isDead = true;
-                }
-            }
-
-            /**
-             * Attempts to reproduce. Costs health. Offspring inherit NN.
-             * @param {NeuralNetwork} mateNN - The Neural Network of a potential mate for crossover.
-             * @returns {Creature|null} A new child creature or null if reproduction fails.
-             */
-            reproduce(mateNN = null) {
-                if (this.health >= this.reproductionThreshold) {
-                    const childNN = mateNN ? NeuralNetwork.crossover(this.nn, mateNN) : this.nn.copy();
-                    const mutationsThisBirth = childNN.mutate(config.mutationRate); // Mutate and get count
-                    totalGeneticMutations += mutationsThisBirth; // Add to global count
-
-                    // Apply visual mutation (color change)
-                    let childColor = this.color;
-                    if (mutationsThisBirth > 0) { // Only change color if an actual gene mutation occurred
-                        childColor = (this.color + (Math.random() * 2 * config.mutationColorRange - config.mutationColorRange));
-                        childColor = (childColor % 360 + 360) % 360; // Ensure hue wraps around 0-359
-                    }
-
-
-                    // Offset child slightly to prevent immediate re-collision/reproduction issues
-                    const offset = Vector.random2D().mult(this.size * 2);
-                    const child = new (this.constructor)( // Create new instance of current creature type (Prey or Predator)
-                        this.position.x + offset.x,
-                        this.position.y + offset.y,
-                        this.world,
-                        childNN, // Pass the mutated/crossed-over NN
-                        childColor // Pass the (potentially mutated) color
-                    );
-
-                    this.health -= config.reproductionCost; // Health cost for reproduction
-                    totalBirths++; // Increment total births
-                    return child;
-                }
-                return null;
-            }
-
-            /**
-             * Eats a target entity (food or prey). Gains health.
-             * @param {Entity} targetItem - The entity to eat.
-             * @param {number} energyValue - The amount of health to gain.
-             */
-            eat(targetItem, energyValue) {
-                this.health += energyValue;
-                this.health = Math.min(this.health, this.maxHealth); // Cap health at max
-                targetItem.isDead = true; // Mark eaten item for removal
-            }
-
-            // Main update logic for a creature
-            update() {
-                super.update(); // Call base Entity update for trail logic
-                // Apply timeScale to age increment
-                this.age += config.timeScale;
-                this.updateHealth();
-                if (this.isDead) return;
-
-                // Find nearby entities for interaction
-                const searchRange = new Rectangle(this.position.x, this.position.y, this.visionRange / 2, this.visionRange / 2);
-                const nearbyEntities = quadtree.query(searchRange);
-
-                for (let entity of nearbyEntities) {
-                    if (entity.id === this.id || entity.isDead) continue; // Skip self and dead entities
-
-                    const dist = this.position.dist(entity.position);
-                    if (dist < this.size / 2 + entity.size / 2) { // Simple circular collision detection
-                        // Handle eating based on creature type and entity type
-                        if (this instanceof Prey && entity instanceof Food) {
-                            this.eat(entity, config.foodEnergy);
-                        } else if (this instanceof Predator && entity instanceof Prey) {
-                            this.eat(entity, entity.maxHealth * 0.5); // Predators gain health based on prey's max health
-                        } else if (this instanceof Hunter) { // New Hunter eating logic
-                            if (entity instanceof Food) {
-                                this.eat(entity, config.foodEnergy);
-                            } else if (entity instanceof Prey) {
-                                this.eat(entity, entity.maxHealth * 0.75); // Hunter gets more from Prey
-                            } else if (entity instanceof Predator) {
-                                this.eat(entity, entity.maxHealth * 1.0); // Hunter gets most from Predator
-                            }
-                        }
-                    }
-                }
-
-                this.think(); // Call think after all potential interactions this tick
-                this.move();
-
-                // Reproduction check
-                if (this.health >= this.reproductionThreshold) {
-                    const mateCandidate = nearbyEntities.find(e =>
-                        e.constructor === this.constructor && // Same type
-                        e.id !== this.id && // Not self
-                        !e.isDead && // Alive
-                        e.health > e.reproductionThreshold * 0.8 && // Healthy mate
-                        this.position.dist(e.position) < this.size * 2 // Close enough to mate
-                    );
-                    if (mateCandidate) {
-                         const newChild = this.reproduce(mateCandidate.nn);
-                         if (newChild && entities.length < config.maxEntities) {
-                             entities.push(newChild);
-                         }
-                    }
-                }
-            }
-
-            // Draws the creature on the canvas with a glow effect
-            draw(ctx) {
-                const healthRatio = this.health / this.maxHealth;
-                const brightness = Math.max(0.2, Math.min(1.0, healthRatio * 1.2)); // Brighter when healthier
-                const alpha = Math.max(0.1, Math.min(0.8, healthRatio * 0.7 + 0.1)); // More opaque when healthier
-
-                // Draw trail
-                if (this.trail.length > 0) { // Check if there's at least one point
-                    ctx.beginPath();
-                    ctx.moveTo(this.position.x, this.position.y); // Start from current position
-                    for (let i = 0; i < this.trail.length; i++) { // Loop through trail points
-                        const point = this.trail[i];
-                        const segmentAlpha = alpha * (1 - (i / this.maxTrailLength)); // Fade trail
-                        ctx.strokeStyle = `hsla(${this.color}, 100%, 50%, ${segmentAlpha})`;
-                        ctx.lineWidth = this.size * (1 - (i / this.maxTrailLength)) / 2; // Taper trail
-                        ctx.lineTo(point.x, point.y);
-                    }
-                    ctx.stroke();
-                }
-
-                // Set glow effect using shadow properties
-                ctx.shadowBlur = this.size * 1.5;
-                ctx.shadowColor = `hsla(${this.color}, 100%, 50%, ${alpha})`;
-
-                ctx.fillStyle = `hsla(${this.color}, 100%, ${brightness * 100}%, ${alpha})`; // Main body color
-                ctx.beginPath();
-
-                if (this instanceof Prey) {
-                    ctx.arc(this.position.x, this.position.y, this.size / 2, 0, Math.PI * 2);
-                } else if (this instanceof Predator) {
-                    const angle = this.velocity.angle();
-                    const tipX = this.position.x + Math.cos(angle) * this.size / 2;
-                    const tipY = this.position.y + Math.sin(angle) * this.size / 2;
-                    const baseAngle1 = angle + (2 * Math.PI / 3);
-                    const baseAngle2 = angle - (2 * Math.PI / 3);
-                    const baseX1 = this.position.x + Math.cos(baseAngle1) * this.size / 2;
-                    const baseY1 = this.position.y + Math.sin(baseAngle1) * this.size / 2;
-                    const baseX2 = this.position.x + Math.cos(baseAngle2) * this.size / 2;
-                    const baseY2 = this.position.y + Math.sin(baseAngle2) * this.size / 2;
-
-                    ctx.moveTo(tipX, tipY);
-                    ctx.lineTo(baseX1, baseY1);
-                    ctx.lineTo(baseX2, baseY2);
-                    ctx.closePath();
-                } else if (this instanceof Hunter) { // New: Draw a diamond for Hunter
-                    const angle = this.velocity.angle();
-                    const halfSize = this.size * 0.7; // Slightly smaller to fit better
-                    const sqrt2 = Math.sqrt(2); // For diamond points
-                    const p1 = new Vector(this.position.x + Math.cos(angle) * halfSize * sqrt2, this.position.y + Math.sin(angle) * halfSize * sqrt2); // Top
-                    const p2 = new Vector(this.position.x + Math.cos(angle + Math.PI / 2) * halfSize, this.position.y + Math.sin(angle + Math.PI / 2) * halfSize); // Right
-                    const p3 = new Vector(this.position.x + Math.cos(angle + Math.PI) * halfSize * sqrt2, this.position.y + Math.sin(angle + Math.PI) * halfSize * sqrt2); // Bottom
-                    const p4 = new Vector(this.position.x + Math.cos(angle - Math.PI / 2) * halfSize, this.position.y + Math.sin(angle - Math.PI / 2) * halfSize); // Left
-
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.lineTo(p3.x, p3.y);
-                    ctx.lineTo(p4.x, p4.y);
-                    ctx.closePath();
-                }
-                ctx.fill();
-
-                // Reset shadow properties to avoid affecting subsequent draws
-                ctx.shadowBlur = 0;
-                ctx.shadowColor = 'transparent';
-                ctx.lineWidth = 1; // Reset line width
-            }
-        }
-
-        /**
-         * Represents a Prey creature, extends Creature.
-         */
-        class Prey extends Creature {
-            constructor(x, y, world, nn = null, color = 120) { // Default color 120 (Green)
-                super(x, y, color, config.creatureSize, world, nn || new NeuralNetwork(),
-                      config.preyMaxHealth, config.preyReproductionThreshold, config.preyEnergyConsumption,
-                      config.preyMaxSpeed, config.preyVisionRange);
-            }
-        }
-
-        /**
-         * Represents a Predator creature, extends Creature.
-         */
-        class Predator extends Creature {
-            constructor(x, y, world, nn = null, color = 0) { // Default color 0 (Red)
-                super(x, y, color, config.creatureSize + 2, world, nn || new NeuralNetwork(), // Slightly larger
-                      config.predatorMaxHealth, config.predatorReproductionThreshold, config.predatorEnergyConsumption,
-                      config.predatorMaxSpeed, config.predatorVisionRange);
-            }
-        }
-
-        /**
-         * New: Represents a Hunter creature, extends Creature.
-         */
-        class Hunter extends Creature {
-            constructor(x, y, world, nn = null, color = 280) { // Default color 280 (Purple/Magenta)
-                super(x, y, color, config.creatureSize + 4, world, nn || new NeuralNetwork(), // Even larger
-                      config.hunterMaxHealth, config.hunterReproductionThreshold, config.hunterEnergyConsumption,
-                      config.hunterMaxSpeed, config.hunterVisionRange);
-            }
-        }
-
-        /**
-         * Represents a Food item, extends Entity.
-         */
-        class Food extends Entity {
-            constructor(x, y, world) {
-                const foodColorHue = 240; // Blue
-                // Slightly vary food size for more organic look
-                const foodSize = config.creatureSize / 2 + (Math.random() * 2 - 1) * (config.creatureSize / 8);
-                super(x, y, foodColorHue, foodSize, world); // Smaller than creatures
-            }
-
-            // Draws the food item on the canvas with a faint glow
-            draw(ctx) {
-                ctx.shadowBlur = this.size * 2;
-                ctx.shadowColor = `hsla(${this.color}, 100%, 70%, 0.5)`;
-
-                ctx.fillStyle = `hsla(${this.color}, 100%, 80%, 0.8)`;
-                ctx.beginPath();
-                ctx.arc(this.position.x, this.position.y, this.size / 2, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.shadowBlur = 0;
-                ctx.shadowColor = 'transparent';
-            }
-        }
+        class Vector { constructor(x=0,y=0){this.x=x;this.y=y} add(o){return new Vector(this.x+o.x,this.y+o.y)} sub(o){return new Vector(this.x-o.x,this.y-o.y)} mult(s){return new Vector(this.x*s,this.y*s)} div(s){return new Vector(this.x/s,this.y/s)} mag(){return Math.sqrt(this.x*this.x+this.y*this.y)} normalize(){const m=this.mag();return m>0?this.div(m):new Vector(0,0)} setMag(m){return this.normalize().mult(m)} limit(m){if(this.mag()>m){return this.setMag(m)} return this} dist(o){return this.sub(o).mag()} angle(){return Math.atan2(this.y,this.x)} static random2D(){const a=Math.random()*Math.PI*2;return new Vector(Math.cos(a),Math.sin(a))} copy(){return new Vector(this.x,this.y)} }
+        class Rectangle { constructor(x,y,w,h){this.x=x;this.y=y;this.w=w;this.h=h} contains(p){return(p.x>=this.x-this.w&&p.x<=this.x+this.w&&p.y>=this.y-this.h&&p.y<=this.y+this.h)} intersects(r){return!(r.x-r.w>this.x+this.w||r.x+r.w<this.x-this.w||r.y-r.h>this.y+this.h||r.y+r.h<this.y-this.h)} }
+        class QuadTree { constructor(b,c){this.boundary=b;this.capacity=c;this.entities=[];this.divided=!1} subdivide(){let x=this.boundary.x,y=this.boundary.y,w=this.boundary.w/2,h=this.boundary.h/2;this.northeast=new QuadTree(new Rectangle(x+w,y-h,w,h),this.capacity);this.northwest=new QuadTree(new Rectangle(x-w,y-h,w,h),this.capacity);this.southeast=new QuadTree(new Rectangle(x+w,y+h,w,h),this.capacity);this.southwest=new QuadTree(new Rectangle(x-w,y+h,w,h),this.capacity);this.divided=!0;for(let e of this.entities){this.insert(e)} this.entities=[]} insert(e){return this.boundary.contains(e.position)?this.entities.length<this.capacity&&!this.divided?(this.entities.push(e),!0):(!this.divided&&this.subdivide(),!this.northeast.insert(e)&&!this.northwest.insert(e)&&!this.southeast.insert(e)&&!this.southwest.insert(e)?!1:!0):!1} query(r,f=[]){if(!this.boundary.intersects(r)){return f} for(let e of this.entities){r.contains(e.position)&&f.push(e)} return this.divided&&(this.northwest.query(r,f),this.northeast.query(r,f),this.southwest.query(r,f),this.southeast.query(r,f)),f} clear(){this.entities=[];this.divided=!1;this.northeast=null;this.northwest=null;this.southeast=null;this.southwest=null} }
+        class NeuralNetwork { static INPUT_SIZE = 1 + (2 * 5); static HIDDEN_SIZE = 10; static OUTPUT_SIZE = 2; constructor(...layerSizes) { this.layerSizes = layerSizes.length ? layerSizes : [NeuralNetwork.INPUT_SIZE, NeuralNetwork.HIDDEN_SIZE, NeuralNetwork.OUTPUT_SIZE]; this.weights = []; this.biases = []; for (let i = 0; i < this.layerSizes.length - 1; i++) { const rows = this.layerSizes[i + 1], cols = this.layerSizes[i]; this.weights.push(Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 - 1))); this.biases.push(Array.from({ length: rows }, () => Math.random() * 2 - 1)); } } static tanh(x) { return Math.tanh(x); } feedForward(inputs) { if (inputs.length !== this.layerSizes[0]) { console.error(`Input size mismatch. Expected ${this.layerSizes[0]}, got ${inputs.length}. Padding/truncating.`); const paddedInputs = inputs.slice(0, this.layerSizes[0]); while (paddedInputs.length < this.layerSizes[0]) { paddedInputs.push(0); } inputs = paddedInputs; } let currentOutputs = inputs; for (let i = 0; i < this.weights.length; i++) { const nextOutputs = [], weightMatrix = this.weights[i], biasVector = this.biases[i]; for (let r = 0; r < weightMatrix.length; r++) { let sum = 0; for (let c = 0; c < weightMatrix[r].length; c++) { sum += currentOutputs[c] * weightMatrix[r][c]; } nextOutputs.push(NeuralNetwork.tanh(sum + biasVector[r])); } currentOutputs = nextOutputs; } return currentOutputs; } copy() { const newNN = new NeuralNetwork(...this.layerSizes); newNN.weights = this.weights.map(matrix => matrix.map(row => [...row])); newNN.biases = this.biases.map(bias => [...bias]); return newNN; } mutate(rate) { let mutationsCount = 0; for (let i = 0; i < this.weights.length; i++) for (let r = 0; r < this.weights[i].length; r++) for (let c = 0; c < this.weights[i][r].length; c++) if (Math.random() < rate) { this.weights[i][r][c] += (Math.random() * 2 - 1) * 0.5; mutationsCount++; } for (let i = 0; i < this.biases.length; i++) for (let r = 0; r < this.biases[i].length; r++) if (Math.random() < rate) { this.biases[i][r] += (Math.random() * 2 - 1) * 0.5; mutationsCount++; } return mutationsCount; } static crossover(nn1, nn2) { if (nn1.layerSizes.join('-') !== nn2.layerSizes.join('-')) throw new Error("Cannot crossover NNs with different architectures."); const childNN = new NeuralNetwork(...nn1.layerSizes); for (let i = 0; i < nn1.weights.length; i++) { const crossoverPointRow = Math.floor(Math.random() * nn1.weights[i].length), crossoverPointCol = Math.floor(Math.random() * nn1.weights[i][0].length); for (let r = 0; r < nn1.weights[i].length; r++) for (let c = 0; c < nn1.weights[i][r].length; c++) childNN.weights[i][r][c] = r < crossoverPointRow || r === crossoverPointRow && c < crossoverPointCol ? nn1.weights[i][r][c] : nn2.weights[i][r][c]; } for (let i = 0; i < nn1.biases.length; i++) { const crossoverPoint = Math.floor(Math.random() * nn1.biases[i].length); for (let r = 0; r < nn1.biases[i].length; r++) childNN.biases[i][r] = r < crossoverPoint ? nn1.biases[i][r] : nn2.biases[i][r]; } return childNN; } }
+        
+        // --- Entity Classes (unchanged) ---
+        class Entity { constructor(x,y,c,s,w){this.position=new Vector(x,y);this.color=c;this.size=s;this.world=w;this.id=entityIdCounter++;this.isDead=!1;this.trail=[];this.maxTrailLength=5} update(){this.trail.unshift(this.position.copy());this.trail.length>this.maxTrailLength&&this.trail.pop()} draw(ctx){} }
+        class Creature extends Entity { constructor(x,y,c,s,w,nn,mh,rt,ec,ms,vr){super(x,y,c,s,w);this.velocity=Vector.random2D().setMag(ms*0.5);this.acceleration=new Vector(0,0);this.maxSpeed=ms;this.maxHealth=mh;this.health=mh;this.reproductionThreshold=rt;this.energyConsumption=ec;this.nn=nn;this.visionRange=vr;this.age=0} _addNormalizedInputs(i,{entity,dist}){if(entity){i.push(dist/this.visionRange);let a=entity.position.sub(this.position).angle(),r=a-this.velocity.angle();r=Math.atan2(Math.sin(r),Math.cos(r));i.push(r/Math.PI)}else{i.push(1);i.push(0)}} think(){const s=new Rectangle(this.position.x,this.position.y,this.visionRange/2,this.visionRange/2),n=quadtree.query(s);let f={e:null,d:Infinity},p={e:null,d:Infinity},r={e:null,d:Infinity},h={e:null,d:Infinity},m={e:null,d:Infinity};for(let e of n){if(e.id===this.id||e.isDead)continue;const d=this.position.dist(e.position);if(d<this.visionRange){if(e instanceof Food){d<f.d&&(f={entity:e,dist:d})}else if(e instanceof Prey){d<p.d&&(p={entity:e,dist:d});this.constructor===e.constructor&&e.health>e.reproductionThreshold*0.8&&d<m.d&&(m={entity:e,dist:d})}else if(e instanceof Predator){d<r.d&&(r={entity:e,dist:d});this.constructor===e.constructor&&e.health>e.reproductionThreshold*0.8&&d<m.d&&(m={entity:e,dist:d})}else if(e instanceof Hunter){d<h.d&&(h={entity:e,dist:d});this.constructor===e.constructor&&e.health>e.reproductionThreshold*0.8&&d<m.d&&(m={entity:e,dist:d})}}} const i=[];i.push(this.health/this.maxHealth);this._addNormalizedInputs(i,f);this._addNormalizedInputs(i,p);this._addNormalizedInputs(i,r);this._addNormalizedInputs(i,h);this._addNormalizedInputs(i,m);const o=this.nn.feedForward(i),a=(o[0]+1)/2,t=o[1],c=this.velocity.angle(),d=c+t*(Math.PI/8);this.acceleration=new Vector(Math.cos(d),Math.sin(d)).setMag(a*0.1)} move(){this.velocity=this.velocity.add(this.acceleration);this.velocity=this.velocity.limit(this.maxSpeed);this.position=this.position.add(this.velocity.mult(config.timeScale));this.acceleration=new Vector(0,0);this.position.x<0&&(this.position.x=this.world.width);this.position.x>this.world.width&&(this.position.x=0);this.position.y<0&&(this.position.y=this.world.height);this.position.y>this.world.height&&(this.position.y=0)} updateHealth(){this.health-=this.energyConsumption*config.timeScale;this.health<=0&&(this.isDead=!0)} reproduce(m=null){if(this.health>=this.reproductionThreshold){const c=m?NeuralNetwork.crossover(this.nn,m):this.nn.copy(),b=c.mutate(config.mutationRate);totalGeneticMutations+=b;let h=this.color;b>0&&(h=this.color+(Math.random()*2*config.mutationColorRange-config.mutationColorRange),h=(h%360+360)%360);const o=Vector.random2D().mult(this.size*2),l=new(this.constructor)(this.position.x+o.x,this.position.y+o.y,this.world,c,h);return this.health-=config.reproductionCost,totalBirths++,l}return null} eat(t,e){this.health+=e;this.health=Math.min(this.health,this.maxHealth);t.isDead=!0} update(){super.update();this.age+=config.timeScale;this.updateHealth();if(this.isDead)return;const s=new Rectangle(this.position.x,this.position.y,this.visionRange/2,this.visionRange/2),n=quadtree.query(s);for(let e of n){if(e.id===this.id||e.isDead)continue;const d=this.position.dist(e.position);if(d<this.size/2+e.size/2){if(this instanceof Prey&&e instanceof Food){this.eat(e,config.foodEnergy)}else if(this instanceof Predator&&e instanceof Prey){this.eat(e,e.maxHealth*0.5)}else if(this instanceof Hunter){if(e instanceof Food){this.eat(e,config.foodEnergy)}else if(e instanceof Prey){this.eat(e,e.maxHealth*0.75)}else if(e instanceof Predator){this.eat(e,e.maxHealth*1.0)}}}} this.think();this.move();if(this.health>=this.reproductionThreshold){const m=n.find(e=>e.constructor===this.constructor&&e.id!==this.id&&!e.isDead&&e.health>e.reproductionThreshold*0.8&&this.position.dist(e.position)<this.size*2);if(m){const c=this.reproduce(m.nn);c&&entities.length<config.maxEntities&&entities.push(c)}}} draw(ctx){const h=this.health/this.maxHealth,b=Math.max(0.2,Math.min(1.0,h*1.2)),a=Math.max(0.1,Math.min(0.8,h*0.7+0.1));if(this.trail.length>0){ctx.beginPath();ctx.moveTo(this.position.x,this.position.y);for(let i=0;i<this.trail.length;i++){const p=this.trail[i],s=a*(1-i/this.maxTrailLength);ctx.strokeStyle=`hsla(${this.color}, 100%, 50%, ${s})`;ctx.lineWidth=this.size*(1-i/this.maxTrailLength)/2;ctx.lineTo(p.x,p.y)} ctx.stroke()} ctx.shadowBlur=this.size*1.5;ctx.shadowColor=`hsla(${this.color}, 100%, 50%, ${a})`;ctx.fillStyle=`hsla(${this.color}, 100%, ${b*100}%, ${a})`;ctx.beginPath();if(this instanceof Prey){ctx.arc(this.position.x,this.position.y,this.size/2,0,Math.PI*2)}else if(this instanceof Predator){const an=this.velocity.angle(),tX=this.position.x+Math.cos(an)*this.size/2,tY=this.position.y+Math.sin(an)*this.size/2,bA1=an+2*Math.PI/3,bA2=an-2*Math.PI/3,bX1=this.position.x+Math.cos(bA1)*this.size/2,bY1=this.position.y+Math.sin(bA1)*this.size/2,bX2=this.position.x+Math.cos(bA2)*this.size/2,bY2=this.position.y+Math.sin(bA2)*this.size/2;ctx.moveTo(tX,tY);ctx.lineTo(bX1,bY1);ctx.lineTo(bX2,bY2);ctx.closePath()}else if(this instanceof Hunter){const an=this.velocity.angle(),hS=this.size*0.7,s2=Math.sqrt(2),p1=new Vector(this.position.x+Math.cos(an)*hS*s2,this.position.y+Math.sin(an)*hS*s2),p2=new Vector(this.position.x+Math.cos(an+Math.PI/2)*hS,this.position.y+Math.sin(an+Math.PI/2)*hS),p3=new Vector(this.position.x+Math.cos(an+Math.PI)*hS*s2,this.position.y+Math.sin(an+Math.PI)*hS*s2),p4=new Vector(this.position.x+Math.cos(an-Math.PI/2)*hS,this.position.y+Math.sin(an-Math.PI/2)*hS);ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.lineTo(p3.x,p3.y);ctx.lineTo(p4.x,p4.y);ctx.closePath()} ctx.fill();ctx.shadowBlur=0;ctx.shadowColor='transparent';ctx.lineWidth=1} }
+        class Prey extends Creature { constructor(x, y, world, nn = null, color = 120) { super(x, y, color, config.creatureSize, world, nn || new NeuralNetwork(), config.preyMaxHealth, config.preyReproductionThreshold, config.preyEnergyConsumption, config.preyMaxSpeed, config.preyVisionRange); } }
+        class Predator extends Creature { constructor(x, y, world, nn = null, color = 0) { super(x, y, color, config.creatureSize + 2, world, nn || new NeuralNetwork(), config.predatorMaxHealth, config.predatorReproductionThreshold, config.predatorEnergyConsumption, config.predatorMaxSpeed, config.predatorVisionRange); } }
+        class Hunter extends Creature { constructor(x, y, world, nn = null, color = 280) { super(x, y, color, config.creatureSize + 4, world, nn || new NeuralNetwork(), config.hunterMaxHealth, config.hunterReproductionThreshold, config.hunterEnergyConsumption, config.hunterMaxSpeed, config.hunterVisionRange); } }
+        class Food extends Entity { constructor(x,y,w){const h=240,s=config.creatureSize/2+(Math.random()*2-1)*(config.creatureSize/8);super(x,y,h,s,w)} draw(ctx){ctx.shadowBlur=this.size*2;ctx.shadowColor=`hsla(${this.color}, 100%, 70%, 0.5)`;ctx.fillStyle=`hsla(${this.color}, 100%, 80%, 0.8)`;ctx.beginPath();ctx.arc(this.position.x,this.position.y,this.size/2,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.shadowColor='transparent'} }
 
         // --- Simulation Management Functions ---
+        
+        function formatTime(ticks) {
+            const totalSeconds = Math.floor(ticks / 60);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            const pad = (num) => String(num).padStart(2, '0');
+            return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+        }
 
-        /**
-         * Initializes the canvas, quadtree, initial population, and UI.
-         */
+
         function initSimulation() {
             canvas = document.getElementById('gameCanvas');
             ctx = canvas.getContext('2d');
 
-            // Initialize Perlin Noise
             perlinNoise = new PerlinNoise(Date.now());
-
-            // Set up UI before calling resizeCanvas so stats panel height is accurate
+            
             setupUI();
-            resizeCanvas(); // Set initial canvas size based on window and fit world
-            window.addEventListener('resize', resizeCanvas); // Adjust canvas on window resize
+            resizeCanvas(); 
+            window.addEventListener('resize', resizeCanvas); 
 
-            // Initialize quadtree for the entire *virtual* world area
             const boundary = new Rectangle(config.worldWidth / 2, config.worldHeight / 2, config.worldWidth / 2, config.worldHeight / 2);
             quadtree = new QuadTree(boundary, config.quadtreeCapacity);
 
-            setupCanvasEvents(); // Set up panning events
-            generateInitialPopulation(); // Create initial entities
-            drawSimulation(); // Draw initial static state before simulation starts
+            setupCanvasEvents(); 
+            generateInitialPopulation();
+            initNNChart(); // NEW: Initialize the chart after the DOM is ready
+            drawSimulation();
+        }
+        
+        function handleEntityClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+            
+            const worldX = (canvasX / config.zoomLevel) + cameraX;
+            const worldY = (canvasY / config.zoomLevel) + cameraY;
+            const clickPos = new Vector(worldX, worldY);
+
+            let closestEntity = null;
+            let minDistance = Infinity;
+
+            const searchRadius = 50 / config.zoomLevel; 
+            const searchArea = new Rectangle(worldX, worldY, searchRadius, searchRadius);
+            const nearbyEntities = quadtree.query(searchArea);
+
+            for (const entity of nearbyEntities) {
+                if (entity instanceof Food) continue;
+
+                const dist = clickPos.dist(entity.position);
+                if (dist < entity.size * 1.5 && dist < minDistance) { 
+                    minDistance = dist;
+                    closestEntity = entity;
+                }
+            }
+
+            if (closestEntity) {
+                if (followedEntity === closestEntity) {
+                    followedEntity = null;
+                } else {
+                    followedEntity = closestEntity;
+                    targetZoom = 1.8; 
+                }
+            } else {
+                followedEntity = null;
+            }
         }
 
-        /**
-         * Sets up mouse/touch events for camera panning.
-         */
         function setupCanvasEvents() {
+            let dragged = false; 
+            
             canvas.addEventListener('mousedown', (e) => {
-                if (e.button === 0) { // Left mouse button
+                if (e.button === 0) { 
                     isDragging = true;
+                    dragged = false; 
                     lastMouseX = e.clientX;
                     lastMouseY = e.clientY;
-                    canvas.classList.add('dragging');
+                    if (!followedEntity) {
+                        canvas.classList.add('dragging');
+                    }
                 }
             });
 
@@ -1362,38 +783,44 @@
                 if (isDragging) {
                     const dx = e.clientX - lastMouseX;
                     const dy = e.clientY - lastMouseY;
+                    
+                    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                        dragged = true;
+                    }
 
-                    // Adjust camera offset, scaling by current zoom level
-                    // Moving mouse right should move camera left relative to world
-                    cameraX -= dx / config.zoomLevel;
-                    cameraY -= dy / config.zoomLevel;
-
-                    // Clamp camera to world bounds
-                    clampCamera();
-
-                    lastMouseX = e.clientX;
-                    lastMouseY = e.clientY;
-                    drawSimulation(); // Redraw for smooth panning
+                    if (!followedEntity) {
+                        targetCameraX -= dx / config.zoomLevel;
+                        targetCameraY -= dy / config.zoomLevel;
+                        lastMouseX = e.clientX;
+                        lastMouseY = e.clientY;
+                    }
                 }
             });
 
-            canvas.addEventListener('mouseup', () => {
+            canvas.addEventListener('mouseup', (e) => {
+                if (e.button === 0) {
+                    if (!dragged) {
+                        handleEntityClick(e);
+                    }
+                    isDragging = false;
+                    canvas.classList.remove('dragging');
+                }
+            });
+
+            canvas.addEventListener('mouseleave', () => { 
                 isDragging = false;
                 canvas.classList.remove('dragging');
             });
 
-            canvas.addEventListener('mouseleave', () => { // Stop dragging if mouse leaves canvas
-                isDragging = false;
-                canvas.classList.remove('dragging');
-            });
-
-            // Touch events for mobile
             canvas.addEventListener('touchstart', (e) => {
                 if (e.touches.length === 1) {
                     isDragging = true;
+                    dragged = false;
                     lastMouseX = e.touches[0].clientX;
                     lastMouseY = e.touches[0].clientY;
-                    canvas.classList.add('dragging');
+                    if (!followedEntity) {
+                        canvas.classList.add('dragging');
+                    }
                 }
             }, { passive: true });
 
@@ -1401,189 +828,233 @@
                 if (isDragging && e.touches.length === 1) {
                     const dx = e.touches[0].clientX - lastMouseX;
                     const dy = e.touches[0].clientY - lastMouseY;
-
-                    cameraX -= dx / config.zoomLevel;
-                    cameraY -= dy / config.zoomLevel;
-
-                    clampCamera();
-
-                    lastMouseX = e.touches[0].clientX;
-                    lastMouseY = e.touches[0].clientY;
-                    drawSimulation();
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                        dragged = true;
+                    }
+                    if (!followedEntity) {
+                        targetCameraX -= dx / config.zoomLevel;
+                        targetCameraY -= dy / config.zoomLevel;
+                        lastMouseX = e.touches[0].clientX;
+                        lastMouseY = e.touches[0].clientY;
+                    }
                 }
             }, { passive: true });
 
-            canvas.addEventListener('touchend', () => {
+            canvas.addEventListener('touchend', (e) => {
+                if (!dragged && e.changedTouches.length > 0) {
+                    handleEntityClick(e.changedTouches[0]);
+                }
                 isDragging = false;
                 canvas.classList.remove('dragging');
             });
 
-            // Prevent context menu on right click, useful if we add right-click actions later
-            canvas.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-            });
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
         }
 
-        /**
-         * Clamps the camera position so it doesn't pan off the world.
-         */
+        function updateCamera() {
+            if (followedEntity) {
+                if (followedEntity.isDead) {
+                    followedEntity = null;
+                } else {
+                    targetCameraX = followedEntity.position.x - (canvas.width / targetZoom / 2);
+                    targetCameraY = followedEntity.position.y - (canvas.height / targetZoom / 2);
+                }
+            }
+            
+            config.zoomLevel += (targetZoom - config.zoomLevel) * CAMERA_LERP_SPEED;
+            cameraX += (targetCameraX - cameraX) * CAMERA_LERP_SPEED;
+            cameraY += (targetCameraY - cameraY) * CAMERA_LERP_SPEED;
+            
+            clampCamera();
+        }
+
         function clampCamera() {
             const worldViewWidth = canvas.width / config.zoomLevel;
             const worldViewHeight = canvas.height / config.zoomLevel;
 
-            // Max cameraX (leftmost position of the view)
             const maxX = config.worldWidth - worldViewWidth;
-            // Max cameraY (topmost position of the view)
             const maxY = config.worldHeight - worldViewHeight;
+            
+            targetCameraX = Math.max(0, Math.min(targetCameraX, maxX < 0 ? 0 : maxX));
+            targetCameraY = Math.max(0, Math.min(targetCameraY, maxY < 0 ? 0 : maxY));
 
-            cameraX = Math.max(0, Math.min(cameraX, maxX));
-            cameraY = Math.max(0, Math.min(cameraY, maxY));
+            cameraX = Math.max(0, Math.min(cameraX, maxX < 0 ? 0 : maxX));
+            cameraY = Math.max(0, Math.min(cameraY, maxY < 0 ? 0 : maxY));
         }
 
 
-        /**
-         * Generates the initial population of Prey, Predators, Food, and Hunters.
-         */
         function generateInitialPopulation() {
-            entities = []; // Clear any existing entities
-            totalBirths = 0; // Reset stats on new population
+            entities = []; 
+            totalBirths = 0; 
             totalGeneticMutations = 0;
             simulationTicks = 0;
-            totalPreySurvivalTicks = 0; // Reset survival times
+            totalPreySurvivalTicks = 0; 
             totalPredatorSurvivalTicks = 0;
             totalHunterSurvivalTicks = 0;
-            gameOver = false; // Reset game over flag
+            gameOver = false; 
+            followedEntity = null; 
 
-            // Define world region boundaries based on worldWidth
+            // NEW: Reset chart data on new simulation
+            chartLabels = [];
+            avgPreyAgeData = [];
+            avgPredatorAgeData = [];
+            avgHunterAgeData = [];
+            if (nnChart) nnChart.update();
+
+
             const foodZoneEnd = config.worldWidth * config.foodZoneWidth;
+            for (let i = 0; i < config.preyTargetPopulation; i++) { entities.push(new Prey(Math.random() * foodZoneEnd, Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); }
 
-            // Spawn initial Prey in Food Zone
-            for (let i = 0; i < config.preyTargetPopulation; i++) {
-                const x = Math.random() * foodZoneEnd;
-                const y = Math.random() * config.worldHeight;
-                entities.push(new Prey(x, y, { width: config.worldWidth, height: config.worldHeight }));
-            }
+            const centralSpawnMinX = config.worldWidth * 0.2; 
+            const centralSpawnMaxX = config.worldWidth * 0.8;
+            for (let i = 0; i < config.predatorTargetPopulation; i++) { entities.push(new Predator(centralSpawnMinX + Math.random() * (centralSpawnMaxX - centralSpawnMinX), Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); }
 
-            // Spawn initial Predators in a wider central zone for better initial survival
-            const centralSpawnMinX = config.worldWidth * 0.2; // 20% from left
-            const centralSpawnMaxX = config.worldWidth * 0.8;   // 80% from left
-            for (let i = 0; i < config.predatorTargetPopulation; i++) {
-                const x = centralSpawnMinX + Math.random() * (centralSpawnMaxX - centralSpawnMinX);
-                const y = Math.random() * config.worldHeight;
-                entities.push(new Predator(x, y, { width: config.worldWidth, height: config.worldHeight }));
-            }
+            const hunterSpawnMinX = config.worldWidth * config.foodZoneWidth;
+            const hunterSpawnMaxX = config.worldWidth * (config.foodZoneWidth + config.desolateZoneWidth);
+            for (let i = 0; i < config.hunterTargetPopulation; i++) { entities.push(new Hunter(hunterSpawnMinX + Math.random() * (hunterSpawnMaxX - hunterSpawnMinX), Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); }
 
-            // Spawn initial Hunters in the desolate zone, or spread them out
-            const hunterSpawnMinX = config.worldWidth * config.foodZoneWidth; // Desolate zone start
-            const hunterSpawnMaxX = config.worldWidth * (config.foodZoneWidth + config.desolateZoneWidth); // Desolate zone end
-            for (let i = 0; i < config.hunterTargetPopulation; i++) {
-                const x = hunterSpawnMinX + Math.random() * (hunterSpawnMaxX - hunterSpawnMinX);
-                const y = Math.random() * config.worldHeight;
-                entities.push(new Hunter(x, y, { width: config.worldWidth, height: config.worldHeight }));
-            }
-
-            // Spawn initial Food across the food zone
-            for (let i = 0; i < config.preyTargetPopulation * 2; i++) { // More food than prey initially for stability
-                const x = Math.random() * foodZoneEnd;
-                const y = Math.random() * config.worldHeight;
-                entities.push(new Food(x, y, { width: config.worldWidth, height: config.worldHeight }));
-            }
-            // IMPORTANT: Update counts immediately after generation for the initial draw
+            for (let i = 0; i < config.preyTargetPopulation * 2; i++) { entities.push(new Food(Math.random() * foodZoneEnd, Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); }
+            
             updateEntityCounts();
         }
 
-        /**
-         * Updates the state of all entities and manages population.
-         */
         function updateSimulation() {
-            if (simulationPaused || gameOver) return; // Do not update if paused or game over
+            if (simulationPaused || gameOver) return; 
 
-            simulationTicks++; // Increment simulation time
+            simulationTicks++; 
 
-            // Clear and rebuild quadtree for current frame
             quadtree.clear();
             for (let entity of entities) {
-                if (!entity.isDead) { // Only add live entities
+                if (!entity.isDead) { 
                     quadtree.insert(entity);
                 }
             }
 
-            // Update entities and filter out dead ones
             let newEntities = [];
             for (let entity of entities) {
-                if (!entity.isDead) { // Ensure entity is not already marked dead
-                    // Accumulate survival time before updating and potentially dying
-                    if (entity instanceof Prey) {
-                        totalPreySurvivalTicks += config.timeScale;
-                    } else if (entity instanceof Predator) {
-                        totalPredatorSurvivalTicks += config.timeScale;
-                    } else if (entity instanceof Hunter) { // New: Hunter survival time
-                        totalHunterSurvivalTicks += config.timeScale;
-                    }
-
-                    entity.update(); // Call individual entity's update logic
-                    if (!entity.isDead) { // Check again AFTER update, as they might have died during update
+                if (!entity.isDead) { 
+                    if (entity instanceof Prey) totalPreySurvivalTicks += config.timeScale;
+                    else if (entity instanceof Predator) totalPredatorSurvivalTicks += config.timeScale;
+                    else if (entity instanceof Hunter) totalHunterSurvivalTicks += config.timeScale;
+                    
+                    entity.update(); 
+                    if (!entity.isDead) { 
                         newEntities.push(entity);
                     }
                 }
             }
-            entities = newEntities; // Replace old array with new live entities
+            entities = newEntities; 
 
-            updateEntityCounts(); // Update counts after filtering
+            updateEntityCounts();
 
-            // --- Game Over Condition Check ---
+            // NEW: Throttled updates for UI panels to save performance
+            if (simulationTicks % 60 === 0) { // Update once per second
+                updateTopEntitiesPanel();
+            }
+            if (simulationTicks % CHART_UPDATE_INTERVAL === 0) { // Update chart periodically
+                updateNNChartData();
+            }
+
             if (currentPreyCount === 0 && !gameOver) {
                 endGame();
-                return; // Stop further updates for this frame
+                return;
             }
 
-            // Population Control and Spawning Logic
+            // Population Control Logic...
             const foodZoneEnd = config.worldWidth * config.foodZoneWidth;
             const predatorDenStart = config.worldWidth * (config.foodZoneWidth + config.desolateZoneWidth);
-            const hunterSpawnMinX = config.worldWidth * config.foodZoneWidth; // Desolate zone start
-            const hunterSpawnMaxX = config.worldWidth * (config.foodZoneWidth + config.desolateZoneWidth); // Desolate zone end
+            const hunterSpawnMinX = config.worldWidth * config.foodZoneWidth;
+            const hunterSpawnMaxX = config.worldWidth * (config.foodZoneWidth + config.desolateZoneWidth);
 
-
-            // Spawn food randomly in the food zone
-            // Scale spawn rate by timeScale
             if (Math.random() < config.foodSpawnRate * config.timeScale && entities.length < config.maxEntities) {
-                const x = Math.random() * foodZoneEnd;
-                const y = Math.random() * config.worldHeight;
-                entities.push(new Food(x, y, { width: config.worldWidth, height: config.worldHeight }));
+                entities.push(new Food(Math.random() * foodZoneEnd, Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight }));
             }
-
-            // Spawn new prey if population is below target
-            // These spawn events are not "time-scaled" by timeScale directly as they are threshold-based,
-            // but the overall effect will be faster because creatures reproduce and die faster with higher timeScale.
             if (currentPreyCount < config.preyTargetPopulation && entities.length < config.maxEntities) {
-                const x = Math.random() * foodZoneEnd; // Spawn in food zone
-                const y = Math.random() * config.worldHeight;
-                entities.push(new Prey(x, y, { width: config.worldWidth, height: config.worldHeight }));
+                entities.push(new Prey(Math.random() * foodZoneEnd, Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight }));
             }
-
-            // Spawn new predators if population is below target
             if (currentPredatorCount < config.predatorTargetPopulation && entities.length < config.maxEntities) {
-                const x = predatorDenStart + Math.random() * (config.worldWidth - predatorDenStart); // Spawn in predator den
-                const y = Math.random() * config.worldHeight;
-                entities.push(new Predator(x, y, { width: config.worldWidth, height: config.worldHeight }));
+                entities.push(new Predator(predatorDenStart + Math.random() * (config.worldWidth - predatorDenStart), Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight }));
             }
-
-            // Spawn new hunters if population is below target
             if (currentHunterCount < config.hunterTargetPopulation && entities.length < config.maxEntities) {
-                const x = hunterSpawnMinX + Math.random() * (hunterSpawnMaxX - hunterSpawnMinX);
-                const y = Math.random() * config.worldHeight;
-                entities.push(new Hunter(x, y, { width: config.worldWidth, height: config.worldHeight }));
+                entities.push(new Hunter(hunterSpawnMinX + Math.random() * (hunterSpawnMaxX - hunterSpawnMinX), Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight }));
             }
         }
+        
+        // NEW: Updates the "Top Entities" panel with the longest-surviving creatures.
+        function updateTopEntitiesPanel() {
+            const lists = {
+                'prey': { entities: [], container: document.getElementById('top-prey-list'), class: 'prey-btn' },
+                'predators': { entities: [], container: document.getElementById('top-predators-list'), class: 'predator-btn' },
+                'hunters': { entities: [], container: document.getElementById('top-hunters-list'), class: 'hunter-btn' }
+            };
 
-        /**
-         * Helper function to update the global entity counts.
-         */
+            // Categorize entities
+            for (const entity of entities) {
+                if (entity instanceof Prey) lists.prey.entities.push(entity);
+                else if (entity instanceof Predator) lists.predators.entities.push(entity);
+                else if (entity instanceof Hunter) lists.hunters.entities.push(entity);
+            }
+
+            // Process each category
+            for (const key in lists) {
+                const list = lists[key];
+                // Sort by age descending and take top 3
+                const topEntities = list.entities.sort((a, b) => b.age - a.age).slice(0, 3);
+                
+                list.container.innerHTML = ''; // Clear previous buttons
+                if (topEntities.length === 0) {
+                    list.container.textContent = "None";
+                } else {
+                    topEntities.forEach(entity => {
+                        const button = document.createElement('button');
+                        button.className = `top-entity-button ${list.class}`;
+                        button.textContent = `#${entity.id} (Age: ${Math.floor(entity.age / 60)})`;
+                        button.title = `Click to follow ${entity.constructor.name} #${entity.id}`;
+                        button.addEventListener('click', () => {
+                            followedEntity = entity;
+                            targetZoom = 1.8;
+                        });
+                        list.container.appendChild(button);
+                    });
+                }
+            }
+        }
+        
+        // NEW: Updates the data for the NN visualization chart.
+        function updateNNChartData() {
+            if (!nnChart) return;
+
+            // Calculate average ages
+            let preyAges = 0, predatorAges = 0, hunterAges = 0;
+            entities.forEach(e => {
+                if (e instanceof Prey) preyAges += e.age;
+                else if (e instanceof Predator) predatorAges += e.age;
+                else if (e instanceof Hunter) hunterAges += e.age;
+            });
+
+            const avgPreyAge = currentPreyCount > 0 ? (preyAges / currentPreyCount) / 60 : 0;
+            const avgPredatorAge = currentPredatorCount > 0 ? (predatorAges / currentPredatorCount) / 60 : 0;
+            const avgHunterAge = currentHunterCount > 0 ? (hunterAges / currentHunterCount) / 60 : 0;
+            
+            // Add new data
+            chartLabels.push(simulationTicks);
+            avgPreyAgeData.push(avgPreyAge);
+            avgPredatorAgeData.push(avgPredatorAge);
+            avgHunterAgeData.push(avgHunterAge);
+
+            // Limit data points to keep chart performant
+            if (chartLabels.length > MAX_CHART_POINTS) {
+                chartLabels.shift();
+                avgPreyAgeData.shift();
+                avgPredatorAgeData.shift();
+                avgHunterAgeData.shift();
+            }
+
+            nnChart.update('none'); // Update chart without animation for performance
+        }
+
         function updateEntityCounts() {
-            currentPreyCount = 0;
-            currentPredatorCount = 0;
-            currentHunterCount = 0;
-            currentFoodCount = 0;
+            currentPreyCount = 0; currentPredatorCount = 0; currentHunterCount = 0; currentFoodCount = 0;
             for (const entity of entities) {
                 if (entity instanceof Prey) currentPreyCount++;
                 else if (entity instanceof Predator) currentPredatorCount++;
@@ -1592,9 +1063,6 @@
             }
         }
 
-        /**
-         * Ends the game, pauses simulation, and displays final stats.
-         */
         function endGame() {
             simulationPaused = true;
             gameOver = true;
@@ -1602,185 +1070,156 @@
             displayGameOverStats();
         }
 
-        /**
-         * Displays the game over overlay with final statistics.
-         */
         function displayGameOverStats() {
             const overlay = document.getElementById('game-over-overlay');
             document.getElementById('finalTicks').textContent = simulationTicks;
-            document.getElementById('finalPreySurvival').textContent = totalPreySurvivalTicks.toFixed(0);
-            document.getElementById('finalPredatorSurvival').textContent = totalPredatorSurvivalTicks.toFixed(0);
-            document.getElementById('finalHunterSurvival').textContent = totalHunterSurvivalTicks.toFixed(0); // New: Hunter survival
+            document.getElementById('finalPreySurvival').textContent = formatTime(totalPreySurvivalTicks);
+            document.getElementById('finalPredatorSurvival').textContent = formatTime(totalPredatorSurvivalTicks);
+            document.getElementById('finalHunterSurvival').textContent = formatTime(totalHunterSurvivalTicks);
             document.getElementById('finalBirths').textContent = totalBirths;
             document.getElementById('finalMutations').textContent = totalGeneticMutations;
             overlay.classList.add('visible');
         }
 
-        /**
-         * Hides the game over overlay.
-         */
         function hideGameOverStats() {
             document.getElementById('game-over-overlay').classList.remove('visible');
         }
 
-        /**
-         * Draws the procedural landscape.
-         * This function should be called within the ctx.save() and ctx.restore() block
-         * after camera transformations have been applied.
-         */
         function drawLandscape(ctx) {
             const tilePx = config.tileSize;
-
-            // Calculate which tiles are currently visible in world coordinates
-            const worldViewX = cameraX;
-            const worldViewY = cameraY;
-            const worldViewWidth = canvas.width / config.zoomLevel;
-            const worldViewHeight = canvas.height / config.zoomLevel;
-
-            const startTileX = Math.floor(worldViewX / tilePx);
-            const endTileX = Math.ceil((worldViewX + worldViewWidth) / tilePx);
-            const startTileY = Math.floor(worldViewY / tilePx);
-            const endTileY = Math.ceil((worldViewY + worldViewHeight) / tilePx);
+            const worldViewX = cameraX, worldViewY = cameraY;
+            const worldViewWidth = canvas.width / config.zoomLevel, worldViewHeight = canvas.height / config.zoomLevel;
+            const startTileX = Math.floor(worldViewX / tilePx), endTileX = Math.ceil((worldViewX + worldViewWidth) / tilePx);
+            const startTileY = Math.floor(worldViewY / tilePx), endTileY = Math.ceil((worldViewY + worldViewHeight) / tilePx);
 
             for (let x = startTileX; x < endTileX; x++) {
                 for (let y = startTileY; y < endTileY; y++) {
-                    const worldX = x * tilePx;
-                    const worldY = y * tilePx;
-
-                    // Ensure coordinates are within world bounds for noise calculation
-                    // This check is primarily for safety, clampCamera should largely prevent drawing outside.
-                    if (worldX >= config.worldWidth || worldY >= config.worldHeight || worldX < 0 || worldY < 0) {
-                        continue;
-                    }
-
+                    const worldX = x * tilePx, worldY = y * tilePx;
+                    if (worldX >= config.worldWidth || worldY >= config.worldHeight || worldX < 0 || worldY < 0) continue;
                     let heightValue = getLayeredNoise(worldX, worldY);
-
-                    // Apply central water bias
-                    const distanceToWorldCenter = Math.sqrt(
-                        Math.pow(worldX + tilePx/2 - config.worldWidth / 2, 2) +
-                        Math.pow(worldY + tilePx/2 - config.worldHeight / 2, 2)
-                    );
-                    const waterBodyRadius = Math.min(config.worldWidth, config.worldHeight) * 0.3; // Approx 30% of smaller dimension
-                    let waterBias = 0;
+                    const distanceToWorldCenter = Math.sqrt(Math.pow(worldX + tilePx/2 - config.worldWidth / 2, 2) + Math.pow(worldY + tilePx/2 - config.worldHeight / 2, 2));
+                    const waterBodyRadius = Math.min(config.worldWidth, config.worldHeight) * 0.3;
                     if (distanceToWorldCenter < waterBodyRadius) {
-                        // Create a smooth depression towards the center
-                        waterBias = 1 - (distanceToWorldCenter / waterBodyRadius);
-                        waterBias = fade(waterBias); // Smooth fade
-                        heightValue += waterBias * -config.noise.waterBiasStrength; // Apply negative bias to lower height
+                        let waterBias = 1 - (distanceToWorldCenter / waterBodyRadius);
+                        heightValue += fade(waterBias) * -config.noise.waterBiasStrength;
                     }
-
                     let tileColor;
-                    if (heightValue < config.noise.waterLevel) {
-                        tileColor = config.biomeColors.water;
-                    } else if (heightValue < config.noise.forestLevel) {
-                        tileColor = config.biomeColors.forest;
-                    } else {
-                        tileColor = config.biomeColors.desert;
-                    }
-
+                    if (heightValue < config.noise.waterLevel) tileColor = config.biomeColors.water;
+                    else if (heightValue < config.noise.forestLevel) tileColor = config.biomeColors.forest;
+                    else tileColor = config.biomeColors.desert;
                     ctx.fillStyle = tileColor;
                     ctx.fillRect(worldX, worldY, tilePx, tilePx);
                 }
             }
         }
 
-        /**
-         * Draws the current state of the simulation on the canvas.
-         */
         function drawSimulation() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear entire canvas
-
-            // Draw background for the entire canvas area (not world area)
-            // This color can be seen if zoom is such that the world doesn't fill the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = 'hsl(240, 50%, 5%)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-
-            // --- Apply camera transform (scale and then translate for zoom and pan) ---
             ctx.save();
-
-            // Translate to account for camera pan
             ctx.translate(-cameraX * config.zoomLevel, -cameraY * config.zoomLevel);
-
-            // Apply zoom
             ctx.scale(config.zoomLevel, config.zoomLevel);
-
-            // Draw the procedural landscape (this is now the main background)
             drawLandscape(ctx);
-
-            // Draw all entities (their draw method expects original world coordinates)
             for (let entity of entities) {
                 entity.draw(ctx);
             }
-
-            // Restore canvas transform to original (no zoom for UI elements or other overlays)
             ctx.restore();
+            
+            const indicator = document.getElementById('follow-indicator');
+            const followStatus = document.getElementById('follow-status');
+            if (followedEntity && !followedEntity.isDead) {
+                const screenX = (followedEntity.position.x - cameraX) * config.zoomLevel;
+                const screenY = (followedEntity.position.y - cameraY) * config.zoomLevel;
+                const indicatorSize = (followedEntity.size * 2) * config.zoomLevel;
+                if (screenX > -indicatorSize && screenX < canvas.width + indicatorSize && screenY > -indicatorSize && screenY < canvas.height + indicatorSize) {
+                    indicator.style.width = `${indicatorSize}px`;
+                    indicator.style.height = `${indicatorSize}px`;
+                    indicator.style.transform = `translate(${screenX - indicatorSize / 2}px, ${screenY - indicatorSize / 2}px)`;
+                    indicator.classList.add('visible');
+                } else {
+                    indicator.classList.remove('visible'); 
+                }
+                const entityType = followedEntity.constructor.name;
+                followStatus.textContent = `Following ${entityType} #${followedEntity.id}`;
+                followStatus.classList.add('visible');
+            } else {
+                indicator.classList.remove('visible'); 
+                followStatus.classList.remove('visible');
+            }
 
-            // Update stats panel
             document.getElementById('preyCount').textContent = currentPreyCount;
             document.getElementById('predatorCount').textContent = currentPredatorCount;
             document.getElementById('hunterCount').textContent = currentHunterCount;
             document.getElementById('foodCount').textContent = currentFoodCount;
-            document.getElementById('totalPreySurvivalTime').textContent = totalPreySurvivalTicks.toFixed(0);
-            document.getElementById('totalPredatorSurvivalTime').textContent = totalPredatorSurvivalTicks.toFixed(0);
-            document.getElementById('totalHunterSurvivalTime').textContent = totalHunterSurvivalTicks.toFixed(0);
+            document.getElementById('totalPreySurvivalTime').textContent = formatTime(totalPreySurvivalTicks);
+            document.getElementById('totalPredatorSurvivalTime').textContent = formatTime(totalPredatorSurvivalTicks);
+            document.getElementById('totalHunterSurvivalTime').textContent = formatTime(totalHunterSurvivalTicks);
             document.getElementById('totalBirths').textContent = totalBirths;
             document.getElementById('totalGeneticMutations').textContent = totalGeneticMutations;
             document.getElementById('simulationTicks').textContent = simulationTicks;
         }
 
-        /**
-         * The main game loop, called repeatedly via requestAnimationFrame.
-         * @param {DOMHighResTimeStamp} currentTime - The time value passed by requestAnimationFrame.
-         */
         function gameLoop(currentTime) {
             const deltaTime = (currentTime - lastFrameTime) / 1000;
             lastFrameTime = currentTime;
-
+            updateCamera();
             updateSimulation();
             drawSimulation();
-
-            // Only request next frame if simulation is not paused or game is over
-            if (!simulationPaused && !gameOver) {
-                requestAnimationFrame(gameLoop);
-            }
+            requestAnimationFrame(gameLoop);
         }
 
-        /**
-         * Resizes the canvas to fill the window and updates the Quadtree boundary.
-         * Also adjusts initial camera position to center the world.
-         */
         function resizeCanvas() {
             canvas.width = window.innerWidth;
-            // The canvas height needs to be adjusted based on the stats panel height
-            // We need to ensure the stats panel is fully rendered before getting its offsetHeight.
-            // This is why resizeCanvas is called *after* setupUI in initSimulation.
             const statsPanel = document.getElementById('stats-panel');
-            const statsPanelHeight = statsPanel ? statsPanel.offsetHeight : 0; // Get actual height
-            const statsPanelMargin = 20; // 10px top + 10px bottom margin from CSS
-            canvas.height = window.innerHeight - (statsPanelHeight + statsPanelMargin);
+            const topEntitiesPanel = document.getElementById('top-entities-panel');
+            const panelsHeight = (statsPanel ? statsPanel.offsetHeight : 0) + (topEntitiesPanel ? topEntitiesPanel.offsetHeight : 0);
+            const panelsMargin = 20;
+            canvas.height = window.innerHeight - (panelsHeight + panelsMargin);
 
-            // Auto-adjust zoom level to fit the entire world on screen initially
+            if (canvas.height < 0) canvas.height = 0;
+            
             const scaleX = canvas.width / config.worldWidth;
             const scaleY = canvas.height / config.worldHeight;
             config.zoomLevel = Math.min(scaleX, scaleY);
-            // Ensure a reasonable minimum zoom (don't zoom out excessively)
-            config.zoomLevel = Math.max(config.zoomLevel, 0.01);
-
-            // Center camera initially so the entire world is visible
+            config.zoomLevel = Math.max(config.zoomLevel, 0.1);
+            targetZoom = config.zoomLevel;
             cameraX = (config.worldWidth - (canvas.width / config.zoomLevel)) / 2;
             cameraY = (config.worldHeight - (canvas.height / config.zoomLevel)) / 2;
-            clampCamera(); // Ensure camera is within bounds after initial centering
+            targetCameraX = cameraX;
+            targetCameraY = cameraY;
+            clampCamera(); 
 
-            // Update quadtree boundary to new world dimensions
             quadtree = new QuadTree(new Rectangle(config.worldWidth / 2, config.worldHeight / 2, config.worldWidth / 2, config.worldHeight / 2), config.quadtreeCapacity);
-            // After resizing, redraw immediately to avoid visual glitches
             drawSimulation();
         }
+        
+        // NEW: Initializes the NN visualization chart.
+        function initNNChart() {
+            const chartCtx = document.getElementById('nnChartCanvas').getContext('2d');
+            nnChart = new Chart(chartCtx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        { label: 'Prey Avg Age', data: avgPreyAgeData, borderColor: 'hsl(120, 100%, 50%)', backgroundColor: 'hsla(120, 100%, 50%, 0.2)', borderWidth: 2, tension: 0.3, pointRadius: 0 },
+                        { label: 'Predator Avg Age', data: avgPredatorAgeData, borderColor: 'hsl(0, 100%, 50%)', backgroundColor: 'hsla(0, 100%, 50%, 0.2)', borderWidth: 2, tension: 0.3, pointRadius: 0 },
+                        { label: 'Hunter Avg Age', data: avgHunterAgeData, borderColor: 'hsl(280, 100%, 60%)', backgroundColor: 'hsla(280, 100%, 60%, 0.2)', borderWidth: 2, tension: 0.3, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        x: { ticks: { color: '#ccc' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+                        y: { beginAtZero: true, ticks: { color: '#ccc' }, grid: { color: 'rgba(255, 255, 255, 0.1)' }, title: { display: true, text: 'Avg. Age (sec)', color: '#ccc' } }
+                    },
+                    plugins: { legend: { labels: { color: '#eee' } } }
+                }
+            });
+        }
 
-        /**
-         * Sets up the UI controls (sliders, start/pause button, hide/show panel, zoom buttons).
-         */
+
         function setupUI() {
             const startPauseButton = document.getElementById('start-pause-button');
             const togglePanelButton = document.getElementById('toggle-panel-button');
@@ -1790,6 +1229,11 @@
             const zoomOutButton = document.getElementById('zoom-out-button');
             const showPanelButton = document.getElementById('show-panel-button');
             const restartGameButton = document.getElementById('restart-game-button');
+            
+            // NEW: NN Chart Panel buttons
+            const nnPanel = document.getElementById('nn-visualization-panel');
+            const hideNNButton = document.getElementById('hide-nn-panel-button');
+            const showNNButton = document.getElementById('toggle-nn-panel-button');
 
             const sliders = [
                 { id: 'timeScale', prop: 'timeScale', valueSpan: 'timeScaleValue', precision: 1 },
@@ -1798,110 +1242,79 @@
                 { id: 'foodEnergy', prop: 'foodEnergy', valueSpan: 'foodEnergyValue', precision: 0 },
                 { id: 'preyTargetPopulation', prop: 'preyTargetPopulation', valueSpan: 'preyTargetPopulationValue', precision: 0 },
                 { id: 'predatorTargetPopulation', prop: 'predatorTargetPopulation', valueSpan: 'predatorTargetPopulationValue', precision: 0 },
-                { id: 'hunterTargetPopulation', prop: 'hunterTargetPopulation', valueSpan: 'hunterTargetPopulationValue', precision: 0 }, // New hunter slider
+                { id: 'hunterTargetPopulation', prop: 'hunterTargetPopulation', valueSpan: 'hunterTargetPopulationValue', precision: 0 },
                 { id: 'preyMaxSpeed', prop: 'preyMaxSpeed', valueSpan: 'preyMaxSpeedValue', precision: 1 },
                 { id: 'predatorMaxSpeed', prop: 'predatorMaxSpeed', valueSpan: 'predatorMaxSpeedValue', precision: 1 },
-                { id: 'hunterMaxSpeed', prop: 'hunterMaxSpeed', valueSpan: 'hunterMaxSpeedValue', precision: 1 }, // New hunter slider
+                { id: 'hunterMaxSpeed', prop: 'hunterMaxSpeed', valueSpan: 'hunterMaxSpeedValue', precision: 1 }, 
             ];
 
-            // Initialize slider values and add event listeners
             sliders.forEach(s => {
                 const slider = document.getElementById(s.id);
                 const valueSpan = document.getElementById(s.valueSpan);
-
-                // Set initial value from config
                 slider.value = config[s.prop];
-                // Display initial value, formatted based on precision
                 valueSpan.textContent = config[s.prop].toFixed(s.precision);
-
-                // Add input event listener to update config and display value in real-time
                 slider.addEventListener('input', (event) => {
                     config[s.prop] = parseFloat(event.target.value);
                     valueSpan.textContent = config[s.prop].toFixed(s.precision);
                 });
             });
 
-            // Start/Pause Button Logic
             startPauseButton.addEventListener('click', () => {
                 if (gameOver) {
-                    // This button acts as a restart when game is over
                     hideGameOverStats();
                     generateInitialPopulation();
                     simulationPaused = false;
                     startPauseButton.textContent = 'Pause Simulation';
                     lastFrameTime = performance.now();
-                    requestAnimationFrame(gameLoop);
                 } else {
-                    // Normal pause/resume logic
                     simulationPaused = !simulationPaused;
-                    if (!simulationPaused) {
-                        startPauseButton.textContent = 'Pause Simulation';
-                        lastFrameTime = performance.now();
-                        requestAnimationFrame(gameLoop);
-                    } else {
-                        startPauseButton.textContent = 'Resume Simulation';
-                    }
+                    startPauseButton.textContent = simulationPaused ? 'Resume Simulation' : 'Pause Simulation';
+                    if (!simulationPaused) lastFrameTime = performance.now();
                 }
             });
 
-            // Hide/Show God Panel Logic
             togglePanelButton.addEventListener('click', () => {
                 const isHidden = uiPanel.classList.toggle('hidden');
-                togglePanelButton.textContent = isHidden ? 'Show Panel' : 'Hide Panel';
-                zoomControls.classList.toggle('visible', isHidden); // Show zoom controls if panel is hidden
-                showPanelButton.classList.toggle('visible', isHidden); // Show "Show Panel" button if panel is hidden
+                zoomControls.classList.toggle('visible', isHidden);
+                showPanelButton.classList.toggle('visible', isHidden);
             });
-
-            // "Show Panel" Button Logic
             showPanelButton.addEventListener('click', () => {
-                uiPanel.classList.remove('hidden'); // Show the main panel
-                togglePanelButton.textContent = 'Hide Panel'; // Update its text
-                zoomControls.classList.remove('visible'); // Hide zoom controls
-                showPanelButton.classList.remove('visible'); // Hide this button
+                uiPanel.classList.remove('hidden'); 
+                zoomControls.classList.remove('visible'); 
+                showPanelButton.classList.remove('visible'); 
             });
+            
+            // NEW: NN Panel toggle logic
+            const toggleNNPanel = () => {
+                const isHidden = nnPanel.classList.toggle('hidden');
+                showNNButton.classList.toggle('visible', isHidden);
+            };
+            hideNNButton.addEventListener('click', toggleNNPanel);
+            showNNButton.addEventListener('click', toggleNNPanel);
 
-
-            // Zoom Buttons Logic
             zoomInButton.addEventListener('click', () => {
-                const oldZoom = config.zoomLevel;
-                config.zoomLevel = Math.min(config.zoomLevel * 1.1, 3.0); // Increase zoom by 10%, max 3.0
-
-                // Adjust camera to zoom into center of current view
-                const centerX = cameraX + (canvas.width / 2 / oldZoom);
-                const centerY = cameraY + (canvas.height / 2 / oldZoom);
-                cameraX = centerX - (canvas.width / 2 / config.zoomLevel);
-                cameraY = centerY - (canvas.height / 2 / config.zoomLevel);
-                clampCamera();
-                drawSimulation(); // Redraw immediately to apply zoom
+                followedEntity = null; 
+                targetZoom = Math.min(targetZoom * 1.25, 5.0); 
             });
-
             zoomOutButton.addEventListener('click', () => {
-                const oldZoom = config.zoomLevel;
-                config.zoomLevel = Math.max(config.zoomLevel * 0.9, 0.01); // Decrease zoom by 10%, min 0.01
-
-                // Adjust camera to zoom out from center of current view
-                const centerX = cameraX + (canvas.width / 2 / oldZoom);
-                const centerY = cameraY + (canvas.height / 2 / oldZoom);
-                cameraX = centerX - (canvas.width / 2 / config.zoomLevel);
-                cameraY = centerY - (canvas.height / 2 / config.zoomLevel);
-                clampCamera();
-                drawSimulation(); // Redraw immediately to apply zoom
+                followedEntity = null;
+                targetZoom = Math.max(targetZoom * 0.8, 0.1); 
             });
 
-            // Restart Game button on Game Over Overlay
             restartGameButton.addEventListener('click', () => {
                 hideGameOverStats();
                 generateInitialPopulation();
                 simulationPaused = false;
-                // Update the main start/pause button as well
                 document.getElementById('start-pause-button').textContent = 'Pause Simulation';
                 lastFrameTime = performance.now();
-                requestAnimationFrame(gameLoop);
             });
         }
 
-        // Initialize the simulation when the DOM is fully loaded
-        document.addEventListener('DOMContentLoaded', initSimulation);
+        document.addEventListener('DOMContentLoaded', () => {
+            initSimulation();
+            lastFrameTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        });
 
     </script>
 </body>
