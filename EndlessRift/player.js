@@ -63,11 +63,31 @@ function initPlayer(world) {
     };
 }
 
+// *** THIS IS THE CRITICAL FIX ***
+// This function now upgrades old save files to be compatible with new code.
 function loadPlayer(savedPlayer) {
-    player = savedPlayer;
+    // Create a fresh, complete player object with all new properties and default values.
+    initPlayer({ width: 3000, height: 2000 }); // The world size here is a placeholder.
+
+    // Now, copy the saved data on top of the default object.
+    // This preserves progress while adding any new properties that were missing.
+    Object.assign(player, savedPlayer);
+
+    // Deep merge nested objects to ensure they are also upgraded.
+    if (savedPlayer.weapon) {
+        player.weapon = { ...player.weapon, ...savedPlayer.weapon };
+    }
+    if (savedPlayer.abilities) {
+        player.abilities = { ...player.abilities, ...savedPlayer.abilities };
+    }
+    if (savedPlayer.skills) {
+        player.skills = { ...player.skills, ...savedPlayer.skills };
+        // Also merge the individual skills inside
+        if(savedPlayer.skills.lightning) player.skills.lightning = { ...player.skills.lightning, ...savedPlayer.skills.lightning };
+        if(savedPlayer.skills.volcano) player.skills.volcano = { ...player.skills.volcano, ...savedPlayer.skills.volcano };
+    }
 }
 
-// *** CORE FIX: Removed the unused 'gameState' parameter. ***
 function updatePlayer(deltaTime, world, enemies, moveVector) {
     if (moveVector.dx !== 0 || moveVector.dy !== 0) {
         const mag = Math.hypot(moveVector.dx, moveVector.dy);
@@ -121,5 +141,4 @@ function gainXP(amount, showLevelUpOptionsCallback, expandWorldCallback, trigger
     }
 }
 
-// takeDamage has been moved to systemsmanager.js
 export { player, initPlayer, loadPlayer, updatePlayer, gainXP };
