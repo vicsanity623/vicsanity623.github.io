@@ -241,6 +241,7 @@ export function initializeApp() {
     hudElements = {
         gameContainer: document.getElementById('game-container'),
         level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'),
+        upgradeStatsList: document.getElementById('upgrade-stats-list'), // NEW: Get reference to the new list container
     };
 
     initRift();
@@ -759,7 +760,180 @@ function drawDamageNumber(dn) { ctx.save(); ctx.translate(dn.x, dn.y); ctx.globa
 function drawLightningBolt(bolt) { ctx.save(); ctx.globalAlpha = Math.min(1, bolt.life / 100); ctx.strokeStyle = 'var(--lightning-color)'; ctx.lineWidth = 3; ctx.shadowColor = 'var(--lightning-color)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.moveTo(bolt.start.x, bolt.start.y); const segments = 10; for (let i = 1; i <= segments; i++) { const t = i / segments; const x = bolt.start.x * (1 - t) + bolt.end.x * t; const y = bolt.start.y * (1 - t) + bolt.end.y * t; if (i < segments) { ctx.lineTo(x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 20); } else { ctx.lineTo(x, y); } } ctx.stroke(); ctx.restore(); }
 function drawVolcano(v) { ctx.save(); const lifePercent = v.life / v.burnDuration; ctx.globalAlpha = lifePercent * 0.7; ctx.fillStyle = 'var(--volcano-color)'; ctx.beginPath(); ctx.arc(v.x, v.y, v.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 function drawSkillTotem(totem) { ctx.save(); ctx.translate(totem.x, totem.y); ctx.globalAlpha = 0.8 + Math.sin(gameState.gameTime / 200) * 0.2; ctx.beginPath(); ctx.arc(0, 0, totem.radius, 0, Math.PI * 2); ctx.fillStyle = totem.color; ctx.shadowColor = totem.color; ctx.shadowBlur = 20; ctx.fill(); ctx.font = '24px sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(totem.icon, 0, 0); ctx.restore(); }
-function updateHUD() { hudElements.level.textContent = `LV ${player.level}`; hudElements.hp.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`; hudElements.hpFill.style.width = `${(player.health / player.maxHealth) * 100}%`; hudElements.timer.textContent = formatTime(gameState.gameTime); hudElements.xpBottomFill.style.width = `${(player.xp / player.xpForNextLevel) * 100}%`; hudElements.killCounter.textContent = player.kills; }
+function updateHUD() {
+    hudElements.level.textContent = `LV ${player.level}`;
+    hudElements.hp.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
+    hudElements.hpFill.style.width = `${(player.health / player.maxHealth) * 100}%`;
+    hudElements.timer.textContent = formatTime(gameState.gameTime);
+    hudElements.xpBottomFill.style.width = `${(player.xp / player.xpForNextLevel) * 100}%`;
+    hudElements.killCounter.textContent = player.kills;
+
+    // NEW: Update active upgrade stats list
+    hudElements.upgradeStatsList.innerHTML = ''; // Clear existing list
+
+    // Define base stats for calculations (if you change player's base speed/cooldown, update these)
+    const BASE_PLAYER_SPEED = 3.5;
+    const BASE_WEAPON_COOLDOWN = 600; // milliseconds
+
+    // Sort upgrades by ID for consistent display order
+    const sortedUpgradeIds = Object.keys(player.upgradeLevels).sort();
+
+    for (const upgradeId of sortedUpgradeIds) {
+        const level = player.upgradeLevels[upgradeId];
+        const upgradeDef = UPGRADE_POOL.find(up => up.id === upgradeId);
+
+        if (upgradeDef) {
+            let displayText = `${upgradeDef.title}: `;
+            let statValue = '';
+
+            // Custom display logic for specific upgrades
+            switch (upgradeId) {
+                case "vitality":
+                    statValue = `${player.maxHealth} Max HP`;
+                    break;
+                case "recovery":
+                    statValue = `${(player.healthRegen).toFixed(1)} HP/s`;
+                    break;
+                case "agility":
+                    statValue = `${((player.speed / BASE_PLAYER_SPEED) * 100).toFixed(0)}% Speed`;
+                    break;
+                case "armor":
+                    statValue = `${player.armor} Armor`;
+                    break;
+                case "dodge":
+                    statValue = `${(player.dodgeChance * 100).toFixed(0)}% Dodge`;
+                    break;
+                case "wisdom":
+                    statValue = `${(player.xpGainModifier * 100).toFixed(0)}% XP`;
+                    break;
+                case "greed":
+                    statValue = `${player.pickupRadius} Pickup Radius`;
+                    break;
+                case "magnetism":
+                    statValue = `${(player.magnetism).toFixed(1)}x Magnetism`;
+                    break;
+                case "lethality":
+                    statValue = `${(player.weapon.critChance * 100).toFixed(0)}% Crit Chance`;
+                    break;
+                case "overwhelm":
+                    statValue = `${(player.weapon.critDamage * 100).toFixed(0)}% Crit Damage`;
+                    break;
+                case "might":
+                    statValue = `${player.weapon.damage} Damage`;
+                    break;
+                case "haste":
+                    statValue = `${(1000 / player.weapon.cooldown).toFixed(1)} Atk/s`; // Attacks per second
+                    break;
+                case "multishot":
+                    statValue = `${player.weapon.count} Projectiles`;
+                    break;
+                case "impact":
+                    statValue = `${player.weapon.size.h.toFixed(0)} Projectile Size`; // Using 'h' as a representative size
+                    break;
+                case "pierce":
+                    statValue = `${player.weapon.pierce} Pierce`;
+                    break;
+                case "velocity":
+                    statValue = `${player.weapon.speed.toFixed(1)} Projectile Speed`;
+                    break;
+                case "thorns":
+                    statValue = `${player.thorns} Thorns Damage`;
+                    break;
+                case "life_steal":
+                    statValue = `${player.lifeSteal} Life Steal`;
+                    break;
+                // --- Skill-specific stats ---
+                case "lightning":
+                case "lightning_damage":
+                    statValue = `${player.skills.lightning.damage} Lightning Damage`;
+                    break;
+                case "lightning_chains":
+                    statValue = `${player.skills.lightning.chains} Lightning Chains`;
+                    break;
+                case "lightning_cooldown":
+                    statValue = `${(player.skills.lightning.cooldown / 1000).toFixed(1)}s Lightning CD`;
+                    break;
+                case "lightning_shock":
+                    statValue = `${(player.skills.lightning.shockDuration / 1000).toFixed(1)}s Shock Duration`;
+                    break;
+                case "lightning_fork":
+                    statValue = `${(player.skills.lightning.forkChance * 100).toFixed(0)}% Lightning Fork`;
+                    break;
+                case "volcano":
+                case "volcano_damage":
+                    statValue = `${player.skills.volcano.damage} Volcano Damage`;
+                    break;
+                case "volcano_radius":
+                    statValue = `${player.skills.volcano.radius} Volcano Radius`;
+                    break;
+                case "volcano_cooldown":
+                    statValue = `${(player.skills.volcano.cooldown / 1000).toFixed(1)}s Volcano CD`;
+                    break;
+                case "volcano_duration":
+                    statValue = `${(player.skills.volcano.burnDuration / 1000).toFixed(1)}s Burn Duration`;
+                    break;
+                case "volcano_count":
+                    statValue = `${player.skills.volcano.count || 1} Volcano Count`; // Default to 1 if not set
+                    break;
+                case "frostNova":
+                case "frostnova_damage":
+                    statValue = `${player.skills.frostNova.damage} Frost Nova Damage`;
+                    break;
+                case "frostnova_radius":
+                    statValue = `${player.skills.frostNova.radius} Frost Nova Radius`;
+                    break;
+                case "frostnova_cooldown":
+                    statValue = `${(player.skills.frostNova.cooldown / 1000).toFixed(1)}s Frost Nova CD`;
+                    break;
+                case "frostnova_slow":
+                    statValue = `${(player.skills.frostNova.slowAmount * 100).toFixed(0)}% Slow`;
+                    break;
+                case "blackHole":
+                case "blackhole_damage":
+                    statValue = `${player.skills.blackHole.damage} Black Hole Damage`;
+                    break;
+                case "blackhole_radius":
+                    statValue = `${player.skills.blackHole.radius} Black Hole Radius`;
+                    break;
+                case "blackhole_duration":
+                    statValue = `${(player.skills.blackHole.duration / 1000).toFixed(1)}s Black Hole Duration`;
+                    break;
+                case "blackhole_pull":
+                    statValue = `${player.skills.blackHole.pullStrength.toFixed(1)} Pull Strength`;
+                    break;
+                case "soul_vortex":
+                case "vortex_damage":
+                    statValue = `${player.abilities.orbitingShield.damage} Vortex Damage`;
+                    break;
+                case "vortex_speed":
+                    statValue = `${(player.abilities.orbitingShield.speed || 1).toFixed(1)}x Vortex Speed`;
+                    break;
+                case "vortex_twin":
+                    statValue = `${player.abilities.orbitingShield.count} Vortex Count`;
+                    break;
+
+                // Abilities that are just "Active"
+                case "rear_guard":
+                case "diagonalShot": // Corrected from crossfire
+                case "novaOnLevelUp":
+                case "healOnXp":
+                case "crit_explosion":
+                case "demolition":
+                    statValue = `Active`;
+                    break;
+                default:
+                    // Fallback for any other upgrade, display its level
+                    statValue = `Lv ${level}`;
+                    break;
+            }
+
+            const p = document.createElement('p');
+            p.className = 'upgrade-stat-item';
+            p.innerHTML = `${upgradeDef.title}: <strong>${statValue}</strong>`; // Using strong for the value
+            hudElements.upgradeStatsList.appendChild(p);
+        }
+    }
+}
 function formatTime(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; }
 function showLevelUpOptions() {
     gameState.isRunning = false;
