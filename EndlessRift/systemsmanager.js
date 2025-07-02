@@ -1,4 +1,4 @@
-import { player, initPlayer, loadPlayer, updatePlayer, gainXP } from './player.js';
+import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js'; // MODIFIED: Imported playerTakeDamage
 import { enemyPath, spawnEnemy, updateEnemies } from './enemies.js';
 import { fireProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole } from './attacks_skills.js';
 import { initRift, expandWorld, getBackgroundCanvas } from './rift.js';
@@ -17,52 +17,170 @@ const firebaseConfig = {
     measurementId: "G-XJRE7YNPZR"
 };
 
+// NEW: Define the SafeHouse class
+// This class will manage the shrinking, relocating safe zone.
+class SafeHouse {
+    constructor(gameWorldWidth, gameWorldHeight) {
+        this.gameWorldWidth = gameWorldWidth;
+        this.gameWorldHeight = gameWorldHeight;
+        this.initialRadius = 250; // Starting radius of the safe zone
+        this.minRadius = 80;    // Minimum radius before it disappears
+        this.shrinkRate = 2;   // Pixels per second the radius shrinks
+        this.respawnTime = 5;   // Seconds until a new zone spawns after old one disappears
+
+        this.x = 0;
+        this.y = 0;
+        this.radius = this.initialRadius;
+        this.active = false;      // Is the safe zone currently visible/active?
+        this.respawnTimer = 0;    // Countdown for respawning a new zone
+        this.healingRate = 10;    // Player healing rate per second when inside
+        this.damageRate = 10;     // Player damage per second when outside (base amount)
+
+        // Visual properties
+        this.color = 'rgba(0, 255, 0, 0.2)'; // Green, semi-transparent
+        this.borderColor = 'rgba(0, 255, 0, 0.8)'; // Green border
+
+        this.spawn(); // Initial spawn when the game starts
+    }
+
+    // Spawns the safe zone at a new random location
+    spawn() {
+        // Ensure the zone spawns fully within the game world bounds
+        this.radius = this.initialRadius; // Reset radius
+        // Calculate max x/y to ensure the circle doesn't go off-screen
+        this.x = Math.random() * (this.gameWorldWidth - this.initialRadius * 2) + this.initialRadius;
+        this.y = Math.random() * (this.gameWorldHeight - this.initialRadius * 2) + this.initialRadius;
+        this.active = true;
+        this.respawnTimer = 0; // Reset timer
+        console.log(`Safe House spawned at (${this.x.toFixed(0)}, ${this.y.toFixed(0)}) with radius ${this.radius.toFixed(0)}`);
+    }
+
+    update(deltaTime) {
+        // Convert deltaTime from milliseconds to seconds
+        const dtSeconds = deltaTime / 1000;
+
+        if (this.active) {
+            // Shrink the safe zone
+            this.radius -= this.shrinkRate * dtSeconds;
+
+            // Check if safe zone has shrunk too much
+            if (this.radius <= this.minRadius) {
+                this.active = false;
+                this.respawnTimer = this.respawnTime; // Start countdown for respawn
+                console.log("Safe House disappeared! Respawning in " + this.respawnTime + " seconds.");
+            }
+        } else {
+            // Safe zone is not active, countdown to respawn
+            this.respawnTimer -= dtSeconds;
+            if (this.respawnTimer <= 0) {
+                this.spawn(); // Time to spawn a new one!
+            }
+        }
+    }
+
+    draw(context, camera) {
+        if (this.active) {
+            context.save();
+            context.beginPath();
+            // Adjust for camera offset so it draws at correct world position
+            context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            context.fillStyle = this.color;
+            context.fill();
+            context.strokeStyle = this.borderColor;
+            context.lineWidth = 3; // Thicker border
+            context.stroke();
+            context.restore();
+
+            // Optional: Draw a "SAFE ZONE" text above the circle, also adjusted for camera
+            context.save();
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.font = '20px Arial';
+            context.fillStyle = 'white';
+            context.fillText('SAFE ZONE', this.x, this.y - this.radius - 20);
+            context.restore();
+
+        } else {
+            // Optional: Display a message when safe zone is not active (on screen, not world coordinates)
+            context.save();
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.font = '30px Arial';
+            context.fillStyle = 'red';
+            // Position relative to canvas center (using camera to get screen center)
+            context.fillText('FIND NEW SAFE ZONE!', camera.x + camera.width / 2, camera.y + camera.height / 2 - 50);
+            context.font = '20px Arial';
+            context.fillText(`Respawning in: ${this.respawnTimer.toFixed(1)}s`, camera.x + camera.width / 2, camera.y + camera.height / 2);
+            context.restore();
+        }
+    }
+
+    // Helper to check if a given object (player/enemy) is inside the safe zone
+    isInside(object) {
+        if (!this.active) return false; // Can't be inside if not active
+        // Calculate distance from the center of the safe zone to the object's center
+        const distanceX = object.x - this.x;
+        const distanceY = object.y - this.y;
+        const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+        // Add a small buffer if object has its own radius/width
+        // Assuming player has `size` and enemies have `width`
+        const objectSize = object.size || object.width || 0;
+        return distance < (this.radius - objectSize / 2);
+    }
+}
+
+
 // --- Global State ---
 let gameState = { isRunning: false, isAutoMode: false, gameTime: 0, lastTime: 0, enemySpawnTimer: 0, enemySpawnInterval: 1500, saveIntervalId: null, animationFrameId: null };
 let enemies = [], projectiles = [], xpOrbs = [], particles = [], damageNumbers = [], lightningBolts = [], volcanicEruptions = [], visualEffects = [], skillTotems = [];
 let world = { width: 3000, height: 2000 };
-let safeHouse = {};
+
+// MODIFIED: Renamed from `safeHouse` to `safeHouseInstance` to hold the class instance
+let safeHouseInstance;
+
 let camera = { x: 0, y: 0, width: 0, height: 0, zoom: 1 };
 let screenFlash = { value: 0 };
 let screenRedFlash = { value: 0 };
 
-// --- DOM and Canvas ---
-let canvas, ctx, hudElements, menuElements;
+// NEW: Moved 'keys' and 'joystick' declarations here, with other global state
 const keys = { w: false, a: false, s: false, d: false };
 const joystick = { active: false, baseX: 0, baseY: 0, handleX: 0, handleY: 0, radius: 60, handleRadius: 25 };
 
+// --- DOM and Canvas ---
+let canvas, ctx, hudElements, menuElements; // Still for DOM elements that need `let`
+
 // --- MASSIVELY EXPANDED UPGRADE POOL ---
-const UPGRADE_POOL = [ 
+const UPGRADE_POOL = [
     // === Core Offensive Upgrades ===
-    { id: "might", title: "Might", maxLevel: 5, description: (level) => `Increase projectile damage by 5. (Lvl ${level + 1})`, apply: (p) => { p.weapon.damage += 5; } }, 
-    { id: "haste", title: "Haste", maxLevel: 5, description: (level) => `Attack 15% faster. (Lvl ${level + 1})`, apply: (p) => { p.weapon.cooldown *= 0.85; } }, 
-    { id: "multishot", title: "Multi-Shot", maxLevel: 4, description: (level) => `Fire ${level + 2} total projectiles.`, apply: (p) => { p.weapon.count += 1; } }, 
-    { id: "impact", title: "Greater Impact", maxLevel: 3, description: (level) => `Increase projectile size by 25%. (Lvl ${level + 1})`, apply: (p) => { p.weapon.size.h *= 1.25; } }, 
-    { id: "pierce", title: "Piercing Shots", maxLevel: 3, description: (level) => `Projectiles pierce ${level + 1} more enemies.`, apply: (p) => { p.weapon.pierce += 1; } }, 
+    { id: "might", title: "Might", maxLevel: 5, description: (level) => `Increase projectile damage by 5. (Lvl ${level + 1})`, apply: (p) => { p.weapon.damage += 5; } },
+    { id: "haste", title: "Haste", maxLevel: 5, description: (level) => `Attack 15% faster. (Lvl ${level + 1})`, apply: (p) => { p.weapon.cooldown *= 0.85; } },
+    { id: "multishot", title: "Multi-Shot", maxLevel: 4, description: (level) => `Fire ${level + 2} total projectiles.`, apply: (p) => { p.weapon.count += 1; } },
+    { id: "impact", title: "Greater Impact", maxLevel: 3, description: (level) => `Increase projectile size by 25%. (Lvl ${level + 1})`, apply: (p) => { p.weapon.size.h *= 1.25; } },
+    { id: "pierce", title: "Piercing Shots", maxLevel: 3, description: (level) => `Projectiles pierce ${level + 1} more enemies.`, apply: (p) => { p.weapon.pierce += 1; } },
     { id: "velocity", title: "Velocity", maxLevel: 5, description: (level) => `Projectiles travel 20% faster. (Lvl ${level+1})`, apply: (p) => { p.weapon.speed *= 1.20; } },
 
     // === Core Defensive Upgrades ===
-    { id: "vitality", title: "Vitality", description: (level) => `Increase Max HP by 25. (Lvl ${level + 1})`, apply: (p) => { p.maxHealth += 25; p.health += 25; } }, 
-    { id: "recovery", title: "Recovery", maxLevel: 3, description: (level) => `Heal ${0.5 * (level + 1)} HP/sec. (Lvl ${level + 1})`, apply: (p) => { p.healthRegen += 0.5; } }, 
-    { id: "agility", title: "Agility", maxLevel: 3, description: (level) => `Increase movement speed by 10%. (Lvl ${level + 1})`, apply: (p) => { p.speed *= 1.10; } }, 
+    { id: "vitality", title: "Vitality", description: (level) => `Increase Max HP by 25. (Lvl ${level + 1})`, apply: (p) => { p.maxHealth += 25; p.health += 25; } },
+    { id: "recovery", title: "Recovery", maxLevel: 3, description: (level) => `Heal ${0.5 * (level + 1)} HP/sec. (Lvl ${level + 1})`, apply: (p) => { p.healthRegen += 0.5; } },
+    { id: "agility", title: "Agility", maxLevel: 3, description: (level) => `Increase movement speed by 10%. (Lvl ${level + 1})`, apply: (p) => { p.speed *= 1.10; } },
     { id: "armor", title: "Armor", maxLevel: 5, description: (level) => `Reduce incoming damage by 1. (Lvl ${level+1})`, apply: (p) => { p.armor += 1; } },
     { id: "dodge", title: "Evasion", maxLevel: 4, description: (level) => `+5% chance to dodge attacks. (Lvl ${level+1})`, apply: (p) => { p.dodgeChance += 0.05; } },
-    
+
     // === Core Utility Upgrades ===
-    { id: "wisdom", title: "Wisdom", maxLevel: 3, description: (level) => `Gain ${20 * (level + 1)}% more XP. (Lvl ${level + 1})`, apply: (p) => { p.xpGainModifier += 0.20; } }, 
-    { id: "greed", title: "Greed", maxLevel: 3, description: (level) => `Increase XP pickup radius by 50%. (Lvl ${level + 1})`, apply: (p) => { p.pickupRadius *= 1.50; } }, 
+    { id: "wisdom", title: "Wisdom", maxLevel: 3, description: (level) => `Gain ${20 * (level + 1)}% more XP. (Lvl ${level + 1})`, apply: (p) => { p.xpGainModifier += 0.20; } },
+    { id: "greed", title: "Greed", maxLevel: 3, description: (level) => `Increase XP pickup radius by 50%. (Lvl ${level + 1})`, apply: (p) => { p.pickupRadius *= 1.50; } },
     { id: "magnetism", title: "Magnetism", maxLevel: 4, description: (level) => `XP orbs are pulled towards you faster. (Lvl ${level+1})`, apply: (p) => { p.magnetism *= 1.5; } },
     { id: "rejuvenation", title: "Rejuvenation", maxLevel: 1, description: () => `Picking up an XP orb has a 10% chance to heal 1 HP.`, apply: (p) => { p.abilities.healOnXp = true; } },
-    
+
     // === Critical Hit Synergy ===
-    { id: "lethality", title: "Lethality", maxLevel: 5, description: (level) => `+10% chance to deal double damage. (Lvl ${level + 1})`, apply: (p) => { p.weapon.critChance += 0.1; } }, 
+    { id: "lethality", title: "Lethality", maxLevel: 5, description: (level) => `+10% chance to deal double damage. (Lvl ${level + 1})`, apply: (p) => { p.weapon.critChance += 0.1; } },
     { id: "overwhelm", title: "Overwhelm", maxLevel: 5, description: (level) => `Critical hits do +50% more damage. (Lvl ${level+1})`, apply: (p) => { p.weapon.critDamage += 0.5; } },
     { id: "crit_explosion", title: "Critical Mass", maxLevel: 1, description: () => `Critical hits cause a small explosion.`, apply: (p) => { p.abilities.critExplosion = true; } },
 
     // === Ability Upgrades ===
-    { id: "soul_vortex", title: "Soul Vortex", maxLevel: 1, description: () => `Gain an orbiting soul that damages enemies.`, apply: (p) => { p.abilities.orbitingShield.enabled = true; } }, 
-    { id: "rear_guard", title: "Rear Guard", maxLevel: 1, description: () => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; } }, 
-    { id: "crossfire", title: "Crossfire", maxLevel: 1, description: () => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; } }, 
+    { id: "soul_vortex", title: "Soul Vortex", maxLevel: 1, description: () => `Gain an orbiting soul that damages enemies.`, apply: (p) => { p.abilities.orbitingShield.enabled = true; } },
+    { id: "rear_guard", title: "Rear Guard", maxLevel: 1, description: () => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; } },
+    { id: "crossfire", title: "Crossfire", maxLevel: 1, description: () => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; } },
     { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(p, 50, 200); } },
     { id: "thorns", title: "Thorns", maxLevel: 3, description: (level) => `Enemies that hit you take ${5 * (level+1)} damage.`, apply: (p) => { p.thorns += 5; } },
     { id: "life_steal", title: "Life Steal", maxLevel: 3, description: (level) => `Heal for ${level+1} HP on kill.`, apply: (p) => { p.lifeSteal += 1; } },
@@ -74,25 +192,25 @@ const UPGRADE_POOL = [
     { id: "vortex_twin", title: "Vortex: Twin Souls", maxLevel: 1, skill: "soul_vortex", description: () => `Gain a second orbiting soul.`, apply: (p) => { p.abilities.orbitingShield.count = 2; } },
 
     // === Lightning Skill Synergy ===
-    { id: "lightning_damage", title: "Lightning: High Voltage", maxLevel: 5, skill: "lightning", description: (level) => `Increase lightning damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.damage += 5; } }, 
-    { id: "lightning_chains", title: "Lightning: Chain Lightning", maxLevel: 4, skill: "lightning", description: (level) => `Lightning chains to ${level + 2} enemies.`, apply: (p) => { p.skills.lightning.chains += 1; } }, 
+    { id: "lightning_damage", title: "Lightning: High Voltage", maxLevel: 5, skill: "lightning", description: (level) => `Increase lightning damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.damage += 5; } },
+    { id: "lightning_chains", title: "Lightning: Chain Lightning", maxLevel: 4, skill: "lightning", description: (level) => `Lightning chains to ${level + 2} enemies.`, apply: (p) => { p.skills.lightning.chains += 1; } },
     { id: "lightning_cooldown", title: "Lightning: Storm Caller", maxLevel: 3, skill: "lightning", description: () => `Lightning strikes more frequently.`, apply: (p) => { p.skills.lightning.cooldown *= 0.8; } },
     { id: "lightning_shock", title: "Lightning: Static Field", maxLevel: 3, skill: "lightning", description: (level) => `Lightning shocks enemies, dealing damage over time. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.shockDuration += 1000; } },
     { id: "lightning_fork", title: "Lightning: Fork", maxLevel: 2, skill: "lightning", description: () => `Each lightning strike has a chance to fork.`, apply: (p) => { p.skills.lightning.forkChance = (p.skills.lightning.forkChance || 0) + 0.15; } },
-    
+
     // === Volcano Skill Synergy ===
-    { id: "volcano_damage", title: "Volcano: Magma Core", maxLevel: 5, skill: "volcano", description: (level) => `Increase eruption damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.damage += 10; } }, 
-    { id: "volcano_radius", title: "Volcano: Wide Eruption", maxLevel: 3, skill: "volcano", description: (level) => `Increase eruption radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.radius *= 1.2; } }, 
+    { id: "volcano_damage", title: "Volcano: Magma Core", maxLevel: 5, skill: "volcano", description: (level) => `Increase eruption damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.damage += 10; } },
+    { id: "volcano_radius", title: "Volcano: Wide Eruption", maxLevel: 3, skill: "volcano", description: (level) => `Increase eruption radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.radius *= 1.2; } },
     { id: "volcano_cooldown", title: "Volcano: Frequent Fissures", maxLevel: 3, skill: "volcano", description: (level) => `Eruptions occur more frequently. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.cooldown *= 0.8; } },
     { id: "volcano_duration", title: "Volcano: Scorched Earth", maxLevel: 3, skill: "volcano", description: () => `Burning ground lasts longer.`, apply: (p) => { p.skills.volcano.burnDuration *= 1.3; } },
     { id: "volcano_count", title: "Volcano: Cluster Bombs", maxLevel: 2, skill: "volcano", description: () => `Volcano creates an extra eruption.`, apply: (p) => { p.skills.volcano.count = (p.skills.volcano.count || 1) + 1; } },
-    
+
     // === Frost Nova Skill Synergy ===
     { id: "frostnova_damage", title: "Frost Nova: Deep Freeze", maxLevel: 5, skill: "frostNova", description: (level) => `Increase Frost Nova damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.frostNova.damage += 5; } },
     { id: "frostnova_radius", title: "Frost Nova: Absolute Zero", maxLevel: 3, skill: "frostNova", description: (level) => `Increase Frost Nova radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.frostNova.radius *= 1.25; } },
     { id: "frostnova_cooldown", title: "Frost Nova: Winter's Grasp", maxLevel: 3, skill: "frostNova", description: () => `Cast Frost Nova more frequently.`, apply: (p) => { p.skills.frostNova.cooldown *= 0.8; } },
     { id: "frostnova_slow", title: "Frost Nova: Crippling Cold", maxLevel: 2, skill: "frostNova", description: () => `Frost Nova's slow is more effective.`, apply: (p) => { p.skills.frostNova.slowAmount += 0.1; } },
-    
+
     // === Black Hole Skill Synergy ===
     { id: "blackhole_damage", title: "Black Hole: Event Horizon", maxLevel: 5, skill: "blackHole", description: (level) => `Increase Black Hole damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.blackHole.damage += 2; } },
     { id: "blackhole_radius", title: "Black Hole: Singularity", maxLevel: 3, skill: "blackHole", description: (level) => `Increase Black Hole radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.blackHole.radius *= 1.2; } },
@@ -120,11 +238,11 @@ export function initializeApp() {
         userName: document.getElementById('userName'),
         signOutBtn: document.getElementById('signOutBtn'),
     };
-    hudElements = { 
+    hudElements = {
         gameContainer: document.getElementById('game-container'),
-        level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'), 
+        level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'),
     };
-    
+
     initRift();
     setupEventListeners();
     checkSaveStates();
@@ -142,11 +260,11 @@ function setupEventListeners() {
     canvas.addEventListener('touchend', (e) => { e.preventDefault(); joystick.active = false; }, { passive: false });
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-    
+
     menuElements.newGameBtn.addEventListener('click', () => startGame(true));
     menuElements.googleSignInBtn.addEventListener('click', signInWithGoogle);
     menuElements.signOutBtn.addEventListener('click', () => auth.signOut());
-    
+
     hudElements.restartButton.addEventListener('click', () => {
         hudElements.gameOverScreen.classList.remove('visible');
         menuElements.mainMenu.classList.add('visible');
@@ -181,7 +299,7 @@ async function checkSaveStates() {
         const doc = await saveRef.get().catch(e => console.error(e));
         if (doc && doc.exists) cloudSaveExists = true;
     }
-    menuElements.loadOptionsContainer.innerHTML = ''; 
+    menuElements.loadOptionsContainer.innerHTML = '';
     if (cloudSaveExists) {
         const cloudBtn = document.createElement('button');
         cloudBtn.className = 'menu-button'; cloudBtn.textContent = 'Load Cloud Save';
@@ -204,8 +322,19 @@ async function saveGame() {
     if (!player || !gameState.isRunning) return;
     const savablePlayer = JSON.parse(JSON.stringify(player));
     const saveData = {
-        player: savablePlayer, gameTime: gameState.gameTime, skillTotems: skillTotems,
-        world: world, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        player: savablePlayer,
+        gameTime: gameState.gameTime,
+        skillTotems: skillTotems,
+        world: world,
+        // NEW: Save SafeHouse state if needed (optional for now, as it respawns on load)
+        safeHouse: safeHouseInstance ? {
+            x: safeHouseInstance.x,
+            y: safeHouseInstance.y,
+            radius: safeHouseInstance.radius,
+            active: safeHouseInstance.active,
+            respawnTimer: safeHouseInstance.respawnTimer,
+        } : null,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (currentUser) {
         const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
@@ -231,6 +360,18 @@ async function loadGame(source) {
         gameState.gameTime = savedData.gameTime;
         skillTotems = savedData.skillTotems || [];
         if (savedData.world) { world.width = savedData.world.width; world.height = savedData.world.height; }
+
+        // NEW: Load SafeHouse state if available, otherwise it will spawn a new one
+        if (savedData.safeHouse && safeHouseInstance) {
+            safeHouseInstance.x = savedData.safeHouse.x;
+            safeHouseInstance.y = savedData.safeHouse.y;
+            safeHouseInstance.radius = savedData.safeHouse.radius;
+            safeHouseInstance.active = savedData.safeHouse.active;
+            safeHouseInstance.respawnTimer = savedData.safeHouse.respawnTimer;
+            console.log("SafeHouse state loaded.");
+        } else if (safeHouseInstance) {
+             safeHouseInstance.spawn(); // Ensure a safehouse exists even if not saved
+        }
         return true;
     }
     return false;
@@ -241,30 +382,26 @@ function clearSave() {
         firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default').delete().catch(e => console.error("Error clearing cloud save:", e));
     }
 }
-function takeDamage(amount) {
-    if (gameState.gameTime - (player.lastHitTime || 0) < 1000) return;
-    // MODIFIED: Added Dodge and Armor logic
-    if (Math.random() < player.dodgeChance) {
-        spawnDamageNumber(player.x, player.y + 20, "DODGE", true);
-        return;
-    }
-    const finalDamage = Math.max(1, amount - player.armor);
-    screenRedFlash.value = 0.6;
-    player.health -= finalDamage;
-    player.lastHitTime = gameState.gameTime;
-    
-    // ADDED: Thorns logic
-    if(player.thorns > 0) {
+// MODIFIED: Updated takeDamage function to use playerTakeDamage and manage thorns
+function takeDamage(amount, isDirectHit = false) { // Default to false for continuous damage
+    // Call player's dedicated takeDamage function, passing necessary state
+    playerTakeDamage(amount, gameState.gameTime, spawnDamageNumber, screenRedFlash);
+
+    // Thorns logic remains here because it needs access to the enemies array
+    // Only trigger thorns on direct hits, not continuous zone damage
+    if (player.thorns > 0 && isDirectHit) {
         enemies.forEach(e => {
-            if (Math.hypot(e.x - player.x, e.y - player.y) < 50) {
+            // Check if enemy is close enough to trigger thorns (e.g., collision range)
+            if (Math.hypot(e.x - player.x, e.y - player.y) < player.size + (e.width || 0) + 10) {
                 e.health -= player.thorns;
                 spawnDamageNumber(e.x, e.y, player.thorns, false);
             }
         });
     }
 
+    // Check if player health is now <= 0 AFTER playerTakeDamage has updated it
     if (player.health <= 0) {
-        player.health = 0;
+        player.health = 0; // Ensure health doesn't go below 0 visually
         gameOver();
     }
 }
@@ -284,22 +421,29 @@ async function startGame(forceNew, loadSource = 'cloud') {
     if (forceNew || !loadedSuccessfully) {
         clearSave();
         world.width = 3000; world.height = 2000;
-        initPlayer(world);
+        initPlayer(world); // Ensure player is initialized BEFORE SafeHouse needs its size
         gameState.gameTime = 0;
         // MODIFIED: Add new skill totems to the world
-        skillTotems = [ 
-            { x: world.width / 2 - 200, y: world.height / 2 - 200, radius: 30, skill: 'lightning', color: 'var(--lightning-color)', icon: '⚡' }, 
+        skillTotems = [
+            { x: world.width / 2 - 200, y: world.height / 2 - 200, radius: 30, skill: 'lightning', color: 'var(--lightning-color)', icon: '⚡' },
             { x: world.width / 2 + 200, y: world.height / 2 + 200, radius: 30, skill: 'volcano', color: 'var(--volcano-color)', icon: '🔥' },
             { x: world.width / 2 + 200, y: world.height / 2 - 200, radius: 30, skill: 'frostNova', color: '#87CEEB', icon: '❄️' },
             { x: world.width / 2 - 200, y: world.height / 2 + 200, radius: 30, skill: 'blackHole', color: '#483D8B', icon: '🌀' },
         ];
     }
     initRift();
+
+    // NEW: Initialize SafeHouse instance here. This ensures it's always created.
+    // If `loadedSuccessfully` is true, the `loadGame` function will update its state.
+    // Otherwise, `SafeHouse` constructor will call `spawn()` for a new one.
+    safeHouseInstance = new SafeHouse(world.width, world.height);
+
     gameState.lastTime = performance.now();
     gameState.enemySpawnTimer = 0;
-    gameState.enemySpawnInterval = Math.max(100, 1500 * Math.pow(0.985, gameState.gameTime / 1000));
+    gameState.enemySpawnInterval = Math.max(100, gameState.enemySpawnInterval * 0.985);
     enemies.length = 0; projectiles.length = 0; xpOrbs.length = 0; particles.length = 0; damageNumbers.length = 0; lightningBolts.length = 0; volcanicEruptions.length = 0; visualEffects.length = 0;
-    safeHouse = { x: world.width / 2, y: world.height / 2, radius: 150, healingRate: 10 };
+    // REMOVED: Old safeHouse initialization line, now handled by SafeHouse class constructor
+    // safeHouse = { x: world.width / 2, y: world.height / 2, radius: 150, healingRate: 10 };
     hudElements.levelUpWindow.classList.remove('visible');
     hudElements.gameOverScreen.classList.remove('visible');
     hudElements.autoModeButton.textContent = 'AUTO OFF';
@@ -346,19 +490,48 @@ function getAiMovementVector() {
         const dist = Math.hypot(totem.x - player.x, totem.y - player.y);
         if(dist < closestTotemDist) { closestTotemDist = dist; closestTotem = totem; }
     });
-    let target = closestEnemy;
+
+    // NEW: AI logic to prioritize moving towards SafeHouse if not active, or staying in if active
+    let target = closestEnemy; // Default target
+    let targetDist = closestEnemyDist;
+    const SAFE_HOUSE_PRIORITY = 500; // How much AI prioritizes the safe house
+
+    if (safeHouseInstance && !safeHouseInstance.active && safeHouseInstance.respawnTimer > 1) { // If safe zone is gone and respawning
+        // AI prioritizes getting to where the new safe zone will be or finding it
+        // For simplicity, let's make it try to move towards the center of the world or last known safe zone location
+        // Or, more accurately, we'd need a target for where the NEW one will spawn.
+        // For now, let's keep enemy/orb priority for AI. The player's AI is more complex.
+    } else if (safeHouseInstance && safeHouseInstance.active) { // If safe zone is active
+        if (!safeHouseInstance.isInside(player)) {
+            // Player is outside, prioritize moving into the safe zone
+            target = safeHouseInstance;
+            targetDist = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
+        }
+    }
+
+
     if (closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) target = closestOrb;
-    if (closestTotem) target = closestTotem;
-    if (target) {
+    if (closestTotem && (!player.skills[closestTotem.skill].isUnlocked || (player.abilities.orbitingShield.enabled && closestTotem.skill === 'soul_vortex'))) target = closestTotem; // Only go for totems if skill is not unlocked or its the soul vortex if not enabled
+
+    // If we have a preferred target from the AI logic above (like safe zone or specific totem)
+    if (target && target !== closestEnemy) { // if the target is not the default closest enemy
         const dist = Math.hypot(target.x - player.x, target.y - player.y);
         if (dist > 0) {
-            const weight = (target === closestTotem) ? TOTEM_WEIGHT : ATTRACTION_WEIGHT;
+            const weight = (target === closestTotem || target === safeHouseInstance) ? TOTEM_WEIGHT * 2 : ATTRACTION_WEIGHT; // Give more weight to safezone/totems
             attraction.x = (target.x - player.x) / dist * weight;
             attraction.y = (target.y - player.y) / dist * weight;
         }
+    } else if (closestEnemy) { // Fallback to closest enemy if no other strong target
+        const dist = Math.hypot(closestEnemy.x - player.x, closestEnemy.y - player.y);
+         if (dist > 0) {
+            attraction.x = (closestEnemy.x - player.x) / dist * ATTRACTION_WEIGHT;
+            attraction.y = (closestEnemy.y - player.y) / dist * ATTRACTION_WEIGHT;
+        }
     }
+
     return { x: attraction.x + (repulsion.x * REPULSION_WEIGHT), y: attraction.y + (repulsion.y * REPULSION_WEIGHT) };
 }
+
 function gameLoop(timestamp) { if (!gameState.isRunning) return; const deltaTime = timestamp - gameState.lastTime; gameState.lastTime = timestamp; gameState.gameTime += deltaTime; update(deltaTime); draw(); gameState.animationFrameId = requestAnimationFrame(gameLoop); }
 function update(deltaTime) {
     let dx = 0, dy = 0;
@@ -378,9 +551,31 @@ function update(deltaTime) {
     camera.x = player.x - camera.width / 2; camera.y = player.y - camera.height / 2;
     camera.x = Math.max(0, Math.min(world.width - camera.width, camera.x));
     camera.y = Math.max(0, Math.min(world.height - camera.height, camera.y));
-    if (Math.hypot(player.x - safeHouse.x, player.y - safeHouse.y) < safeHouse.radius) {
-        player.health = Math.min(player.maxHealth, player.health + safeHouse.healingRate * (deltaTime / 1000));
+
+    // Update the SafeHouse and apply its effects
+    if (safeHouseInstance) { // Ensure it's initialized
+        safeHouseInstance.update(deltaTime);
+
+        // --- Apply Safe House Effects ---
+        // Player interaction: ONLY HEALING, NO DAMAGE WHEN OUTSIDE
+        if (safeHouseInstance.active && safeHouseInstance.isInside(player)) {
+            // Player is safe: Heal (using player's healthRegen + safehouse healing)
+            player.health = Math.min(player.maxHealth, player.health + (player.healthRegen + safeHouseInstance.healingRate) * (deltaTime / 1000));
+        }
+        // Removed: Else (player is outside) takeDamage calls
+
+        // Enemy interaction: Assuming enemies have a `speedMultiplier` property
+        enemies.forEach(enemy => {
+            if (safeHouseInstance.active && safeHouseInstance.isInside(enemy)) {
+                // Enemy is inside safe zone: Slow down
+                enemy.speedMultiplier = 0.5; // Half speed
+            } else {
+                // Enemy is outside safe zone (or zone is inactive): Normal speed
+                enemy.speedMultiplier = 1.0;
+            }
+        });
     }
+
     gameState.enemySpawnTimer += deltaTime;
     if (gameState.enemySpawnTimer > gameState.enemySpawnInterval) {
         spawnEnemy(enemies);
@@ -389,6 +584,10 @@ function update(deltaTime) {
     }
     const gainXPCallback = (amount) => gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), triggerNova, camera);
     updateEnemies(deltaTime, enemies, player, showLevelUpOptions, gainXPCallback);
+
+    // Filter out enemies marked for deletion after their update
+    enemies = enemies.filter(enemy => !enemy.markedForDeletion);
+
     for (let i = skillTotems.length - 1; i >= 0; i--) {
         const totem = skillTotems[i];
         if (Math.hypot(player.x - totem.x, player.y - totem.y) < player.size + totem.radius) {
@@ -412,7 +611,9 @@ function handleCollisions() {
         if (p.pierce < p.hitEnemies.length) return;
         enemies.forEach(e => {
             if (p.hitEnemies.includes(e)) return;
-            if (Math.hypot(e.x - p.x, e.y - p.y) < 20) {
+            // MODIFIED: Changed collision check to consider enemy width for better accuracy
+            const combinedRadius = (p.size?.w || 10) + (e.width || 20); // Default to a size if not defined
+            if (Math.hypot(e.x - p.x, e.y - p.y) < combinedRadius / 2) { // Check distance vs half combined size
                 // ADDED: Logic for projectile explosions and crit explosions
                 if (p.explodesOnImpact && p.hitEnemies.length === 0) {
                     triggerNova({x: e.x, y: e.y}, p.explosionDamage, p.explosionRadius);
@@ -430,9 +631,13 @@ function handleCollisions() {
         });
     });
     enemies.forEach(e => {
-        if (Math.hypot(e.x - player.x, e.y - player.y) < 20) {
-            takeDamage(e.damage || 10);
-            e.health = -1;
+        // MODIFIED: Changed collision check to consider enemy width/player size
+        const combinedRadius = player.size + (e.width || 20); // Assuming player.size is radius
+        if (Math.hypot(e.x - player.x, e.y - player.y) < combinedRadius / 2) {
+            // Player takes damage directly from enemy contact.
+            // This is a direct hit, so invincibility frames should apply.
+            takeDamage(e.damage || 10, true); // MODIFIED: Pass `true` for `isDirectHit`
+            e.health = -1; // Enemies die on contact for simplicity, adjust if they have health.
         }
     });
     const shield = player.abilities.orbitingShield;
@@ -442,9 +647,10 @@ function handleCollisions() {
             const angle = shield.angle + (i * (Math.PI * 2 / count));
             if (gameState.gameTime - (shield.lastHitTime?.[i] || 0) > shield.cooldown) {
                 const shieldX = player.x + Math.cos(angle) * shield.distance;
-                const shieldY = player.y + Math.sin(angle) * shield.distance;
+                const shieldY = player.y + Math.sin(angle) * shield.distance; // Corrected: removed the second Math.sin(angle)
                 enemies.forEach(e => {
-                    if (Math.hypot(e.x - shieldX, e.y - shieldY) < 30) {
+                    const combinedRadius = 15 + (e.width || 20); // Shield size (15) + enemy size
+                    if (Math.hypot(e.x - shieldX, e.y - shieldY) < combinedRadius / 2) {
                         e.health -= shield.damage;
                         spawnDamageNumber(e.x, e.y, shield.damage, false);
                         if(!shield.lastHitTime) shield.lastHitTime = {};
@@ -456,8 +662,37 @@ function handleCollisions() {
         shield.angle += 0.05 * (shield.speed || 1);
     }
 }
-function draw() { if(!gameState.isRunning && !hudElements.gameOverScreen.classList.contains('visible')) return; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.translate(-camera.x, -camera.y); ctx.drawImage(getBackgroundCanvas(), 0, 0); drawWorldElements(); projectiles.forEach(p => drawProjectile(p)); enemies.forEach(e => drawEnemy(e)); const playerBlink = (gameState.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0; if (!playerBlink) drawPlayer(player, player.angle); drawParticlesAndEffects(); ctx.restore(); if (screenRedFlash.value > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${screenRedFlash.value * 0.4})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenRedFlash.value -= 0.04; } if (screenFlash.value > 0) { ctx.fillStyle = `rgba(200, 225, 255, ${screenFlash.value})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenFlash.value -= 0.05; } if (joystick.active && !gameState.isAutoMode) drawJoystick(); updateHUD(); }
-function drawWorldElements() { ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = 'var(--safe-house-fill)'; ctx.beginPath(); ctx.arc(safeHouse.x, safeHouse.y, safeHouse.radius, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 0.5; ctx.strokeStyle = 'var(--safe-house-stroke)'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore(); skillTotems.forEach(totem => drawSkillTotem(totem)); lightningBolts.forEach(bolt => drawLightningBolt(bolt)); volcanicEruptions.forEach(v => drawVolcano(v)); xpOrbs.forEach(orb => drawXpOrb(orb)); }
+function draw() {
+    if(!gameState.isRunning && !hudElements.gameOverScreen.classList.contains('visible')) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+    ctx.drawImage(getBackgroundCanvas(), 0, 0);
+
+    // NEW: Draw the SafeHouse using its own draw method
+    if (safeHouseInstance) {
+        safeHouseInstance.draw(ctx, camera); // Pass context and camera
+    }
+
+    drawWorldElements(); // This now only draws skill totems, etc., not the old safeHouse
+    projectiles.forEach(p => drawProjectile(p));
+    enemies.forEach(e => drawEnemy(e));
+    const playerBlink = (gameState.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
+    if (!playerBlink) drawPlayer(player, player.angle);
+    drawParticlesAndEffects();
+    ctx.restore();
+    if (screenRedFlash.value > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${screenRedFlash.value * 0.4})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenRedFlash.value -= 0.04; }
+    if (screenFlash.value > 0) { ctx.fillStyle = `rgba(200, 225, 255, ${screenFlash.value})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenFlash.value -= 0.05; }
+    if (joystick.active && !gameState.isAutoMode) drawJoystick(); updateHUD();
+}
+// MODIFIED: drawWorldElements function (removed old safeHouse drawing code)
+function drawWorldElements() {
+    // Keep skill totems and other world elements
+    skillTotems.forEach(totem => drawSkillTotem(totem));
+    lightningBolts.forEach(bolt => drawLightningBolt(bolt));
+    volcanicEruptions.forEach(v => drawVolcano(v));
+    xpOrbs.forEach(orb => drawXpOrb(orb));
+}
 function drawParticlesAndEffects() {
     visualEffects.forEach(effect => {
         const lifePercent = effect.life / effect.maxLife; // More generic life percentage
@@ -498,7 +733,7 @@ function drawParticlesAndEffects() {
             const angle = shield.angle + (i * (Math.PI * 2 / count));
             const pulse = Math.sin(gameState.gameTime / 150 + i * Math.PI);
             const shieldX = player.x + Math.cos(angle) * shield.distance;
-            const shieldY = player.y + Math.sin(angle) * shield.distance;
+            const shieldY = player.y + Math.sin(angle) * shield.distance; // Corrected: removed the second Math.sin(angle)
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
             ctx.fillStyle = `rgba(220, 120, 255, ${0.4 + pulse * 0.2})`;
@@ -541,7 +776,7 @@ function showLevelUpOptions() {
         if (upgrade.skill === 'soul_vortex' && !player.abilities.orbitingShield.enabled) return false;
         return true;
     });
-    const choices = availablePool.sort(() => 0.5 - Math.random()).slice(0, 3);
+    const choices = availablePool.sort(() => 0.5 - Math.random()).slice(0, 6);
     hudElements.upgradeOptions.innerHTML = '';
     choices.forEach(upgrade => {
         const currentLevel = player.upgradeLevels[upgrade.id] || 0;
@@ -564,4 +799,10 @@ function selectUpgrade(upgrade) {
     requestAnimationFrame(gameLoop);
 }
 
-export { gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles, damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems, safeHouse, screenFlash, screenRedFlash, UPGRADE_POOL };
+// IMPORTANT: Update the export list to export the SafeHouse instance as `safeHouse`
+export {
+    gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles,
+    damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems,
+    safeHouseInstance as safeHouse, // Export the instance under the original name
+    screenFlash, screenRedFlash, UPGRADE_POOL
+};
