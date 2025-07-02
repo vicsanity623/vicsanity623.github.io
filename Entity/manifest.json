@@ -1,0 +1,10 @@
+{
+  "name": "Ecosystem Evolution Simulation",
+  "short_name": "EvoSim",
+  "description": "An interactive, browser-based simulation of ecosystem evolution with creatures driven by neural networks and social behaviors.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#01040a",
+  "theme_color": "#00ffff",
+  "orientation": "any",
+}
