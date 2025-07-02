@@ -7,8 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;700&display=swap" rel="stylesheet">
-        <link rel="manifest" href="manifest.json">
-    <!-- Theme color for Safari on iOS -->
+    <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#00ffff">
@@ -103,7 +102,6 @@
             margin-bottom: 5px;
             font-size: 1.05em;
         }
-
 
         .param-group { display: flex; flex-direction: column; gap: 5px; }
         .param-group label { display: flex; justify-content: space-between; align-items: center; color: #ccc; }
@@ -279,7 +277,6 @@
         <button id="start-pause-button" class="ui-button">Start Simulation</button>
         <button id="toggle-panel-button" class="ui-button">Hide Panel</button>
         
-        <!-- NEW: Genetic / NN Controls -->
         <div class="panel-subheader">Genetic Controls</div>
         <div class="param-group">
             <label for="hiddenLayerSize">Brain Complexity: <span id="hiddenLayerSizeValue"></span></label>
@@ -290,7 +287,6 @@
             <input type="range" id="mutationRate" min="0.001" max="0.1" step="0.001">
         </div>
 
-        <!-- NEW: Social Behavior Controls -->
         <div class="panel-subheader">Social Behavior</div>
         <div class="param-group">
             <label for="alignmentForce">Alignment: <span id="alignmentForceValue"></span></label>
@@ -371,33 +367,25 @@
             foodSpawnRate: 0.5, foodEnergy: 50,
             preyTargetPopulation: 200, predatorTargetPopulation: 50, hunterTargetPopulation: 10,
             
-            // NEW: Genetic & Social Behavior Controls
-            hiddenLayerSize: 10,        // Number of neurons in the NN hidden layer. Affects new creatures.
+            hiddenLayerSize: 10,       
             mutationRate: 0.01,         
             mutationColorRange: 20,     
-            alignmentForce: 1.0,        // Strength of steering towards neighbors' average heading
-            cohesionForce: 0.8,         // Strength of steering towards neighbors' average position
-            separationForce: 1.5,       // Strength of steering away from very close neighbors
-            separationDistance: 20,     // The radius within which creatures will actively avoid each other
+            alignmentForce: 1.0,       
+            cohesionForce: 0.8,        
+            separationForce: 1.5,      
+            separationDistance: 20,    
             
-            // MODIFIED: Creature stats for slower pacing
             creatureSize: 8,
             preyMaxHealth: 100, predatorMaxHealth: 150, hunterMaxHealth: 200,
-            
-            // MODIFIED: Reproduction thresholds increased significantly to slow down breeding
             preyReproductionThreshold: 95, 
             predatorReproductionThreshold: 140,
             hunterReproductionThreshold: 180,
-            
-            // MODIFIED: Energy consumption reduced by ~33% to slow down death rate
             preyEnergyConsumption: 0.07,
             predatorEnergyConsumption: 0.12,
             hunterEnergyConsumption: 0.18,
-            
-            // MODIFIED: Reproduction cost increased to make breeding a bigger investment
             reproductionCost: 75,
             
-            visionRange: 150, // General vision range used for social behaviors
+            visionRange: 150, 
             
             quadtreeCapacity: 4, maxEntities: 1000
         };
@@ -411,140 +399,155 @@
         let currentPreyCount = 0, currentPredatorCount = 0, currentHunterCount = 0, currentFoodCount = 0;
         let totalPreySurvivalTicks = 0, totalPredatorSurvivalTicks = 0, totalHunterSurvivalTicks = 0;
         let totalBirths = 0, totalGeneticMutations = 0, simulationTicks = 0, gameOver = false;
+        let perlinNoise;
         
-        // --- Perlin Noise, Utility, and other classes are minified for brevity ---
-        // --- They are functionally identical to the previous version ---
-        const P = new Array(512); const permutation = [151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,178,243,109,86,242,102,220,83,208,82,60,204,244,196,174,251,193,249,173,192,205,124,150,89,147,48,206,231,38,1,101,163,179,113,228,207,209,17,9,47,61,106,73,202,238,145,155,186,171,154,210,100,211,166,20,230,24,64,104,16,246,250,116,218,114,63,76,181,28,200,12,66,105,107,59,18,65,110,253,254,255,127,199,198,164,180,74,201,141,123,97,25,126,134,138,111,175,98,187,189,248,115,55,135,212,125,146,161,162,176,168,144,226,143,188,93,14,133,121,167,46,108,169,130,172,165,136,191,213,232,156,239,170,39,183,119,112,100,52,29,19,132,122,227,27,253,139,67,100,34,81,185,100,217,215,221,80,214,245,68,2,78,140,241,70,10,235,172,50,49,159,157,177,44,153,195,129,58,77,222,174,182,184,236,195,216,224,197];
-        function fade(t) { return t*t*t*(t*(t*6-15)+10); } function lerp(t,a,b){return a+t*(b-a);} function grad(h,x,y){const u=h<8?x:y,v=h<4?y:h===12||h===14?x:0;return((h&1)===0?u:-u)+((h&2)===0?v:-v);}
-        class PerlinNoise { constructor(s=Date.now()){this.seed=s;this._initPermutation();} _initPermutation(){for(let i=0;i<256;i++)P[i]=P[i+256]=permutation[i];let c=this.seed;function r(){c=(c*9301+49297)%233280;return c/233280;}for(let i=0;i<256;i++){const j=Math.floor(r()*256);[P[i],P[j]]=[P[j],P[i]];P[i+256]=P[i];P[j+256]=P[j];}} noise(x,y){const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=fade(x),v=fade(y),A=P[X]+Y,AA=P[A],AB=P[A+1],B=P[X+1]+Y,BA=P[B],BB=P[B+1];return lerp(v,lerp(u,grad(P[AA],x,y),grad(P[BA],x-1,y)),lerp(u,grad(P[AB],x,y-1),grad(P[BB],x-1,y-1)));}}
-        let perlinNoise; function getLayeredNoise(x,y){let t=0,f=config.noise.scale,a=1,m=0;for(let i=0;i<config.noise.octaves;i++){t+=perlinNoise.noise(x*f,y*f)*a;m+=a;a*=config.noise.persistence;f*=2;}return t/m;}
-        class Vector { constructor(x=0,y=0){this.x=x;this.y=y} add(o){return new Vector(this.x+o.x,this.y+o.y)} sub(o){return new Vector(this.x-o.x,this.y-o.y)} mult(s){return new Vector(this.x*s,this.y*s)} div(s){return new Vector(this.x/s,this.y/s)} mag(){return Math.sqrt(this.x*this.x+this.y*this.y)} normalize(){const m=this.mag();return m>0?this.div(m):new Vector(0,0)} setMag(m){return this.normalize().mult(m)} limit(m){if(this.mag()>m){return this.setMag(m)} return this} dist(o){return this.sub(o).mag()} angle(){return Math.atan2(this.y,this.x)} static random2D(){const a=Math.random()*Math.PI*2;return new Vector(Math.cos(a),Math.sin(a))} copy(){return new Vector(this.x,this.y)} }
-        class Rectangle { constructor(x,y,w,h){this.x=x;this.y=y;this.w=w;this.h=h} contains(p){return(p.x>=this.x-this.w&&p.x<=this.x+this.w&&p.y>=this.y-this.h&&p.y<=this.y+this.h)} intersects(r){return!(r.x-r.w>this.x+this.w||r.x+r.w<this.x-this.w||r.y-r.h>this.y+this.h||r.y+r.h<this.y-this.h)} }
-        class QuadTree { constructor(b,c){this.boundary=b;this.capacity=c;this.entities=[];this.divided=!1} subdivide(){let x=this.boundary.x,y=this.boundary.y,w=this.boundary.w/2,h=this.boundary.h/2;this.northeast=new QuadTree(new Rectangle(x+w,y-h,w,h),this.capacity);this.northwest=new QuadTree(new Rectangle(x-w,y-h,w,h),this.capacity);this.southeast=new QuadTree(new Rectangle(x+w,y+h,w,h),this.capacity);this.southwest=new QuadTree(new Rectangle(x-w,y+h,w,h),this.capacity);this.divided=!0;for(let e of this.entities){this.insert(e)} this.entities=[]} insert(e){return this.boundary.contains(e.position)?this.entities.length<this.capacity&&!this.divided?(this.entities.push(e),!0):(!this.divided&&this.subdivide(),!this.northeast.insert(e)&&!this.northwest.insert(e)&&!this.southeast.insert(e)&&!this.southwest.insert(e)?!1:!0):!1} query(r,f=[]){if(!this.boundary.intersects(r)){return f} for(let e of this.entities){r.contains(e.position)&&f.push(e)} return this.divided&&(this.northwest.query(r,f),this.northeast.query(r,f),this.southwest.query(r,f),this.southeast.query(r,f)),f} clear(){this.entities=[];this.divided=!1;this.northeast=null;this.northwest=null;this.southeast=null;this.southwest=null} }
+        // --- Vector, Rectangle, QuadTree, PerlinNoise Classes (Full, Readable Code) ---
+        class Vector {
+            constructor(x = 0, y = 0) { this.x = x; this.y = y; }
+            add(other) { return new Vector(this.x + other.x, this.y + other.y); }
+            sub(other) { return new Vector(this.x - other.x, this.y - other.y); }
+            mult(scalar) { return new Vector(this.x * scalar, this.y * scalar); }
+            div(scalar) { return new Vector(this.x / scalar, this.y / scalar); }
+            mag() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+            normalize() { const m = this.mag(); return m > 0 ? this.div(m) : new Vector(0, 0); }
+            setMag(magnitude) { return this.normalize().mult(magnitude); }
+            limit(max) { if (this.mag() > max) { return this.setMag(max); } return this; }
+            dist(other) { return this.sub(other).mag(); }
+            angle() { return Math.atan2(this.y, this.x); }
+            static random2D() { const angle = Math.random() * Math.PI * 2; return new Vector(Math.cos(angle), Math.sin(angle)); }
+            copy() { return new Vector(this.x, this.y); }
+        }
+
+        class Rectangle {
+            constructor(x, y, w, h) { this.x = x; this.y = y; this.w = w; this.h = h; }
+            contains(point) { return (point.x >= this.x - this.w && point.x <= this.x + this.w && point.y >= this.y - this.h && point.y <= this.y + this.h); }
+            intersects(range) { return !(range.x - range.w > this.x + this.w || range.x + range.w < this.x - this.w || range.y - range.h > this.y + this.h || range.y + range.h < this.y - this.h); }
+        }
+
+        class QuadTree {
+            constructor(boundary, capacity) { this.boundary = boundary; this.capacity = capacity; this.entities = []; this.divided = false; }
+            subdivide() { let x = this.boundary.x, y = this.boundary.y, w = this.boundary.w / 2, h = this.boundary.h / 2; this.northeast = new QuadTree(new Rectangle(x + w, y - h, w, h), this.capacity); this.northwest = new QuadTree(new Rectangle(x - w, y - h, w, h), this.capacity); this.southeast = new QuadTree(new Rectangle(x + w, y + h, w, h), this.capacity); this.southwest = new QuadTree(new Rectangle(x - w, y + h, w, h), this.capacity); this.divided = true; for (let entity of this.entities) { this.insert(entity); } this.entities = []; }
+            insert(entity) { if (!this.boundary.contains(entity.position)) { return false; } if (this.entities.length < this.capacity && !this.divided) { this.entities.push(entity); return true; } else { if (!this.divided) { this.subdivide(); } if (this.northeast.insert(entity)) { return true; } if (this.northwest.insert(entity)) { return true; } if (this.southeast.insert(entity)) { return true; } if (this.southwest.insert(entity)) { return true; } } return false; }
+            query(range, found = []) { if (!this.boundary.intersects(range)) { return found; } for (let entity of this.entities) { if (range.contains(entity.position)) { found.push(entity); } } if (this.divided) { this.northwest.query(range, found); this.northeast.query(range, found); this.southwest.query(range, found); this.southeast.query(range, found); } return found; }
+            clear() { this.entities = []; this.divided = false; this.northeast = null; this.northwest = null; this.southeast = null; this.southwest = null; }
+        }
         
-        // MODIFIED: NeuralNetwork class now reads hidden layer size from config
+        const P = new Array(512); const PERM = [151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,178,243,109,86,242,102,220,83,208,82,60,204,244,196,174,251,193,249,173,192,205,124,150,89,147,48,206,231,38,1,101,163,179,113,228,207,209,17,9,47,61,106,73,202,238,145,155,186,171,154,210,100,211,166,20,230,24,64,104,16,246,250,116,218,114,63,76,181,28,200,12,66,105,107,59,18,65,110,253,254,255,127,199,198,164,180,74,201,141,123,97,25,126,134,138,111,175,98,187,189,248,115,55,135,212,125,146,161,162,176,168,144,226,143,188,93,14,133,121,167,46,108,169,130,172,165,136,191,213,232,156,239,170,39,183,119,112,100,52,29,19,132,122,227,27,253,139,67,100,34,81,185,100,217,215,221,80,214,245,68,2,78,140,241,70,10,235,172,50,49,159,157,177,44,153,195,129,58,77,222,174,182,184,236,195,216,224,197];
+        function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); } function lerp(t, a, b) { return a + t * (b - a); } function grad(hash, x, y) { const h = hash & 15; const u = h < 8 ? x : y; const v = h < 4 ? y : h === 12 || h === 14 ? x : 0; return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v); }
+        class PerlinNoise { constructor(seed = Date.now()) { this.seed = seed; this._initPermutation(); } _initPermutation() { for (let i = 0; i < 256; i++) { P[i] = P[i + 256] = PERM[i]; } let currentSeed = this.seed; function lcgRandom() { currentSeed = (currentSeed * 9301 + 49297) % 233280; return currentSeed / 233280; } for (let i = 0; i < 256; i++) { const j = Math.floor(lcgRandom() * 256); [P[i], P[j]] = [P[j], P[i]]; P[i + 256] = P[i]; P[j + 256] = P[j]; } } noise(x, y) { const X = Math.floor(x) & 255, Y = Math.floor(y) & 255; x -= Math.floor(x); y -= Math.floor(y); const u = fade(x), v = fade(y), A = P[X] + Y, AA = P[A], AB = P[A + 1], B = P[X + 1] + Y, BA = P[B], BB = P[B + 1]; return lerp(v, lerp(u, grad(P[AA], x, y), grad(P[BA], x - 1, y)), lerp(u, grad(P[AB], x, y - 1), grad(P[BB], x - 1, y - 1))); } }
+        function getLayeredNoise(x, y) { let total = 0, frequency = config.noise.scale, amplitude = 1, maxAmplitude = 0; for (let i = 0; i < config.noise.octaves; i++) { total += perlinNoise.noise(x * frequency, y * frequency) * amplitude; maxAmplitude += amplitude; amplitude *= config.noise.persistence; frequency *= 2; } return total / maxAmplitude; }
+
         class NeuralNetwork {
-            static INPUT_SIZE = 1 + (2 * 5); // Health + 5 types (dist, angle)
+            static INPUT_SIZE = 1 + (2 * 5); // Health + 5 types of entities (dist, angle)
             static OUTPUT_SIZE = 2;
 
             constructor(...layerSizes) {
                 this.layerSizes = layerSizes.length ? layerSizes : [NeuralNetwork.INPUT_SIZE, config.hiddenLayerSize, NeuralNetwork.OUTPUT_SIZE];
                 this.weights = [];
                 this.biases = [];
+
                 for (let i = 0; i < this.layerSizes.length - 1; i++) {
-                    const rows = this.layerSizes[i + 1], cols = this.layerSizes[i];
+                    const rows = this.layerSizes[i + 1];
+                    const cols = this.layerSizes[i];
                     this.weights.push(Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 - 1)));
                     this.biases.push(Array.from({ length: rows }, () => Math.random() * 2 - 1));
                 }
             }
-            static tanh(x){return Math.tanh(x);}
-            feedForward(inputs){if(inputs.length!==this.layerSizes[0]){console.error(`Input size mismatch. Expected ${this.layerSizes[0]}, got ${inputs.length}.`);const p=inputs.slice(0,this.layerSizes[0]);while(p.length<this.layerSizes[0])p.push(0);inputs=p;} let c=inputs;for(let i=0;i<this.weights.length;i++){const n=[],w=this.weights[i],b=this.biases[i];for(let r=0;r<w.length;r++){let s=0;for(let l=0;l<w[r].length;l++)s+=c[l]*w[r][l];n.push(NeuralNetwork.tanh(s+b[r]));}c=n;}return c;}
-            copy(){const n=new NeuralNetwork(...this.layerSizes);n.weights=this.weights.map(m=>m.map(r=>[...r]));n.biases=this.biases.map(b=>[...b]);return n;}
-            mutate(rate){let m=0;for(let i=0;i<this.weights.length;i++)for(let r=0;r<this.weights[i].length;r++)for(let c=0;c<this.weights[i][r].length;c++)if(Math.random()<rate){this.weights[i][r][c]+=(Math.random()*2-1)*0.5;m++;}for(let i=0;i<this.biases.length;i++)for(let r=0;r<this.biases[i].length;r++)if(Math.random()<rate){this.biases[i][r]+=(Math.random()*2-1)*0.5;m++;}return m;}
-            static crossover(n1,n2){if(n1.layerSizes.join('-')!==n2.layerSizes.join('-'))throw new Error("Cannot crossover NNs with different architectures.");const c=new NeuralNetwork(...n1.layerSizes);for(let i=0;i<n1.weights.length;i++){const r=Math.floor(Math.random()*n1.weights[i].length),l=Math.floor(Math.random()*n1.weights[i][0].length);for(let o=0;o<n1.weights[i].length;o++)for(let s=0;s<n1.weights[i][o].length;s++)c.weights[i][o][s]=o<r||o===r&&s<l?n1.weights[i][o][s]:n2.weights[i][o][s];}for(let i=0;i<n1.biases.length;i++){const r=Math.floor(Math.random()*n1.biases[i].length);for(let o=0;o<n1.biases[i].length;o++)c.biases[i][o]=o<r?n1.biases[i][o]:n2.biases[i][o];}return c;}
-        }
 
-        class Entity { constructor(x,y,c,s,w){this.position=new Vector(x,y);this.color=c;this.size=s;this.world=w;this.id=entityIdCounter++;this.isDead=!1;this.trail=[];this.maxTrailLength=5} update(){this.trail.unshift(this.position.copy());this.trail.length>this.maxTrailLength&&this.trail.pop()} draw(ctx){} }
-        
-        // MODIFIED: Creature class now includes flocking behavior
-        class Creature extends Entity {
-            constructor(x, y, color, size, world, nn, maxHealth, reproductionThreshold, energyConsumption, maxSpeed) {
-                super(x, y, color, size, world);
-                this.velocity = Vector.random2D().setMag(Math.random() * maxSpeed);
-                this.acceleration = new Vector(0, 0);
-                this.maxSpeed = maxSpeed;
-                this.maxHealth = maxHealth;
-                this.health = maxHealth;
-                this.reproductionThreshold = reproductionThreshold;
-                this.energyConsumption = energyConsumption;
-                this.nn = nn;
-                this.visionRange = config.visionRange;
-                this.age = 0;
+            static tanh(x) { return Math.tanh(x); }
+
+            feedForward(inputs) {
+                if (inputs.length !== this.layerSizes[0]) { console.error(`Input size mismatch. Expected ${this.layerSizes[0]}, got ${inputs.length}.`); const padded = inputs.slice(0, this.layerSizes[0]); while (padded.length < this.layerSizes[0]) padded.push(0); inputs = padded; }
+                let currentOutputs = inputs;
+                for (let i = 0; i < this.weights.length; i++) {
+                    const nextOutputs = [];
+                    const weightMatrix = this.weights[i];
+                    const biasVector = this.biases[i];
+                    for (let r = 0; r < weightMatrix.length; r++) {
+                        let sum = 0;
+                        for (let c = 0; c < weightMatrix[r].length; c++) { sum += currentOutputs[c] * weightMatrix[r][c]; }
+                        nextOutputs.push(NeuralNetwork.tanh(sum + biasVector[r]));
+                    }
+                    currentOutputs = nextOutputs;
+                }
+                return currentOutputs;
             }
 
-            _addNormalizedInputs(inputs,{entity,dist}){if(entity){inputs.push(dist/this.visionRange);let a=entity.position.sub(this.position).angle(),r=a-this.velocity.angle();r=Math.atan2(Math.sin(r),Math.cos(r));inputs.push(r/Math.PI)}else{inputs.push(1);inputs.push(0)}}
+            copy() { const newNN = new NeuralNetwork(...this.layerSizes); newNN.weights = this.weights.map(m => m.map(r => [...r])); newNN.biases = this.biases.map(b => [...b]); return newNN; }
             
-            // NEW: Calculates flocking forces (alignment, cohesion, separation)
-            calculateFlocking(neighbors) {
-                let alignmentSum = new Vector(0, 0);
-                let cohesionSum = new Vector(0, 0);
-                let separationSum = new Vector(0, 0);
-                let a_count = 0, c_count = 0, s_count = 0;
+            mutate(rate) { let mutationsCount = 0; for (let i = 0; i < this.weights.length; i++) for (let r = 0; r < this.weights[i].length; r++) for (let c = 0; c < this.weights[i][r].length; c++) if (Math.random() < rate) { this.weights[i][r][c] += (Math.random() * 2 - 1) * 0.5; mutationsCount++; } for (let i = 0; i < this.biases.length; i++) for (let r = 0; r < this.biases[i].length; r++) if (Math.random() < rate) { this.biases[i][r] += (Math.random() * 2 - 1) * 0.5; mutationsCount++; } return mutationsCount; }
+            
+            static crossover(nn1, nn2) {
+                if (nn1.layerSizes.join('-') !== nn2.layerSizes.join('-')) {
+                    throw new Error("Cannot crossover NNs with different architectures.");
+                }
+                const childNN = new NeuralNetwork(...nn1.layerSizes);
+                for (let i = 0; i < nn1.weights.length; i++) { const crossoverPointRow = Math.floor(Math.random() * nn1.weights[i].length), crossoverPointCol = Math.floor(Math.random() * nn1.weights[i][0].length); for (let r = 0; r < nn1.weights[i].length; r++) for (let c = 0; c < nn1.weights[i][r].length; c++) childNN.weights[i][r][c] = r < crossoverPointRow || (r === crossoverPointRow && c < crossoverPointCol) ? nn1.weights[i][r][c] : nn2.weights[i][r][c]; }
+                for (let i = 0; i < nn1.biases.length; i++) { const crossoverPoint = Math.floor(Math.random() * nn1.biases[i].length); for (let r = 0; r < nn1.biases[i].length; r++) childNN.biases[i][r] = r < crossoverPoint ? nn1.biases[i][r] : nn2.biases[i][r]; }
+                return childNN;
+            }
+        }
 
+        class Entity {
+            constructor(x, y, color, size, world) { this.position = new Vector(x, y); this.color = color; this.size = size; this.world = world; this.id = entityIdCounter++; this.isDead = false; this.trail = []; this.maxTrailLength = 5; }
+            update() { this.trail.unshift(this.position.copy()); if (this.trail.length > this.maxTrailLength) { this.trail.pop(); } }
+            draw(ctx) {}
+        }
+
+        class Creature extends Entity {
+            constructor(x, y, color, size, world, nn, maxHealth, reproductionThreshold, energyConsumption, maxSpeed) { super(x, y, color, size, world); this.velocity = Vector.random2D().setMag(Math.random() * maxSpeed); this.acceleration = new Vector(0, 0); this.maxSpeed = maxSpeed; this.maxHealth = maxHealth; this.health = maxHealth; this.reproductionThreshold = reproductionThreshold; this.energyConsumption = energyConsumption; this.nn = nn; this.visionRange = config.visionRange; this.age = 0; }
+            _addNormalizedInputs(inputs, { entity, dist }) { if (entity) { inputs.push(dist / this.visionRange); let relativeAngle = entity.position.sub(this.position).angle() - this.velocity.angle(); inputs.push(Math.atan2(Math.sin(relativeAngle), Math.cos(relativeAngle)) / Math.PI); } else { inputs.push(1); inputs.push(0); } }
+            calculateFlocking(neighbors) {
+                let alignmentSum = new Vector(0, 0), cohesionSum = new Vector(0, 0), separationSum = new Vector(0, 0);
+                let a_count = 0, c_count = 0, s_count = 0;
                 for (const other of neighbors) {
                     if (other.id === this.id) continue;
                     let d = this.position.dist(other.position);
-
-                    // Alignment & Cohesion (all neighbors in vision range)
-                    if (d > 0 && d < this.visionRange) {
-                        alignmentSum = alignmentSum.add(other.velocity);
-                        a_count++;
-                        cohesionSum = cohesionSum.add(other.position);
-                        c_count++;
-                    }
-                    // Separation (only very close neighbors)
-                    if (d > 0 && d < config.separationDistance) {
-                        let diff = this.position.sub(other.position);
-                        diff = diff.normalize().div(d); // Weight by distance
-                        separationSum = separationSum.add(diff);
-                        s_count++;
-                    }
+                    if (d > 0 && d < this.visionRange) { alignmentSum = alignmentSum.add(other.velocity); a_count++; cohesionSum = cohesionSum.add(other.position); c_count++; }
+                    if (d > 0 && d < config.separationDistance) { let diff = this.position.sub(other.position).normalize().div(d); separationSum = separationSum.add(diff); s_count++; }
                 }
-
-                let steer = new Vector(0,0);
-                if (a_count > 0) {
-                    alignmentSum = alignmentSum.div(a_count).normalize().mult(this.maxSpeed);
-                    let alignmentSteer = alignmentSum.sub(this.velocity).limit(0.2);
-                    steer = steer.add(alignmentSteer.mult(config.alignmentForce));
-                }
-                if (c_count > 0) {
-                    cohesionSum = cohesionSum.div(c_count);
-                    let desired = cohesionSum.sub(this.position).normalize().mult(this.maxSpeed);
-                    let cohesionSteer = desired.sub(this.velocity).limit(0.1);
-                    steer = steer.add(cohesionSteer.mult(config.cohesionForce));
-                }
-                if (s_count > 0) {
-                    separationSum = separationSum.div(s_count).normalize().mult(this.maxSpeed);
-                    let separationSteer = separationSum.sub(this.velocity).limit(0.3);
-                    steer = steer.add(separationSteer.mult(config.separationForce));
-                }
+                let steer = new Vector(0, 0);
+                if (a_count > 0) { steer = steer.add(alignmentSum.div(a_count).normalize().mult(this.maxSpeed).sub(this.velocity).limit(0.2).mult(config.alignmentForce)); }
+                if (c_count > 0) { steer = steer.add(cohesionSum.div(c_count).sub(this.position).normalize().mult(this.maxSpeed).sub(this.velocity).limit(0.1).mult(config.cohesionForce)); }
+                if (s_count > 0) { steer = steer.add(separationSum.div(s_count).normalize().mult(this.maxSpeed).sub(this.velocity).limit(0.3).mult(config.separationForce)); }
                 return steer;
             }
-
             think(nearbyEntities) {
-                // Goal-seeking with NN
-                let closestFood={e:null,d:Infinity},closestPrey={e:null,d:Infinity},closestPredator={e:null,d:Infinity},closestHunter={e:null,d:Infinity},closestMate={e:null,d:Infinity};
-                for(let e of nearbyEntities){if(e.id===this.id||e.isDead)continue;const d=this.position.dist(e.position);if(d<this.visionRange){if(e instanceof Food){d<closestFood.d&&(closestFood={entity:e,dist:d})}else if(this instanceof Prey){if(e instanceof Predator&&d<closestPredator.d)closestPredator={entity:e,dist:d};if(e instanceof Hunter&&d<closestHunter.d)closestHunter={entity:e,dist:d};}else if(this instanceof Predator){if(e instanceof Prey&&d<closestPrey.d)closestPrey={entity:e,dist:d};if(e instanceof Hunter&&d<closestHunter.d)closestHunter={entity:e,dist:d};}else if(this instanceof Hunter){if(e instanceof Prey&&d<closestPrey.d)closestPrey={entity:e,dist:d};if(e instanceof Predator&&d<closestPredator.d)closestPredator={entity:e,dist:d};} if(this.constructor===e.constructor&&e.health>e.reproductionThreshold*0.8&&d<closestMate.d)closestMate={entity:e,dist:d};}}
-                const inputs=[];inputs.push(this.health/this.maxHealth);
-                if(this instanceof Prey){ this._addNormalizedInputs(inputs, closestFood); this._addNormalizedInputs(inputs, {entity: null, dist: Infinity}); this._addNormalizedInputs(inputs, closestPredator); this._addNormalizedInputs(inputs, closestHunter); this._addNormalizedInputs(inputs, closestMate); }
-                else if(this instanceof Predator){ this._addNormalizedInputs(inputs, {entity: null, dist: Infinity}); this._addNormalizedInputs(inputs, closestPrey); this._addNormalizedInputs(inputs, {entity: null, dist: Infinity}); this._addNormalizedInputs(inputs, closestHunter); this._addNormalizedInputs(inputs, closestMate); }
-                else if(this instanceof Hunter){ this._addNormalizedInputs(inputs, closestFood); this._addNormalizedInputs(inputs, closestPrey); this._addNormalizedInputs(inputs, closestPredator); this._addNormalizedInputs(inputs, {entity: null, dist: Infinity}); this._addNormalizedInputs(inputs, closestMate); }
-                
-                const outputs=this.nn.feedForward(inputs),accelerationMag=(outputs[0]+1)/2,turnStrength=outputs[1];
-                const currentHeading=this.velocity.angle(),desiredHeading=currentHeading+turnStrength*(Math.PI/8);
-                const nnAcceleration = new Vector(Math.cos(desiredHeading),Math.sin(desiredHeading)).setMag(accelerationMag*0.2);
-
-                // Flocking Behavior
-                const allies = nearbyEntities.filter(e => e.constructor === this.constructor);
-                const flockingForce = this.calculateFlocking(allies);
-
-                // Combine forces
+                let closest = { food: null, prey: null, predator: null, hunter: null, mate: null };
+                let dists = { food: Infinity, prey: Infinity, predator: Infinity, hunter: Infinity, mate: Infinity };
+                for (let e of nearbyEntities) {
+                    if (e.id === this.id || e.isDead) continue;
+                    const d = this.position.dist(e.position);
+                    if (d >= this.visionRange) continue;
+                    if (e instanceof Food && d < dists.food) { dists.food = d; closest.food = e; }
+                    else if (e instanceof Prey && d < dists.prey) { dists.prey = d; closest.prey = e; }
+                    else if (e instanceof Predator && d < dists.predator) { dists.predator = d; closest.predator = e; }
+                    else if (e instanceof Hunter && d < dists.hunter) { dists.hunter = d; closest.hunter = e; }
+                    if (this.constructor === e.constructor && e.health > e.reproductionThreshold * 0.8 && d < dists.mate) { dists.mate = d; closest.mate = e; }
+                }
+                const inputs = [this.health / this.maxHealth];
+                this._addNormalizedInputs(inputs, { entity: closest.food, dist: dists.food });
+                this._addNormalizedInputs(inputs, { entity: closest.prey, dist: dists.prey });
+                this._addNormalizedInputs(inputs, { entity: closest.predator, dist: dists.predator });
+                this._addNormalizedInputs(inputs, { entity: closest.hunter, dist: dists.hunter });
+                this._addNormalizedInputs(inputs, { entity: closest.mate, dist: dists.mate });
+                const outputs = this.nn.feedForward(inputs), desiredHeading = this.velocity.angle() + outputs[1] * (Math.PI / 8);
+                const nnAcceleration = new Vector(Math.cos(desiredHeading), Math.sin(desiredHeading)).setMag(((outputs[0] + 1) / 2) * 0.2);
+                const flockingForce = this.calculateFlocking(nearbyEntities.filter(e => e.constructor === this.constructor));
                 this.acceleration = this.acceleration.add(nnAcceleration).add(flockingForce);
             }
-
-            move(){this.velocity=this.velocity.add(this.acceleration).limit(this.maxSpeed);this.position=this.position.add(this.velocity.mult(config.timeScale));this.acceleration=new Vector(0,0);if(this.position.x<0)this.position.x=this.world.width;if(this.position.x>this.world.width)this.position.x=0;if(this.position.y<0)this.position.y=this.world.height;if(this.position.y>this.world.height)this.position.y=0;}
-            updateHealth(){this.health-=this.energyConsumption*config.timeScale;if(this.health<=0)this.isDead=true;}
-            reproduce(mateNN=null){if(this.health>=this.reproductionThreshold){const childNN=mateNN?NeuralNetwork.crossover(this.nn,mateNN):this.nn.copy(),mutations=childNN.mutate(config.mutationRate);totalGeneticMutations+=mutations;let childColor=this.color;if(mutations>0){childColor=(this.color+(Math.random()*2*config.mutationColorRange-config.mutationColorRange));childColor=(childColor%360+360)%360;} const offset=Vector.random2D().mult(this.size*2),child=new(this.constructor)(this.position.x+offset.x,this.position.y+offset.y,this.world,childNN,childColor);this.health-=config.reproductionCost;totalBirths++;return child;}return null;}
-            eat(target,energy){this.health+=energy;this.health=Math.min(this.health,this.maxHealth);target.isDead=true;}
-            
-            update(){
-                super.update(); this.age+=config.timeScale; this.updateHealth(); if(this.isDead)return;
-                const searchRange=new Rectangle(this.position.x,this.position.y,this.visionRange/2,this.visionRange/2),nearby=quadtree.query(searchRange);
-                for(let e of nearby){if(e.id===this.id||e.isDead)continue;const d=this.position.dist(e.position);if(d<this.size/2+e.size/2){if(this instanceof Prey&&e instanceof Food)this.eat(e,config.foodEnergy);else if(this instanceof Predator&&e instanceof Prey)this.eat(e,e.maxHealth*0.5);else if(this instanceof Hunter){if(e instanceof Prey)this.eat(e,e.maxHealth*0.75);else if(e instanceof Predator)this.eat(e,e.maxHealth*1.0)}}}
+            move() { this.velocity = this.velocity.add(this.acceleration).limit(this.maxSpeed); this.position = this.position.add(this.velocity.mult(config.timeScale)); this.acceleration = new Vector(0, 0); if (this.position.x < 0) this.position.x = this.world.width; if (this.position.x > this.world.width) this.position.x = 0; if (this.position.y < 0) this.position.y = this.world.height; if (this.position.y > this.world.height) this.position.y = 0; }
+            updateHealth() { this.health -= this.energyConsumption * config.timeScale; if (this.health <= 0) this.isDead = true; }
+            reproduce(mateNN = null) { if (this.health >= this.reproductionThreshold) { const childNN = mateNN ? NeuralNetwork.crossover(this.nn, mateNN) : this.nn.copy(); const mutations = childNN.mutate(config.mutationRate); totalGeneticMutations += mutations; let childColor = this.color; if (mutations > 0) { childColor = (this.color + (Math.random() * 2 * config.mutationColorRange - config.mutationColorRange) + 360) % 360; } const offset = Vector.random2D().mult(this.size * 2); const child = new(this.constructor)(this.position.x + offset.x, this.position.y + offset.y, this.world, childNN, childColor); this.health -= config.reproductionCost; totalBirths++; return child; } return null; }
+            eat(target, energy) { this.health += energy; this.health = Math.min(this.health, this.maxHealth); target.isDead = true; }
+            update() {
+                super.update(); this.age += config.timeScale; this.updateHealth(); if (this.isDead) return;
+                const nearby = quadtree.query(new Rectangle(this.position.x, this.position.y, this.visionRange, this.visionRange));
+                for (let e of nearby) { if (e.id === this.id || e.isDead) continue; if (this.position.dist(e.position) < this.size / 2 + e.size / 2) { if (this instanceof Prey && e instanceof Food) this.eat(e, config.foodEnergy); else if (this instanceof Predator && e instanceof Prey) this.eat(e, e.maxHealth * 0.5); else if (this instanceof Hunter) { if (e instanceof Prey) this.eat(e, e.maxHealth * 0.75); else if (e instanceof Predator) this.eat(e, e.maxHealth * 1.0) } } }
                 this.think(nearby); this.move();
-                if(this.health>=this.reproductionThreshold){const mate=nearby.find(e=>e.constructor===this.constructor&&e.id!==this.id&&!e.isDead&&e.health>e.reproductionThreshold*0.8&&this.position.dist(e.position)<this.size*2);if(mate){const child=this.reproduce(mate.nn);if(child&&entities.length<config.maxEntities)entities.push(child);}}
+                if (this.health >= this.reproductionThreshold) { const mate = nearby.find(e => e.constructor === this.constructor && e.id !== this.id && !e.isDead && e.health > e.reproductionThreshold * 0.8 && this.position.dist(e.position) < this.size * 2); if (mate) { const child = this.reproduce(mate.nn); if (child && entities.length < config.maxEntities) entities.push(child); } }
             }
-            draw(ctx){const h=this.health/this.maxHealth,b=Math.max(0.2,Math.min(1.0,h*1.2)),a=Math.max(0.1,Math.min(0.8,h*0.7+0.1));if(this.trail.length>0){ctx.beginPath();ctx.moveTo(this.position.x,this.position.y);for(let i=0;i<this.trail.length;i++){const p=this.trail[i],s=a*(1-i/this.maxTrailLength);ctx.strokeStyle=`hsla(${this.color}, 100%, 50%, ${s})`;ctx.lineWidth=this.size*(1-i/this.maxTrailLength)/2;ctx.lineTo(p.x,p.y)} ctx.stroke()} ctx.shadowBlur=this.size*1.5;ctx.shadowColor=`hsla(${this.color}, 100%, 50%, ${a})`;ctx.fillStyle=`hsla(${this.color}, 100%, ${b*100}%, ${a})`;ctx.beginPath();if(this instanceof Prey){ctx.arc(this.position.x,this.position.y,this.size/2,0,Math.PI*2)}else if(this instanceof Predator){const an=this.velocity.angle(),tX=this.position.x+Math.cos(an)*this.size/2,tY=this.position.y+Math.sin(an)*this.size/2,bA1=an+2*Math.PI/3,bA2=an-2*Math.PI/3,bX1=this.position.x+Math.cos(bA1)*this.size/2,bY1=this.position.y+Math.sin(bA1)*this.size/2,bX2=this.position.x+Math.cos(bA2)*this.size/2,bY2=this.position.y+Math.sin(bA2)*this.size/2;ctx.moveTo(tX,tY);ctx.lineTo(bX1,bY1);ctx.lineTo(bX2,bY2);ctx.closePath()}else if(this instanceof Hunter){const an=this.velocity.angle(),hS=this.size*0.7,s2=Math.sqrt(2),p1=new Vector(this.position.x+Math.cos(an)*hS*s2,this.position.y+Math.sin(an)*hS*s2),p2=new Vector(this.position.x+Math.cos(an+Math.PI/2)*hS,this.position.y+Math.sin(an+Math.PI/2)*hS),p3=new Vector(this.position.x+Math.cos(an+Math.PI)*hS*s2,this.position.y+Math.sin(an+Math.PI)*hS*s2),p4=new Vector(this.position.x+Math.cos(an-Math.PI/2)*hS,this.position.y+Math.sin(an-Math.PI/2)*hS);ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.lineTo(p3.x,p3.y);ctx.lineTo(p4.x,p4.y);ctx.closePath()} ctx.fill();ctx.shadowBlur=0;ctx.shadowColor='transparent';ctx.lineWidth=1}
+            draw(ctx) { const h = this.health / this.maxHealth, b = Math.max(0.2, Math.min(1.0, h * 1.2)), a = Math.max(0.1, Math.min(0.8, h * 0.7 + 0.1)); if (this.trail.length > 1) { ctx.beginPath(); ctx.moveTo(this.trail[0].x, this.trail[0].y); for (let i = 1; i < this.trail.length; i++) { const p = this.trail[i]; ctx.strokeStyle = `hsla(${this.color}, 100%, 50%, ${a * (1 - (i / this.maxTrailLength))})`; ctx.lineWidth = this.size * (1 - (i / this.maxTrailLength)) / 2; ctx.lineTo(p.x, p.y); } ctx.stroke(); } ctx.shadowBlur = this.size * 1.5; ctx.shadowColor = `hsla(${this.color}, 100%, 50%, ${a})`; ctx.fillStyle = `hsla(${this.color}, 100%, ${b * 100}%, ${a})`; ctx.beginPath(); if (this instanceof Prey) { ctx.arc(this.position.x, this.position.y, this.size / 2, 0, Math.PI * 2); } else if (this instanceof Predator) { const an = this.velocity.angle(), tX = this.position.x + Math.cos(an) * this.size / 2, tY = this.position.y + Math.sin(an) * this.size / 2, bA1 = an + (2 * Math.PI / 3), bA2 = an - (2 * Math.PI / 3); ctx.moveTo(tX, tY); ctx.lineTo(this.position.x + Math.cos(bA1) * this.size / 2, this.position.y + Math.sin(bA1) * this.size / 2); ctx.lineTo(this.position.x + Math.cos(bA2) * this.size / 2, this.position.y + Math.sin(bA2) * this.size / 2); ctx.closePath(); } else if (this instanceof Hunter) { const an = this.velocity.angle(), hS = this.size * 0.7, s2 = Math.sqrt(2); const p1 = {x: this.position.x + Math.cos(an) * hS * s2, y: this.position.y + Math.sin(an) * hS * s2}; const p2 = {x: this.position.x + Math.cos(an + Math.PI/2) * hS, y: this.position.y + Math.sin(an + Math.PI/2) * hS}; const p3 = {x: this.position.x - Math.cos(an) * hS * s2, y: this.position.y - Math.sin(an) * hS * s2}; const p4 = {x: this.position.x - Math.cos(an + Math.PI/2) * hS, y: this.position.y - Math.sin(an + Math.PI/2) * hS}; ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.closePath(); } ctx.fill(); ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; ctx.lineWidth = 1; }
         }
 
         class Prey extends Creature { constructor(x,y,w,nn=null,c=120){super(x,y,c,config.creatureSize,w,nn||new NeuralNetwork(),config.preyMaxHealth,config.preyReproductionThreshold,config.preyEnergyConsumption,3.5);}}
@@ -552,32 +555,32 @@
         class Hunter extends Creature { constructor(x,y,w,nn=null,c=280){super(x,y,c,config.creatureSize+4,w,nn||new NeuralNetwork(),config.hunterMaxHealth,config.hunterReproductionThreshold,config.hunterEnergyConsumption,4.5);}}
         class Food extends Entity { constructor(x,y,w){const h=240,s=config.creatureSize/2+(Math.random()*2-1)*(config.creatureSize/8);super(x,y,h,s,w)} draw(ctx){ctx.shadowBlur=this.size*2;ctx.shadowColor=`hsla(${this.color}, 100%, 70%, 0.5)`;ctx.fillStyle=`hsla(${this.color}, 100%, 80%, 0.8)`;ctx.beginPath();ctx.arc(this.position.x,this.position.y,this.size/2,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.shadowColor='transparent'} }
 
-        // --- All management, UI, and drawing functions are functionally identical but minified for brevity ---
-        // --- except for the addition of the new sliders in setupUI ---
         function formatTime(t){const s=Math.floor(t/60),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),c=s%60,p=n=>String(n).padStart(2,'0');return`${p(h)}:${p(m)}:${p(c)}`}
-        function initSimulation(){canvas=document.getElementById('gameCanvas');ctx=canvas.getContext('2d');perlinNoise=new PerlinNoise(Date.now());setupUI();resizeCanvas();window.addEventListener('resize',resizeCanvas);const b=new Rectangle(config.worldWidth/2,config.worldHeight/2,config.worldWidth/2,config.worldHeight/2);quadtree=new QuadTree(b,config.quadtreeCapacity);setupCanvasEvents();generateInitialPopulation();initNNChart();drawSimulation();}
-        function handleEntityClick(e){const r=canvas.getBoundingClientRect(),cX=e.clientX-r.left,cY=e.clientY-r.top,wX=(cX/config.zoomLevel)+cameraX,wY=(cY/config.zoomLevel)+cameraY,cP=new Vector(wX,wY);let cE=null,mD=Infinity;const sR=50/config.zoomLevel,sA=new Rectangle(wX,wY,sR,sR),nE=quadtree.query(sA);for(const E of nE){if(E instanceof Food)continue;const d=cP.dist(E.position);if(d<E.size*1.5&&d<mD){mD=d;cE=E;}} if(cE){if(followedEntity===cE)followedEntity=null;else{followedEntity=cE;targetZoom=1.8;}}else{followedEntity=null;}}
-        function setupCanvasEvents(){let d=!1;canvas.addEventListener('mousedown',e=>{if(e.button===0){isDragging=!0;d=!1;lastMouseX=e.clientX;lastMouseY=e.clientY;if(!followedEntity)canvas.classList.add('dragging');}});canvas.addEventListener('mousemove',e=>{if(isDragging){const x=e.clientX-lastMouseX,y=e.clientY-lastMouseY;if(Math.abs(x)>3||Math.abs(y)>3)d=!0;if(!followedEntity){targetCameraX-=x/config.zoomLevel;targetCameraY-=y/config.zoomLevel;lastMouseX=e.clientX;lastMouseY=e.clientY;}}});canvas.addEventListener('mouseup',e=>{if(e.button===0){if(!d)handleEntityClick(e);isDragging=!1;canvas.classList.remove('dragging');}});canvas.addEventListener('mouseleave',()=>{isDragging=!1;canvas.classList.remove('dragging');});canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){isDragging=!0;d=!1;lastMouseX=e.touches[0].clientX;lastMouseY=e.touches[0].clientY;if(!followedEntity)canvas.classList.add('dragging');}},{passive:!0});canvas.addEventListener('touchmove',e=>{if(isDragging&&e.touches.length===1){const x=e.touches[0].clientX-lastMouseX,y=e.touches[0].clientY-lastMouseY;if(Math.abs(x)>5||Math.abs(y)>5)d=!0;if(!followedEntity){targetCameraX-=x/config.zoomLevel;targetCameraY-=y/config.zoomLevel;lastMouseX=e.touches[0].clientX;lastMouseY=e.touches[0].clientY;}}},{passive:!0});canvas.addEventListener('touchend',e=>{if(!d&&e.changedTouches.length>0)handleEntityClick(e.changedTouches[0]);isDragging=!1;canvas.classList.remove('dragging');});canvas.addEventListener('contextmenu',e=>e.preventDefault());}
-        function updateCamera(){if(followedEntity){if(followedEntity.isDead)followedEntity=null;else{targetCameraX=followedEntity.position.x-(canvas.width/targetZoom/2);targetCameraY=followedEntity.position.y-(canvas.height/targetZoom/2);}} config.zoomLevel+=(targetZoom-config.zoomLevel)*CAMERA_LERP_SPEED;cameraX+=(targetCameraX-cameraX)*CAMERA_LERP_SPEED;cameraY+=(targetCameraY-cameraY)*CAMERA_LERP_SPEED;clampCamera();}
-        function clampCamera(){const w=canvas.width/config.zoomLevel,h=canvas.height/config.zoomLevel,mX=config.worldWidth-w,mY=config.worldHeight-h;targetCameraX=Math.max(0,Math.min(targetCameraX,mX<0?0:mX));targetCameraY=Math.max(0,Math.min(targetCameraY,mY<0?0:mY));cameraX=Math.max(0,Math.min(cameraX,mX<0?0:mX));cameraY=Math.max(0,Math.min(cameraY,mY<0?0:mY));}
-        function generateInitialPopulation(){entities=[];totalBirths=0;totalGeneticMutations=0;simulationTicks=0;totalPreySurvivalTicks=0;totalPredatorSurvivalTicks=0;totalHunterSurvivalTicks=0;gameOver=!1;followedEntity=null;chartLabels=[];avgPreyAgeData=[];avgPredatorAgeData=[];avgHunterAgeData=[];if(nnChart)nnChart.update();const fZE=config.worldWidth*0.4;for(let i=0;i<config.preyTargetPopulation;i++)entities.push(new Prey(Math.random()*fZE,Math.random()*config.worldHeight,{width:config.worldWidth,height:config.worldHeight}));const cSMX=config.worldWidth*0.2,cSMaX=config.worldWidth*0.8;for(let i=0;i<config.predatorTargetPopulation;i++)entities.push(new Predator(cSMX+Math.random()*(cSMaX-cSMX),Math.random()*config.worldHeight,{width:config.worldWidth,height:config.worldHeight}));const hSMX=config.worldWidth*0.4,hSMaX=config.worldWidth*0.6;for(let i=0;i<config.hunterTargetPopulation;i++)entities.push(new Hunter(hSMX+Math.random()*(hSMaX-hSMX),Math.random()*config.worldHeight,{width:config.worldWidth,height:config.worldHeight}));for(let i=0;i<config.preyTargetPopulation*2;i++)entities.push(new Food(Math.random()*fZE,Math.random()*config.worldHeight,{width:config.worldWidth,height:config.worldHeight}));updateEntityCounts();}
-        function updateSimulation(){if(simulationPaused||gameOver)return;simulationTicks++;quadtree.clear();for(let e of entities)if(!e.isDead)quadtree.insert(e);let nE=[];for(let e of entities){if(!e.isDead){if(e instanceof Prey)totalPreySurvivalTicks+=config.timeScale;else if(e instanceof Predator)totalPredatorSurvivalTicks+=config.timeScale;else if(e instanceof Hunter)totalHunterSurvivalTicks+=config.timeScale;e.update();if(!e.isDead)nE.push(e);}}entities=nE;updateEntityCounts();if(simulationTicks%60===0)updateTopEntitiesPanel();if(simulationTicks%CHART_UPDATE_INTERVAL===0)updateNNChartData();if(currentPreyCount===0&&!gameOver){endGame();return;} const fZE=config.worldWidth*0.4,pDS=config.worldWidth*0.6,hSMX=config.worldWidth*0.4,hSMaX=config.worldWidth*0.6;if(Math.random()<config.foodSpawnRate*config.timeScale&&entities.length<config.maxEntities)entities.push(new Food(Math.random()*fZE,Math.random()*config.worldHeight,{width:config.worldWidth,height:config.worldHeight}));if(currentPreyCount<config.preyTargetPopulation&&entities.length<config.maxEntities)entities.push(new Prey(Math.random()*fZE,Math.random()*config.worldHeight,{width:config.worldWidth,height:config.worldHeight}));if(currentPredatorCount<config.predatorTargetPopulation&&entities.length<config.maxEntities)entities.push(new Predator(pDS+Math.random()*(config.worldWidth-pDS),Math.random()*config.worldHeight,{width:config.worldWidth,height:config.worldHeight}));if(currentHunterCount<config.hunterTargetPopulation&&entities.length<config.maxEntities)entities.push(new Hunter(hSMX+Math.random()*(hSMaX-hSMX),Math.random()*config.worldHeight,{width:config.worldWidth,height:config.worldHeight}));}
-        function updateTopEntitiesPanel(){const lists={'prey':{entities:[],container:document.getElementById('top-prey-list'),class:'prey-btn'},'predators':{entities:[],container:document.getElementById('top-predators-list'),class:'predator-btn'},'hunters':{entities:[],container:document.getElementById('top-hunters-list'),class:'hunter-btn'}};for(const e of entities){if(e instanceof Prey)lists.prey.entities.push(e);else if(e instanceof Predator)lists.predators.entities.push(e);else if(e instanceof Hunter)lists.hunters.entities.push(e);} for(const k in lists){const l=lists[k],t=l.entities.sort((a,b)=>b.age-a.age).slice(0,3);l.container.innerHTML='';if(t.length===0)l.container.textContent="None";else t.forEach(e=>{const b=document.createElement('button');b.className=`top-entity-button ${l.class}`;b.textContent=`#${e.id} (Age: ${Math.floor(e.age/60)})`;b.title=`Click to follow ${e.constructor.name} #${e.id}`;b.addEventListener('click',()=>{followedEntity=e;targetZoom=1.8;});l.container.appendChild(b);});}}
-        function updateNNChartData(){if(!nnChart)return;let pA=0,rA=0,hA=0;entities.forEach(e=>{if(e instanceof Prey)pA+=e.age;else if(e instanceof Predator)rA+=e.age;else if(e instanceof Hunter)hA+=e.age;});const aP=currentPreyCount>0?(pA/currentPreyCount)/60:0,aR=currentPredatorCount>0?(rA/currentPredatorCount)/60:0,aH=currentHunterCount>0?(hA/currentHunterCount)/60:0;chartLabels.push(simulationTicks);avgPreyAgeData.push(aP);avgPredatorAgeData.push(aR);avgHunterAgeData.push(aH);if(chartLabels.length>MAX_CHART_POINTS){chartLabels.shift();avgPreyAgeData.shift();avgPredatorAgeData.shift();avgHunterAgeData.shift();}nnChart.update('none');}
-        function updateEntityCounts(){currentPreyCount=0;currentPredatorCount=0;currentHunterCount=0;currentFoodCount=0;for(const e of entities){if(e instanceof Prey)currentPreyCount++;else if(e instanceof Predator)currentPredatorCount++;else if(e instanceof Hunter)currentHunterCount++;else if(e instanceof Food)currentFoodCount++;}}
-        function endGame(){simulationPaused=!0;gameOver=!0;document.getElementById('start-pause-button').textContent='Restart Simulation';displayGameOverStats();}
-        function displayGameOverStats(){const o=document.getElementById('game-over-overlay');o.querySelector('#finalTicks').textContent=simulationTicks;o.querySelector('#finalPreySurvival').textContent=formatTime(totalPreySurvivalTicks);o.querySelector('#finalPredatorSurvival').textContent=formatTime(totalPredatorSurvivalTicks);o.querySelector('#finalHunterSurvival').textContent=formatTime(totalHunterSurvivalTicks);o.querySelector('#finalBirths').textContent=totalBirths;o.querySelector('#finalMutations').textContent=totalGeneticMutations;o.classList.add('visible');}
-        function hideGameOverStats(){document.getElementById('game-over-overlay').classList.remove('visible');}
-        function drawLandscape(ctx){const t=config.tileSize,wX=cameraX,wY=cameraY,wW=canvas.width/config.zoomLevel,wH=canvas.height/config.zoomLevel,sX=Math.floor(wX/t),eX=Math.ceil((wX+wW)/t),sY=Math.floor(wY/t),eY=Math.ceil((wY+wH)/t);for(let x=sX;x<eX;x++)for(let y=sY;y<eY;y++){const wx=x*t,wy=y*t;if(wx>=config.worldWidth||wy>=config.worldHeight||wx<0||wy<0)continue;let h=getLayeredNoise(wx,wy);const d=Math.sqrt(Math.pow(wx+t/2-config.worldWidth/2,2)+Math.pow(wy+t/2-config.worldHeight/2,2)),r=Math.min(config.worldWidth,config.worldHeight)*0.3;if(d<r){let b=1-d/r;h+=fade(b)*-config.noise.waterBiasStrength;}let c;if(h<config.noise.waterLevel)c=config.biomeColors.water;else if(h<config.noise.forestLevel)c=config.biomeColors.forest;else c=config.biomeColors.desert;ctx.fillStyle=c;ctx.fillRect(wx,wy,t,t);}}
-        function drawSimulation(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='hsl(240, 50%, 5%)';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.save();ctx.translate(-cameraX*config.zoomLevel,-cameraY*config.zoomLevel);ctx.scale(config.zoomLevel,config.zoomLevel);drawLandscape(ctx);for(let e of entities)e.draw(ctx);ctx.restore();const ind=document.getElementById('follow-indicator'),fs=document.getElementById('follow-status');if(followedEntity&&!followedEntity.isDead){const sX=(followedEntity.position.x-cameraX)*config.zoomLevel,sY=(followedEntity.position.y-cameraY)*config.zoomLevel,iS=followedEntity.size*2*config.zoomLevel;if(sX>-iS&&sX<canvas.width+iS&&sY>-iS&&sY<canvas.height+iS){ind.style.width=`${iS}px`;ind.style.height=`${iS}px`;ind.style.transform=`translate(${sX-iS/2}px, ${sY-iS/2}px)`;ind.classList.add('visible');}else ind.classList.remove('visible');const eT=followedEntity.constructor.name;fs.textContent=`Following ${eT} #${followedEntity.id}`;fs.classList.add('visible');}else{ind.classList.remove('visible');fs.classList.remove('visible');} document.getElementById('preyCount').textContent=currentPreyCount;document.getElementById('predatorCount').textContent=currentPredatorCount;document.getElementById('hunterCount').textContent=currentHunterCount;document.getElementById('foodCount').textContent=currentFoodCount;document.getElementById('totalPreySurvivalTime').textContent=formatTime(totalPreySurvivalTicks);document.getElementById('totalPredatorSurvivalTime').textContent=formatTime(totalPredatorSurvivalTicks);document.getElementById('totalHunterSurvivalTime').textContent=formatTime(totalHunterSurvivalTicks);document.getElementById('totalBirths').textContent=totalBirths;document.getElementById('totalGeneticMutations').textContent=totalGeneticMutations;document.getElementById('simulationTicks').textContent=simulationTicks;}
-        function gameLoop(c){lastFrameTime=c;updateCamera();updateSimulation();drawSimulation();requestAnimationFrame(gameLoop);}
-        function resizeCanvas(){canvas.width=window.innerWidth;const sP=document.getElementById('stats-panel'),tEP=document.getElementById('top-entities-panel'),pH=(sP?sP.offsetHeight:0)+(tEP?tEP.offsetHeight:0),pM=20;canvas.height=window.innerHeight-(pH+pM);if(canvas.height<0)canvas.height=0;const sX=canvas.width/config.worldWidth,sY=canvas.height/config.worldHeight;config.zoomLevel=Math.min(sX,sY);config.zoomLevel=Math.max(config.zoomLevel,0.1);targetZoom=config.zoomLevel;cameraX=(config.worldWidth-canvas.width/config.zoomLevel)/2;cameraY=(config.worldHeight-canvas.height/config.zoomLevel)/2;targetCameraX=cameraX;targetCameraY=cameraY;clampCamera();quadtree=new QuadTree(new Rectangle(config.worldWidth/2,config.worldHeight/2,config.worldWidth/2,config.worldHeight/2),config.quadtreeCapacity);drawSimulation();}
-        function initNNChart(){const c=document.getElementById('nnChartCanvas').getContext('2d');nnChart=new Chart(c,{type:'line',data:{labels:chartLabels,datasets:[{label:'Prey Avg Age',data:avgPreyAgeData,borderColor:'hsl(120, 100%, 50%)',backgroundColor:'hsla(120, 100%, 50%, 0.2)',borderWidth:2,tension:0.3,pointRadius:0},{label:'Predator Avg Age',data:avgPredatorAgeData,borderColor:'hsl(0, 100%, 50%)',backgroundColor:'hsla(0, 100%, 50%, 0.2)',borderWidth:2,tension:0.3,pointRadius:0},{label:'Hunter Avg Age',data:avgHunterAgeData,borderColor:'hsl(280, 100%, 60%)',backgroundColor:'hsla(280, 100%, 60%, 0.2)',borderWidth:2,tension:0.3,pointRadius:0}]},options:{responsive:!0,maintainAspectRatio:!0,scales:{x:{ticks:{color:'#ccc'},grid:{color:'rgba(255,255,255,0.1)'}},y:{beginAtZero:!0,ticks:{color:'#ccc'},grid:{color:'rgba(255,255,255,0.1)'},title:{display:!0,text:'Avg. Age (sec)',color:'#ccc'}}},plugins:{legend:{labels:{color:'#eee'}}}}});}
+        
+        // --- Management and Drawing Functions (Full, Readable Code) ---
+        function initSimulation() { canvas = document.getElementById('gameCanvas'); ctx = canvas.getContext('2d'); perlinNoise = new PerlinNoise(Date.now()); setupUI(); resizeCanvas(); window.addEventListener('resize', resizeCanvas); quadtree = new QuadTree(new Rectangle(config.worldWidth / 2, config.worldHeight / 2, config.worldWidth / 2, config.worldHeight / 2), config.quadtreeCapacity); setupCanvasEvents(); generateInitialPopulation(); initNNChart(); drawSimulation(); }
+        function handleEntityClick(e) { const rect = canvas.getBoundingClientRect(), worldX = (e.clientX - rect.left) / config.zoomLevel + cameraX, worldY = (e.clientY - rect.top) / config.zoomLevel + cameraY, clickPos = new Vector(worldX, worldY); let closestEntity = null, minDistance = Infinity; const searchRadius = 50 / config.zoomLevel, nearbyEntities = quadtree.query(new Rectangle(worldX, worldY, searchRadius, searchRadius)); for (const entity of nearbyEntities) { if (entity instanceof Food) continue; const dist = clickPos.dist(entity.position); if (dist < entity.size * 1.5 && dist < minDistance) { minDistance = dist; closestEntity = entity; } } if (closestEntity) { if (followedEntity === closestEntity) { followedEntity = null; } else { followedEntity = closestEntity; targetZoom = 1.8; } } else { followedEntity = null; } }
+        function setupCanvasEvents() { let dragged = false; canvas.addEventListener('mousedown', e => { if (e.button === 0) { isDragging = true; dragged = false; lastMouseX = e.clientX; lastMouseY = e.clientY; if (!followedEntity) canvas.classList.add('dragging'); } }); canvas.addEventListener('mousemove', e => { if (isDragging) { const dx = e.clientX - lastMouseX, dy = e.clientY - lastMouseY; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragged = true; if (!followedEntity) { targetCameraX -= dx / config.zoomLevel; targetCameraY -= dy / config.zoomLevel; lastMouseX = e.clientX; lastMouseY = e.clientY; } } }); canvas.addEventListener('mouseup', e => { if (e.button === 0) { if (!dragged) handleEntityClick(e); isDragging = false; canvas.classList.remove('dragging'); } }); canvas.addEventListener('mouseleave', () => { isDragging = false; canvas.classList.remove('dragging'); }); canvas.addEventListener('touchstart', e => { if (e.touches.length === 1) { isDragging = true; dragged = false; lastMouseX = e.touches[0].clientX; lastMouseY = e.touches[0].clientY; if (!followedEntity) canvas.classList.add('dragging'); } }, { passive: true }); canvas.addEventListener('touchmove', e => { if (isDragging && e.touches.length === 1) { const dx = e.touches[0].clientX - lastMouseX, dy = e.touches[0].clientY - lastMouseY; if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dragged = true; if (!followedEntity) { targetCameraX -= dx / config.zoomLevel; targetCameraY -= dy / config.zoomLevel; lastMouseX = e.touches[0].clientX; lastMouseY = e.touches[0].clientY; } } }, { passive: true }); canvas.addEventListener('touchend', e => { if (!dragged && e.changedTouches.length > 0) handleEntityClick(e.changedTouches[0]); isDragging = false; canvas.classList.remove('dragging'); }); canvas.addEventListener('contextmenu', e => e.preventDefault()); }
+        function updateCamera() { if (followedEntity) { if (followedEntity.isDead) { followedEntity = null; } else { targetCameraX = followedEntity.position.x - (canvas.width / targetZoom / 2); targetCameraY = followedEntity.position.y - (canvas.height / targetZoom / 2); } } config.zoomLevel += (targetZoom - config.zoomLevel) * CAMERA_LERP_SPEED; cameraX += (targetCameraX - cameraX) * CAMERA_LERP_SPEED; cameraY += (targetCameraY - cameraY) * CAMERA_LERP_SPEED; clampCamera(); }
+        function clampCamera() { const worldViewWidth = canvas.width / config.zoomLevel, worldViewHeight = canvas.height / config.zoomLevel; const maxX = config.worldWidth - worldViewWidth, maxY = config.worldHeight - worldViewHeight; targetCameraX = Math.max(0, Math.min(targetCameraX, maxX < 0 ? 0 : maxX)); targetCameraY = Math.max(0, Math.min(targetCameraY, maxY < 0 ? 0 : maxY)); cameraX = Math.max(0, Math.min(cameraX, maxX < 0 ? 0 : maxX)); cameraY = Math.max(0, Math.min(cameraY, maxY < 0 ? 0 : maxY)); }
+        function generateInitialPopulation() { entities = []; totalBirths = 0; totalGeneticMutations = 0; simulationTicks = 0; totalPreySurvivalTicks = 0; totalPredatorSurvivalTicks = 0; totalHunterSurvivalTicks = 0; gameOver = false; followedEntity = null; chartLabels = []; avgPreyAgeData = []; avgPredatorAgeData = []; avgHunterAgeData = []; if (nnChart) { nnChart.data.labels = chartLabels; nnChart.data.datasets[0].data = avgPreyAgeData; nnChart.data.datasets[1].data = avgPredatorAgeData; nnChart.data.datasets[2].data = avgHunterAgeData; nnChart.update(); } const fZE = config.worldWidth * 0.4; for (let i = 0; i < config.preyTargetPopulation; i++) entities.push(new Prey(Math.random() * fZE, Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); const cSMX = config.worldWidth * 0.2, cSMaX = config.worldWidth * 0.8; for (let i = 0; i < config.predatorTargetPopulation; i++) entities.push(new Predator(cSMX + Math.random() * (cSMaX - cSMX), Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); const hSMX = config.worldWidth * 0.4, hSMaX = config.worldWidth * 0.6; for (let i = 0; i < config.hunterTargetPopulation; i++) entities.push(new Hunter(hSMX + Math.random() * (hSMaX - hSMX), Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); for (let i = 0; i < config.preyTargetPopulation * 2; i++) entities.push(new Food(Math.random() * fZE, Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); updateEntityCounts(); updateTopEntitiesPanel(); }
+        function updateSimulation() { if (simulationPaused || gameOver) return; simulationTicks++; quadtree.clear(); for (let e of entities) if (!e.isDead) quadtree.insert(e); let newEntities = []; for (let entity of entities) { if (!entity.isDead) { if (entity instanceof Prey) totalPreySurvivalTicks += config.timeScale; else if (entity instanceof Predator) totalPredatorSurvivalTicks += config.timeScale; else if (entity instanceof Hunter) totalHunterSurvivalTicks += config.timeScale; entity.update(); if (!entity.isDead) newEntities.push(entity); } } entities = newEntities; updateEntityCounts(); if (simulationTicks % 60 === 0) updateTopEntitiesPanel(); if (simulationTicks % CHART_UPDATE_INTERVAL === 0) updateNNChartData(); if (currentPreyCount === 0 && !gameOver && simulationTicks > 10) { endGame(); return; } const foodZoneEnd = config.worldWidth * 0.4, predatorDenStart = config.worldWidth * 0.6, hunterSpawnMinX = config.worldWidth * 0.4, hunterSpawnMaxX = config.worldWidth * 0.6; if (Math.random() < config.foodSpawnRate * config.timeScale && entities.length < config.maxEntities) entities.push(new Food(Math.random() * foodZoneEnd, Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); if (currentPreyCount < config.preyTargetPopulation && entities.length < config.maxEntities) entities.push(new Prey(Math.random() * foodZoneEnd, Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); if (currentPredatorCount < config.predatorTargetPopulation && entities.length < config.maxEntities) entities.push(new Predator(predatorDenStart + Math.random() * (config.worldWidth - predatorDenStart), Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); if (currentHunterCount < config.hunterTargetPopulation && entities.length < config.maxEntities) entities.push(new Hunter(hunterSpawnMinX + Math.random() * (hunterSpawnMaxX - hunterSpawnMinX), Math.random() * config.worldHeight, { width: config.worldWidth, height: config.worldHeight })); }
+        function updateTopEntitiesPanel() { const lists = { 'prey': { entities: [], container: document.getElementById('top-prey-list'), class: 'prey-btn' }, 'predators': { entities: [], container: document.getElementById('top-predators-list'), class: 'predator-btn' }, 'hunters': { entities: [], container: document.getElementById('top-hunters-list'), class: 'hunter-btn' } }; for (const e of entities) { if (e instanceof Prey) lists.prey.entities.push(e); else if (e instanceof Predator) lists.predators.entities.push(e); else if (e instanceof Hunter) lists.hunters.entities.push(e); } for (const key in lists) { const list = lists[key]; const topEntities = list.entities.sort((a, b) => b.age - a.age).slice(0, 3); list.container.innerHTML = ''; if (topEntities.length === 0) { list.container.textContent = "None"; } else { topEntities.forEach(entity => { const button = document.createElement('button'); button.className = `top-entity-button ${list.class}`; button.textContent = `#${entity.id} (Age: ${Math.floor(entity.age/60)})`; button.title = `Click to follow ${entity.constructor.name} #${entity.id}`; button.addEventListener('click', () => { if (entities.includes(entity)) { followedEntity = entity; targetZoom = 1.8; } }); list.container.appendChild(button); }); } } }
+        function updateNNChartData() { if (!nnChart) return; let preyAges = 0, predatorAges = 0, hunterAges = 0; entities.forEach(e => { if (e instanceof Prey) preyAges += e.age; else if (e instanceof Predator) predatorAges += e.age; else if (e instanceof Hunter) hunterAges += e.age; }); const avgPrey = currentPreyCount > 0 ? (preyAges / currentPreyCount) / 60 : 0; const avgPredator = currentPredatorCount > 0 ? (predatorAges / currentPredatorCount) / 60 : 0; const avgHunter = currentHunterCount > 0 ? (hunterAges / currentHunterCount) / 60 : 0; chartLabels.push(simulationTicks); avgPreyAgeData.push(avgPrey); avgPredatorAgeData.push(avgPredator); avgHunterAgeData.push(avgHunter); if (chartLabels.length > MAX_CHART_POINTS) { chartLabels.shift(); avgPreyAgeData.shift(); avgPredatorAgeData.shift(); avgHunterAgeData.shift(); } nnChart.update('none'); }
+        function updateEntityCounts() { currentPreyCount = 0; currentPredatorCount = 0; currentHunterCount = 0; currentFoodCount = 0; for (const entity of entities) { if (entity instanceof Prey) currentPreyCount++; else if (entity instanceof Predator) currentPredatorCount++; else if (entity instanceof Hunter) currentHunterCount++; else if (entity instanceof Food) currentFoodCount++; } }
+        function endGame() { simulationPaused = true; gameOver = true; document.getElementById('start-pause-button').textContent = 'Restart Simulation'; displayGameOverStats(); }
+        function displayGameOverStats() { const overlay = document.getElementById('game-over-overlay'); overlay.querySelector('#finalTicks').textContent = simulationTicks; overlay.querySelector('#finalPreySurvival').textContent = formatTime(totalPreySurvivalTicks); overlay.querySelector('#finalPredatorSurvival').textContent = formatTime(totalPredatorSurvivalTicks); overlay.querySelector('#finalHunterSurvival').textContent = formatTime(totalHunterSurvivalTicks); overlay.querySelector('#finalBirths').textContent = totalBirths; overlay.querySelector('#finalMutations').textContent = totalGeneticMutations; overlay.classList.add('visible'); }
+        function hideGameOverStats() { document.getElementById('game-over-overlay').classList.remove('visible'); }
+        function drawLandscape(ctx) { const tilePx = config.tileSize; const startTileX = Math.floor(cameraX / tilePx), endTileX = Math.ceil((cameraX + canvas.width / config.zoomLevel) / tilePx); const startTileY = Math.floor(cameraY / tilePx), endTileY = Math.ceil((cameraY + canvas.height / config.zoomLevel) / tilePx); for (let x = startTileX; x < endTileX; x++) { for (let y = startTileY; y < endTileY; y++) { const worldX = x * tilePx, worldY = y * tilePx; if (worldX >= config.worldWidth || worldY >= config.worldHeight || worldX < 0 || worldY < 0) continue; let heightValue = getLayeredNoise(worldX, worldY); const distToCenter = Math.sqrt(Math.pow(worldX + tilePx / 2 - config.worldWidth / 2, 2) + Math.pow(worldY + tilePx / 2 - config.worldHeight / 2, 2)); const waterRadius = Math.min(config.worldWidth, config.worldHeight) * 0.3; if (distToCenter < waterRadius) { heightValue -= fade(1 - distToCenter / waterRadius) * config.noise.waterBiasStrength; } let tileColor; if (heightValue < config.noise.waterLevel) tileColor = config.biomeColors.water; else if (heightValue < config.noise.forestLevel) tileColor = config.biomeColors.forest; else tileColor = config.biomeColors.desert; ctx.fillStyle = tileColor; ctx.fillRect(worldX, worldY, tilePx, tilePx); } } }
+        function drawSimulation() { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = 'hsl(240, 50%, 5%)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.translate(-cameraX * config.zoomLevel, -cameraY * config.zoomLevel); ctx.scale(config.zoomLevel, config.zoomLevel); drawLandscape(ctx); for (let e of entities) e.draw(ctx); ctx.restore(); const indicator = document.getElementById('follow-indicator'), status = document.getElementById('follow-status'); if (followedEntity && !followedEntity.isDead) { const screenX = (followedEntity.position.x - cameraX) * config.zoomLevel, screenY = (followedEntity.position.y - cameraY) * config.zoomLevel; const indicatorSize = followedEntity.size * 2 * config.zoomLevel; if (screenX > -indicatorSize && screenX < canvas.width + indicatorSize && screenY > -indicatorSize && screenY < canvas.height + indicatorSize) { indicator.style.width = `${indicatorSize}px`; indicator.style.height = `${indicatorSize}px`; indicator.style.transform = `translate(${screenX - indicatorSize / 2}px, ${screenY - indicatorSize / 2}px)`; indicator.classList.add('visible'); } else { indicator.classList.remove('visible'); } status.textContent = `Following ${followedEntity.constructor.name} #${followedEntity.id}`; status.classList.add('visible'); } else { indicator.classList.remove('visible'); status.classList.remove('visible'); } document.getElementById('preyCount').textContent = currentPreyCount; document.getElementById('predatorCount').textContent = currentPredatorCount; document.getElementById('hunterCount').textContent = currentHunterCount; document.getElementById('foodCount').textContent = currentFoodCount; document.getElementById('totalPreySurvivalTime').textContent = formatTime(totalPreySurvivalTicks); document.getElementById('totalPredatorSurvivalTime').textContent = formatTime(totalPredatorSurvivalTicks); document.getElementById('totalHunterSurvivalTime').textContent = formatTime(totalHunterSurvivalTicks); document.getElementById('totalBirths').textContent = totalBirths; document.getElementById('totalGeneticMutations').textContent = totalGeneticMutations; document.getElementById('simulationTicks').textContent = simulationTicks; }
+        function gameLoop(currentTime) { lastFrameTime = currentTime; updateCamera(); updateSimulation(); drawSimulation(); requestAnimationFrame(gameLoop); }
+        function resizeCanvas() { canvas.width = window.innerWidth; const sP = document.getElementById('stats-panel'), tEP = document.getElementById('top-entities-panel'); const panelsHeight = (sP ? sP.offsetHeight : 0) + (tEP ? tEP.offsetHeight : 0), margin = 20; canvas.height = window.innerHeight - (panelsHeight + margin); if (canvas.height < 0) canvas.height = 0; const scaleX = canvas.width / config.worldWidth, scaleY = canvas.height / config.worldHeight; config.zoomLevel = Math.min(scaleX, scaleY); config.zoomLevel = Math.max(config.zoomLevel, 0.1); targetZoom = config.zoomLevel; cameraX = (config.worldWidth - canvas.width / config.zoomLevel) / 2; cameraY = (config.worldHeight - canvas.height / config.zoomLevel) / 2; targetCameraX = cameraX; targetCameraY = cameraY; clampCamera(); quadtree = new QuadTree(new Rectangle(config.worldWidth / 2, config.worldHeight / 2, config.worldWidth / 2, config.worldHeight / 2), config.quadtreeCapacity); drawSimulation(); }
+        function initNNChart() { const chartCtx = document.getElementById('nnChartCanvas').getContext('2d'); nnChart = new Chart(chartCtx, { type: 'line', data: { labels: chartLabels, datasets: [{ label: 'Prey Avg Age', data: avgPreyAgeData, borderColor: 'hsl(120, 100%, 50%)', borderWidth: 2, tension: 0.3, pointRadius: 0 }, { label: 'Predator Avg Age', data: avgPredatorAgeData, borderColor: 'hsl(0, 100%, 50%)', borderWidth: 2, tension: 0.3, pointRadius: 0 }, { label: 'Hunter Avg Age', data: avgHunterAgeData, borderColor: 'hsl(280, 100%, 60%)', borderWidth: 2, tension: 0.3, pointRadius: 0 }] }, options: { animation: false, responsive: true, maintainAspectRatio: true, scales: { x: { ticks: { color: '#ccc' }, grid: { color: 'rgba(255,255,255,0.1)' } }, y: { beginAtZero: true, ticks: { color: '#ccc' }, grid: { color: 'rgba(255,255,255,0.1)' }, title: { display: true, text: 'Avg. Age (sec)', color: '#ccc' } } }, plugins: { legend: { labels: { color: '#eee' } } } } }); }
         
         function setupUI() {
-            const startPauseButton = document.getElementById('start-pause-button'), togglePanelButton = document.getElementById('toggle-panel-button'), uiPanel = document.getElementById('ui-panel'), zoomControls = document.getElementById('zoom-controls'), zoomInButton = document.getElementById('zoom-in-button'), zoomOutButton = document.getElementById('zoom-out-button'), showPanelButton = document.getElementById('show-panel-button'), restartGameButton = document.getElementById('restart-game-button'), nnPanel = document.getElementById('nn-visualization-panel'), hideNNButton = document.getElementById('hide-nn-panel-button'), showNNButton = document.getElementById('toggle-nn-panel-button');
-            
-            // NEW: Added sliders for NN and flocking
+            const uiElements = { startPauseButton: 'start-pause-button', togglePanelButton: 'toggle-panel-button', uiPanel: 'ui-panel', zoomControls: 'zoom-controls', zoomInButton: 'zoom-in-button', zoomOutButton: 'zoom-out-button', showPanelButton: 'show-panel-button', restartGameButton: 'restart-game-button', nnPanel: 'nn-visualization-panel', hideNNButton: 'hide-nn-panel-button', showNNButton: 'toggle-nn-panel-button' };
+            for (const key in uiElements) { uiElements[key] = document.getElementById(uiElements[key]); }
+
             const sliders = [
                 { id: 'timeScale', prop: 'timeScale', valueSpan: 'timeScaleValue', precision: 1 },
                 { id: 'mutationRate', prop: 'mutationRate', valueSpan: 'mutationRateValue', precision: 3 },
@@ -586,40 +589,53 @@
                 { id: 'preyTargetPopulation', prop: 'preyTargetPopulation', valueSpan: 'preyTargetPopulationValue', precision: 0 },
                 { id: 'predatorTargetPopulation', prop: 'predatorTargetPopulation', valueSpan: 'predatorTargetPopulationValue', precision: 0 },
                 { id: 'hunterTargetPopulation', prop: 'hunterTargetPopulation', valueSpan: 'hunterTargetPopulationValue', precision: 0 },
-                { id: 'hiddenLayerSize', prop: 'hiddenLayerSize', valueSpan: 'hiddenLayerSizeValue', precision: 0 },
+                { id: 'hiddenLayerSize', prop: 'hiddenLayerSize', valueSpan: 'hiddenLayerSizeValue', precision: 0, requiresReset: true }, // BUG FIX
                 { id: 'alignmentForce', prop: 'alignmentForce', valueSpan: 'alignmentForceValue', precision: 1 },
                 { id: 'cohesionForce', prop: 'cohesionForce', valueSpan: 'cohesionForceValue', precision: 1 },
                 { id: 'separationForce', prop: 'separationForce', valueSpan: 'separationForceValue', precision: 1 },
             ];
 
-            sliders.forEach(s=>{const el=document.getElementById(s.id),vs=document.getElementById(s.valueSpan);el.value=config[s.prop];vs.textContent=parseFloat(config[s.prop]).toFixed(s.precision);el.addEventListener('input',e=>{config[s.prop]=parseFloat(e.target.value);vs.textContent=config[s.prop].toFixed(s.precision);});});
-            startPauseButton.addEventListener('click',()=>{if(gameOver){hideGameOverStats();generateInitialPopulation();simulationPaused=!1;startPauseButton.textContent='Pause Simulation';lastFrameTime=performance.now();}else{simulationPaused=!simulationPaused;startPauseButton.textContent=simulationPaused?'Resume Simulation':'Pause Simulation';if(!simulationPaused)lastFrameTime=performance.now();}});
-            togglePanelButton.addEventListener('click',()=>{const h=uiPanel.classList.toggle('hidden');zoomControls.classList.toggle('visible',h);showPanelButton.classList.toggle('visible',h);});
-            showPanelButton.addEventListener('click',()=>{uiPanel.classList.remove('hidden');zoomControls.classList.remove('visible');showPanelButton.classList.remove('visible');});
-            const tglNN=()=>{const h=nnPanel.classList.toggle('hidden');showNNButton.classList.toggle('visible',h);};
-            hideNNButton.addEventListener('click',tglNN);showNNButton.addEventListener('click',tglNN);
-            zoomInButton.addEventListener('click',()=>{followedEntity=null;targetZoom=Math.min(targetZoom*1.25,5.0);});
-            zoomOutButton.addEventListener('click',()=>{followedEntity=null;targetZoom=Math.max(targetZoom*0.8,0.1);});
-            restartGameButton.addEventListener('click',()=>{hideGameOverStats();generateInitialPopulation();simulationPaused=!1;document.getElementById('start-pause-button').textContent='Pause Simulation';lastFrameTime=performance.now();});
+            sliders.forEach(s => {
+                const el = document.getElementById(s.id);
+                const vs = document.getElementById(s.valueSpan);
+                el.value = config[s.prop];
+                vs.textContent = parseFloat(config[s.prop]).toFixed(s.precision);
+                
+                // BUG FIX: Use 'change' event for sliders that require a reset, 'input' for others.
+                const eventType = s.requiresReset ? 'change' : 'input';
+
+                el.addEventListener(eventType, e => {
+                    config[s.prop] = parseFloat(e.target.value);
+                    vs.textContent = config[s.prop].toFixed(s.precision);
+                    
+                    // BUG FIX: If the slider requires a reset, pause and reset the simulation.
+                    if (s.requiresReset) {
+                        simulationPaused = true;
+                        uiElements.startPauseButton.textContent = 'Start New Simulation';
+                        gameOver = false;
+                        hideGameOverStats();
+                        generateInitialPopulation();
+                        drawSimulation();
+                    }
+                });
+            });
+
+            uiElements.startPauseButton.addEventListener('click', () => { if (gameOver) { hideGameOverStats(); generateInitialPopulation(); simulationPaused = false; uiElements.startPauseButton.textContent = 'Pause Simulation'; } else { simulationPaused = !simulationPaused; uiElements.startPauseButton.textContent = simulationPaused ? 'Resume Simulation' : 'Pause Simulation'; } if (!simulationPaused) lastFrameTime = performance.now(); });
+            uiElements.togglePanelButton.addEventListener('click', () => { const h = uiElements.uiPanel.classList.toggle('hidden'); uiElements.zoomControls.classList.toggle('visible', h); uiElements.showPanelButton.classList.toggle('visible', h); });
+            uiElements.showPanelButton.addEventListener('click', () => { uiElements.uiPanel.classList.remove('hidden'); uiElements.zoomControls.classList.remove('visible'); uiElements.showPanelButton.classList.remove('visible'); });
+            const toggleNNPanel = () => { const h = uiElements.nnPanel.classList.toggle('hidden'); uiElements.showNNButton.classList.toggle('visible', h); };
+            uiElements.hideNNButton.addEventListener('click', toggleNNPanel);
+            uiElements.showNNButton.addEventListener('click', toggleNNPanel);
+            uiElements.zoomInButton.addEventListener('click', () => { followedEntity = null; targetZoom = Math.min(targetZoom * 1.25, 5.0); });
+            uiElements.zoomOutButton.addEventListener('click', () => { followedEntity = null; targetZoom = Math.max(targetZoom * 0.8, 0.1); });
+            uiElements.restartGameButton.addEventListener('click', () => { hideGameOverStats(); generateInitialPopulation(); simulationPaused = false; uiElements.startPauseButton.textContent = 'Pause Simulation'; lastFrameTime = performance.now(); });
         }
 
         document.addEventListener('DOMContentLoaded', () => { initSimulation(); lastFrameTime = performance.now(); requestAnimationFrame(gameLoop); });
+    
     </script>
-    <!-- Add this script block just before your closing </body> tag -->
-
     <script>
-      // Register the Service Worker
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js')
-            .then((registration) => {
-              console.log('Service Worker registered successfully with scope:', registration.scope);
-            })
-            .catch((error) => {
-              console.error('Service Worker registration failed:', error);
-            });
-        });
-      }
+      if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW registered:', reg.scope)).catch(err => console.error('SW registration failed:', err)); }); }
     </script>
 </body>
 </html>
