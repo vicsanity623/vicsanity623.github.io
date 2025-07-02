@@ -23,6 +23,13 @@ function initPlayer(world) {
         kills: 0,
         nextKillUpgrade: 1000,
         upgradeLevels: {},
+        // ADDED: New defensive and utility properties
+        armor: 0,
+        thorns: 0,
+        lifeSteal: 0,
+        dodgeChance: 0,
+        magnetism: 1,
+
         weapon: {
             damage: 10,
             cooldown: 600,
@@ -30,26 +37,57 @@ function initPlayer(world) {
             size: { w: 4, h: 40 },
             count: 1,
             pierce: 0,
-            critChance: 0.05
+            critChance: 0.05,
+            // ADDED: New weapon properties
+            critDamage: 2,
+            explodesOnImpact: false,
+            explosionRadius: 60,
+            explosionDamage: 10
         },
         abilities: {
             orbitingShield: { enabled: false, angle: 0, distance: 70, damage: 5, cooldown: 500, lastHit: 0 },
             backShot: false,
             diagonalShot: false,
-            novaOnLevelUp: false
+            novaOnLevelUp: false,
+            // ADDED: New ability properties
+            healOnXp: false,
+            critExplosion: false
         },
         skills: {
             lightning: { isUnlocked: false, damage: 5, chains: 1, shockDuration: 0, cooldown: 3000, lastStrike: 0 },
-            volcano: { isUnlocked: false, damage: 10, radius: 50, burnDuration: 2000, cooldown: 5000, lastEruption: 0 }
+            volcano: { isUnlocked: false, damage: 10, radius: 50, burnDuration: 2000, cooldown: 5000, lastEruption: 0 },
+            // ADDED: Two new unlockable skills
+            frostNova: { isUnlocked: false, damage: 5, radius: 150, slowAmount: 0.5, slowDuration: 2000, cooldown: 6000, lastCast: 0 },
+            blackHole: { isUnlocked: false, pullStrength: 0.5, radius: 200, duration: 3000, damage: 2, cooldown: 12000, lastCast: 0 }
         }
     };
 }
 
+// *** THIS IS THE CRITICAL FIX ***
+// This function now upgrades old save files to be compatible with new code.
 function loadPlayer(savedPlayer) {
-    player = savedPlayer;
+    // Create a fresh, complete player object with all new properties and default values.
+    initPlayer({ width: 3000, height: 2000 }); // The world size here is a placeholder.
+
+    // Now, copy the saved data on top of the default object.
+    // This preserves progress while adding any new properties that were missing.
+    Object.assign(player, savedPlayer);
+
+    // Deep merge nested objects to ensure they are also upgraded.
+    if (savedPlayer.weapon) {
+        player.weapon = { ...player.weapon, ...savedPlayer.weapon };
+    }
+    if (savedPlayer.abilities) {
+        player.abilities = { ...player.abilities, ...savedPlayer.abilities };
+    }
+    if (savedPlayer.skills) {
+        player.skills = { ...player.skills, ...savedPlayer.skills };
+        // Also merge the individual skills inside
+        if(savedPlayer.skills.lightning) player.skills.lightning = { ...player.skills.lightning, ...savedPlayer.skills.lightning };
+        if(savedPlayer.skills.volcano) player.skills.volcano = { ...player.skills.volcano, ...savedPlayer.skills.volcano };
+    }
 }
 
-// *** CORE FIX: Removed the unused 'gameState' parameter. ***
 function updatePlayer(deltaTime, world, enemies, moveVector) {
     if (moveVector.dx !== 0 || moveVector.dy !== 0) {
         const mag = Math.hypot(moveVector.dx, moveVector.dy);
@@ -103,5 +141,4 @@ function gainXP(amount, showLevelUpOptionsCallback, expandWorldCallback, trigger
     }
 }
 
-// takeDamage has been moved to systemsmanager.js
 export { player, initPlayer, loadPlayer, updatePlayer, gainXP };
