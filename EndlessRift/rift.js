@@ -1,4 +1,4 @@
-import { world, visualEffects, gameState } from './systemsmanager.js';
+import { world, visualEffects, gameState } from './systemsmanager.js'; // Corrected import based on global PVE requirements
 
 let backgroundCanvas, bgCtx;
 
@@ -34,7 +34,7 @@ function initRift(worldSeed) {
     bgCtx = backgroundCanvas.getContext('2d');
     // Set the initial seed based on the global world seed
     // If worldSeed is not provided (e.g., initial app load), use a temporary one.
-    setSeed(worldSeed || Date.now());
+    setSeed(worldSeed || Date.now()); 
     drawStaticBackground();
 }
 
@@ -87,12 +87,12 @@ function drawCrack(c, x, y, segments) {
     c.beginPath();
     c.moveTo(x, y);
     c.strokeStyle = 'var(--cracks-color)';
-    c.lineWidth = seededRandom() * 3 + 1;
+    c.lineWidth = seededRandom() * 3 + 1; // Resolved conflict: keep seededRandom
     c.shadowColor = 'var(--cracks-color)';
     c.shadowBlur = 10;
     for (let i = 0; i < segments; i++) {
-        x += (seededRandom() - 0.5) * 40;
-        y += (seededRandom() - 0.5) * 40;
+        x += (seededRandom() - 0.5) * 40; // Resolved conflict: keep seededRandom
+        y += (seededRandom() - 0.5) * 40; // Resolved conflict: keep seededRandom
         c.lineTo(x, y);
     }
     c.stroke();
