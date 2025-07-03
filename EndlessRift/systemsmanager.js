@@ -778,6 +778,10 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
         for (let i = skillTotems.length - 1; i >= 0; i--) {
             const totem = skillTotems[i];
             if (Math.hypot(player.x - totem.x, player.y - totem.y) < player.size + totem.radius) {
+                if (['__proto__', 'constructor', 'prototype'].includes(totem.skill)) {
+                    console.warn(`Invalid skill key detected: ${totem.skill}`);
+                    continue; // Skip this totem
+                }
                 player.skills[totem.skill].isUnlocked = true;
                 // Remove from DB for everyone
                 WORLD_SKILL_TOTEMS_REF().child(totem.id).remove(); // Assuming skillTotems have unique IDs
