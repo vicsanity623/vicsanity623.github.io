@@ -1,6 +1,5 @@
 import { gameState, enemies, projectiles, xpOrbs, particles, damageNumbers, lightningBolts, volcanicEruptions, visualEffects, screenFlash, camera } from './systemsmanager.js';
 
-// MODIFIED: triggerNova now accepts an optional enemiesRef to apply damage to global enemies
 function fireProjectile(p) {
     const fire = (angleOffset) => {
         for (let i = 0; i < p.weapon.count; i++) {
@@ -23,43 +22,27 @@ function fireProjectile(p) {
                     this.trail.push({ x: this.x, y: this.y });
                     if (this.trail.length > 7) this.trail.shift();
                     this.life -= dt;
-                    // Projectiles should only be removed if they are outside the world bounds,
-                    // not just camera view, as they might target enemies far away.
-                    // Assuming world bounds are relevant, otherwise keep original.
-                    return this.life <= 0 || this.x < 0 || this.x > gameState.world.width || this.y < 0 || this.y > gameState.world.height;
+                    return this.life <= 0 || this.x < camera.x - 50 || this.x > camera.x + camera.width + 50 || this.y < camera.y - 50 || this.y > camera.y + camera.height + 50;
                 }
             });
         }
     };
     fire(0);
     if (p.abilities.backShot) fire(Math.PI);
-    if (p.abilities.diagonalShot) { fire(Math.PI / 4); fire(-Math.PI / 4); fire(Math.PI * 3 / 4); fire(-Math.PI * 3 / 4); } // MODIFIED: Corrected diagonal shot to fire all 4 diagonals
+    if (p.abilities.diagonalShot) { fire(Math.PI / 4); fire(-Math.PI / 4); }
 }
 
-// MODIFIED: triggerNova now accepts enemiesRef for global damage application
-function triggerNova(p, damage = 50, radius = 200, enemiesRef = null) {
+function triggerNova(p, damage = 50, radius = 200) {
     visualEffects.push({
         type: 'shockwave', x: p.x, y: p.y, radius: 20, maxRadius: radius, life: 400, // MODIFIED: Use passed radius
         update(dt) { this.radius += (this.maxRadius / 400) * dt; this.life -= dt; return this.life <= 0; }
     });
-    // Apply damage to global enemies if enemiesRef is provided and current client is host
-    if (enemiesRef && gameState.isHost) {
-        enemies.forEach(e => {
-            if (Math.hypot(e.x - p.x, e.y - p.y) < radius) {
-                enemiesRef.child(e.id).child('health').set(e.health - damage); // Update global enemy health
-                spawnDamageNumber(e.x, e.y, damage, false);
-            }
-        });
-    } else { // Fallback for non-host or if enemiesRef is not provided (e.g., local particles only)
-        enemies.forEach(e => {
-            if (Math.hypot(e.x - p.x, e.y - p.y) < radius) {
-                // If not host or not syncing, just apply locally for visual/immediate feedback
-                e.health -= damage;
-                spawnDamageNumber(e.x, e.y, damage, false);
-            }
-        });
-    }
-
+    enemies.forEach(e => {
+        if (Math.hypot(e.x - p.x, e.y - p.y) < radius) {
+            e.health -= damage;
+            spawnDamageNumber(e.x, e.y, damage, false);
+        }
+    });
     for (let i = 0; i < 60; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 8 + 4;
@@ -77,42 +60,28 @@ function triggerNova(p, damage = 50, radius = 200, enemiesRef = null) {
     }
 }
 
-// MODIFIED: createXpOrb now returns the orb object with a unique ID for DB storage
 function createXpOrb(x, y, value, player, gainXPCallback) {
-    const orbId = `orb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newOrb = {
-        id: orbId, // NEW: Unique ID for Realtime Database
+    xpOrbs.push({
         x, y, value, size: 5 + Math.random() * 5,
-        // The update function for XP orbs is now self-contained,
-        // it applies XP locally and reports pickup for DB removal.
-        update(dt, options) { // options contains player and gainXPCallback, isMultiplayer
-            const localPlayer = options.player;
-            const localGainXPCallback = options.gainXPCallback;
-            const isMultiplayer = options.isMultiplayer;
-
-            const dx = localPlayer.x - this.x;
-            const dy = localPlayer.y - this.y;
+        update(dt, playerDist) {
+            const dx = player.x - this.x, dy = player.y - this.y;
             const dist = Math.hypot(dx, dy);
-
-            if (dist < localPlayer.pickupRadius) {
-                this.x += (dx / dist) * 8 * localPlayer.magnetism;
-                this.y += (dy / dist) * 8 * localPlayer.magnetism;
+            if (dist < player.pickupRadius) {
+                // MODIFIED: Use magnetism property
+                this.x += (dx / dist) * 8 * player.magnetism;
+                this.y += (dy / dist) * 8 * player.magnetism;
             }
             if (dist < 20) {
                 // MODIFIED: Check for heal on XP pickup
-                if (localPlayer.abilities.healOnXp && Math.random() < 0.1) {
-                    localPlayer.health = Math.min(localPlayer.maxHealth, localPlayer.health + 1);
+                if (player.abilities.healOnXp && Math.random() < 0.1) {
+                    player.health = Math.min(player.maxHealth, player.health + 1);
                 }
-                // Call the local gainXPCallback (which is player.gainXP from systemsmanager)
-                // This function internally triggers level-ups and applies player progression.
-                localGainXPCallback(this.value, this.id); // Pass orb ID so systemsmanager knows which one to remove
-                return true; // Mark for local removal
+                gainXPCallback(value);
+                return true;
             }
             return false;
         }
-    };
-    xpOrbs.push(newOrb); // Add to local array for rendering
-    return newOrb; // Return the orb object so the host can push it to DB
+    });
 }
 
 function createImpactParticles(x, y, count, type = 'normal') {
@@ -147,16 +116,15 @@ function spawnDamageNumber(x, y, value, isCrit) {
     });
 }
 
-// MODIFIED: Skill functions now take enemiesRef for global damage application
-function updateLightning(deltaTime, player, enemiesRef) {
+function updateLightning(deltaTime, player) {
     if (!player.skills.lightning.isUnlocked) return;
     const skill = player.skills.lightning;
     if (gameState.gameTime - skill.lastStrike > skill.cooldown) {
         let lastTarget = player;
-        let potentialTargets = [...enemies]; // Use the local 'enemies' array for targeting visuals
+        let potentialTargets = [...enemies];
         for (let i = 0; i <= skill.chains; i++) {
             if(i > 0 && skill.forkChance && Math.random() < skill.forkChance) { // ADDED: Fork logic
-                lastTarget = player;
+                lastTarget = player; 
             }
             let closestTarget = null;
             let minDist = Infinity;
@@ -175,24 +143,12 @@ function updateLightning(deltaTime, player, enemiesRef) {
                 });
                 screenFlash.value = 0.2;
                 createImpactParticles(closestTarget.x, closestTarget.y, 5, 'lightning');
+                closestTarget.health -= skill.damage;
                 spawnDamageNumber(closestTarget.x, closestTarget.y, Math.round(skill.damage), false);
-
-                // Apply damage to global enemy only if host
-                if (gameState.isHost) {
-                    enemiesRef.child(closestTarget.id).update({
-                        health: closestTarget.health - skill.damage,
-                        shockTimer: skill.shockDuration > 0 ? skill.shockDuration : 0,
-                        shockDamage: skill.shockDuration > 0 ? skill.damage / 2 : 0
-                    });
-                } else {
-                    // Non-host clients can apply local visual/immediate feedback
-                    closestTarget.health -= skill.damage; // Local health update for immediate visual
-                    if (skill.shockDuration > 0) {
-                        closestTarget.shockTimer = skill.shockDuration;
-                        closestTarget.shockDamage = skill.damage / 2;
-                    }
+                if (skill.shockDuration > 0) {
+                    closestTarget.shockTimer = skill.shockDuration;
+                    closestTarget.shockDamage = skill.damage / 2;
                 }
-
                 lastTarget = closestTarget;
                 potentialTargets = potentialTargets.filter(t => t !== closestTarget);
             } else { break; }
@@ -201,8 +157,7 @@ function updateLightning(deltaTime, player, enemiesRef) {
     }
 }
 
-// MODIFIED: Skill functions now take enemiesRef for global damage application
-function updateVolcano(deltaTime, player, enemiesRef) {
+function updateVolcano(deltaTime, player) {
     if (!player.skills.volcano.isUnlocked) return;
     const skill = player.skills.volcano;
     if (gameState.gameTime - skill.lastEruption > skill.cooldown) {
@@ -210,31 +165,20 @@ function updateVolcano(deltaTime, player, enemiesRef) {
             const eruptionCount = skill.count || 1; // ADDED: Multiple eruptions
             for (let i=0; i < eruptionCount; i++) {
                 const targetEnemy = enemies[Math.floor(Math.random() * enemies.length)];
-                if (!targetEnemy) continue; // Ensure target enemy exists
-
-                const volcanoEffect = {
+                volcanicEruptions.push({
                     x: targetEnemy.x, y: targetEnemy.y, radius: skill.radius,
                     damage: skill.damage, burnDuration: skill.burnDuration,
-                    life: skill.burnDuration, hitEnemies: [], // Keep track of already hit enemies locally for continuous damage
+                    life: skill.burnDuration, hitEnemies: [],
                     update(dt) {
-                        enemies.forEach(e => { // Iterate over current local enemies
-                            // Check if this specific enemy has not been hit by this volcano effect yet AND is within radius
-                            if (e && !this.hitEnemies.includes(e.id) && Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
-                                // Apply initial burst damage only once per enemy per volcano effect
-                                if (gameState.isHost) {
-                                    enemiesRef.child(e.id).child('health').set(e.health - (this.damage * (dt / 1000))); // Apply damage over time
-                                } else {
-                                    e.health -= this.damage * (dt / 1000); // Local estimate
-                                }
-                                this.hitEnemies.push(e.id); // Mark enemy as hit by this volcano effect
+                        enemies.forEach(e => {
+                            if (!this.hitEnemies.includes(e) && Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
+                                e.health -= this.damage * (dt / 1000);
                             }
                         });
                         this.life -= dt;
                         return this.life <= 0;
                     }
-                };
-                visualEffects.push(volcanoEffect); // Add to visual effects
-
+                });
                 for (let j = 0; j < 30; j++) {
                     const angle = Math.random() * Math.PI * 2;
                     const speed = Math.random() * 6 + 3;
@@ -250,12 +194,7 @@ function updateVolcano(deltaTime, player, enemiesRef) {
                         }
                     });
                 }
-                // Apply initial burst damage if host
-                if (gameState.isHost) {
-                    enemiesRef.child(targetEnemy.id).child('health').set(targetEnemy.health - skill.damage);
-                } else {
-                    targetEnemy.health -= skill.damage; // Local estimate
-                }
+                targetEnemy.health -= skill.damage;
                 spawnDamageNumber(targetEnemy.x, targetEnemy.y, Math.round(skill.damage), false);
             }
             skill.lastEruption = gameState.gameTime;
@@ -263,8 +202,9 @@ function updateVolcano(deltaTime, player, enemiesRef) {
     }
 }
 
-// MODIFIED: Skill functions now take enemiesRef for global damage application
-function updateFrostNova(deltaTime, player, enemiesRef) {
+// --- ADDED: NEW SKILL FUNCTIONS ---
+
+function updateFrostNova(deltaTime, player) {
     if (!player.skills.frostNova.isUnlocked) return;
     const skill = player.skills.frostNova;
     if (gameState.gameTime - skill.lastCast > skill.cooldown) {
@@ -274,81 +214,42 @@ function updateFrostNova(deltaTime, player, enemiesRef) {
         });
         enemies.forEach(e => {
             if (Math.hypot(e.x - player.x, e.y - player.y) < skill.radius) {
+                e.health -= skill.damage;
+                e.slowTimer = skill.slowDuration;
+                e.slowAmount = skill.slowAmount;
                 spawnDamageNumber(e.x, e.y, skill.damage, false);
-                if (gameState.isHost) {
-                    enemiesRef.child(e.id).update({
-                        health: e.health - skill.damage,
-                        slowTimer: skill.slowDuration,
-                        slowAmount: skill.slowAmount
-                    });
-                } else {
-                    e.health -= skill.damage;
-                    e.slowTimer = skill.slowDuration;
-                    e.slowAmount = skill.slowAmount;
-                }
             }
         });
         skill.lastCast = gameState.gameTime;
     }
 }
 
-// MODIFIED: Skill functions now take enemiesRef for global damage application
-function updateBlackHole(deltaTime, player, enemiesRef) {
+function updateBlackHole(deltaTime, player) {
     if (!player.skills.blackHole.isUnlocked) return;
     const skill = player.skills.blackHole;
     if (gameState.gameTime - skill.lastCast > skill.cooldown) {
         if (enemies.length > 0) {
             const targetEnemy = enemies[Math.floor(Math.random() * enemies.length)];
-            if (!targetEnemy) return; // Ensure target exists for black hole
-
-            const blackHoleEffect = {
+            visualEffects.push({
                 type: 'blackHole', x: targetEnemy.x, y: targetEnemy.y,
                 radius: skill.radius, life: skill.duration,
                 pullStrength: skill.pullStrength, damage: skill.damage,
-                // Store a list of enemies currently being pulled by this black hole instance
-                pulledEnemies: new Set(), 
                 update(dt) {
                     this.life -= dt;
-                    enemies.forEach(e => { // Iterate over current local enemies
-                        if (!e) return; // Skip if enemy is null/undefined
-
+                    enemies.forEach(e => {
                         const dist = Math.hypot(e.x - this.x, e.y - this.y);
                         if (dist < this.radius && dist > 10) { // Keep enemies from collapsing to the center
-                            // Only host should apply force and damage to global enemies
-                            if (gameState.isHost) {
-                                // Calculate new positions based on pull strength
-                                const newX = e.x - (e.x - this.x) / dist * this.pullStrength;
-                                const newY = e.y - (e.y - this.y) / dist * this.pullStrength;
-
-                                // Update enemy position in DB
-                                enemiesRef.child(e.id).update({ x: newX, y: newY });
-
-                                // Apply damage periodically (host only)
-                                if (!this.pulledEnemies.has(e.id)) { // First hit on entry or refresh
-                                    this.pulledEnemies.add(e.id);
-                                    enemiesRef.child(e.id).child('health').set(e.health - this.damage);
-                                    spawnDamageNumber(e.x, e.y, this.damage, false);
-                                } else if (Math.random() < 0.05 * (dt / 16)) { // ~5% chance per 16ms frame
-                                    enemiesRef.child(e.id).child('health').set(e.health - this.damage);
-                                    spawnDamageNumber(e.x, e.y, this.damage, false);
-                                }
-                            } else {
-                                // Clients apply local movement for smooth visuals, but host is authoritative
-                                e.x -= (e.x - this.x) / dist * this.pullStrength;
-                                e.y -= (e.y - this.y) / dist * this.pullStrength;
-                                // Clients also show damage numbers for immediate feedback
-                                if (Math.random() < 0.05 * (dt / 16)) {
-                                    spawnDamageNumber(e.x, e.y, this.damage, false);
-                                }
+                            e.x -= (e.x - this.x) / dist * this.pullStrength;
+                            e.y -= (e.y - this.y) / dist * this.pullStrength;
+                            if (Math.random() < 0.1) { // Deal damage periodically
+                                e.health -= this.damage;
+                                spawnDamageNumber(e.x, e.y, this.damage, false);
                             }
-                        } else {
-                            this.pulledEnemies.delete(e.id); // Remove from pulled set if outside radius
                         }
                     });
                     return this.life <= 0;
                 }
-            };
-            visualEffects.push(blackHoleEffect);
+            });
             skill.lastCast = gameState.gameTime;
         }
     }
