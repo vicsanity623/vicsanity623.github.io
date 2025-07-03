@@ -1,8 +1,7 @@
 import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js';
-import crypto from 'crypto';
 import { enemyPath, spawnEnemy, updateEnemies } from './enemies.js';
 import { fireProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole, createXpOrb } from './attacks_skills.js';
-import { initRift, expandWorld, getBackgroundCanvas } from './rift.js';
+import { initRift, expandWorld, getBackgroundCanvas, seededRandom } from './rift.js'; // MODIFIED: Imported seededRandom
 
 // --- Firebase Variables (Declared but not initialized) ---
 let auth, firestore, database, googleProvider, currentUser; // MODIFIED: Added 'database'
@@ -12,7 +11,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
     authDomain: "tap-guardian-rpg.firebaseapp.com",
     projectId: "tap-guardian-rpg",
-    storageBucket: "tap-guardian-rpg.firebaseastorage.app",
+    storageBucket: "tap-guardian-rpg.firebaseapp.com", // Corrected storageBucket typo
     messagingSenderId: "50272459426",
     appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
     measurementId: "G-XJRE7YNPZR"
@@ -49,8 +48,8 @@ class SafeHouse {
         // Ensure the zone spawns fully within the game world bounds
         this.radius = this.initialRadius; // Reset radius
         // Calculate max x/y to ensure the circle doesn't go off-screen
-        this.x = Math.random() * (this.gameWorldWidth - this.initialRadius * 2) + this.initialRadius;
-        this.y = Math.random() * (this.gameWorldHeight - this.initialRadius * 2) + this.initialRadius;
+        this.x = seededRandom() * (this.gameWorldWidth - this.initialRadius * 2) + this.initialRadius; // MODIFIED: Use seededRandom
+        this.y = seededRandom() * (this.gameWorldHeight - this.initialRadius * 2) + this.initialRadius; // MODIFIED: Use seededRandom
         this.active = true;
         this.respawnTimer = 0; // Reset timer
         console.log(`Safe House spawned at (${this.x.toFixed(0)}, ${this.y.toFixed(0)}) with radius ${this.radius.toFixed(0)}`);
@@ -171,7 +170,7 @@ const WORLD_STATE_REF = (worldId = 'main') => WORLD_REF(worldId).child('state');
 const WORLD_ENEMIES_REF = (worldId = 'main') => WORLD_REF(worldId).child('enemies');
 const WORLD_XP_ORBS_REF = (worldId = 'main') => WORLD_REF(worldId).child('xpOrbs');
 const WORLD_SKILL_TOTEMS_REF = (worldId = 'main') => WORLD_REF(worldId).child('skillTotems');
-const PLAYERS_REF = database.ref('playersOnline'); // Path for all active players, key is UID
+const PLAYERS_REF = (worldId = 'main') => database.ref(`worlds/${worldId}/playersOnline`); // Path for all active players, key is UID
 
 // --- Firebase Realtime Database Listeners
 let worldStateListener = null;
@@ -213,7 +212,7 @@ const UPGRADE_POOL = [
     { id: "soul_vortex", title: "Soul Vortex", maxLevel: 1, description: () => `Gain an orbiting soul that damages enemies.`, apply: (p) => { p.abilities.orbitingShield.enabled = true; } },
     { id: "rear_guard", title: "Rear Guard", maxLevel: 1, description: () => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; } },
     { id: "crossfire", title: "Crossfire", maxLevel: 1, description: () => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; } },
-    { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(p, 50, 200); } },
+    { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(player, 50, 200); } }, // MODIFIED: Pass 'player' directly
     { id: "thorns", title: "Thorns", maxLevel: 3, description: (level) => `Enemies that hit you take ${5 * (level+1)} damage.`, apply: (p) => { p.thorns += 5; } },
     { id: "life_steal", title: "Life Steal", maxLevel: 3, description: (level) => `Heal for ${level+1} HP on kill.`, apply: (p) => { p.lifeSteal += 1; } },
     { id: "demolition", title: "Demolition", maxLevel: 1, description: () => `Projectiles explode on their first hit.`, apply: (p) => { p.weapon.explodesOnImpact = true; } },
@@ -273,7 +272,7 @@ export function initializeApp() {
     };
     hudElements = {
         gameContainer: document.getElementById('game-container'),
-        level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'),
+        level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'),
         upgradeStatsList: document.getElementById('upgrade-stats-list'), // NEW: Get reference to the new list container
     };
 
@@ -312,8 +311,7 @@ async function getPlayerColor(uid) {
     if (doc.exists && doc.data().playerColor) {
         return doc.data().playerColor;
     } else {
-        const randomBytes = crypto.randomBytes(3); // Generate 3 random bytes
-        const newColor = '#' + randomBytes.toString('hex'); // Convert bytes to hex color
+        const newColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
         await userDocRef.set({ playerColor: newColor }, { merge: true });
         return newColor;
     }
@@ -370,7 +368,7 @@ async function checkSaveStates() {
         menuElements.loadOptionsContainer.appendChild(localBtn);
     }
     // NEW: Add a "Play Global" button if signed in and no other save option is selected
-    if (currentUser && !cloudSaveExists && !localSaveExists) {
+    if (currentUser) { // Always show this if signed in
         const globalBtn = document.createElement('button');
         globalBtn.className = 'menu-button'; globalBtn.textContent = 'Play Global World (New Game)';
         globalBtn.onclick = () => startGame(true); // Always starts a new personal progression but joins global
@@ -441,6 +439,9 @@ function takeDamage(amount, isDirectHit = false) { // Default to false for conti
             // Check if enemy is close enough to trigger thorns (e.g., collision range)
             if (Math.hypot(e.x - player.x, e.y - player.y) < player.size + (e.width || 0) + 10) {
                 // Apply damage to shared enemy, only if host or client with authority
+                // For simplicity, local player's thorns damage directly affects global enemy health.
+                // This implicitly assumes client-side authority for this specific interaction,
+                // or relies on Realtime Database security rules to validate.
                 WORLD_ENEMIES_REF().child(e.id).child('health').set(e.health - player.thorns);
                 spawnDamageNumber(e.x, e.y, player.thorns, false);
             }
@@ -483,7 +484,7 @@ async function startGame(forceNew, loadSource = 'cloud') {
     await initMultiplayerWorld();
 
     // Set up player presence in Realtime DB
-    const playerRef = PLAYERS_REF.child(currentUser.uid);
+    const playerRef = PLAYERS_REF().child(currentUser.uid); // MODIFIED: Call PLAYERS_REF()
     playerRef.onDisconnect().remove(); // Remove player from active list on disconnect
 
     // Push local player's initial state for other clients to see
@@ -496,7 +497,8 @@ async function startGame(forceNew, loadSource = 'cloud') {
         color: player.color, // Send the assigned color
         health: player.health,
         maxHealth: player.maxHealth,
-        level: player.level
+        level: player.level,
+        lastHitTime: player.lastHitTime // Synchronize last hit time for blink effect on other clients
     });
 
     gameState.lastTime = performance.now();
@@ -514,7 +516,7 @@ async function startGame(forceNew, loadSource = 'cloud') {
 async function initMultiplayerWorld() {
     // Stop any existing listeners first
     if (worldStateListener) WORLD_STATE_REF().off('value', worldStateListener);
-    if (onlinePlayersListener) PLAYERS_REF.off('value', onlinePlayersListener);
+    if (onlinePlayersListener) PLAYERS_REF().off('value', onlinePlayersListener); // MODIFIED: Call PLAYERS_REF()
     if (enemiesListener) WORLD_ENEMIES_REF().off('value', enemiesListener);
     if (xpOrbsListener) WORLD_XP_ORBS_REF().off('value', xpOrbsListener);
     if (skillTotemsListener) WORLD_SKILL_TOTEMS_REF().off('value', skillTotemsListener);
@@ -525,65 +527,100 @@ async function initMultiplayerWorld() {
     skillTotems.length = 0; // Clear local skill totem data
 
     const worldStateSnapshot = await WORLD_STATE_REF().once('value');
-    const onlinePlayersSnapshot = await PLAYERS_REF.once('value');
+    const onlinePlayersSnapshot = await PLAYERS_REF().once('value'); // MODIFIED: Call PLAYERS_REF()
     const onlinePlayerCount = onlinePlayersSnapshot.val() ? Object.keys(onlinePlayersSnapshot.val()).length : 0;
 
-    let initialWorldData;
+    // Retrieve raw data once from snapshot to validate
+    const rawReceivedWorldData = worldStateSnapshot.val();
 
     // Determine if this client should be the host
-    const existingHostId = worldStateSnapshot.exists() && worldStateSnapshot.val().hostId;
-    const isFirstPlayer = onlinePlayerCount === 0;
+    const existingHostId = rawReceivedWorldData && rawReceivedWorldData.hostId;
     
     // Simplistic host election: If no host, or existing host is not online, the current player becomes host
     const hostIsOnline = existingHostId && onlinePlayersSnapshot.hasChild(existingHostId);
-    gameState.isHost = (!existingHostId || !hostIsOnline) && (onlinePlayerCount < MAX_PLAYERS); // Only become host if under max players
+    gameState.isHost = (!existingHostId || !hostIsOnline) && (onlinePlayerCount < MAX_PLAYERS);
+
+    // Define default world data structure for validation and initial host setup
+    let defaultWorldData = {
+        worldWidth: 3000,
+        worldHeight: 2000,
+        gameTime: 0,
+        enemySpawnTimer: 0,
+        enemySpawnInterval: 1500,
+        worldSeed: Date.now(), // Generate a unique seed for new worlds
+        safeHouse: new SafeHouse(3000, 2000).toJSON(),
+        skillTotems: [
+            { id: 'lightTotem', x: 3000 / 2 - 200, y: 2000 / 2 - 200, radius: 30, skill: 'lightning', color: '#9dffff', icon: '⚡' },
+            { id: 'volcTotem', x: 3000 / 2 + 200, y: 2000 / 2 + 200, radius: 30, skill: 'volcano', color: '#ff8c00', icon: '🔥' },
+            { id: 'frostTotem', x: 3000 / 2 + 200, y: 2000 / 2 - 200, radius: 30, skill: 'frostNova', color: '#87CEEB', icon: '❄️' },
+            { id: 'blackTotem', x: 3000 / 2 - 200, y: 2000 / 2 + 200, radius: 30, skill: 'blackHole', color: '#483D8B', icon: '🌀' },
+        ],
+        hostId: currentUser.uid,
+        lastHostHeartbeat: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    let worldDataToApply; // This will hold the sanitized and merged world data
 
     if (gameState.isHost) {
         console.log("Becoming host and initializing global world...");
-        initialWorldData = {
-            worldWidth: 3000,
-            worldHeight: 2000,
-            gameTime: 0,
-            enemySpawnTimer: 0,
-            enemySpawnInterval: 1500,
-            worldSeed: Date.now(), // Generate a unique seed for new worlds
-            safeHouse: new SafeHouse(3000, 2000).toJSON(), // Initialize a new safe house state
-            skillTotems: [ // Initial skill totems
-                { id: 'lightTotem', x: 3000 / 2 - 200, y: 2000 / 2 - 200, radius: 30, skill: 'lightning', color: '#9dffff', icon: '⚡' },
-                { id: 'volcTotem', x: 3000 / 2 + 200, y: 2000 / 2 + 200, radius: 30, skill: 'volcano', color: '#ff8c00', icon: '🔥' },
-                { id: 'frostTotem', x: 3000 / 2 + 200, y: 2000 / 2 - 200, radius: 30, skill: 'frostNova', color: '#87CEEB', icon: '❄️' },
-                { id: 'blackTotem', x: 3000 / 2 - 200, y: 2000 / 2 + 200, radius: 30, skill: 'blackHole', color: '#483D8B', icon: '🌀' },
-            ],
-            hostId: currentUser.uid,
-            lastHostHeartbeat: firebase.database.ServerValue.TIMESTAMP
-        };
-        await WORLD_REF().set(initialWorldData); // Overwrite if host, sets initial state
+        worldDataToApply = { ...defaultWorldData }; // Use defaults for initial host state
+        await WORLD_REF().set(worldDataToApply); // Overwrite if host, sets initial state
     } else {
         console.log("Joining existing global world...");
-        // Wait for world state to be stable/initialized by host
-        const liveWorldState = await WORLD_STATE_REF().once('value');
-        if (!liveWorldState.exists()) {
-            console.error("Failed to join world: No world state found.");
+        if (!rawReceivedWorldData) {
+            console.error("Failed to join world: No world state found or invalid data.");
             alert("Could not join game. World not active or failed to load. Please try again.");
-            hudElements.gameOverScreen.classList.add('visible'); // Show game over screen
+            hudElements.gameOverScreen.classList.add('visible');
             menuElements.mainMenu.classList.add('visible');
             hudElements.gameContainer.style.visibility = 'hidden';
             return;
         }
-        initialWorldData = liveWorldState.val();
+
+        // Validate and apply received data, falling back to defaults if invalid
+        worldDataToApply = {
+            worldWidth: typeof rawReceivedWorldData.worldWidth === 'number' ? rawReceivedWorldData.worldWidth : defaultWorldData.worldWidth,
+            worldHeight: typeof rawReceivedWorldData.worldHeight === 'number' ? rawReceivedWorldData.worldHeight : defaultWorldData.worldHeight,
+            gameTime: typeof rawReceivedWorldData.gameTime === 'number' ? rawReceivedWorldData.gameTime : defaultWorldData.gameTime,
+            enemySpawnTimer: typeof rawReceivedWorldData.enemySpawnTimer === 'number' ? rawReceivedWorldData.enemySpawnTimer : defaultWorldData.enemySpawnTimer,
+            enemySpawnInterval: typeof rawReceivedWorldData.enemySpawnInterval === 'number' ? rawReceivedWorldData.enemySpawnInterval : defaultWorldData.enemySpawnInterval,
+            worldSeed: typeof rawReceivedWorldData.worldSeed === 'number' ? rawReceivedWorldData.worldSeed : defaultWorldData.worldSeed,
+            
+            safeHouse: rawReceivedWorldData.safeHouse ? {
+                x: typeof rawReceivedWorldData.safeHouse.x === 'number' ? rawReceivedWorldData.safeHouse.x : defaultWorldData.safeHouse.x,
+                y: typeof rawReceivedWorldData.safeHouse.y === 'number' ? rawReceivedWorldData.safeHouse.y : defaultWorldData.safeHouse.y,
+                radius: typeof rawReceivedWorldData.safeHouse.radius === 'number' ? rawReceivedWorldData.safeHouse.radius : defaultWorldData.safeHouse.radius,
+                active: typeof rawReceivedWorldData.safeHouse.active === 'boolean' ? rawReceivedWorldData.safeHouse.active : defaultWorldData.safeHouse.active,
+                respawnTimer: typeof rawReceivedWorldData.safeHouse.respawnTimer === 'number' ? rawReceivedWorldData.safeHouse.respawnTimer : defaultWorldData.safeHouse.respawnTimer,
+                healingRate: typeof rawReceivedWorldData.safeHouse.healingRate === 'number' ? rawReceivedWorldData.safeHouse.healingRate : defaultWorldData.safeHouse.healingRate,
+                damageRate: typeof rawReceivedWorldData.safeHouse.damageRate === 'number' ? rawReceivedWorldData.safeHouse.damageRate : defaultWorldData.safeHouse.damageRate,
+            } : defaultWorldData.safeHouse,
+
+            skillTotems: Array.isArray(rawReceivedWorldData.skillTotems) ? rawReceivedWorldData.skillTotems.map(totem => ({
+                id: typeof totem.id === 'string' ? totem.id : '',
+                x: typeof totem.x === 'number' ? totem.x : 0,
+                y: typeof totem.y === 'number' ? totem.y : 0,
+                radius: typeof totem.radius === 'number' ? totem.radius : 30,
+                skill: typeof totem.skill === 'string' ? totem.skill : '',
+                color: typeof totem.color === 'string' ? totem.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF', // Basic color sanitize, fallback to white
+                icon: typeof totem.icon === 'string' ? totem.icon : '❓', // Fallback for icon
+            })) : defaultWorldData.skillTotems, // Fallback to default totems array
+
+            hostId: typeof rawReceivedWorldData.hostId === 'string' ? rawReceivedWorldData.hostId : defaultWorldData.hostId,
+            lastHostHeartbeat: typeof rawReceivedWorldData.lastHostHeartbeat === 'number' ? rawReceivedWorldData.lastHostHeartbeat : defaultWorldData.lastHostHeartbeat
+        };
     }
 
-    // Apply synchronized world data to local variables
-    world.width = initialWorldData.worldWidth;
-    world.height = initialWorldData.worldHeight;
-    gameState.gameTime = initialWorldData.gameTime;
-    gameState.enemySpawnTimer = initialWorldData.enemySpawnTimer;
-    gameState.enemySpawnInterval = initialWorldData.enemySpawnInterval;
-    gameState.worldSeed = initialWorldData.worldSeed;
+    // Apply synchronized world data to local variables from the validated 'worldDataToApply'
+    world.width = worldDataToApply.worldWidth;
+    world.height = worldDataToApply.worldHeight;
+    gameState.gameTime = worldDataToApply.gameTime;
+    gameState.enemySpawnTimer = worldDataToApply.enemySpawnTimer;
+    gameState.enemySpawnInterval = worldDataToApply.enemySpawnInterval;
+    gameState.worldSeed = worldDataToApply.worldSeed;
 
     safeHouseInstance = new SafeHouse(world.width, world.height);
-    Object.assign(safeHouseInstance, initialWorldData.safeHouse);
-    skillTotems = initialWorldData.skillTotems || []; // Ensure it's an array
+    Object.assign(safeHouseInstance, worldDataToApply.safeHouse); // Apply validated safeHouse state
+    skillTotems = worldDataToApply.skillTotems || []; // Use validated skill totems
 
     // Initialize rift background with the global world seed
     initRift(gameState.worldSeed);
@@ -605,31 +642,65 @@ function setupRealtimeDBListeners() {
         const data = snapshot.val();
         if (data) {
             // Only update if not host or for consistency
-            gameState.gameTime = data.gameTime;
-            gameState.enemySpawnTimer = data.enemySpawnTimer;
-            gameState.enemySpawnInterval = data.enemySpawnInterval;
-            world.width = data.worldWidth;
-            world.height = data.worldHeight;
-            gameState.worldSeed = data.worldSeed; // Ensure seed is synchronized
+            gameState.gameTime = typeof data.gameTime === 'number' ? data.gameTime : gameState.gameTime;
+            gameState.enemySpawnTimer = typeof data.enemySpawnTimer === 'number' ? data.enemySpawnTimer : gameState.enemySpawnTimer;
+            gameState.enemySpawnInterval = typeof data.enemySpawnInterval === 'number' ? data.enemySpawnInterval : gameState.enemySpawnInterval;
+            world.width = typeof data.worldWidth === 'number' ? data.worldWidth : world.width;
+            world.height = typeof data.worldHeight === 'number' ? data.worldHeight : world.height;
+            gameState.worldSeed = typeof data.worldSeed === 'number' ? data.worldSeed : gameState.worldSeed; // Ensure seed is synchronized
 
-            if (safeHouseInstance) {
-                Object.assign(safeHouseInstance, data.safeHouse);
-            } else { // Should not happen after initial setup, but as fallback
-                safeHouseInstance = new SafeHouse(world.width, world.height);
-                Object.assign(safeHouseInstance, data.safeHouse);
+            if (safeHouseInstance && data.safeHouse) { // Ensure data.safeHouse exists before assigning
+                safeHouseInstance.x = typeof data.safeHouse.x === 'number' ? data.safeHouse.x : safeHouseInstance.x;
+                safeHouseInstance.y = typeof data.safeHouse.y === 'number' ? data.safeHouse.y : safeHouseInstance.y;
+                safeHouseInstance.radius = typeof data.safeHouse.radius === 'number' ? data.safeHouse.radius : safeHouseInstance.radius;
+                safeHouseInstance.active = typeof data.safeHouse.active === 'boolean' ? data.safeHouse.active : safeHouseInstance.active;
+                safeHouseInstance.respawnTimer = typeof data.safeHouse.respawnTimer === 'number' ? data.safeHouse.respawnTimer : safeHouseInstance.respawnTimer;
+                safeHouseInstance.healingRate = typeof data.safeHouse.healingRate === 'number' ? data.safeHouse.healingRate : safeHouseInstance.healingRate;
+                safeHouseInstance.damageRate = typeof data.safeHouse.damageRate === 'number' ? data.safeHouse.damageRate : safeHouseInstance.damageRate;
+            } else if (safeHouseInstance) { // If safeHouse data missing, reset to default state via spawn
+                 safeHouseInstance.spawn();
             }
-            skillTotems = data.skillTotems ? Object.values(data.skillTotems) : []; // Convert object back to array
+            // Safely handle skillTotems as an array of validated objects
+            if (Array.isArray(data.skillTotems)) {
+                skillTotems = data.skillTotems.map(totem => ({
+                    id: typeof totem.id === 'string' ? totem.id : '',
+                    x: typeof totem.x === 'number' ? totem.x : 0,
+                    y: typeof totem.y === 'number' ? totem.y : 0,
+                    radius: typeof totem.radius === 'number' ? totem.radius : 30,
+                    skill: typeof totem.skill === 'string' ? totem.skill : '',
+                    color: typeof totem.color === 'string' ? totem.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF',
+                    icon: typeof totem.icon === 'string' ? totem.icon : '❓',
+                }));
+            } else {
+                skillTotems = []; // Clear if not an array
+            }
         }
     });
 
     // Listen to active players
-    onlinePlayersListener = PLAYERS_REF.on('value', (snapshot) => {
+    onlinePlayersListener = PLAYERS_REF().on('value', (snapshot) => { // MODIFIED: Call PLAYERS_REF()
         const playersData = snapshot.val();
         otherPlayers.clear();
         if (playersData) {
             Object.keys(playersData).forEach(uid => {
                 if (uid !== currentUser.uid) { // Don't track self as "other player"
-                    otherPlayers.set(uid, playersData[uid]);
+                    // Basic validation for other player data
+                    const pData = playersData[uid];
+                    otherPlayers.set(uid, {
+                        x: typeof pData.x === 'number' ? pData.x : 0,
+                        y: typeof pData.y === 'number' ? pData.y : 0,
+                        angle: typeof pData.angle === 'number' ? pData.angle : 0,
+                        size: typeof pData.size === 'number' ? pData.size : 20,
+                        name: typeof pData.name === 'string' ? pData.name.substring(0, 20) : 'Unknown', // Limit name length
+                        color: typeof pData.color === 'string' ? pData.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF',
+                        health: typeof pData.health === 'number' ? pData.health : 100,
+                        maxHealth: typeof pData.maxHealth === 'number' ? pData.maxHealth : 100,
+                        level: typeof pData.level === 'number' ? pData.level : 1,
+                        kills: typeof pData.kills === 'number' ? pData.kills : 0,
+                        xp: typeof pData.xp === 'number' ? pData.xp : 0,
+                        xpForNextLevel: typeof pData.xpForNextLevel === 'number' ? pData.xpForNextLevel : 10,
+                        lastHitTime: typeof pData.lastHitTime === 'number' ? pData.lastHitTime : 0
+                    });
                 }
             });
         }
@@ -640,7 +711,26 @@ function setupRealtimeDBListeners() {
         const enemiesData = snapshot.val();
         enemies.length = 0; // Clear local enemies array
         if (enemiesData) {
-            Object.values(enemiesData).forEach(enemy => enemies.push(enemy)); // Convert object back to array
+            // Safely reconstruct enemy objects
+            Object.values(enemiesData).forEach(rawEnemy => {
+                if (typeof rawEnemy === 'object' && rawEnemy !== null && rawEnemy.id && typeof rawEnemy.x === 'number' && typeof rawEnemy.y === 'number') {
+                    enemies.push({
+                        id: rawEnemy.id,
+                        x: rawEnemy.x,
+                        y: rawEnemy.y,
+                        health: typeof rawEnemy.health === 'number' ? rawEnemy.health : 1, // Default health to 1 if invalid
+                        speed: typeof rawEnemy.speed === 'number' ? rawEnemy.speed : 1,
+                        damage: typeof rawEnemy.damage === 'number' ? rawEnemy.damage : 10,
+                        shockTimer: typeof rawEnemy.shockTimer === 'number' ? rawEnemy.shockTimer : 0,
+                        shockDamage: typeof rawEnemy.shockDamage === 'number' ? rawEnemy.shockDamage : 0,
+                        slowTimer: typeof rawEnemy.slowTimer === 'number' ? rawEnemy.slowTimer : 0,
+                        slowAmount: typeof rawEnemy.slowAmount === 'number' ? rawEnemy.slowAmount : 0,
+                        speedMultiplier: typeof rawEnemy.speedMultiplier === 'number' ? rawEnemy.speedMultiplier : 1.0,
+                        markedForDeletion: typeof rawEnemy.markedForDeletion === 'boolean' ? rawEnemy.markedForDeletion : false,
+                        width: typeof rawEnemy.width === 'number' ? rawEnemy.width : 40
+                    });
+                }
+            });
         }
     });
 
@@ -649,7 +739,42 @@ function setupRealtimeDBListeners() {
         const xpOrbsData = snapshot.val();
         xpOrbs.length = 0; // Clear local xpOrbs array
         if (xpOrbsData) {
-            Object.values(xpOrbsData).forEach(orb => xpOrbs.push(orb)); // Convert object back to array
+            // Safely reconstruct XP orb objects
+            Object.values(xpOrbsData).forEach(rawOrb => {
+                if (typeof rawOrb === 'object' && rawOrb !== null && rawOrb.id && typeof rawOrb.x === 'number' && typeof rawOrb.y === 'number') {
+                    xpOrbs.push({
+                        id: rawOrb.id,
+                        x: rawOrb.x,
+                        y: rawOrb.y,
+                        value: typeof rawOrb.value === 'number' ? rawOrb.value : 1,
+                        size: typeof rawOrb.size === 'number' ? rawOrb.size : 5,
+                        // Update function for XP orbs is applied locally when iterated in gameLoop
+                        update: (dt, options) => { // Re-attach update function
+                            const localPlayer = options.player;
+                            const localGainXPCallback = options.gainXPCallback;
+                            const isMultiplayer = options.isMultiplayer; // Currently unused, but kept for future
+
+                            const dx = localPlayer.x - rawOrb.x; // Use rawOrb.x/y for base for consistency
+                            const dy = localPlayer.y - rawOrb.y;
+                            const dist = Math.hypot(dx, dy);
+
+                            if (dist < localPlayer.pickupRadius) {
+                                // Update local orb position for visual movement
+                                rawOrb.x += (dx / dist) * 8 * localPlayer.magnetism;
+                                rawOrb.y += (dy / dist) * 8 * localPlayer.magnetism;
+                            }
+                            if (dist < 20) {
+                                if (localPlayer.abilities.healOnXp && Math.random() < 0.1) {
+                                    localPlayer.health = Math.min(localPlayer.maxHealth, localPlayer.health + 1);
+                                }
+                                localGainXPCallback(rawOrb.value, rawOrb.id); // Pass orb ID so systemsmanager knows which one to remove
+                                return true; // Mark for local removal
+                            }
+                            return false;
+                        }
+                    });
+                }
+            });
         }
     });
 }
@@ -667,7 +792,7 @@ function gameOver() {
 
     // Remove player from active players list on game over
     if (currentUser) {
-        PLAYERS_REF.child(currentUser.uid).remove();
+        PLAYERS_REF().child(currentUser.uid).remove(); // MODIFIED: Call PLAYERS_REF()
     }
 }
 
@@ -677,8 +802,10 @@ function getAiMovementVector() {
     let repulsion = { x: 0, y: 0 }; let attraction = { x: 0, y: 0 };
     
     // Consider all players (self and others) when calculating AI movement to avoid crowding
-    const allPlayers = [player, ...Array.from(otherPlayers.values())];
-
+    // For AI targeting, enemies still target the *main* player if no other specific logic.
+    // However, for general AI movement, consider closest enemy to player.
+    
+    // Repulsion from nearby enemies
     enemies.forEach(enemy => {
         const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
         if (dist < DANGER_RADIUS && dist > 0) {
@@ -687,14 +814,13 @@ function getAiMovementVector() {
             repulsion.y -= (enemy.y - player.y) / dist * force;
         }
     });
+
     let closestOrb = null, closestOrbDist = Infinity;
     xpOrbs.forEach(orb => {
         const dist = Math.hypot(orb.x - player.x, orb.y - player.y);
         if (dist < closestOrbDist) { closestOrbDist = dist; closestOrb = orb; }
     });
-    let closestEnemy = null;
-    // MODIFIED: AI targets the closest enemy *to the current player* for firing, not movement
-    // Movement AI targets general threats/objectives.
+
     let closestEnemyForTargeting = null, closestEnemyForTargetingDist = Infinity;
     enemies.forEach(enemy => {
         const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
@@ -760,7 +886,7 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
         // Host manages enemy spawning
         gameState.enemySpawnTimer += deltaTime;
         if (gameState.enemySpawnTimer > gameState.enemySpawnInterval && enemies.length < 100) { // Max 100 enemies globally
-            const newEnemy = spawnEnemy(world, camera); // spawnEnemy returns the enemy object
+            const newEnemy = spawnEnemy(world); // MODIFIED: spawnEnemy now takes world and returns enemy object
             if (newEnemy) {
                  WORLD_ENEMIES_REF().child(newEnemy.id).set(newEnemy); // Use ID for enemy path
             }
@@ -770,30 +896,27 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
             WORLD_STATE_REF().child('enemySpawnTimer').set(gameState.enemySpawnTimer);
         }
 
-        // Host updates global enemies and XP orbs
-        updateEnemies(deltaTime, enemies, player, showLevelUpOptions, (amount) => gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), triggerNova, camera), WORLD_ENEMIES_REF(), WORLD_XP_ORBS_REF(), gameState.isHost);
-        // Enemies are already updated via listener from DB, no local filter needed
+        // Host updates global enemies
+        // `enemies` array is kept in sync by DB listener, `updateEnemies` will operate on it.
+        updateEnemies(deltaTime, enemies, player, otherPlayers, showLevelUpOptions, (amount, orbId) => { // MODIFIED: Pass otherPlayers and orbId
+            gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), (p) => triggerNova(p, 50, 200, WORLD_ENEMIES_REF()), camera); // MODIFIED: Pass enemiesRef to triggerNova
+            // If the XP orb was picked up, the host deletes it from the database
+            if (orbId) {
+                WORLD_XP_ORBS_REF().child(orbId).remove();
+            }
+        }, WORLD_ENEMIES_REF(), WORLD_XP_ORBS_REF(), gameState.isHost); // MODIFIED: Pass enemiesRef, xpOrbsRef, isHost
         
         // Host manages skill totem collection (removes from global)
         for (let i = skillTotems.length - 1; i >= 0; i--) {
             const totem = skillTotems[i];
             if (Math.hypot(player.x - totem.x, player.y - totem.y) < player.size + totem.radius) {
-                if (['__proto__', 'constructor', 'prototype'].includes(totem.skill)) {
-                    console.warn(`Invalid skill key detected: ${totem.skill}`);
-                    continue; // Skip this totem
-                }
                 player.skills[totem.skill].isUnlocked = true;
                 // Remove from DB for everyone
                 WORLD_SKILL_TOTEMS_REF().child(totem.id).remove(); // Assuming skillTotems have unique IDs
             }
         }
-        // Sync the updated skillTotems array to ensure consistency, only by host
-        // Convert skillTotems array to an object with IDs as keys for Firebase
-        const skillTotemsObject = skillTotems.reduce((obj, totem) => {
-            obj[totem.id] = totem;
-            return obj;
-        }, {});
-        WORLD_SKILL_TOTEMS_REF().set(skillTotemsObject);
+        // No need to explicitly sync skillTotems array to DB if modifications are directly via .remove() or .set()
+        // The listener will automatically update the local `skillTotems` array.
     }
     
     let dx = 0, dy = 0;
@@ -812,7 +935,7 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
     }
 
     // Player position update to Realtime DB (every client)
-    const playerRef = PLAYERS_REF.child(currentUser.uid);
+    const playerRef = PLAYERS_REF().child(currentUser.uid); // MODIFIED: Call PLAYERS_REF()
     playerRef.update({
         x: player.x,
         y: player.y,
@@ -823,7 +946,7 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
         kills: player.kills,
         xp: player.xp,
         xpForNextLevel: player.xpForNextLevel,
-        // Add any other properties for other players to render/see
+        lastHitTime: player.lastHitTime // Synchronize last hit time for blink effect
     });
 
     camera.x = player.x - camera.width / 2; camera.y = player.y - camera.height / 2;
@@ -850,19 +973,21 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
     updateFrostNova(deltaTime, player, WORLD_ENEMIES_REF());
     updateBlackHole(deltaTime, player, WORLD_ENEMIES_REF());
 
-    const updateEntityArray = (arr, dt, extra) => { for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].update(dt, extra)) arr.splice(i, 1); } };
+    const updateEntityArray = (arr, dt, extra) => {
+        for (let i = arr.length - 1; i >= 0; i--) {
+            // XP Orbs pass extra options to their update method
+            if (arr[i].update(dt, extra)) arr.splice(i, 1);
+        }
+    };
     updateEntityArray(projectiles, deltaTime);
     // XP Orbs are now synchronized globally, local update is visual only before pickup
     updateEntityArray(xpOrbs, deltaTime, { player, gainXPCallback: (amount, orbId) => {
-        // On pickup, locally apply XP and then remove from global DB
-        gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), triggerNova, camera);
+        // On pickup, locally apply XP
+        gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), (p) => triggerNova(p, 50, 200, WORLD_ENEMIES_REF()), camera);
         if (gameState.isHost) { // Only host should remove from DB to prevent race conditions
             WORLD_XP_ORBS_REF().child(orbId).remove();
-        } else {
-            // Non-host players can send a request to host or DB to remove
-            // For simplicity, we assume host will pick it up or remove it soon
         }
-    }, isMultiplayer: true });
+    }}); // MODIFIED: Pass options object to XP orb update, including orbId for host deletion
     updateEntityArray(particles, deltaTime);
     updateEntityArray(damageNumbers, deltaTime);
     updateEntityArray(lightningBolts, deltaTime);
@@ -876,7 +1001,7 @@ function handleCollisions(enemiesRef) { // MODIFIED: Added enemiesRef parameter
     projectiles.forEach(p => {
         if (p.pierce < p.hitEnemies.length) return;
         enemies.forEach(e => {
-            if (p.hitEnemies.includes(e)) return;
+            if (p.hitEnemies.includes(e.id)) return; // MODIFIED: Check by enemy ID for hitEnemies
             // MODIFIED: Changed collision check to consider enemy width for better accuracy
             const combinedRadius = (p.size?.w || 10) + (e.width || 20); // Default to a size if not defined
             if (Math.hypot(e.x - p.x, e.y - p.y) < combinedRadius / 2) { // Check distance vs half combined size
@@ -890,10 +1015,15 @@ function handleCollisions(enemiesRef) { // MODIFIED: Added enemiesRef parameter
                     triggerNova({x: e.x, y: e.y}, damage / 2, 80, enemiesRef); // Pass enemiesRef
                 }
                 
-                // Apply damage to shared enemy in DB
-                enemiesRef.child(e.id).child('health').set(e.health - damage);
+                // Apply damage to shared enemy in DB only if current client is host
+                if (gameState.isHost) {
+                    enemiesRef.child(e.id).child('health').set(e.health - damage);
+                } else {
+                    // Non-host clients can apply local health reduction for immediate visual feedback
+                    e.health -= damage;
+                }
                 
-                p.hitEnemies.push(e);
+                p.hitEnemies.push(e.id); // MODIFIED: Push enemy ID to hitEnemies
                 createImpactParticles(e.x, e.y, 10);
                 spawnDamageNumber(e.x, e.y, Math.round(damage), isCrit);
             }
@@ -906,9 +1036,14 @@ function handleCollisions(enemiesRef) { // MODIFIED: Added enemiesRef parameter
             // Player takes damage directly from enemy contact.
             // This is a direct hit, so invincibility frames should apply.
             takeDamage(e.damage || 10, true); // MODIFIED: Pass `true` for `isDirectHit`
-            // Enemy health is managed by the host. When enemy health is <= 0 from player damage,
-            // the `updateEnemies` function called by the host will handle their deletion from DB.
-            // We don't remove them here on client, as it's not authoritative.
+            // Enemy health is managed by the host.
+            // A simple "enemy dies on contact" rule can be applied locally for immediate visual,
+            // but the authoritative state comes from the host via DB listener.
+            if (gameState.isHost) { // Only host makes the authoritative decision for enemy death on contact
+                WORLD_ENEMIES_REF().child(e.id).child('health').set(0); // Mark for death
+            } else {
+                e.health = -1; // Local immediate visual death
+            }
         }
     });
     const shield = player.abilities.orbitingShield;
@@ -922,8 +1057,12 @@ function handleCollisions(enemiesRef) { // MODIFIED: Added enemiesRef parameter
                 enemies.forEach(e => {
                     const combinedRadius = 15 + (e.width || 20); // Shield size (15) + enemy size
                     if (Math.hypot(e.x - shieldX, e.y - shieldY) < combinedRadius / 2) {
-                        // Apply damage to shared enemy in DB
-                        enemiesRef.child(e.id).child('health').set(e.health - shield.damage);
+                        // Apply damage to shared enemy in DB only if host
+                        if (gameState.isHost) {
+                            enemiesRef.child(e.id).child('health').set(e.health - shield.damage);
+                        } else {
+                            e.health -= shield.damage;
+                        }
                         spawnDamageNumber(e.x, e.y, shield.damage, false);
                         if(!shield.lastHitTime) shield.lastHitTime = {};
                         shield.lastHitTime[i] = gameState.gameTime;
@@ -1104,6 +1243,16 @@ function drawPlayer(p, angle, customColor, name, currentHealth, maxHealth, isLoc
         ctx.fillRect(-barWidth / 2, 5, barWidth, barHeight);
         ctx.fillStyle = 'red';
         ctx.fillRect(-barWidth / 2, 5, barWidth * hpPercent, barHeight);
+        ctx.restore();
+    } else if (isLocalPlayer) {
+        // Optionally draw local player name for clarity (e.g., above their head if not current HUD)
+        ctx.save();
+        ctx.translate(0, -40);
+        ctx.font = '14px Arial';
+        ctx.fillStyle = customColor; // Use their assigned color
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(name + " (YOU)", 0, 0); // Indicate it's the local player
         ctx.restore();
     }
 
