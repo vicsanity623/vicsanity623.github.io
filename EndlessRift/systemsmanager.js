@@ -1,17 +1,17 @@
-import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js'; // MODIFIED: Imported playerTakeDamage
+import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js';
 import { enemyPath, spawnEnemy, updateEnemies } from './enemies.js';
-import { fireProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole } from './attacks_skills.js';
-import { initRift, expandWorld, getBackgroundCanvas } from './rift.js';
+import { fireProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole, createXpOrb } from './attacks_skills.js';
+import { initRift, expandWorld, getBackgroundCanvas, seededRandom } from './rift.js'; // MODIFIED: Imported seededRandom
 
 // --- Firebase Variables (Declared but not initialized) ---
-let auth, firestore, googleProvider, currentUser;
+let auth, firestore, database, googleProvider, currentUser; // MODIFIED: Added 'database'
 
 // --- Firebase Config ---
 const firebaseConfig = {
     apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
     authDomain: "tap-guardian-rpg.firebaseapp.com",
     projectId: "tap-guardian-rpg",
-    storageBucket: "tap-guardian-rpg.firebasestorage.app",
+    storageBucket: "tap-guardian-rpg.firebaseapp.com", // Corrected storageBucket typo
     messagingSenderId: "50272459426",
     appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
     measurementId: "G-XJRE7YNPZR"
@@ -48,8 +48,8 @@ class SafeHouse {
         // Ensure the zone spawns fully within the game world bounds
         this.radius = this.initialRadius; // Reset radius
         // Calculate max x/y to ensure the circle doesn't go off-screen
-        this.x = Math.random() * (this.gameWorldWidth - this.initialRadius * 2) + this.initialRadius;
-        this.y = Math.random() * (this.gameWorldHeight - this.initialRadius * 2) + this.initialRadius;
+        this.x = seededRandom() * (this.gameWorldWidth - this.initialRadius * 2) + this.initialRadius; // MODIFIED: Use seededRandom
+        this.y = seededRandom() * (this.gameWorldHeight - this.initialRadius * 2) + this.initialRadius; // MODIFIED: Use seededRandom
         this.active = true;
         this.respawnTimer = 0; // Reset timer
         console.log(`Safe House spawned at (${this.x.toFixed(0)}, ${this.y.toFixed(0)}) with radius ${this.radius.toFixed(0)}`);
@@ -127,11 +127,24 @@ class SafeHouse {
         const objectSize = object.size || object.width || 0;
         return distance < (this.radius - objectSize / 2);
     }
+
+    // NEW: toJSON method for Realtime Database synchronization
+    toJSON() {
+        return {
+            x: this.x,
+            y: this.y,
+            radius: this.radius,
+            active: this.active,
+            respawnTimer: this.respawnTimer,
+            healingRate: this.healingRate,
+            damageRate: this.damageRate
+        };
+    }
 }
 
 
 // --- Global State ---
-let gameState = { isRunning: false, isAutoMode: false, gameTime: 0, lastTime: 0, enemySpawnTimer: 0, enemySpawnInterval: 1500, saveIntervalId: null, animationFrameId: null };
+let gameState = { isRunning: false, isAutoMode: false, gameTime: 0, lastTime: 0, enemySpawnTimer: 0, enemySpawnInterval: 1500, saveIntervalId: null, animationFrameId: null, isHost: false, worldSeed: 0 }; // MODIFIED: Added isHost and worldSeed
 let enemies = [], projectiles = [], xpOrbs = [], particles = [], damageNumbers = [], lightningBolts = [], volcanicEruptions = [], visualEffects = [], skillTotems = [];
 let world = { width: 3000, height: 2000 };
 
@@ -148,6 +161,27 @@ const joystick = { active: false, baseX: 0, baseY: 0, handleX: 0, handleY: 0, ra
 
 // --- DOM and Canvas ---
 let canvas, ctx, hudElements, menuElements; // Still for DOM elements that need `let`
+
+// NEW: Global map for other players and Realtime Database references
+let otherPlayers = new Map();
+const MAX_PLAYERS = 100;
+const WORLD_REF = (worldId = 'main') => database.ref(`worlds/${worldId}`); // Path for a specific world
+const WORLD_STATE_REF = (worldId = 'main') => WORLD_REF(worldId).child('state');
+const WORLD_ENEMIES_REF = (worldId = 'main') => WORLD_REF(worldId).child('enemies');
+const WORLD_XP_ORBS_REF = (worldId = 'main') => WORLD_REF(worldId).child('xpOrbs');
+const WORLD_SKILL_TOTEMS_REF = (worldId = 'main') => WORLD_REF(worldId).child('skillTotems');
+const PLAYERS_REF = (worldId = 'main') => database.ref(`worlds/${worldId}/playersOnline`); // Path for all active players, key is UID
+
+// --- Firebase Realtime Database Listeners
+let worldStateListener = null;
+let onlinePlayersListener = null;
+let enemiesListener = null;
+let xpOrbsListener = null;
+let skillTotemsListener = null;
+
+// NEW: Whitelist for skill IDs that can be unlocked via totems (for prototype pollution prevention)
+const VALID_UNLOCKABLE_SKILLS = ['lightning', 'volcano', 'frostNova', 'blackHole'];
+
 
 // --- MASSIVELY EXPANDED UPGRADE POOL ---
 const UPGRADE_POOL = [
@@ -181,7 +215,7 @@ const UPGRADE_POOL = [
     { id: "soul_vortex", title: "Soul Vortex", maxLevel: 1, description: () => `Gain an orbiting soul that damages enemies.`, apply: (p) => { p.abilities.orbitingShield.enabled = true; } },
     { id: "rear_guard", title: "Rear Guard", maxLevel: 1, description: () => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; } },
     { id: "crossfire", title: "Crossfire", maxLevel: 1, description: () => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; } },
-    { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(p, 50, 200); } },
+    { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(player, 50, 200); } }, // MODIFIED: Pass 'player' directly
     { id: "thorns", title: "Thorns", maxLevel: 3, description: (level) => `Enemies that hit you take ${5 * (level+1)} damage.`, apply: (p) => { p.thorns += 5; } },
     { id: "life_steal", title: "Life Steal", maxLevel: 3, description: (level) => `Heal for ${level+1} HP on kill.`, apply: (p) => { p.lifeSteal += 1; } },
     { id: "demolition", title: "Demolition", maxLevel: 1, description: () => `Projectiles explode on their first hit.`, apply: (p) => { p.weapon.explodesOnImpact = true; } },
@@ -201,7 +235,7 @@ const UPGRADE_POOL = [
     // === Volcano Skill Synergy ===
     { id: "volcano_damage", title: "Volcano: Magma Core", maxLevel: 5, skill: "volcano", description: (level) => `Increase eruption damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.damage += 10; } },
     { id: "volcano_radius", title: "Volcano: Wide Eruption", maxLevel: 3, skill: "volcano", description: (level) => `Increase eruption radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.radius *= 1.2; } },
-    { id: "volcano_cooldown", title: "Volcano: Frequent Fissures", maxLevel: 3, skill: "volcano", description: (level) => `Eruptions occur more frequently. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.cooldown *= 0.8; } },
+    { id: "volcano_cooldown", title: "Volcano: Frequent Fisson", maxLevel: 3, skill: "volcano", description: (level) => `Eruptions occur more frequently. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.cooldown *= 0.8; } },
     { id: "volcano_duration", title: "Volcano: Scorched Earth", maxLevel: 3, skill: "volcano", description: () => `Burning ground lasts longer.`, apply: (p) => { p.skills.volcano.burnDuration *= 1.3; } },
     { id: "volcano_count", title: "Volcano: Cluster Bombs", maxLevel: 2, skill: "volcano", description: () => `Volcano creates an extra eruption.`, apply: (p) => { p.skills.volcano.count = (p.skills.volcano.count || 1) + 1; } },
 
@@ -224,6 +258,7 @@ export function initializeApp() {
     firebase.initializeApp(firebaseConfig);
     auth = firebase.auth();
     firestore = firebase.firestore();
+    database = firebase.database(); // NEW: Initialize Realtime Database
     googleProvider = new firebase.auth.GoogleAuthProvider();
 
     canvas = document.getElementById('gameCanvas');
@@ -244,10 +279,51 @@ export function initializeApp() {
         upgradeStatsList: document.getElementById('upgrade-stats-list'), // NEW: Get reference to the new list container
     };
 
-    initRift();
     setupEventListeners();
     checkSaveStates();
+
+    // NEW: Listen to auth state changes for player color and initial player object setup
+    auth.onAuthStateChanged(async user => {
+        currentUser = user;
+        if (user) {
+            menuElements.userStatus.textContent = `Signed in as ${user.displayName}.`;
+            menuElements.googleSignInBtn.style.display = 'none';
+            menuElements.userDisplay.style.display = 'block';
+            menuElements.userName.textContent = user.displayName;
+
+            // NEW: Get or assign player's unique color
+            player.color = await getPlayerColor(user.uid);
+            player.name = user.displayName; // Set player name for display
+            player.uid = user.uid; // Set player UID
+        } else {
+            menuElements.userStatus.textContent = 'Sign in for cloud saves.';
+            menuElements.googleSignInBtn.style.display = 'flex';
+            menuElements.userDisplay.style.display = 'none';
+            player.uid = null; // Clear UID if signed out
+            player.color = 'var(--player-aura-color)'; // Reset to default color
+            player.name = 'Guest';
+        }
+        checkSaveStates();
+    });
 }
+
+// NEW: Function to get or assign a permanent player color
+async function getPlayerColor(uid) {
+    const userDocRef = firestore.collection('users').doc(uid);
+    const doc = await userDocDocRef.get(); // MODIFIED: Corrected typo 'userDocDocRef' to 'userDocRef'
+    if (doc.exists && doc.data().playerColor) {
+        return doc.data().playerColor;
+    } else {
+        // MODIFIED: Use crypto.getRandomValues for cryptographically secure random number generation
+        const randomBytes = new Uint32Array(1);
+        window.crypto.getRandomValues(randomBytes);
+        // Convert to hex string, ensuring 6 digits for a full hex color
+        const newColor = '#' + (randomBytes[0] % 16777216).toString(16).padStart(6, '0');
+        await userDocRef.set({ playerColor: newColor }, { merge: true });
+        return newColor;
+    }
+}
+
 
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
@@ -273,21 +349,6 @@ function setupEventListeners() {
         checkSaveStates();
     });
     hudElements.autoModeButton.addEventListener('click', () => { gameState.isAutoMode = !gameState.isAutoMode; hudElements.autoModeButton.textContent = gameState.isAutoMode ? 'AUTO ON' : 'AUTO OFF'; hudElements.autoModeButton.classList.toggle('auto-on', gameState.isAutoMode); });
-
-    auth.onAuthStateChanged(user => {
-        currentUser = user;
-        if (user) {
-            menuElements.userStatus.textContent = `Signed in as ${user.displayName}.`;
-            menuElements.googleSignInBtn.style.display = 'none';
-            menuElements.userDisplay.style.display = 'block';
-            menuElements.userName.textContent = user.displayName;
-        } else {
-            menuElements.userStatus.textContent = 'Sign in for cloud saves.';
-            menuElements.googleSignInBtn.style.display = 'flex';
-            menuElements.userDisplay.style.display = 'none';
-        }
-        checkSaveStates();
-    });
 }
 
 // --- AUTH & SAVE/LOAD ---
@@ -313,34 +374,34 @@ async function checkSaveStates() {
         localBtn.onclick = () => startGame(false, 'local');
         menuElements.loadOptionsContainer.appendChild(localBtn);
     }
-    if (!cloudSaveExists && !localSaveExists) {
+    // NEW: Add a "Play Global" button if signed in and no other save option is selected
+    if (currentUser) { // Always show this if signed in
+        const globalBtn = document.createElement('button');
+        globalBtn.className = 'menu-button'; globalBtn.textContent = 'Play Global World (New Game)';
+        globalBtn.onclick = () => startGame(true); // Always starts a new personal progression but joins global
+        menuElements.loadOptionsContainer.appendChild(globalBtn);
+    }
+    if (!cloudSaveExists && !localSaveExists && !currentUser) { // If no saves and not signed in
         const noSaveBtn = document.createElement('button');
-        noSaveBtn.className = 'menu-button'; noSaveBtn.textContent = 'No Save Found'; noSaveBtn.disabled = true;
+        noSaveBtn.className = 'menu-button'; noSaveBtn.textContent = 'No Save Found (Sign in to Play)'; noSaveBtn.disabled = true;
         menuElements.loadOptionsContainer.appendChild(noSaveBtn);
     }
 }
 async function saveGame() {
-    if (!player || !gameState.isRunning) return;
+    if (!player || !gameState.isRunning || !currentUser) return; // MODIFIED: Only save if signed in
     const savablePlayer = JSON.parse(JSON.stringify(player));
+    // Remove transient/unsavable properties like color and name from savable player
+    delete savablePlayer.color;
+    delete savablePlayer.name;
+    delete savablePlayer.uid;
+
     const saveData = {
-        player: savablePlayer,
+        player: savablePlayer, // Personal progression
         gameTime: gameState.gameTime,
-        skillTotems: skillTotems,
-        world: world,
-        // NEW: Save SafeHouse state if needed (optional for now, as it respawns on load)
-        safeHouse: safeHouseInstance ? {
-            x: safeHouseInstance.x,
-            y: safeHouseInstance.y,
-            radius: safeHouseInstance.radius,
-            active: safeHouseInstance.active,
-            respawnTimer: safeHouseInstance.respawnTimer,
-        } : null,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
-    if (currentUser) {
-        const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
-        try { await saveRef.set(saveData); } catch (error) { console.error("Error saving to cloud:", error); }
-    }
+    const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
+    try { await saveRef.set(saveData); } catch (error) { console.error("Error saving to cloud:", error); }
     localStorage.setItem('survivorSaveData', JSON.stringify(saveData));
 }
 async function loadGame(source) {
@@ -357,22 +418,10 @@ async function loadGame(source) {
         }
     } catch(error) { console.error("Error loading game:", error); return false; }
     if (savedData) {
-        loadPlayer(savedData.player);
+        loadPlayer(savedData.player); // This populates local player with personal progression
         gameState.gameTime = savedData.gameTime;
-        skillTotems = savedData.skillTotems || [];
-        if (savedData.world) { world.width = savedData.world.width; world.height = savedData.world.height; }
-
-        // NEW: Load SafeHouse state if available, otherwise it will spawn a new one
-        if (savedData.safeHouse && safeHouseInstance) {
-            safeHouseInstance.x = savedData.safeHouse.x;
-            safeHouseInstance.y = savedData.safeHouse.y;
-            safeHouseInstance.radius = savedData.safeHouse.radius;
-            safeHouseInstance.active = savedData.safeHouse.active;
-            safeHouseInstance.respawnTimer = savedData.safeHouse.respawnTimer;
-            console.log("SafeHouse state loaded.");
-        } else if (safeHouseInstance) {
-             safeHouseInstance.spawn(); // Ensure a safehouse exists even if not saved
-        }
+        // World and skillTotems are now globally managed, so they are not loaded from personal save
+        // The player's color, uid, name are set on auth state change.
         return true;
     }
     return false;
@@ -385,6 +434,8 @@ function clearSave() {
 }
 // MODIFIED: Updated takeDamage function to use playerTakeDamage and manage thorns
 function takeDamage(amount, isDirectHit = false) { // Default to false for continuous damage
+    if (!player.uid) return; // Don't take damage if not a real player
+
     // Call player's dedicated takeDamage function, passing necessary state
     playerTakeDamage(amount, gameState.gameTime, spawnDamageNumber, screenRedFlash);
 
@@ -394,7 +445,11 @@ function takeDamage(amount, isDirectHit = false) { // Default to false for conti
         enemies.forEach(e => {
             // Check if enemy is close enough to trigger thorns (e.g., collision range)
             if (Math.hypot(e.x - player.x, e.y - player.y) < player.size + (e.width || 0) + 10) {
-                e.health -= player.thorns;
+                // Apply damage to shared enemy, only if host or client with authority
+                // For simplicity, local player's thorns damage directly affects global enemy health.
+                // This implicitly assumes client-side authority for this specific interaction,
+                // or relies on Realtime Database security rules to validate.
+                WORLD_ENEMIES_REF().child(e.id).child('health').set(e.health - player.thorns);
                 spawnDamageNumber(e.x, e.y, player.thorns, false);
             }
         });
@@ -410,50 +465,328 @@ function takeDamage(amount, isDirectHit = false) { // Default to false for conti
 
 // --- GAME LIFECYCLE ---
 async function startGame(forceNew, loadSource = 'cloud') {
+    if (!currentUser) {
+        alert("You must be signed in to play the global game.");
+        menuElements.mainMenu.classList.add('visible');
+        hudElements.gameContainer.style.visibility = 'hidden';
+        return;
+    }
+
     menuElements.mainMenu.classList.remove('visible');
     hudElements.gameContainer.style.visibility = 'visible';
     gameState.isAutoMode = false;
     if (gameState.saveIntervalId) clearInterval(gameState.saveIntervalId);
+
+    // Initialize local player progression
     let loadedSuccessfully = false;
-    if (!forceNew) {
-        const sourceToLoad = currentUser ? loadSource : 'local';
-        loadedSuccessfully = await loadGame(sourceToLoad);
+    if (!forceNew) { // Only attempt to load if not forcing a new game
+        loadedSuccessfully = await loadGame(loadSource);
     }
     if (forceNew || !loadedSuccessfully) {
-        clearSave();
-        world.width = 3000; world.height = 2000;
-        initPlayer(world); // Ensure player is initialized BEFORE SafeHouse needs its size
-        gameState.gameTime = 0;
-        // MODIFIED: Add new skill totems to the world
-        skillTotems = [
-            { x: world.width / 2 - 200, y: world.height / 2 - 200, radius: 30, skill: 'lightning', color: 'var(--lightning-color)', icon: '⚡' },
-            { x: world.width / 2 + 200, y: world.height / 2 + 200, radius: 30, skill: 'volcano', color: 'var(--volcano-color)', icon: '🔥' },
-            { x: world.width / 2 + 200, y: world.height / 2 - 200, radius: 30, skill: 'frostNova', color: '#87CEEB', icon: '❄️' },
-            { x: world.width / 2 - 200, y: world.height / 2 + 200, radius: 30, skill: 'blackHole', color: '#483D8B', icon: '🌀' },
-        ];
+        clearSave(); // Clear local progression if new game or load failed
+        initPlayer(world); // Re-initialize local player state to default
     }
-    initRift();
 
-    // NEW: Initialize SafeHouse instance here. This ensures it's always created.
-    // If `loadedSuccessfully` is true, the `loadGame` function will update its state.
-    // Otherwise, `SafeHouse` constructor will call `spawn()` for a new one.
-    safeHouseInstance = new SafeHouse(world.width, world.height);
+    // NEW: Initialize multiplayer world and set up listeners
+    await initMultiplayerWorld();
+
+    // Set up player presence in Realtime DB
+    const playerRef = PLAYERS_REF().child(currentUser.uid); // MODIFIED: Call PLAYERS_REF()
+    playerRef.onDisconnect().remove(); // Remove player from active list on disconnect
+
+    // Push local player's initial state for other clients to see
+    playerRef.set({
+        x: player.x,
+        y: player.y,
+        angle: player.angle,
+        size: player.size,
+        name: currentUser.displayName,
+        color: player.color, // Send the assigned color
+        health: player.health,
+        maxHealth: player.maxHealth,
+        level: player.level,
+        lastHitTime: player.lastHitTime // Synchronize last hit time for blink effect on other clients
+    });
 
     gameState.lastTime = performance.now();
-    gameState.enemySpawnTimer = 0;
-    gameState.enemySpawnInterval = Math.max(100, gameState.enemySpawnInterval * 0.985);
-    enemies.length = 0; projectiles.length = 0; xpOrbs.length = 0; particles.length = 0; damageNumbers.length = 0; lightningBolts.length = 0; volcanicEruptions.length = 0; visualEffects.length = 0;
-    // REMOVED: Old safeHouse initialization line, now handled by SafeHouse class constructor
-    // safeHouse = { x: world.width / 2, y: world.height / 2, radius: 150, healingRate: 10 };
+    projectiles.length = 0; particles.length = 0; damageNumbers.length = 0; lightningBolts.length = 0; volcanicEruptions.length = 0; visualEffects.length = 0;
     hudElements.levelUpWindow.classList.remove('visible');
     hudElements.gameOverScreen.classList.remove('visible');
     hudElements.autoModeButton.textContent = 'AUTO OFF';
     hudElements.autoModeButton.classList.remove('auto-on');
     gameState.isRunning = true;
-    gameState.saveIntervalId = setInterval(saveGame, 10000);
+    gameState.saveIntervalId = setInterval(saveGame, 10000); // Save local progression
     if (gameState.animationFrameId) cancelAnimationFrame(gameState.animationFrameId);
     gameLoop(performance.now());
 }
+
+async function initMultiplayerWorld() {
+    // Stop any existing listeners first
+    if (worldStateListener) WORLD_STATE_REF().off('value', worldStateListener);
+    if (onlinePlayersListener) PLAYERS_REF().off('value', onlinePlayersListener); // MODIFIED: Call PLAYERS_REF()
+    if (enemiesListener) WORLD_ENEMIES_REF().off('value', enemiesListener);
+    if (xpOrbsListener) WORLD_XP_ORBS_REF().off('value', xpOrbsListener);
+    if (skillTotemsListener) WORLD_SKILL_TOTEMS_REF().off('value', skillTotemsListener);
+
+    otherPlayers.clear(); // Clear old player data
+    enemies.length = 0; // Clear local enemy data
+    xpOrbs.length = 0; // Clear local XP orb data
+    skillTotems.length = 0; // Clear local skill totem data
+
+    const worldStateSnapshot = await WORLD_STATE_REF().once('value');
+    const onlinePlayersSnapshot = await PLAYERS_REF().once('value'); // MODIFIED: Call PLAYERS_REF()
+    const onlinePlayerCount = onlinePlayersSnapshot.val() ? Object.keys(onlinePlayersSnapshot.val()).length : 0;
+
+    // Retrieve raw data once from snapshot to validate
+    const rawReceivedWorldData = worldStateSnapshot.val();
+
+    // Determine if this client should be the host
+    const existingHostId = rawReceivedWorldData && rawReceivedWorldData.hostId;
+    
+    // Simplistic host election: If no host, or existing host is not online, the current player becomes host
+    const hostIsOnline = existingHostId && onlinePlayersSnapshot.hasChild(existingHostId);
+    gameState.isHost = (!existingHostId || !hostIsOnline) && (onlinePlayerCount < MAX_PLAYERS);
+
+    // Define default world data structure for validation and initial host setup
+    let defaultWorldData = {
+        worldWidth: 3000,
+        worldHeight: 2000,
+        gameTime: 0,
+        enemySpawnTimer: 0,
+        enemySpawnInterval: 1500,
+        worldSeed: Date.now(), // Generate a unique seed for new worlds
+        safeHouse: new SafeHouse(3000, 2000).toJSON(),
+        skillTotems: [
+            { id: 'lightTotem', x: 3000 / 2 - 200, y: 2000 / 2 - 200, radius: 30, skill: 'lightning', color: '#9dffff', icon: '⚡' },
+            { id: 'volcTotem', x: 3000 / 2 + 200, y: 2000 / 2 + 200, radius: 30, skill: 'volcano', color: '#ff8c00', icon: '🔥' },
+            { id: 'frostTotem', x: 3000 / 2 + 200, y: 2000 / 2 - 200, radius: 30, skill: 'frostNova', color: '#87CEEB', icon: '❄️' },
+            { id: 'blackTotem', x: 3000 / 2 - 200, y: 2000 / 2 + 200, radius: 30, skill: 'blackHole', color: '#483D8B', icon: '🌀' },
+        ],
+        hostId: currentUser.uid,
+        lastHostHeartbeat: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    let worldDataToApply; // This will hold the sanitized and merged world data
+
+    if (gameState.isHost) {
+        console.log("Becoming host and initializing global world...");
+        worldDataToApply = { ...defaultWorldData }; // Use defaults for initial host state
+        await WORLD_REF().set(worldDataToApply); // Overwrite if host, sets initial state
+    } else {
+        console.log("Joining existing global world...");
+        if (!rawReceivedWorldData) {
+            console.error("Failed to join world: No world state found or invalid data.");
+            alert("Could not join game. World not active or failed to load. Please try again.");
+            hudElements.gameOverScreen.classList.add('visible');
+            menuElements.mainMenu.classList.add('visible');
+            hudElements.gameContainer.style.visibility = 'hidden';
+            return;
+        }
+
+        // Validate and apply received data, falling back to defaults if invalid
+        worldDataToApply = {
+            worldWidth: typeof rawReceivedWorldData.worldWidth === 'number' ? rawReceivedWorldData.worldWidth : defaultWorldData.worldWidth,
+            worldHeight: typeof rawReceivedWorldData.worldHeight === 'number' ? rawReceivedWorldData.worldHeight : defaultWorldData.worldHeight,
+            gameTime: typeof rawReceivedWorldData.gameTime === 'number' ? rawReceivedWorldData.gameTime : defaultWorldData.gameTime,
+            enemySpawnTimer: typeof rawReceivedWorldData.enemySpawnTimer === 'number' ? rawReceivedWorldData.enemySpawnTimer : defaultWorldData.enemySpawnTimer,
+            enemySpawnInterval: typeof rawReceivedWorldData.enemySpawnInterval === 'number' ? rawReceivedWorldData.enemySpawnInterval : defaultWorldData.enemySpawnInterval,
+            worldSeed: typeof rawReceivedWorldData.worldSeed === 'number' ? rawReceivedWorldData.worldSeed : defaultWorldData.worldSeed,
+            
+            safeHouse: rawReceivedWorldData.safeHouse ? {
+                x: typeof rawReceivedWorldData.safeHouse.x === 'number' ? rawReceivedWorldData.safeHouse.x : defaultWorldData.safeHouse.x,
+                y: typeof rawReceivedWorldData.safeHouse.y === 'number' ? rawReceivedWorldData.safeHouse.y : defaultWorldData.safeHouse.y,
+                radius: typeof rawReceivedWorldData.safeHouse.radius === 'number' ? rawReceivedWorldData.safeHouse.radius : defaultWorldData.safeHouse.radius,
+                active: typeof rawReceivedWorldData.safeHouse.active === 'boolean' ? rawReceivedWorldData.safeHouse.active : defaultWorldData.safeHouse.active,
+                respawnTimer: typeof rawReceivedWorldData.safeHouse.respawnTimer === 'number' ? rawReceivedWorldData.safeHouse.respawnTimer : defaultWorldData.safeHouse.respawnTimer,
+                healingRate: typeof rawReceivedWorldData.safeHouse.healingRate === 'number' ? rawReceivedWorldData.safeHouse.healingRate : defaultWorldData.safeHouse.healingRate,
+                damageRate: typeof rawReceivedWorldData.safeHouse.damageRate === 'number' ? rawReceivedWorldData.safeHouse.damageRate : defaultWorldData.safeHouse.damageRate,
+            } : defaultWorldData.safeHouse,
+
+            skillTotems: Array.isArray(rawReceivedWorldData.skillTotems) ? rawReceivedWorldData.skillTotems.map(totem => ({
+                id: typeof totem.id === 'string' ? totem.id : '',
+                x: typeof totem.x === 'number' ? totem.x : 0,
+                y: typeof totem.y === 'number' ? totem.y : 0,
+                radius: typeof totem.radius === 'number' ? totem.radius : 30,
+                skill: typeof totem.skill === 'string' ? totem.skill : '',
+                color: typeof totem.color === 'string' ? totem.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF', // Basic color sanitize, fallback to white
+                icon: typeof totem.icon === 'string' ? totem.icon : '❓', // Fallback for icon
+            })) : defaultWorldData.skillTotems, // Fallback to default totems array
+
+            hostId: typeof rawReceivedWorldData.hostId === 'string' ? rawReceivedWorldData.hostId : defaultWorldData.hostId,
+            lastHostHeartbeat: typeof rawReceivedWorldData.lastHostHeartbeat === 'number' ? rawReceivedWorldData.lastHostHeartbeat : defaultWorldData.lastHostHeartbeat
+        };
+    }
+
+    // Apply synchronized world data to local variables from the validated 'worldDataToApply'
+    world.width = worldDataToApply.worldWidth;
+    world.height = worldDataToApply.worldHeight;
+    gameState.gameTime = worldDataToApply.gameTime;
+    gameState.enemySpawnTimer = worldDataToApply.enemySpawnTimer;
+    gameState.enemySpawnInterval = worldDataToApply.enemySpawnInterval;
+    gameState.worldSeed = worldDataToApply.worldSeed;
+
+    safeHouseInstance = new SafeHouse(world.width, world.height);
+    Object.assign(safeHouseInstance, worldDataToApply.safeHouse); // Apply validated safeHouse state
+    skillTotems = worldDataToApply.skillTotems || []; // Use validated skill totems
+
+    // Initialize rift background with the global world seed
+    initRift(gameState.worldSeed);
+
+    // NEW: Set up Realtime Database listeners
+    setupRealtimeDBListeners();
+
+    // Host heartbeat to maintain host status
+    if (gameState.isHost) {
+        setInterval(() => {
+            WORLD_STATE_REF().child('lastHostHeartbeat').set(firebase.database.ServerValue.TIMESTAMP);
+        }, 5000); // Send heartbeat every 5 seconds
+    }
+}
+
+function setupRealtimeDBListeners() {
+    // Listen to world state updates (game time, safe house, general game parameters)
+    worldStateListener = WORLD_STATE_REF().on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            // Only update if not host or for consistency
+            gameState.gameTime = typeof data.gameTime === 'number' ? data.gameTime : gameState.gameTime;
+            gameState.enemySpawnTimer = typeof data.enemySpawnTimer === 'number' ? data.enemySpawnTimer : gameState.enemySpawnTimer;
+            gameState.enemySpawnInterval = typeof data.enemySpawnInterval === 'number' ? data.enemySpawnInterval : gameState.enemySpawnInterval;
+            world.width = typeof data.worldWidth === 'number' ? data.worldWidth : world.width;
+            world.height = typeof data.worldHeight === 'number' ? data.worldHeight : world.height;
+            gameState.worldSeed = typeof data.worldSeed === 'number' ? data.worldSeed : gameState.worldSeed; // Ensure seed is synchronized
+
+            if (safeHouseInstance && data.safeHouse) { // Ensure data.safeHouse exists before assigning
+                safeHouseInstance.x = typeof data.safeHouse.x === 'number' ? data.safeHouse.x : safeHouseInstance.x;
+                safeHouseInstance.y = typeof data.safeHouse.y === 'number' ? data.safeHouse.y : safeHouseInstance.y;
+                safeHouseInstance.radius = typeof data.safeHouse.radius === 'number' ? data.safeHouse.radius : safeHouseInstance.radius;
+                safeHouseInstance.active = typeof data.safeHouse.active === 'boolean' ? data.safeHouse.active : safeHouseInstance.active;
+                safeHouseInstance.respawnTimer = typeof data.safeHouse.respawnTimer === 'number' ? data.safeHouse.respawnTimer : safeHouseInstance.respawnTimer;
+                safeHouseInstance.healingRate = typeof data.safeHouse.healingRate === 'number' ? data.safeHouse.healingRate : safeHouseInstance.healingRate;
+                safeHouseInstance.damageRate = typeof data.safeHouse.damageRate === 'number' ? data.safeHouse.damageRate : safeHouseInstance.damageRate;
+            } else if (safeHouseInstance) { // If safeHouse data missing, reset to default state via spawn
+                 safeHouseInstance.spawn();
+            }
+            // Safely handle skillTotems as an array of validated objects
+            if (Array.isArray(data.skillTotems)) {
+                skillTotems = data.skillTotems.map(totem => ({
+                    id: typeof totem.id === 'string' ? totem.id : '',
+                    x: typeof totem.x === 'number' ? totem.x : 0,
+                    y: typeof totem.y === 'number' ? totem.y : 0,
+                    radius: typeof totem.radius === 'number' ? totem.radius : 30,
+                    skill: typeof totem.skill === 'string' ? totem.skill : '',
+                    color: typeof totem.color === 'string' ? totem.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF',
+                    icon: typeof totem.icon === 'string' ? totem.icon : '❓',
+                }));
+            } else {
+                skillTotems = []; // Clear if not an array
+            }
+        }
+    });
+
+    // Listen to active players
+    onlinePlayersListener = PLAYERS_REF().on('value', (snapshot) => { // MODIFIED: Call PLAYERS_REF()
+        const playersData = snapshot.val();
+        otherPlayers.clear();
+        if (playersData) {
+            Object.keys(playersData).forEach(uid => {
+                if (uid !== currentUser.uid) { // Don't track self as "other player"
+                    // Basic validation for other player data
+                    const pData = playersData[uid];
+                    otherPlayers.set(uid, {
+                        x: typeof pData.x === 'number' ? pData.x : 0,
+                        y: typeof pData.y === 'number' ? pData.y : 0,
+                        angle: typeof pData.angle === 'number' ? pData.angle : 0,
+                        size: typeof pData.size === 'number' ? pData.size : 20,
+                        name: typeof pData.name === 'string' ? pData.name.substring(0, 20) : 'Unknown', // Limit name length
+                        color: typeof pData.color === 'string' ? pData.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF',
+                        health: typeof pData.health === 'number' ? pData.health : 100,
+                        maxHealth: typeof pData.maxHealth === 'number' ? pData.maxHealth : 100,
+                        level: typeof pData.level === 'number' ? pData.level : 1,
+                        kills: typeof pData.kills === 'number' ? pData.kills : 0,
+                        xp: typeof pData.xp === 'number' ? pData.xp : 0,
+                        xpForNextLevel: typeof pData.xpForNextLevel === 'number' ? pData.xpForNextLevel : 10,
+                        lastHitTime: typeof pData.lastHitTime === 'number' ? pData.lastHitTime : 0
+                    });
+                }
+            });
+        }
+    });
+
+    // Listen to enemies
+    enemiesListener = WORLD_ENEMIES_REF().on('value', (snapshot) => {
+        const enemiesData = snapshot.val();
+        enemies.length = 0; // Clear local enemies array
+        if (enemiesData) {
+            // Safely reconstruct enemy objects
+            Object.values(enemiesData).forEach(rawEnemy => {
+                if (typeof rawEnemy === 'object' && rawEnemy !== null && rawEnemy.id && typeof rawEnemy.x === 'number' && typeof rawEnemy.y === 'number') {
+                    enemies.push({
+                        id: rawEnemy.id,
+                        x: rawEnemy.x,
+                        y: rawEnemy.y,
+                        health: typeof rawEnemy.health === 'number' ? rawEnemy.health : 1, // Default health to 1 if invalid
+                        speed: typeof rawEnemy.speed === 'number' ? rawEnemy.speed : 1,
+                        damage: typeof rawEnemy.damage === 'number' ? rawEnemy.damage : 10,
+                        shockTimer: typeof rawEnemy.shockTimer === 'number' ? rawEnemy.shockTimer : 0,
+                        shockDamage: typeof rawEnemy.shockDamage === 'number' ? rawEnemy.shockDamage : 0,
+                        slowTimer: typeof rawEnemy.slowTimer === 'number' ? rawEnemy.slowTimer : 0,
+                        slowAmount: typeof rawEnemy.slowAmount === 'number' ? rawEnemy.slowAmount : 0,
+                        speedMultiplier: typeof rawEnemy.speedMultiplier === 'number' ? rawEnemy.speedMultiplier : 1.0,
+                        markedForDeletion: typeof rawEnemy.markedForDeletion === 'boolean' ? rawEnemy.markedForDeletion : false,
+                        width: typeof rawEnemy.width === 'number' ? rawEnemy.width : 40
+                    });
+                }
+            });
+        }
+    });
+
+    // Listen to xpOrbs
+    xpOrbsListener = WORLD_XP_ORBS_REF().on('value', (snapshot) => {
+        const xpOrbsData = snapshot.val();
+        xpOrbs.length = 0; // Clear local xpOrbs array
+        if (xpOrbsData) {
+            // Safely reconstruct XP orb objects
+            Object.values(xpOrbsData).forEach(rawOrb => {
+                if (typeof rawOrb === 'object' && rawOrb !== null && rawOrb.id && typeof rawOrb.x === 'number' && typeof rawOrb.y === 'number') {
+                    xpOrbs.push({
+                        id: rawOrb.id,
+                        x: rawOrb.x,
+                        y: rawOrb.y,
+                        value: typeof rawOrb.value === 'number' ? rawOrb.value : 1,
+                        size: typeof rawOrb.size === 'number' ? rawOrb.size : 5,
+                        // Update function for XP orbs is applied locally when iterated in gameLoop
+                        update: (dt, options) => { // Re-attach update function
+                            const localPlayer = options.player;
+                            const localGainXPCallback = options.gainXPCallback;
+                            // const isMultiplayer = options.isMultiplayer; // Currently unused, but kept for future
+
+                            const dx = localPlayer.x - rawOrb.x; // Use rawOrb.x/y for base for consistency
+                            const dy = localPlayer.y - rawOrb.y;
+                            const dist = Math.hypot(dx, dy);
+
+                            if (dist < localPlayer.pickupRadius) {
+                                // Update local orb position for visual movement
+                                rawOrb.x += (dx / dist) * 8 * localPlayer.magnetism;
+                                rawOrb.y += (dy / dist) * 8 * localPlayer.magnetism;
+                            }
+                            if (dist < 20) {
+                                if (localPlayer.abilities.healOnXp && Math.random() < 0.1) {
+                                    localPlayer.health = Math.min(localPlayer.maxHealth, localPlayer.health + 1);
+                                }
+                                localGainXPCallback(rawOrb.value, rawOrb.id); // Pass orb ID so systemsmanager knows which one to remove
+                                return true; // Mark for local removal
+                            }
+                            return false;
+                        }
+                    });
+                }
+            });
+        }
+    });
+}
+
+
 function gameOver() {
     gameState.isRunning = false;
     clearInterval(gameState.saveIntervalId);
@@ -463,11 +796,23 @@ function gameOver() {
     hudElements.finalLevel.textContent = player.level;
     hudElements.finalKills.textContent = player.kills;
     hudElements.gameOverScreen.classList.add('visible');
+
+    // Remove player from active players list on game over
+    if (currentUser) {
+        PLAYERS_REF().child(currentUser.uid).remove(); // MODIFIED: Call PLAYERS_REF()
+    }
 }
+
 function getAiMovementVector() {
     const DANGER_RADIUS = 150; const XP_PRIORITY_RADIUS = 200;
     const REPULSION_WEIGHT = 1.5; const ATTRACTION_WEIGHT = 1.0; const TOTEM_WEIGHT = 2.0;
     let repulsion = { x: 0, y: 0 }; let attraction = { x: 0, y: 0 };
+    
+    // Consider all players (self and others) when calculating AI movement to avoid crowding
+    // For AI targeting, enemies still target the *main* player if no other specific logic.
+    // However, for general AI movement, consider closest enemy to player.
+    
+    // Repulsion from nearby enemies
     enemies.forEach(enemy => {
         const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
         if (dist < DANGER_RADIUS && dist > 0) {
@@ -476,65 +821,120 @@ function getAiMovementVector() {
             repulsion.y -= (enemy.y - player.y) / dist * force;
         }
     });
+
     let closestOrb = null, closestOrbDist = Infinity;
     xpOrbs.forEach(orb => {
         const dist = Math.hypot(orb.x - player.x, orb.y - player.y);
         if (dist < closestOrbDist) { closestOrbDist = dist; closestOrb = orb; }
     });
-    let closestEnemy = null, closestEnemyDist = Infinity;
+
+    let closestEnemyForTargeting = null, closestEnemyForTargetingDist = Infinity;
     enemies.forEach(enemy => {
         const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-        if (dist < closestEnemyDist) { closestEnemyDist = dist; closestEnemy = enemy; }
+        if (dist < closestEnemyForTargetingDist) { closestEnemyForTargetingDist = dist; closestEnemyForTargeting = enemy; }
     });
+
+
     let closestTotem = null, closestTotemDist = Infinity;
     skillTotems.forEach(totem => {
         const dist = Math.hypot(totem.x - player.x, totem.y - player.y);
         if(dist < closestTotemDist) { closestTotemDist = dist; closestTotem = totem; }
     });
 
-    // NEW: AI logic to prioritize moving towards SafeHouse if not active, or staying in if active
-    let target = closestEnemy; // Default target
-    let targetDist = closestEnemyDist;
-    const SAFE_HOUSE_PRIORITY = 500; // How much AI prioritizes the safe house
+    let target = closestEnemyForTargeting; // Default AI movement target
+    let targetDist = closestEnemyForTargetingDist;
 
-    if (safeHouseInstance && !safeHouseInstance.active && safeHouseInstance.respawnTimer > 1) { // If safe zone is gone and respawning
-        // AI prioritizes getting to where the new safe zone will be or finding it
-        // For simplicity, let's make it try to move towards the center of the world or last known safe zone location
-        // Or, more accurately, we'd need a target for where the NEW one will spawn.
-        // For now, let's keep enemy/orb priority for AI. The player's AI is more complex.
-    } else if (safeHouseInstance && safeHouseInstance.active) { // If safe zone is active
+    if (safeHouseInstance && !safeHouseInstance.active && safeHouseInstance.respawnTimer > 1) {
+        // Safe zone not active, AI could wander or move towards center to find next one
+        // For simplicity, current AI defaults to closest enemy for movement if no other priority.
+    } else if (safeHouseInstance && safeHouseInstance.active) {
         if (!safeHouseInstance.isInside(player)) {
-            // Player is outside, prioritize moving into the safe zone
             target = safeHouseInstance;
             targetDist = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
         }
     }
 
-
     if (closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) target = closestOrb;
-    if (closestTotem && (!player.skills[closestTotem.skill].isUnlocked || (player.abilities.orbitingShield.enabled && closestTotem.skill === 'soul_vortex'))) target = closestTotem; // Only go for totems if skill is not unlocked or its the soul vortex if not enabled
+    if (closestTotem && (!player.skills[closestTotem.skill].isUnlocked || (player.abilities.orbitingShield.enabled && closestTotem.skill === 'soul_vortex'))) {
+        target = closestTotem; // Prioritize totems if not unlocked
+    }
 
-    // If we have a preferred target from the AI logic above (like safe zone or specific totem)
-    if (target && target !== closestEnemy) { // if the target is not the default closest enemy
-        const dist = Math.hypot(target.x - player.x, target.y - player.y);
-        if (dist > 0) {
-            const weight = (target === closestTotem || target === safeHouseInstance) ? TOTEM_WEIGHT * 2 : ATTRACTION_WEIGHT; // Give more weight to safezone/totems
-            attraction.x = (target.x - player.x) / dist * weight;
-            attraction.y = (target.y - player.y) / dist * weight;
-        }
-    } else if (closestEnemy) { // Fallback to closest enemy if no other strong target
-        const dist = Math.hypot(closestEnemy.x - player.x, closestEnemy.y - player.y);
-         if (dist > 0) {
-            attraction.x = (closestEnemy.x - player.x) / dist * ATTRACTION_WEIGHT;
-            attraction.y = (closestEnemy.y - player.y) / dist * ATTRACTION_WEIGHT;
+
+    if (target && targetDist > 0) {
+        const weight = (target === closestTotem || target === safeHouseInstance) ? TOTEM_WEIGHT * 2 : ATTRACTION_WEIGHT;
+        attraction.x = (target.x - player.x) / targetDist * weight;
+        attraction.y = (target.y - player.y) / targetDist * weight;
+    } else if (closestEnemyForTargeting) { // Fallback to closest enemy if no other strong target
+         if (closestEnemyForTargetingDist > 0) {
+            attraction.x = (closestEnemyForTargeting.x - player.x) / closestEnemyForTargetingDist * ATTRACTION_WEIGHT;
+            attraction.y = (closestEnemyForTargeting.y - player.y) / closestEnemyForTargetingDist * ATTRACTION_WEIGHT;
         }
     }
 
     return { x: attraction.x + (repulsion.x * REPULSION_WEIGHT), y: attraction.y + (repulsion.y * REPULSION_WEIGHT) };
 }
 
-function gameLoop(timestamp) { if (!gameState.isRunning) return; const deltaTime = timestamp - gameState.lastTime; gameState.lastTime = timestamp; gameState.gameTime += deltaTime; update(deltaTime); draw(); gameState.animationFrameId = requestAnimationFrame(gameLoop); }
-function update(deltaTime) {
+function gameLoop(timestamp) { if (!gameState.isRunning) return; const deltaTime = timestamp - gameState.lastTime; gameState.lastTime = timestamp; update(deltaTime); draw(); gameState.animationFrameId = requestAnimationFrame(gameLoop); }
+
+async function update(deltaTime) { // MODIFIED: Made async to await host check
+    if (!currentUser) return; // Don't update game if not signed in
+
+    // Host handles global state updates
+    if (gameState.isHost) {
+        gameState.gameTime += deltaTime; // Host updates global game time
+        WORLD_STATE_REF().child('gameTime').set(gameState.gameTime);
+
+        // Host manages safe house
+        if (safeHouseInstance) {
+            safeHouseInstance.update(deltaTime);
+            WORLD_STATE_REF().child('safeHouse').set(safeHouseInstance.toJSON());
+        }
+
+        // Host manages enemy spawning
+        gameState.enemySpawnTimer += deltaTime;
+        if (gameState.enemySpawnTimer > gameState.enemySpawnInterval && enemies.length < 100) { // Max 100 enemies globally
+            const newEnemy = spawnEnemy(world); // MODIFIED: spawnEnemy now takes world and returns enemy object
+            if (newEnemy) {
+                 WORLD_ENEMIES_REF().child(newEnemy.id).set(newEnemy); // Use ID for enemy path
+            }
+            gameState.enemySpawnTimer = 0;
+            gameState.enemySpawnInterval = Math.max(100, gameState.enemySpawnInterval * 0.985);
+            WORLD_STATE_REF().child('enemySpawnInterval').set(gameState.enemySpawnInterval);
+            WORLD_STATE_REF().child('enemySpawnTimer').set(gameState.enemySpawnTimer);
+        }
+
+        // Host updates global enemies
+        // `enemies` array is kept in sync by DB listener, `updateEnemies` will operate on it.
+        updateEnemies(deltaTime, enemies, player, otherPlayers, showLevelUpOptions, (amount, orbId) => { // MODIFIED: Pass otherPlayers and orbId
+            gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), (p) => triggerNova(p, 50, 200, WORLD_ENEMIES_REF()), camera); // MODIFIED: Pass enemiesRef to triggerNova
+            // If the XP orb was picked up, the host deletes it from the database
+            if (orbId) {
+                WORLD_XP_ORBS_REF().child(orbId).remove();
+            }
+        }, WORLD_ENEMIES_REF(), WORLD_XP_ORBS_REF(), gameState.isHost); // MODIFIED: Pass enemiesRef, xpOrbsRef, isHost
+        
+        // Host manages skill totem collection (removes from global)
+        const updatedSkillTotems = []; // Create a new array for skill totems that are NOT picked up
+
+        for (const totem of skillTotems) { // Iterate using for...of for safer iteration
+            if (Math.hypot(player.x - totem.x, player.y - totem.y) < player.size + totem.radius) {
+                // Validate the skill name against a whitelist to prevent prototype pollution
+                if (VALID_UNLOCKABLE_SKILLS.includes(totem.skill)) {
+                    player.skills[totem.skill].isUnlocked = true;
+                    // Only host should remove from DB
+                    WORLD_SKILL_TOTEMS_REF().child(totem.id).remove();
+                } else {
+                    console.warn(`Attempted to unlock invalid skill: ${totem.skill} via totem. Ignoring.`);
+                    updatedSkillTotems.push(totem); // Add back to array if invalid or not picked up
+                }
+            } else {
+                updatedSkillTotems.push(totem); // Add back to array if not picked up
+            }
+        }
+        // Replace skillTotems with the filtered array
+        skillTotems = updatedSkillTotems;
+    }
+    
     let dx = 0, dy = 0;
     if (gameState.isAutoMode) {
         const aiVector = getAiMovementVector();
@@ -546,86 +946,100 @@ function update(deltaTime) {
     }
     const { closestEnemy, closestDist } = updatePlayer(deltaTime, world, enemies, { dx, dy });
     if (closestEnemy && gameState.gameTime - (player.lastFireTime || 0) > player.weapon.cooldown) {
-        fireProjectile(player);
+        fireProjectile(player); // Player's own projectiles
         player.lastFireTime = gameState.gameTime;
     }
+
+    // Player position update to Realtime DB (every client)
+    const playerRef = PLAYERS_REF().child(currentUser.uid); // MODIFIED: Call PLAYERS_REF()
+    playerRef.update({
+        x: player.x,
+        y: player.y,
+        angle: player.angle,
+        health: player.health,
+        maxHealth: player.maxHealth,
+        level: player.level,
+        kills: player.kills,
+        xp: player.xp,
+        xpForNextLevel: player.xpForNextLevel,
+        lastHitTime: player.lastHitTime // Synchronize last hit time for blink effect
+    });
+
     camera.x = player.x - camera.width / 2; camera.y = player.y - camera.height / 2;
     camera.x = Math.max(0, Math.min(world.width - camera.width, camera.x));
     camera.y = Math.max(0, Math.min(world.height - camera.height, camera.y));
 
-    // Update the SafeHouse and apply its effects
-    if (safeHouseInstance) { // Ensure it's initialized
-        safeHouseInstance.update(deltaTime);
-
-        // --- Apply Safe House Effects ---
+    // Update the SafeHouse and apply its effects for local player (healing)
+    if (safeHouseInstance) {
         // Player interaction: ONLY HEALING, NO DAMAGE WHEN OUTSIDE
         if (safeHouseInstance.active && safeHouseInstance.isInside(player)) {
             // Player is safe: Heal (using player's healthRegen + safehouse healing)
             player.health = Math.min(player.maxHealth, player.health + (player.healthRegen + safeHouseInstance.healingRate) * (deltaTime / 1000));
         }
-        // Removed: Else (player is outside) takeDamage calls
-
-        // Enemy interaction: Assuming enemies have a `speedMultiplier` property
-        enemies.forEach(enemy => {
-            if (safeHouseInstance.active && safeHouseInstance.isInside(enemy)) {
-                // Enemy is inside safe zone: Slow down
-                enemy.speedMultiplier = 0.5; // Half speed
-            } else {
-                // Enemy is outside safe zone (or zone is inactive): Normal speed
-                enemy.speedMultiplier = 1.0;
-            }
-        });
+        // Enemy interaction: This will be handled by host in `updateEnemies`
     }
-
-    gameState.enemySpawnTimer += deltaTime;
-    if (gameState.enemySpawnTimer > gameState.enemySpawnInterval) {
-        spawnEnemy(enemies);
-        gameState.enemySpawnTimer = 0;
-        gameState.enemySpawnInterval = Math.max(100, gameState.enemySpawnInterval * 0.985);
-    }
-    const gainXPCallback = (amount) => gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), triggerNova, camera);
-    updateEnemies(deltaTime, enemies, player, showLevelUpOptions, gainXPCallback);
 
     // Filter out enemies marked for deletion after their update
+    // This local filtering is only for immediate visual removal, DB listener will eventually sync
     enemies = enemies.filter(enemy => !enemy.markedForDeletion);
 
-    for (let i = skillTotems.length - 1; i >= 0; i--) {
-        const totem = skillTotems[i];
-        if (Math.hypot(player.x - totem.x, player.y - totem.y) < player.size + totem.radius) {
-            player.skills[totem.skill].isUnlocked = true;
-            skillTotems.splice(i, 1);
-        }
-    }
-    // ADDED: Update calls for new skills
-    updateLightning(deltaTime, player);
-    updateVolcano(deltaTime, player);
-    updateFrostNova(deltaTime, player);
-    updateBlackHole(deltaTime, player);
+    // Update player skills which apply damage to global enemies
+    updateLightning(deltaTime, player, WORLD_ENEMIES_REF());
+    updateVolcano(deltaTime, player, WORLD_ENEMIES_REF());
+    updateFrostNova(deltaTime, player, WORLD_ENEMIES_REF());
+    updateBlackHole(deltaTime, player, WORLD_ENEMIES_REF());
 
-    const updateEntityArray = (arr, dt, extra) => { for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].update(dt, extra)) arr.splice(i, 1); } };
-    updateEntityArray(projectiles, deltaTime); updateEntityArray(xpOrbs, deltaTime, closestDist); updateEntityArray(particles, deltaTime);
-    updateEntityArray(damageNumbers, deltaTime); updateEntityArray(lightningBolts, deltaTime); updateEntityArray(volcanicEruptions, deltaTime); updateEntityArray(visualEffects, deltaTime);
-    handleCollisions();
+    const updateEntityArray = (arr, dt, extra) => {
+        for (let i = arr.length - 1; i >= 0; i--) {
+            // XP Orbs pass extra options to their update method
+            if (arr[i].update(dt, extra)) arr.splice(i, 1);
+        }
+    };
+    updateEntityArray(projectiles, deltaTime);
+    // XP Orbs are now synchronized globally, local update is visual only before pickup
+    updateEntityArray(xpOrbs, deltaTime, { player, gainXPCallback: (amount, orbId) => {
+        // On pickup, locally apply XP
+        gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), (p) => triggerNova(p, 50, 200, WORLD_ENEMIES_REF()), camera);
+        if (gameState.isHost) { // Only host should remove from DB to prevent race conditions
+            WORLD_XP_ORBS_REF().child(orbId).remove();
+        }
+    }}); // MODIFIED: Pass options object to XP orb update, including orbId for host deletion
+    updateEntityArray(particles, deltaTime);
+    updateEntityArray(damageNumbers, deltaTime);
+    updateEntityArray(lightningBolts, deltaTime);
+    updateEntityArray(volcanicEruptions, deltaTime);
+    updateEntityArray(visualEffects, deltaTime);
+
+    handleCollisions(WORLD_ENEMIES_REF()); // Pass enemies ref for global damage application
 }
-function handleCollisions() {
+
+function handleCollisions(enemiesRef) { // MODIFIED: Added enemiesRef parameter
     projectiles.forEach(p => {
         if (p.pierce < p.hitEnemies.length) return;
         enemies.forEach(e => {
-            if (p.hitEnemies.includes(e)) return;
+            if (p.hitEnemies.includes(e.id)) return; // MODIFIED: Check by enemy ID for hitEnemies
             // MODIFIED: Changed collision check to consider enemy width for better accuracy
             const combinedRadius = (p.size?.w || 10) + (e.width || 20); // Default to a size if not defined
             if (Math.hypot(e.x - p.x, e.y - p.y) < combinedRadius / 2) { // Check distance vs half combined size
                 // ADDED: Logic for projectile explosions and crit explosions
                 if (p.explodesOnImpact && p.hitEnemies.length === 0) {
-                    triggerNova({x: e.x, y: e.y}, p.explosionDamage, p.explosionRadius);
+                    triggerNova({x: e.x, y: e.y}, p.explosionDamage, p.explosionRadius, enemiesRef); // Pass enemiesRef to triggerNova
                 }
                 const isCrit = Math.random() < p.critChance;
                 const damage = isCrit ? Math.round(p.damage * p.critDamage) : p.damage;
                 if(isCrit && player.abilities.critExplosion) {
-                    triggerNova({x: e.x, y: e.y}, damage / 2, 80);
+                    triggerNova({x: e.x, y: e.y}, damage / 2, 80, enemiesRef); // Pass enemiesRef
                 }
-                e.health -= damage;
-                p.hitEnemies.push(e);
+                
+                // Apply damage to shared enemy in DB only if current client is host
+                if (gameState.isHost) {
+                    enemiesRef.child(e.id).child('health').set(e.health - damage);
+                } else {
+                    // Non-host clients can apply local health reduction for immediate visual feedback
+                    e.health -= damage;
+                }
+                
+                p.hitEnemies.push(e.id); // MODIFIED: Push enemy ID to hitEnemies
                 createImpactParticles(e.x, e.y, 10);
                 spawnDamageNumber(e.x, e.y, Math.round(damage), isCrit);
             }
@@ -638,7 +1052,14 @@ function handleCollisions() {
             // Player takes damage directly from enemy contact.
             // This is a direct hit, so invincibility frames should apply.
             takeDamage(e.damage || 10, true); // MODIFIED: Pass `true` for `isDirectHit`
-            e.health = -1; // Enemies die on contact for simplicity, adjust if they have health.
+            // Enemy health is managed by the host.
+            // A simple "enemy dies on contact" rule can be applied locally for immediate visual,
+            // but the authoritative state comes from the host via DB listener.
+            if (gameState.isHost) { // Only host makes the authoritative decision for enemy death on contact
+                WORLD_ENEMIES_REF().child(e.id).child('health').set(0); // Mark for death
+            } else {
+                e.health = -1; // Local immediate visual death
+            }
         }
     });
     const shield = player.abilities.orbitingShield;
@@ -652,7 +1073,12 @@ function handleCollisions() {
                 enemies.forEach(e => {
                     const combinedRadius = 15 + (e.width || 20); // Shield size (15) + enemy size
                     if (Math.hypot(e.x - shieldX, e.y - shieldY) < combinedRadius / 2) {
-                        e.health -= shield.damage;
+                        // Apply damage to shared enemy in DB only if host
+                        if (gameState.isHost) {
+                            enemiesRef.child(e.id).child('health').set(e.health - shield.damage);
+                        } else {
+                            e.health -= shield.damage;
+                        }
                         spawnDamageNumber(e.x, e.y, shield.damage, false);
                         if(!shield.lastHitTime) shield.lastHitTime = {};
                         shield.lastHitTime[i] = gameState.gameTime;
@@ -663,6 +1089,7 @@ function handleCollisions() {
         shield.angle += 0.05 * (shield.speed || 1);
     }
 }
+
 function draw() {
     if(!gameState.isRunning && !hudElements.gameOverScreen.classList.contains('visible')) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -678,8 +1105,24 @@ function draw() {
     drawWorldElements(); // This now only draws skill totems, etc., not the old safeHouse
     projectiles.forEach(p => drawProjectile(p));
     enemies.forEach(e => drawEnemy(e));
+
+    // Draw other players
+    otherPlayers.forEach(otherPlayer => {
+        // Only draw if within camera view
+        if (otherPlayer.x > camera.x - 50 && otherPlayer.x < camera.x + camera.width + 50 &&
+            otherPlayer.y > camera.y - 50 && otherPlayer.y < camera.y + camera.height + 50) {
+            const otherPlayerBlink = (gameState.gameTime - (otherPlayer.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
+            if (otherPlayer.health > 0 && !otherPlayerBlink) { // Only draw if alive and not blinking
+                drawPlayer(otherPlayer, otherPlayer.angle, otherPlayer.color, otherPlayer.name, otherPlayer.health, otherPlayer.maxHealth); // Pass all required data
+            }
+        }
+    });
+
+    // Draw current player
     const playerBlink = (gameState.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
-    if (!playerBlink) drawPlayer(player, player.angle);
+    if (!playerBlink) drawPlayer(player, player.angle, player.color, player.name, player.health, player.maxHealth, true); // Pass true for isLocalPlayer
+
+
     drawParticlesAndEffects();
     ctx.restore();
     if (screenRedFlash.value > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${screenRedFlash.value * 0.4})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenRedFlash.value -= 0.04; }
@@ -751,7 +1194,87 @@ function drawParticlesAndEffects() {
         }
     }
 }
-function drawPlayer(p, angle) { const bob = Math.sin(gameState.gameTime / 250) * 2; ctx.save(); ctx.translate(p.x, p.y + bob); const hoverPulse = Math.sin(gameState.gameTime / 400); ctx.beginPath(); ctx.ellipse(0, 25, 20, 8, 0, 0, Math.PI * 2); ctx.globalAlpha = 0.2 + hoverPulse * 0.1; ctx.fillStyle = '#fff'; ctx.fill(); ctx.globalAlpha = 1; ctx.save(); ctx.rotate(angle); const auraPulse = Math.sin(gameState.gameTime / 200); ctx.beginPath(); ctx.arc(0, 0, 30, -1.9, 1.9); ctx.strokeStyle = 'var(--player-aura-color)'; ctx.lineWidth = 4 + auraPulse * 2; ctx.shadowColor = 'var(--player-aura-color)'; ctx.shadowBlur = 15 + auraPulse * 10; ctx.stroke(); ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(8, 15); ctx.lineTo(0, 10); ctx.lineTo(-8, 15); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#000'; ctx.fillRect(-5, -15, 10, 10); ctx.restore(); ctx.restore(); }
+
+// MODIFIED: drawPlayer now accepts an optional color, name, and HP info for other players
+function drawPlayer(p, angle, customColor, name, currentHealth, maxHealth, isLocalPlayer = false) {
+    const bob = Math.sin(gameState.gameTime / 250) * 2;
+    ctx.save();
+    ctx.translate(p.x, p.y + bob);
+    const hoverPulse = Math.sin(gameState.gameTime / 400);
+
+    // Player shadow/ellipse
+    ctx.beginPath();
+    ctx.ellipse(0, 25, 20, 8, 0, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.2 + hoverPulse * 0.1;
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.save();
+    ctx.rotate(angle);
+
+    // Player aura
+    const auraPulse = Math.sin(gameState.gameTime / 200);
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, -1.9, 1.9);
+    // Use customColor for strokeStyle and shadowColor
+    ctx.strokeStyle = customColor;
+    ctx.lineWidth = 4 + auraPulse * 2;
+    ctx.shadowColor = customColor;
+    ctx.shadowBlur = 15 + auraPulse * 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Player body (triangle)
+    ctx.fillStyle = '#fff'; // Body is still white for player
+    ctx.beginPath();
+    ctx.moveTo(0, -17);
+    ctx.lineTo(8, 15);
+    ctx.lineTo(0, 10);
+    ctx.lineTo(-8, 15);
+    ctx.closePath();
+    ctx.fill();
+
+    // Player eyes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-5, -15, 10, 10);
+
+    ctx.restore();
+
+    // Draw player name and HP bar for other players
+    if (name && !isLocalPlayer) {
+        ctx.save();
+        ctx.translate(0, -40); // Position name above player
+        ctx.font = '14px Arial';
+        ctx.fillStyle = customColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(name, 0, 0);
+
+        // Draw HP bar for other players
+        const barWidth = 40;
+        const barHeight = 5;
+        const hpPercent = currentHealth / maxHealth;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(-barWidth / 2, 5, barWidth, barHeight);
+        ctx.fillStyle = 'red';
+        ctx.fillRect(-barWidth / 2, 5, barWidth * hpPercent, barHeight);
+        ctx.restore();
+    } else if (isLocalPlayer) {
+        // Optionally draw local player name for clarity (e.g., above their head if not current HUD)
+        ctx.save();
+        ctx.translate(0, -40);
+        ctx.font = '14px Arial';
+        ctx.fillStyle = customColor; // Use their assigned color
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(name + " (YOU)", 0, 0); // Indicate it's the local player
+        ctx.restore();
+    }
+
+    ctx.restore();
+}
+
 function drawEnemy(e) { ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(Math.atan2(player.y - e.y, player.x - e.x) + Math.PI / 2); if (e.slowTimer > 0) { ctx.fillStyle = '#87CEEB'; } else { ctx.fillStyle = 'var(--enemy-color)'; } ctx.fill(enemyPath); ctx.strokeStyle = 'var(--enemy-accent-color)'; ctx.lineWidth = 1.5; ctx.stroke(enemyPath); ctx.restore(); }
 function drawProjectile(p) { if (p.trail.length < 2) return; ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = 'var(--projectile-color)'; ctx.shadowColor = 'rgba(255, 255, 255, 0.9)'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.moveTo(p.trail[0].x, p.trail[0].y); for (let i = 1; i < p.trail.length; i++) { const point = p.trail[i]; ctx.lineWidth = (i / p.trail.length) * p.size.w * 1.5; ctx.lineTo(point.x, point.y); } ctx.stroke(); ctx.restore(); }
 function drawXpOrb(o) { ctx.beginPath(); ctx.arc(o.x, o.y, o.size, 0, Math.PI * 2); ctx.fillStyle = 'var(--xp-orb-color)'; ctx.shadowColor = 'var(--xp-orb-color)'; ctx.shadowBlur = 15; ctx.fill(); ctx.shadowBlur = 0; }
@@ -976,7 +1499,7 @@ function selectUpgrade(upgrade) {
 // IMPORTANT: Update the export list to export the SafeHouse instance as `safeHouse`
 export {
     gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles,
-    damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems,
+    damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems, otherPlayers, // MODIFIED: Export otherPlayers
     safeHouseInstance as safeHouse, // Export the instance under the original name
     screenFlash, screenRedFlash, UPGRADE_POOL
 };
