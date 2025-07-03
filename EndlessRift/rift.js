@@ -1,4 +1,4 @@
-import { world, visualEffects, gameState } from './systemsmanager.js'; // MODIFIED: Removed safeHouse and skillTotems, added gameState
+import { world, visualEffects, gameState } from './systemsmanager.js';
 
 let backgroundCanvas, bgCtx;
 
@@ -29,12 +29,12 @@ function seededRandom() {
  * The worldSeed is used to ensure consistent background generation across all clients.
  * @param {number} [worldSeed] - Optional. The seed for generating the world background.
  */
-function initRift(worldSeed) { // MODIFIED: Accept worldSeed
+function initRift(worldSeed) {
     backgroundCanvas = document.createElement('canvas');
     bgCtx = backgroundCanvas.getContext('2d');
     // Set the initial seed based on the global world seed
     // If worldSeed is not provided (e.g., initial app load), use a temporary one.
-    setSeed(worldSeed || Date.now()); 
+    setSeed(worldSeed || Date.now());
     drawStaticBackground();
 }
 
@@ -87,12 +87,12 @@ function drawCrack(c, x, y, segments) {
     c.beginPath();
     c.moveTo(x, y);
     c.strokeStyle = 'var(--cracks-color)';
-    c.lineWidth = seededRandom() * 3 + 1; // MODIFIED: Use seededRandom
+    c.lineWidth = seededRandom() * 3 + 1;
     c.shadowColor = 'var(--cracks-color)';
     c.shadowBlur = 10;
     for (let i = 0; i < segments; i++) {
-        x += (seededRandom() - 0.5) * 40; // MODIFIED: Use seededRandom
-        y += (seededRandom() - 0.5) * 40; // MODIFIED: Use seededRandom
+        x += (seededRandom() - 0.5) * 40;
+        y += (seededRandom() - 0.5) * 40;
         c.lineTo(x, y);
     }
     c.stroke();
@@ -133,4 +133,5 @@ function getBackgroundCanvas() {
     return backgroundCanvas;
 }
 
-export { initRift, expandWorld, drawStaticBackground, getBackgroundCanvas };
+// MODIFIED: Export setSeed and seededRandom
+export { initRift, expandWorld, drawStaticBackground, getBackgroundCanvas, setSeed, seededRandom };
