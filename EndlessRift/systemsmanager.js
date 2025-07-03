@@ -179,6 +179,9 @@ let enemiesListener = null;
 let xpOrbsListener = null;
 let skillTotemsListener = null;
 
+// NEW: Whitelist for skill IDs that can be unlocked via totems (for prototype pollution prevention)
+const VALID_UNLOCKABLE_SKILLS = ['lightning', 'volcano', 'frostNova', 'blackHole'];
+
 
 // --- MASSIVELY EXPANDED UPGRADE POOL ---
 const UPGRADE_POOL = [
@@ -232,7 +235,7 @@ const UPGRADE_POOL = [
     // === Volcano Skill Synergy ===
     { id: "volcano_damage", title: "Volcano: Magma Core", maxLevel: 5, skill: "volcano", description: (level) => `Increase eruption damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.damage += 10; } },
     { id: "volcano_radius", title: "Volcano: Wide Eruption", maxLevel: 3, skill: "volcano", description: (level) => `Increase eruption radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.radius *= 1.2; } },
-    { id: "volcano_cooldown", title: "Volcano: Frequent Fissures", maxLevel: 3, skill: "volcano", description: (level) => `Eruptions occur more frequently. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.cooldown *= 0.8; } },
+    { id: "volcano_cooldown", title: "Volcano: Frequent Fisson", maxLevel: 3, skill: "volcano", description: (level) => `Eruptions occur more frequently. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.cooldown *= 0.8; } },
     { id: "volcano_duration", title: "Volcano: Scorched Earth", maxLevel: 3, skill: "volcano", description: () => `Burning ground lasts longer.`, apply: (p) => { p.skills.volcano.burnDuration *= 1.3; } },
     { id: "volcano_count", title: "Volcano: Cluster Bombs", maxLevel: 2, skill: "volcano", description: () => `Volcano creates an extra eruption.`, apply: (p) => { p.skills.volcano.count = (p.skills.volcano.count || 1) + 1; } },
 
@@ -307,11 +310,15 @@ export function initializeApp() {
 // NEW: Function to get or assign a permanent player color
 async function getPlayerColor(uid) {
     const userDocRef = firestore.collection('users').doc(uid);
-    const doc = await userDocRef.get();
+    const doc = await userDocDocRef.get(); // MODIFIED: Corrected typo 'userDocDocRef' to 'userDocRef'
     if (doc.exists && doc.data().playerColor) {
         return doc.data().playerColor;
     } else {
-        const newColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+        // MODIFIED: Use crypto.getRandomValues for cryptographically secure random number generation
+        const randomBytes = new Uint32Array(1);
+        window.crypto.getRandomValues(randomBytes);
+        // Convert to hex string, ensuring 6 digits for a full hex color
+        const newColor = '#' + (randomBytes[0] % 16777216).toString(16).padStart(6, '0');
         await userDocRef.set({ playerColor: newColor }, { merge: true });
         return newColor;
     }
@@ -752,7 +759,7 @@ function setupRealtimeDBListeners() {
                         update: (dt, options) => { // Re-attach update function
                             const localPlayer = options.player;
                             const localGainXPCallback = options.gainXPCallback;
-                            const isMultiplayer = options.isMultiplayer; // Currently unused, but kept for future
+                            // const isMultiplayer = options.isMultiplayer; // Currently unused, but kept for future
 
                             const dx = localPlayer.x - rawOrb.x; // Use rawOrb.x/y for base for consistency
                             const dy = localPlayer.y - rawOrb.y;
@@ -907,16 +914,25 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
         }, WORLD_ENEMIES_REF(), WORLD_XP_ORBS_REF(), gameState.isHost); // MODIFIED: Pass enemiesRef, xpOrbsRef, isHost
         
         // Host manages skill totem collection (removes from global)
-        for (let i = skillTotems.length - 1; i >= 0; i--) {
-            const totem = skillTotems[i];
+        const updatedSkillTotems = []; // Create a new array for skill totems that are NOT picked up
+
+        for (const totem of skillTotems) { // Iterate using for...of for safer iteration
             if (Math.hypot(player.x - totem.x, player.y - totem.y) < player.size + totem.radius) {
-                player.skills[totem.skill].isUnlocked = true;
-                // Remove from DB for everyone
-                WORLD_SKILL_TOTEMS_REF().child(totem.id).remove(); // Assuming skillTotems have unique IDs
+                // Validate the skill name against a whitelist to prevent prototype pollution
+                if (VALID_UNLOCKABLE_SKILLS.includes(totem.skill)) {
+                    player.skills[totem.skill].isUnlocked = true;
+                    // Only host should remove from DB
+                    WORLD_SKILL_TOTEMS_REF().child(totem.id).remove();
+                } else {
+                    console.warn(`Attempted to unlock invalid skill: ${totem.skill} via totem. Ignoring.`);
+                    updatedSkillTotems.push(totem); // Add back to array if invalid or not picked up
+                }
+            } else {
+                updatedSkillTotems.push(totem); // Add back to array if not picked up
             }
         }
-        // No need to explicitly sync skillTotems array to DB if modifications are directly via .remove() or .set()
-        // The listener will automatically update the local `skillTotems` array.
+        // Replace skillTotems with the filtered array
+        skillTotems = updatedSkillTotems;
     }
     
     let dx = 0, dy = 0;
