@@ -1,4 +1,4 @@
-import { world, visualEffects, gameState } from './systemsmanager.js'; // Corrected import based on global PVE requirements
+import { world, visualEffects, gameState } from './systemsmanager.js'; // MODIFIED: Corrected import based on global PVE requirements
 
 let backgroundCanvas, bgCtx;
 
@@ -29,7 +29,7 @@ function seededRandom() {
  * The worldSeed is used to ensure consistent background generation across all clients.
  * @param {number} [worldSeed] - Optional. The seed for generating the world background.
  */
-function initRift(worldSeed) {
+function initRift(worldSeed) { // MODIFIED: Accept worldSeed
     backgroundCanvas = document.createElement('canvas');
     bgCtx = backgroundCanvas.getContext('2d');
     // Set the initial seed based on the global world seed
