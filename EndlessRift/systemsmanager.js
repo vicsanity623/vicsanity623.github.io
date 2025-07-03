@@ -1,4 +1,5 @@
 import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js';
+import crypto from 'crypto';
 import { enemyPath, spawnEnemy, updateEnemies } from './enemies.js';
 import { fireProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole, createXpOrb } from './attacks_skills.js';
 import { initRift, expandWorld, getBackgroundCanvas } from './rift.js';
@@ -311,7 +312,8 @@ async function getPlayerColor(uid) {
     if (doc.exists && doc.data().playerColor) {
         return doc.data().playerColor;
     } else {
-        const newColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+        const randomBytes = crypto.randomBytes(3); // Generate 3 random bytes
+        const newColor = '#' + randomBytes.toString('hex'); // Convert bytes to hex color
         await userDocRef.set({ playerColor: newColor }, { merge: true });
         return newColor;
     }
