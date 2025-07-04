@@ -1,80 +1,69 @@
 import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js';
 import { enemyPath, spawnEnemy, updateEnemies } from './enemies.js';
 import { fireProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole, createXpOrb } from './attacks_skills.js';
-import { initRift, expandWorld, getBackgroundCanvas, seededRandom } from './rift.js'; // MODIFIED: Imported seededRandom
+import { initRift, expandWorld, getBackgroundCanvas, seededRandom } from './rift.js';
 
 // --- Firebase Variables (Declared but not initialized) ---
-let auth, firestore, database, googleProvider, currentUser; // MODIFIED: Added 'database'
+let auth, firestore, database, googleProvider, currentUser;
 
 // --- Firebase Config ---
 const firebaseConfig = {
     apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
     authDomain: "tap-guardian-rpg.firebaseapp.com",
     projectId: "tap-guardian-rpg",
-    databaseURL: "https://tap-guardian-rpg-default-rtdb.firebaseio.com", // ADDED THIS LINE
-    storageBucket: "tap-guardian-rpg.firebaseapp.com", // Corrected storageBucket typo
+    databaseURL: "https://tap-guardian-rpg-default-rtdb.firebaseio.com",
+    storageBucket: "tap-guardian-rg.firebaseapp.com",
     messagingSenderId: "50272459426",
     appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
     measurementId: "G-XJRE7YNPZR"
 };
 
 // NEW: Define the SafeHouse class
-// This class will manage the shrinking, relocating safe zone.
 class SafeHouse {
     constructor(gameWorldWidth, gameWorldHeight) {
         this.gameWorldWidth = gameWorldWidth;
         this.gameWorldHeight = gameWorldHeight;
-        this.initialRadius = 250; // Starting radius of the safe zone
-        this.minRadius = 80;    // Minimum radius before it disappears
-        this.shrinkRate = 2;   // Pixels per second the radius shrinks
-        this.respawnTime = 5;   // Seconds until a new zone spawns after old one disappears
+        this.initialRadius = 250;
+        this.minRadius = 80;
+        this.shrinkRate = 2;
+        this.respawnTime = 5;
 
         this.x = 0;
         this.y = 0;
         this.radius = this.initialRadius;
-        this.active = false;      // Is the safe zone currently visible/active?
-        this.respawnTimer = 0;    // Countdown for respawning a new zone
-        this.healingRate = 10;    // Player healing rate per second when inside
-        this.damageRate = 10;     // Player damage per second when outside (base amount)
+        this.active = false;
+        this.respawnTimer = 0;
+        this.healingRate = 10;
+        this.damageRate = 10;
 
-        // Visual properties
-        this.color = 'rgba(0, 255, 0, 0.2)'; // Green, semi-transparent
-        this.borderColor = 'rgba(0, 255, 0, 0.8)'; // Green border
+        this.color = 'rgba(0, 255, 0, 0.2)';
+        this.borderColor = 'rgba(0, 255, 0, 0.8)';
 
-        this.spawn(); // Initial spawn when the game starts
+        this.spawn();
     }
 
-    // Spawns the safe zone at a new random location
     spawn() {
-        // Ensure the zone spawns fully within the game world bounds
-        this.radius = this.initialRadius; // Reset radius
-        // Calculate max x/y to ensure the circle doesn't go off-screen
-        this.x = seededRandom() * (this.gameWorldWidth - this.initialRadius * 2) + this.initialRadius; // MODIFIED: Use seededRandom
-        this.y = seededRandom() * (this.gameWorldHeight - this.initialRadius * 2) + this.initialRadius; // MODIFIED: Use seededRandom
+        this.radius = this.initialRadius;
+        this.x = seededRandom() * (this.gameWorldWidth - this.initialRadius * 2) + this.initialRadius;
+        this.y = seededRandom() * (this.gameWorldHeight - this.initialRadius * 2) + this.initialRadius;
         this.active = true;
-        this.respawnTimer = 0; // Reset timer
+        this.respawnTimer = 0;
         console.log(`Safe House spawned at (${this.x.toFixed(0)}, ${this.y.toFixed(0)}) with radius ${this.radius.toFixed(0)}`);
     }
 
     update(deltaTime) {
-        // Convert deltaTime from milliseconds to seconds
         const dtSeconds = deltaTime / 1000;
-
         if (this.active) {
-            // Shrink the safe zone
             this.radius -= this.shrinkRate * dtSeconds;
-
-            // Check if safe zone has shrunk too much
             if (this.radius <= this.minRadius) {
                 this.active = false;
-                this.respawnTimer = this.respawnTime; // Start countdown for respawn
+                this.respawnTimer = this.respawnTime;
                 console.log("Safe House disappeared! Respawning in " + this.respawnTime + " seconds.");
             }
         } else {
-            // Safe zone is not active, countdown to respawn
             this.respawnTimer -= dtSeconds;
             if (this.respawnTimer <= 0) {
-                this.spawn(); // Time to spawn a new one!
+                this.spawn();
             }
         }
     }
@@ -83,16 +72,14 @@ class SafeHouse {
         if (this.active) {
             context.save();
             context.beginPath();
-            // Adjust for camera offset so it draws at correct world position
             context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
             context.fillStyle = this.color;
             context.fill();
             context.strokeStyle = this.borderColor;
-            context.lineWidth = 3; // Thicker border
+            context.lineWidth = 3;
             context.stroke();
             context.restore();
 
-            // Optional: Draw a "SAFE ZONE" text above the circle, also adjusted for camera
             context.save();
             context.textAlign = 'center';
             context.textBaseline = 'middle';
@@ -102,13 +89,11 @@ class SafeHouse {
             context.restore();
 
         } else {
-            // Optional: Display a message when safe zone is not active (on screen, not world coordinates)
             context.save();
             context.textAlign = 'center';
             context.textBaseline = 'middle';
             context.font = '30px Arial';
             context.fillStyle = 'red';
-            // Position relative to canvas center (using camera to get screen center)
             context.fillText('FIND NEW SAFE ZONE!', camera.x + camera.width / 2, camera.y + camera.height / 2 - 50);
             context.font = '20px Arial';
             context.fillText(`Respawning in: ${this.respawnTimer.toFixed(1)}s`, camera.x + camera.width / 2, camera.y + camera.height / 2);
@@ -116,20 +101,15 @@ class SafeHouse {
         }
     }
 
-    // Helper to check if a given object (player/enemy) is inside the safe zone
     isInside(object) {
-        if (!this.active) return false; // Can't be inside if not active
-        // Calculate distance from the center of the safe zone to the object's center
+        if (!this.active) return false;
         const distanceX = object.x - this.x;
         const distanceY = object.y - this.y;
         const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
-        // Add a small buffer if object has its own radius/width
-        // Assuming player has `size` and enemies have `width`
         const objectSize = object.size || object.width || 0;
         return distance < (this.radius - objectSize / 2);
     }
 
-    // NEW: toJSON method for Realtime Database synchronization
     toJSON() {
         return {
             x: this.x,
@@ -145,108 +125,83 @@ class SafeHouse {
 
 
 // --- Global State ---
-let gameState = { isRunning: false, isAutoMode: false, gameTime: 0, lastTime: 0, enemySpawnTimer: 0, enemySpawnInterval: 1500, saveIntervalId: null, animationFrameId: null, isHost: false, worldSeed: 0 }; // MODIFIED: Added isHost and worldSeed
+let gameState = { isRunning: false, isAutoMode: false, gameTime: 0, lastTime: 0, enemySpawnTimer: 0, enemySpawnInterval: 1500, saveIntervalId: null, animationFrameId: null, isHost: false, worldSeed: 0 };
 let enemies = [], projectiles = [], xpOrbs = [], particles = [], damageNumbers = [], lightningBolts = [], volcanicEruptions = [], visualEffects = [], skillTotems = [];
 let world = { width: 3000, height: 2000 };
 
-// MODIFIED: Renamed from `safeHouse` to `safeHouseInstance` to hold the class instance
 let safeHouseInstance;
 
 let camera = { x: 0, y: 0, width: 0, height: 0, zoom: 1 };
 let screenFlash = { value: 0 };
 let screenRedFlash = { value: 0 };
 
-// NEW: Moved 'keys' and 'joystick' declarations here, with other global state
 const keys = { w: false, a: false, s: false, d: false };
 const joystick = { active: false, baseX: 0, baseY: 0, handleX: 0, handleY: 0, radius: 60, handleRadius: 25 };
 
-// --- DOM and Canvas ---
-let canvas, ctx, hudElements, menuElements; // Still for DOM elements that need `let`
+let canvas, ctx, hudElements, menuElements;
 
-// NEW: Global map for other players and Realtime Database references
 let otherPlayers = new Map();
 const MAX_PLAYERS = 100;
-const WORLD_REF = (worldId = 'main') => database.ref(`worlds/${worldId}`); // Path for a specific world
+const WORLD_REF = (worldId = 'main') => database.ref(`worlds/${worldId}`);
 const WORLD_STATE_REF = (worldId = 'main') => WORLD_REF(worldId).child('state');
 const WORLD_ENEMIES_REF = (worldId = 'main') => WORLD_REF(worldId).child('enemies');
 const WORLD_XP_ORBS_REF = (worldId = 'main') => WORLD_REF(worldId).child('xpOrbs');
 const WORLD_SKILL_TOTEMS_REF = (worldId = 'main') => WORLD_REF(worldId).child('skillTotems');
-const PLAYERS_REF = (worldId = 'main') => database.ref(`worlds/${worldId}/playersOnline`); // Path for all active players, key is UID
+const PLAYERS_REF = (worldId = 'main') => database.ref(`worlds/${worldId}/playersOnline`);
 
-// --- Firebase Realtime Database Listeners
+// --- Firebase Realtime Database Listeners ---
 let worldStateListener = null;
 let onlinePlayersListener = null;
 let enemiesListener = null;
 let xpOrbsListener = null;
 let skillTotemsListener = null;
 
-// NEW: Whitelist for skill IDs that can be unlocked via totems (for prototype pollution prevention)
 const VALID_UNLOCKABLE_SKILLS = ['lightning', 'volcano', 'frostNova', 'blackHole'];
 
-
-// --- MASSIVELY EXPANDED UPGRADE POOL ---
+// --- UPGRADE POOL (unchanged, truncated for brevity) ---
 const UPGRADE_POOL = [
-    // === Core Offensive Upgrades ===
     { id: "might", title: "Might", maxLevel: 5, description: (level) => `Increase projectile damage by 5. (Lvl ${level + 1})`, apply: (p) => { p.weapon.damage += 5; } },
     { id: "haste", title: "Haste", maxLevel: 5, description: (level) => `Attack 15% faster. (Lvl ${level + 1})`, apply: (p) => { p.weapon.cooldown *= 0.85; } },
     { id: "multishot", title: "Multi-Shot", maxLevel: 4, description: (level) => `Fire ${level + 2} total projectiles.`, apply: (p) => { p.weapon.count += 1; } },
     { id: "impact", title: "Greater Impact", maxLevel: 3, description: (level) => `Increase projectile size by 25%. (Lvl ${level + 1})`, apply: (p) => { p.weapon.size.h *= 1.25; } },
     { id: "pierce", title: "Piercing Shots", maxLevel: 3, description: (level) => `Projectiles pierce ${level + 1} more enemies.`, apply: (p) => { p.weapon.pierce += 1; } },
     { id: "velocity", title: "Velocity", maxLevel: 5, description: (level) => `Projectiles travel 20% faster. (Lvl ${level+1})`, apply: (p) => { p.weapon.speed *= 1.20; } },
-
-    // === Core Defensive Upgrades ===
     { id: "vitality", title: "Vitality", description: (level) => `Increase Max HP by 25. (Lvl ${level + 1})`, apply: (p) => { p.maxHealth += 25; p.health += 25; } },
     { id: "recovery", title: "Recovery", maxLevel: 3, description: (level) => `Heal ${0.5 * (level + 1)} HP/sec. (Lvl ${level + 1})`, apply: (p) => { p.healthRegen += 0.5; } },
-    { id: "agility", title: "Agility", maxLevel: 3, description: (level) => `Increase movement speed by 10%. (Lvl ${level + 1})`, apply: (p) => { p.speed *= 1.10; } },
-    { id: "armor", title: "Armor", maxLevel: 5, description: (level) => `Reduce incoming damage by 1. (Lvl ${level+1})`, apply: (p) => { p.armor += 1; } },
+    { id: "agility", title: "Agility", maxLevel: 3, description: (level) => `Increase movement speed by 10%. (Lvl ${level + 1})`, apply: (p) => { p.speed *= 1.10; } }
+    ,{ id: "armor", title: "Armor", maxLevel: 5, description: (level) => `Reduce incoming damage by 1. (Lvl ${level+1})`, apply: (p) => { p.armor += 1; } },
     { id: "dodge", title: "Evasion", maxLevel: 4, description: (level) => `+5% chance to dodge attacks. (Lvl ${level+1})`, apply: (p) => { p.dodgeChance += 0.05; } },
-
-    // === Core Utility Upgrades ===
     { id: "wisdom", title: "Wisdom", maxLevel: 3, description: (level) => `Gain ${20 * (level + 1)}% more XP. (Lvl ${level + 1})`, apply: (p) => { p.xpGainModifier += 0.20; } },
     { id: "greed", title: "Greed", maxLevel: 3, description: (level) => `Increase XP pickup radius by 50%. (Lvl ${level + 1})`, apply: (p) => { p.pickupRadius *= 1.50; } },
     { id: "magnetism", title: "Magnetism", maxLevel: 4, description: (level) => `XP orbs are pulled towards you faster. (Lvl ${level+1})`, apply: (p) => { p.magnetism *= 1.5; } },
     { id: "rejuvenation", title: "Rejuvenation", maxLevel: 1, description: () => `Picking up an XP orb has a 10% chance to heal 1 HP.`, apply: (p) => { p.abilities.healOnXp = true; } },
-
-    // === Critical Hit Synergy ===
     { id: "lethality", title: "Lethality", maxLevel: 5, description: (level) => `+10% chance to deal double damage. (Lvl ${level + 1})`, apply: (p) => { p.weapon.critChance += 0.1; } },
     { id: "overwhelm", title: "Overwhelm", maxLevel: 5, description: (level) => `Critical hits do +50% more damage. (Lvl ${level+1})`, apply: (p) => { p.weapon.critDamage += 0.5; } },
     { id: "crit_explosion", title: "Critical Mass", maxLevel: 1, description: () => `Critical hits cause a small explosion.`, apply: (p) => { p.abilities.critExplosion = true; } },
-
-    // === Ability Upgrades ===
     { id: "soul_vortex", title: "Soul Vortex", maxLevel: 1, description: () => `Gain an orbiting soul that damages enemies.`, apply: (p) => { p.abilities.orbitingShield.enabled = true; } },
     { id: "rear_guard", title: "Rear Guard", maxLevel: 1, description: () => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; } },
     { id: "crossfire", title: "Crossfire", maxLevel: 1, description: () => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; } },
-    { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(player, 50, 200); } }, // MODIFIED: Pass 'player' directly
+    { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(player, 50, 200); } },
     { id: "thorns", title: "Thorns", maxLevel: 3, description: (level) => `Enemies that hit you take ${5 * (level+1)} damage.`, apply: (p) => { p.thorns += 5; } },
     { id: "life_steal", title: "Life Steal", maxLevel: 3, description: (level) => `Heal for ${level+1} HP on kill.`, apply: (p) => { p.lifeSteal += 1; } },
     { id: "demolition", title: "Demolition", maxLevel: 1, description: () => `Projectiles explode on their first hit.`, apply: (p) => { p.weapon.explodesOnImpact = true; } },
-
-    // === Soul Vortex Synergy ===
     { id: "vortex_damage", title: "Vortex: Sharpen", maxLevel: 5, skill: "soul_vortex", description: (level) => `Soul Vortex deals +5 damage. (Lvl ${level + 1})`, apply: (p) => { p.abilities.orbitingShield.damage += 5; } },
     { id: "vortex_speed", title: "Vortex: Accelerate", maxLevel: 3, skill: "soul_vortex", description: (level) => `Soul Vortex orbits faster. (Lvl ${level+1})`, apply: (p) => { p.abilities.orbitingShield.speed = (p.abilities.orbitingShield.speed || 1) * 1.25; } },
     { id: "vortex_twin", title: "Vortex: Twin Souls", maxLevel: 1, skill: "soul_vortex", description: () => `Gain a second orbiting soul.`, apply: (p) => { p.abilities.orbitingShield.count = 2; } },
-
-    // === Lightning Skill Synergy ===
     { id: "lightning_damage", title: "Lightning: High Voltage", maxLevel: 5, skill: "lightning", description: (level) => `Increase lightning damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.damage += 5; } },
     { id: "lightning_chains", title: "Lightning: Chain Lightning", maxLevel: 4, skill: "lightning", description: (level) => `Lightning chains to ${level + 2} enemies.`, apply: (p) => { p.skills.lightning.chains += 1; } },
     { id: "lightning_cooldown", title: "Lightning: Storm Caller", maxLevel: 3, skill: "lightning", description: () => `Lightning strikes more frequently.`, apply: (p) => { p.skills.lightning.cooldown *= 0.8; } },
     { id: "lightning_shock", title: "Lightning: Static Field", maxLevel: 3, skill: "lightning", description: (level) => `Lightning shocks enemies, dealing damage over time. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.shockDuration += 1000; } },
     { id: "lightning_fork", title: "Lightning: Fork", maxLevel: 2, skill: "lightning", description: () => `Each lightning strike has a chance to fork.`, apply: (p) => { p.skills.lightning.forkChance = (p.skills.lightning.forkChance || 0) + 0.15; } },
-
-    // === Volcano Skill Synergy ===
     { id: "volcano_damage", title: "Volcano: Magma Core", maxLevel: 5, skill: "volcano", description: (level) => `Increase eruption damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.damage += 10; } },
     { id: "volcano_radius", title: "Volcano: Wide Eruption", maxLevel: 3, skill: "volcano", description: (level) => `Increase eruption radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.radius *= 1.2; } },
     { id: "volcano_cooldown", title: "Volcano: Frequent Fissures", maxLevel: 3, skill: "volcano", description: (level) => `Eruptions occur more frequently. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.cooldown *= 0.8; } },
     { id: "volcano_duration", title: "Volcano: Scorched Earth", maxLevel: 3, skill: "volcano", description: () => `Burning ground lasts longer.`, apply: (p) => { p.skills.volcano.burnDuration *= 1.3; } },
     { id: "volcano_count", title: "Volcano: Cluster Bombs", maxLevel: 2, skill: "volcano", description: () => `Volcano creates an extra eruption.`, apply: (p) => { p.skills.volcano.count = (p.skills.volcano.count || 1) + 1; } },
-
-    // === Frost Nova Skill Synergy ===
     { id: "frostnova_damage", title: "Frost Nova: Deep Freeze", maxLevel: 5, skill: "frostNova", description: (level) => `Increase Frost Nova damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.frostNova.damage += 5; } },
     { id: "frostnova_radius", title: "Frost Nova: Absolute Zero", maxLevel: 3, skill: "frostNova", description: (level) => `Increase Frost Nova radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.frostNova.radius *= 1.25; } },
     { id: "frostnova_cooldown", title: "Frost Nova: Winter's Grasp", maxLevel: 3, skill: "frostNova", description: () => `Cast Frost Nova more frequently.`, apply: (p) => { p.skills.frostNova.cooldown *= 0.8; } },
     { id: "frostnova_slow", title: "Frost Nova: Crippling Cold", maxLevel: 2, skill: "frostNova", description: () => `Frost Nova's slow is more effective.`, apply: (p) => { p.skills.frostNova.slowAmount += 0.1; } },
-
-    // === Black Hole Skill Synergy ===
     { id: "blackhole_damage", title: "Black Hole: Event Horizon", maxLevel: 5, skill: "blackHole", description: (level) => `Increase Black Hole damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.blackHole.damage += 2; } },
     { id: "blackhole_radius", title: "Black Hole: Singularity", maxLevel: 3, skill: "blackHole", description: (level) => `Increase Black Hole radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.blackHole.radius *= 1.2; } },
     { id: "blackhole_duration", title: "Black Hole: Lingering Void", maxLevel: 3, skill: "blackHole", description: () => `Black Hole lasts longer.`, apply: (p) => { p.skills.blackHole.duration *= 1.25; } },
@@ -281,7 +236,8 @@ export function initializeApp() {
     };
 
     setupEventListeners();
-    checkSaveStates();
+    // checkSaveStates() is called from auth.onAuthStateChanged initially
+    // and whenever auth state changes.
 
     // NEW: Listen to auth state changes for player color and initial player object setup
     auth.onAuthStateChanged(async user => {
@@ -292,19 +248,24 @@ export function initializeApp() {
             menuElements.userDisplay.style.display = 'block';
             menuElements.userName.textContent = user.displayName;
 
-            // This ensures player.color is fetched ASYNCHRONOUSLY after auth state is known
-            // and assigned to player object.
+            // Ensure player.color and other essential player properties are loaded/set
+            // This happens BEFORE checkSaveStates and any potential startGame calls from menu clicks.
             player.color = await getPlayerColor(user.uid);
-            player.name = user.displayName; // Set player name for display
-            player.uid = user.uid; // Set player UID
+            player.name = user.displayName;
+            player.uid = user.uid;
+
         } else {
             menuElements.userStatus.textContent = 'Sign in for cloud saves.';
             menuElements.googleSignInBtn.style.display = 'flex';
             menuElements.userDisplay.style.display = 'none';
-            player.uid = null; // Clear UID if signed out
+            player.uid = null;
             player.color = 'var(--player-aura-color)'; // Reset to default color
             player.name = 'Guest';
+            // Important: Clear player's client-side object to prevent stale data
+            initPlayer(world); // Re-initialize local player object to defaults
         }
+        // ONLY AFTER player.color, name, uid are guaranteed to be set (or reset for guest),
+        // then we can safely check save states and display menu options.
         checkSaveStates();
     });
 }
@@ -316,7 +277,7 @@ async function getPlayerColor(uid) {
     if (doc.exists && doc.data().playerColor) {
         return doc.data().playerColor;
     } else {
-        // MODIFIED: Use crypto.getRandomValues for cryptographically secure random number generation
+        // Use crypto.getRandomValues for cryptographically secure random number generation
         const randomBytes = new Uint32Array(1);
         window.crypto.getRandomValues(randomBytes);
         // Convert to hex string, ensuring 6 digits for a full hex color
@@ -325,7 +286,6 @@ async function getPlayerColor(uid) {
         return newColor;
     }
 }
-
 
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
@@ -340,6 +300,8 @@ function setupEventListeners() {
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
+    // Event listeners for menu buttons now trigger startGame
+    // `startGame` itself will now handle the `player.color` readiness internally.
     menuElements.newGameBtn.addEventListener('click', () => startGame(true));
     menuElements.googleSignInBtn.addEventListener('click', signInWithGoogle);
     menuElements.signOutBtn.addEventListener('click', () => auth.signOut());
@@ -348,57 +310,67 @@ function setupEventListeners() {
         hudElements.gameOverScreen.classList.remove('visible');
         menuElements.mainMenu.classList.add('visible');
         hudElements.gameContainer.style.visibility = 'hidden';
-        checkSaveStates();
+        checkSaveStates(); // Re-check states after game over for menu refresh
     });
     hudElements.autoModeButton.addEventListener('click', () => { gameState.isAutoMode = !gameState.isAutoMode; hudElements.autoModeButton.textContent = gameState.isAutoMode ? 'AUTO ON' : 'AUTO OFF'; hudElements.autoModeButton.classList.toggle('auto-on', gameState.isAutoMode); });
 }
 
 // --- AUTH & SAVE/LOAD ---
 function signInWithGoogle() { auth.signInWithPopup(googleProvider).catch(error => { console.error("Google Sign-In Error:", error); alert("Could not sign in with Google. Please try again."); }); }
+
+// Updated checkSaveStates: now simply displays options based on current user state
 async function checkSaveStates() {
+    menuElements.loadOptionsContainer.innerHTML = ''; // Clear existing buttons
+
     const localSaveExists = !!localStorage.getItem('survivorSaveData');
     let cloudSaveExists = false;
+
     if (currentUser) {
         const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
         const doc = await saveRef.get().catch(e => console.error(e));
         if (doc && doc.exists) cloudSaveExists = true;
     }
-    menuElements.loadOptionsContainer.innerHTML = '';
-    if (cloudSaveExists) {
-        const cloudBtn = document.createElement('button');
-        cloudBtn.className = 'menu-button'; cloudBtn.textContent = 'Load Cloud Save';
-        cloudBtn.onclick = () => startGame(false, 'cloud');
-        menuElements.loadOptionsContainer.appendChild(cloudBtn);
+
+    // Add buttons based on what saves exist and if user is logged in
+    if (currentUser) {
+        if (cloudSaveExists) {
+            const cloudBtn = document.createElement('button');
+            cloudBtn.className = 'menu-button'; cloudBtn.textContent = 'Load Cloud Save';
+            cloudBtn.onclick = () => startGame(false, 'cloud');
+            menuElements.loadOptionsContainer.appendChild(cloudBtn);
+        }
+        // Always show "Play Global" if signed in, potentially as a new game
+        const globalBtn = document.createElement('button');
+        globalBtn.className = 'menu-button';
+        globalBtn.textContent = cloudSaveExists || localSaveExists ? 'Continue Global World (New Save)' : 'Play Global World (New Game)'; // Clarify button text
+        globalBtn.onclick = () => startGame(true); // Always starts a new personal progression but joins global
+        menuElements.loadOptionsContainer.appendChild(globalBtn);
     }
+    
     if (localSaveExists) {
         const localBtn = document.createElement('button');
         localBtn.className = 'menu-button'; localBtn.textContent = 'Load Local Save';
         localBtn.onclick = () => startGame(false, 'local');
         menuElements.loadOptionsContainer.appendChild(localBtn);
     }
-    // NEW: Add a "Play Global" button if signed in and no other save option is selected
-    if (currentUser) { // Always show this if signed in
-        const globalBtn = document.createElement('button');
-        globalBtn.className = 'menu-button'; globalBtn.textContent = 'Play Global World (New Game)';
-        globalBtn.onclick = () => startGame(true); // Always starts a new personal progression but joins global
-        menuElements.loadOptionsContainer.appendChild(globalBtn);
-    }
-    if (!cloudSaveExists && !localSaveExists && !currentUser) { // If no saves and not signed in
+    
+    // If no saves and not signed in, prompt to sign in
+    if (!cloudSaveExists && !localSaveExists && !currentUser) {
         const noSaveBtn = document.createElement('button');
         noSaveBtn.className = 'menu-button'; noSaveBtn.textContent = 'No Save Found (Sign in to Play)'; noSaveBtn.disabled = true;
         menuElements.loadOptionsContainer.appendChild(noSaveBtn);
     }
 }
+
 async function saveGame() {
-    if (!player || !gameState.isRunning || !currentUser) return; // MODIFIED: Only save if signed in
+    if (!player || !gameState.isRunning || !currentUser) return;
     const savablePlayer = JSON.parse(JSON.stringify(player));
-    // Remove transient/unsavable properties like color and name from savable player
     delete savablePlayer.color;
     delete savablePlayer.name;
     delete savablePlayer.uid;
 
     const saveData = {
-        player: savablePlayer, // Personal progression
+        player: savablePlayer,
         gameTime: gameState.gameTime,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -406,6 +378,7 @@ async function saveGame() {
     try { await saveRef.set(saveData); } catch (error) { console.error("Error saving to cloud:", error); }
     localStorage.setItem('survivorSaveData', JSON.stringify(saveData));
 }
+
 async function loadGame(source) {
     let savedData = null;
     try {
@@ -420,46 +393,37 @@ async function loadGame(source) {
         }
     } catch(error) { console.error("Error loading game:", error); return false; }
     if (savedData) {
-        loadPlayer(savedData.player); // This populates local player with personal progression
+        loadPlayer(savedData.player);
         gameState.gameTime = savedData.gameTime;
         // World and skillTotems are now globally managed, so they are not loaded from personal save
-        // The player's color, uid, name are set on auth state change.
         return true;
     }
     return false;
 }
+
 function clearSave() {
     localStorage.removeItem('survivorSaveData');
     if (currentUser) {
         firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default').delete().catch(e => console.error("Error clearing cloud save:", e));
     }
 }
-// MODIFIED: Updated takeDamage function to use playerTakeDamage and manage thorns
-function takeDamage(amount, isDirectHit = false) { // Default to false for continuous damage
-    if (!player.uid) return; // Don't take damage if not a real player
 
-    // Call player's dedicated takeDamage function, passing necessary state
+function takeDamage(amount, isDirectHit = false) {
+    if (!player.uid) return;
+
     playerTakeDamage(amount, gameState.gameTime, spawnDamageNumber, screenRedFlash);
 
-    // Thorns logic remains here because it needs access to the enemies array
-    // Only trigger thorns on direct hits, not continuous zone damage
     if (player.thorns > 0 && isDirectHit) {
         enemies.forEach(e => {
-            // Check if enemy is close enough to trigger thorns (e.g., collision range)
             if (Math.hypot(e.x - player.x, e.y - player.y) < player.size + (e.width || 0) + 10) {
-                // Apply damage to shared enemy, only if host or client with authority
-                // For simplicity, local player's thorns damage directly affects global enemy health.
-                // This implicitly assumes client-side authority for this specific interaction,
-                // or relies on Realtime Database security rules to validate.
                 WORLD_ENEMIES_REF().child(e.id).child('health').set(e.health - player.thorns);
                 spawnDamageNumber(e.x, e.y, player.thorns, false);
             }
         });
     }
 
-    // Check if player health is now <= 0 AFTER playerTakeDamage has updated it
     if (player.health <= 0) {
-        player.health = 0; // Ensure health doesn't go below 0 visually
+        player.health = 0;
         gameOver();
     }
 }
@@ -467,31 +431,13 @@ function takeDamage(amount, isDirectHit = false) { // Default to false for conti
 
 // --- GAME LIFECYCLE ---
 async function startGame(forceNew, loadSource = 'cloud') {
-    if (!currentUser) {
-        alert("You must be signed in to play the global game.");
-        menuElements.mainMenu.classList.add('visible');
-        hudElements.gameContainer.style.visibility = 'hidden';
-        return;
-    }
-
-    // NEW: Ensure player.color (and uid, name) is set before proceeding with DB writes.
-    // This will await the asynchronous getPlayerColor call if it hasn't completed yet.
-    if (!player.color || !player.uid || !player.name) {
-        console.log("Player session data not yet ready, awaiting auth state change completion...");
-        // Although onAuthStateChanged sets player.color, etc., it does so asynchronously.
-        // We can force the fetch here as a fallback or if this is the direct entry point.
-        // Re-call getPlayerColor as a guarantee if player.color is missing.
-        // The auth.onAuthStateChanged listener will also eventually fire and set it.
-        // For robustness, we check currentUser.uid and try to fetch.
-        if (currentUser && currentUser.uid) {
-            player.color = await getPlayerColor(currentUser.uid);
-            player.name = currentUser.displayName;
-            player.uid = currentUser.uid;
-        } else {
-             console.error("Critical: Current user is null or missing UID when attempting to start game.");
-             alert("Error: User data not fully loaded. Please refresh or try again.");
-             return;
-        }
+    // CRITICAL: Ensure currentUser and essential player data (color, name, uid) are ready
+    if (!currentUser || !player.color || !player.uid || !player.name) {
+        console.warn("Attempted to start game before player session data was fully loaded. Retrying in 100ms...");
+        // This is a common pattern for initial load when async auth/profile data isn't ready.
+        // It will retry `startGame` after a short delay.
+        setTimeout(() => startGame(forceNew, loadSource), 100);
+        return; // Exit current call
     }
 
 
@@ -500,35 +446,31 @@ async function startGame(forceNew, loadSource = 'cloud') {
     gameState.isAutoMode = false;
     if (gameState.saveIntervalId) clearInterval(gameState.saveIntervalId);
 
-    // Initialize local player progression
     let loadedSuccessfully = false;
-    if (!forceNew) { // Only attempt to load if not forcing a new game
+    if (!forceNew) {
         loadedSuccessfully = await loadGame(loadSource);
     }
     if (forceNew || !loadedSuccessfully) {
-        clearSave(); // Clear local progression if new game or load failed
+        clearSave();
         initPlayer(world); // Re-initialize local player state to default
     }
 
-    // NEW: Initialize multiplayer world and set up listeners
     await initMultiplayerWorld();
 
-    // Set up player presence in Realtime DB
     const playerRef = PLAYERS_REF().child(currentUser.uid);
-    playerRef.onDisconnect().remove(); // Remove player from active list on disconnect
+    playerRef.onDisconnect().remove();
 
-    // Push local player's initial state for other clients to see
-    playerRef.set({
+    playerRef.set({ // Now player.color, name, uid are guaranteed to be populated
         x: player.x,
         y: player.y,
         angle: player.angle,
         size: player.size,
-        name: currentUser.displayName,
-        color: player.color, // This should NOW be guaranteed to have a value
+        name: player.name, // Use player.name which is now guaranteed
+        color: player.color, // Use player.color which is now guaranteed
         health: player.health,
         maxHealth: player.maxHealth,
         level: player.level,
-        lastHitTime: player.lastHitTime // Synchronize last hit time for blink effect on other clients
+        lastHitTime: player.lastHitTime
     });
 
     gameState.lastTime = performance.now();
@@ -538,46 +480,41 @@ async function startGame(forceNew, loadSource = 'cloud') {
     hudElements.autoModeButton.textContent = 'AUTO OFF';
     hudElements.autoModeButton.classList.remove('auto-on');
     gameState.isRunning = true;
-    gameState.saveIntervalId = setInterval(saveGame, 10000); // Save local progression
+    gameState.saveIntervalId = setInterval(saveGame, 10000);
     if (gameState.animationFrameId) cancelAnimationFrame(gameState.animationFrameId);
     gameLoop(performance.now());
 }
 
 async function initMultiplayerWorld() {
-    // Stop any existing listeners first
     if (worldStateListener) WORLD_STATE_REF().off('value', worldStateListener);
     if (onlinePlayersListener) PLAYERS_REF().off('value', onlinePlayersListener);
     if (enemiesListener) WORLD_ENEMIES_REF().off('value', enemiesListener);
     if (xpOrbsListener) WORLD_XP_ORBS_REF().off('value', xpOrbsListener);
     if (skillTotemsListener) WORLD_SKILL_TOTEMS_REF().off('value', skillTotemsListener);
 
-    otherPlayers.clear(); // Clear old player data
-    enemies.length = 0; // Clear local enemy data
-    xpOrbs.length = 0; // Clear local XP orb data
-    skillTotems.length = 0; // Clear local skill totem data
+    otherPlayers.clear();
+    enemies.length = 0;
+    xpOrbs.length = 0;
+    skillTotems.length = 0;
 
     const worldStateSnapshot = await WORLD_STATE_REF().once('value');
     const onlinePlayersSnapshot = await PLAYERS_REF().once('value');
     const onlinePlayerCount = onlinePlayersSnapshot.val() ? Object.keys(onlinePlayersSnapshot.val()).length : 0;
 
-    // Retrieve raw data once from snapshot to validate
     const rawReceivedWorldData = worldStateSnapshot.val();
 
-    // Determine if this client should be the host
     const existingHostId = rawReceivedWorldData && rawReceivedWorldData.hostId;
     
-    // Simplistic host election: If no host, or existing host is not online, the current player becomes host
     const hostIsOnline = existingHostId && onlinePlayersSnapshot.hasChild(existingHostId);
     gameState.isHost = (!existingHostId || !hostIsOnline) && (onlinePlayerCount < MAX_PLAYERS);
 
-    // Define default world data structure for validation and initial host setup
     let defaultWorldData = {
         worldWidth: 3000,
         worldHeight: 2000,
         gameTime: 0,
         enemySpawnTimer: 0,
         enemySpawnInterval: 1500,
-        worldSeed: Date.now(), // Generate a unique seed for new worlds
+        worldSeed: Date.now(),
         safeHouse: new SafeHouse(3000, 2000).toJSON(),
         skillTotems: [
             { id: 'lightTotem', x: 3000 / 2 - 200, y: 2000 / 2 - 200, radius: 30, skill: 'lightning', color: '#9dffff', icon: '⚡' },
@@ -589,12 +526,12 @@ async function initMultiplayerWorld() {
         lastHostHeartbeat: firebase.database.ServerValue.TIMESTAMP
     };
 
-    let worldDataToApply; // This will hold the sanitized and merged world data
+    let worldDataToApply;
 
     if (gameState.isHost) {
         console.log("Becoming host and initializing global world...");
-        worldDataToApply = { ...defaultWorldData }; // Use defaults for initial host state
-        await WORLD_REF().set(worldDataToApply); // Overwrite if host, sets initial state
+        worldDataToApply = { ...defaultWorldData };
+        await WORLD_REF().set(worldDataToApply);
     } else {
         console.log("Joining existing global world...");
         if (!rawReceivedWorldData) {
@@ -606,7 +543,6 @@ async function initMultiplayerWorld() {
             return;
         }
 
-        // Validate and apply received data, falling back to defaults if invalid
         worldDataToApply = {
             worldWidth: typeof rawReceivedWorldData.worldWidth === 'number' ? rawReceivedWorldData.worldWidth : defaultWorldData.worldWidth,
             worldHeight: typeof rawReceivedWorldData.worldHeight === 'number' ? rawReceivedWorldData.worldHeight : defaultWorldData.worldHeight,
@@ -633,14 +569,13 @@ async function initMultiplayerWorld() {
                 skill: typeof totem.skill === 'string' ? totem.skill : '',
                 color: typeof totem.color === 'string' ? totem.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF',
                 icon: typeof totem.icon === 'string' ? totem.icon : '❓',
-            })) : defaultWorldData.skillTotems, // Fallback to default totems array
+            })) : defaultWorldData.skillTotems,
 
             hostId: typeof rawReceivedWorldData.hostId === 'string' ? rawReceivedWorldData.hostId : defaultWorldData.hostId,
             lastHostHeartbeat: typeof rawReceivedWorldData.lastHostHeartbeat === 'number' ? rawReceivedWorldData.lastHostHeartbeat : defaultWorldData.lastHostHeartbeat
         };
     }
 
-    // Apply synchronized world data to local variables from the validated 'worldDataToApply'
     world.width = worldDataToApply.worldWidth;
     world.height = worldDataToApply.worldHeight;
     gameState.gameTime = worldDataToApply.gameTime;
@@ -649,37 +584,32 @@ async function initMultiplayerWorld() {
     gameState.worldSeed = worldDataToApply.worldSeed;
 
     safeHouseInstance = new SafeHouse(world.width, world.height);
-    Object.assign(safeHouseInstance, worldDataToApply.safeHouse); // Apply validated safeHouse state
-    skillTotems = worldDataToApply.skillTotems || []; // Use validated skill totems
+    Object.assign(safeHouseInstance, worldDataToApply.safeHouse);
+    skillTotems = worldDataToApply.skillTotems || [];
 
-    // Initialize rift background with the global world seed
     initRift(gameState.worldSeed);
 
-    // NEW: Set up Realtime Database listeners
     setupRealtimeDBListeners();
 
-    // Host heartbeat to maintain host status
     if (gameState.isHost) {
         setInterval(() => {
             WORLD_STATE_REF().child('lastHostHeartbeat').set(firebase.database.ServerValue.TIMESTAMP);
-        }, 5000); // Send heartbeat every 5 seconds
+        }, 5000);
     }
 }
 
 function setupRealtimeDBListeners() {
-    // Listen to world state updates (game time, safe house, general game parameters)
     worldStateListener = WORLD_STATE_REF().on('value', (snapshot) => {
         const data = snapshot.val();
         if (data) {
-            // Only update if not host or for consistency
             gameState.gameTime = typeof data.gameTime === 'number' ? data.gameTime : gameState.gameTime;
             gameState.enemySpawnTimer = typeof data.enemySpawnTimer === 'number' ? data.enemySpawnTimer : gameState.enemySpawnTimer;
             gameState.enemySpawnInterval = typeof data.enemySpawnInterval === 'number' ? data.enemySpawnInterval : gameState.enemySpawnInterval;
             world.width = typeof data.worldWidth === 'number' ? data.worldWidth : world.width;
             world.height = typeof data.worldHeight === 'number' ? data.worldHeight : world.height;
-            gameState.worldSeed = typeof data.worldSeed === 'number' ? data.worldSeed : gameState.worldSeed; // Ensure seed is synchronized
+            gameState.worldSeed = typeof data.worldSeed === 'number' ? data.worldSeed : gameState.worldSeed;
 
-            if (safeHouseInstance && data.safeHouse) { // Ensure data.safeHouse exists before assigning
+            if (safeHouseInstance && data.safeHouse) {
                 safeHouseInstance.x = typeof data.safeHouse.x === 'number' ? data.safeHouse.x : safeHouseInstance.x;
                 safeHouseInstance.y = typeof data.safeHouse.y === 'number' ? data.safeHouse.y : safeHouseInstance.y;
                 safeHouseInstance.radius = typeof data.safeHouse.radius === 'number' ? data.safeHouse.radius : safeHouseInstance.radius;
@@ -687,10 +617,9 @@ function setupRealtimeDBListeners() {
                 safeHouseInstance.respawnTimer = typeof data.safeHouse.respawnTimer === 'number' ? data.safeHouse.respawnTimer : safeHouseInstance.respawnTimer;
                 safeHouseInstance.healingRate = typeof data.safeHouse.healingRate === 'number' ? data.safeHouse.healingRate : safeHouseInstance.healingRate;
                 safeHouseInstance.damageRate = typeof data.safeHouse.damageRate === 'number' ? data.safeHouse.damageRate : safeHouseInstance.damageRate;
-            } else if (safeHouseInstance) { // If safeHouse data missing, reset to default state via spawn
+            } else if (safeHouseInstance) {
                  safeHouseInstance.spawn();
             }
-            // Safely handle skillTotems as an array of validated objects
             if (Array.isArray(data.skillTotems)) {
                 skillTotems = data.skillTotems.map(totem => ({
                     id: typeof totem.id === 'string' ? totem.id : '',
@@ -702,26 +631,24 @@ function setupRealtimeDBListeners() {
                     icon: typeof totem.icon === 'string' ? totem.icon : '❓',
                 }));
             } else {
-                skillTotems = []; // Clear if not an array
+                skillTotems = [];
             }
         }
     });
 
-    // Listen to active players
     onlinePlayersListener = PLAYERS_REF().on('value', (snapshot) => {
         const playersData = snapshot.val();
         otherPlayers.clear();
         if (playersData) {
             Object.keys(playersData).forEach(uid => {
-                if (uid !== currentUser.uid) { // Don't track self as "other player"
-                    // Basic validation for other player data
+                if (uid !== currentUser.uid) {
                     const pData = playersData[uid];
                     otherPlayers.set(uid, {
                         x: typeof pData.x === 'number' ? pData.x : 0,
                         y: typeof pData.y === 'number' ? pData.y : 0,
                         angle: typeof pData.angle === 'number' ? pData.angle : 0,
                         size: typeof pData.size === 'number' ? pData.size : 20,
-                        name: typeof pData.name === 'string' ? pData.name.substring(0, 20) : 'Unknown', // Limit name length
+                        name: typeof pData.name === 'string' ? pData.name.substring(0, 20) : 'Unknown',
                         color: typeof pData.color === 'string' ? pData.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF',
                         health: typeof pData.health === 'number' ? pData.health : 100,
                         maxHealth: typeof pData.maxHealth === 'number' ? pData.maxHealth : 100,
@@ -736,20 +663,17 @@ function setupRealtimeDBListeners() {
         }
     });
 
-    // Listen to enemies
     enemiesListener = WORLD_ENEMIES_REF().on('value', (snapshot) => {
         const enemiesData = snapshot.val();
-        enemies.length = 0; // Clear local enemies array
+        enemies.length = 0;
         if (enemiesData) {
-            // Safely reconstruct enemy objects
             Object.values(enemiesData).forEach(rawEnemy => {
-                // Corrected validation: ensure rawEnemy.y is checked, not rawEnemy.x twice
                 if (typeof rawEnemy === 'object' && rawEnemy !== null && rawEnemy.id && typeof rawEnemy.x === 'number' && typeof rawEnemy.y === 'number') {
                     enemies.push({
                         id: rawEnemy.id,
                         x: rawEnemy.x,
                         y: rawEnemy.y,
-                        health: typeof rawEnemy.health === 'number' ? rawEnemy.health : 1, // Default health to 1 if invalid
+                        health: typeof rawEnemy.health === 'number' ? rawEnemy.health : 1,
                         speed: typeof rawEnemy.speed === 'number' ? rawEnemy.speed : 1,
                         damage: typeof rawEnemy.damage === 'number' ? rawEnemy.damage : 10,
                         shockTimer: typeof rawEnemy.shockTimer === 'number' ? rawEnemy.shockTimer : 0,
@@ -765,12 +689,10 @@ function setupRealtimeDBListeners() {
         }
     });
 
-    // Listen to xpOrbs
     xpOrbsListener = WORLD_XP_ORBS_REF().on('value', (snapshot) => {
         const xpOrbsData = snapshot.val();
-        xpOrbs.length = 0; // Clear local xpOrbs array
+        xpOrbs.length = 0;
         if (xpOrbsData) {
-            // Safely reconstruct XP orb objects
             Object.values(xpOrbsData).forEach(rawOrb => {
                 if (typeof rawOrb === 'object' && rawOrb !== null && rawOrb.id && typeof rawOrb.x === 'number' && typeof rawOrb.y === 'number') {
                     xpOrbs.push({
@@ -779,18 +701,15 @@ function setupRealtimeDBListeners() {
                         y: rawOrb.y,
                         value: typeof rawOrb.value === 'number' ? rawOrb.value : 1,
                         size: typeof rawOrb.size === 'number' ? rawOrb.size : 5,
-                        // Update function for XP orbs is applied locally when iterated in gameLoop
-                        update: (dt, options) => { // Re-attach update function
+                        update: (dt, options) => {
                             const localPlayer = options.player;
                             const localGainXPCallback = options.gainXPCallback;
-                            // const isMultiplayer = options.isMultiplayer; // Currently unused, but kept for future
 
-                            const dx = localPlayer.x - rawOrb.x; // Use rawOrb.x/y for base for consistency
+                            const dx = localPlayer.x - rawOrb.x;
                             const dy = localPlayer.y - rawOrb.y;
                             const dist = Math.hypot(dx, dy);
 
                             if (dist < localPlayer.pickupRadius) {
-                                // Update local orb position for visual movement
                                 rawOrb.x += (dx / dist) * 8 * localPlayer.magnetism;
                                 rawOrb.y += (dy / dist) * 8 * localPlayer.magnetism;
                             }
@@ -798,8 +717,8 @@ function setupRealtimeDBListeners() {
                                 if (localPlayer.abilities.healOnXp && Math.random() < 0.1) {
                                     localPlayer.health = Math.min(localPlayer.maxHealth, localPlayer.health + 1);
                                 }
-                                localGainXPCallback(rawOrb.value, rawOrb.id); // Pass orb ID so systemsmanager knows which one to remove
-                                return true; // Mark for local removal
+                                localGainXPCallback(rawOrb.value, rawOrb.id);
+                                return true;
                             }
                             return false;
                         }
@@ -821,10 +740,7 @@ function gameOver() {
     hudElements.finalKills.textContent = player.kills;
     hudElements.gameOverScreen.classList.add('visible');
 
-    // Remove player from active players list on game over
-    if (currentUser) {
-        PLAYERS_REF().child(currentUser.uid).remove();
-    }
+    PLAYERS_REF().child(currentUser.uid).remove();
 }
 
 function getAiMovementVector() {
@@ -832,11 +748,6 @@ function getAiMovementVector() {
     const REPULSION_WEIGHT = 1.5; const ATTRACTION_WEIGHT = 1.0; const TOTEM_WEIGHT = 2.0;
     let repulsion = { x: 0, y: 0 }; let attraction = { x: 0, y: 0 };
     
-    // Consider all players (self and others) when calculating AI movement to avoid crowding
-    // For AI targeting, enemies still target the *main* player if no other specific logic.
-    // However, for general AI movement, consider closest enemy to player.
-    
-    // Repulsion from nearby enemies
     enemies.forEach(enemy => {
         const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
         if (dist < DANGER_RADIUS && dist > 0) {
@@ -858,19 +769,17 @@ function getAiMovementVector() {
         if (dist < closestEnemyForTargetingDist) { closestEnemyForTargetingDist = dist; closestEnemyForTargeting = enemy; }
     });
 
-
     let closestTotem = null, closestTotemDist = Infinity;
     skillTotems.forEach(totem => {
         const dist = Math.hypot(totem.x - player.x, totem.y - player.y);
         if(dist < closestTotemDist) { closestTotemDist = dist; closestTotem = totem; }
     });
 
-    let target = closestEnemyForTargeting; // Default AI movement target
+    let target = closestEnemyForTargeting;
     let targetDist = closestEnemyForTargetingDist;
 
     if (safeHouseInstance && !safeHouseInstance.active && safeHouseInstance.respawnTimer > 1) {
-        // Safe zone not active, AI could wander or move towards center to find next one
-        // For simplicity, current AI defaults to closest enemy for movement if no other priority.
+        // AI could wander, but for simplicity, current AI defaults to closest enemy if no other priority.
     } else if (safeHouseInstance && safeHouseInstance.active) {
         if (!safeHouseInstance.isInside(player)) {
             target = safeHouseInstance;
@@ -880,15 +789,14 @@ function getAiMovementVector() {
 
     if (closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) target = closestOrb;
     if (closestTotem && (!player.skills[closestTotem.skill].isUnlocked || (player.abilities.orbitingShield.enabled && closestTotem.skill === 'soul_vortex'))) {
-        target = closestTotem; // Prioritize totems if not unlocked
+        target = closestTotem;
     }
-
 
     if (target && targetDist > 0) {
         const weight = (target === closestTotem || target === safeHouseInstance) ? TOTEM_WEIGHT * 2 : ATTRACTION_WEIGHT;
         attraction.x = (target.x - player.x) / targetDist * weight;
         attraction.y = (target.y - player.y) / targetDist * weight;
-    } else if (closestEnemyForTargeting) { // Fallback to closest enemy if no other strong target
+    } else if (closestEnemyForTargeting) {
          if (closestEnemyForTargetingDist > 0) {
             attraction.x = (closestEnemyForTargeting.x - player.x) / closestEnemyForTargetingDist * ATTRACTION_WEIGHT;
             attraction.y = (closestEnemyForTargeting.y - player.y) / closestEnemyForTargetingDist * ATTRACTION_WEIGHT;
@@ -900,26 +808,23 @@ function getAiMovementVector() {
 
 function gameLoop(timestamp) { if (!gameState.isRunning) return; const deltaTime = timestamp - gameState.lastTime; gameState.lastTime = timestamp; update(deltaTime); draw(); gameState.animationFrameId = requestAnimationFrame(gameLoop); }
 
-async function update(deltaTime) { // MODIFIED: Made async to await host check
-    if (!currentUser) return; // Don't update game if not signed in
+async function update(deltaTime) {
+    if (!currentUser) return;
 
-    // Host handles global state updates
     if (gameState.isHost) {
-        gameState.gameTime += deltaTime; // Host updates global game time
+        gameState.gameTime += deltaTime;
         WORLD_STATE_REF().child('gameTime').set(gameState.gameTime);
 
-        // Host manages safe house
         if (safeHouseInstance) {
             safeHouseInstance.update(deltaTime);
             WORLD_STATE_REF().child('safeHouse').set(safeHouseInstance.toJSON());
         }
 
-        // Host manages enemy spawning
         gameState.enemySpawnTimer += deltaTime;
-        if (gameState.enemySpawnTimer > gameState.enemySpawnInterval && enemies.length < 100) { // Max 100 enemies globally
-            const newEnemy = spawnEnemy(world); // MODIFIED: spawnEnemy now takes world and returns enemy object
+        if (gameState.enemySpawnTimer > gameState.enemySpawnInterval && enemies.length < 100) {
+            const newEnemy = spawnEnemy(world);
             if (newEnemy) {
-                 WORLD_ENEMIES_REF().child(newEnemy.id).set(newEnemy); // Use ID for enemy path
+                 WORLD_ENEMIES_REF().child(newEnemy.id).set(newEnemy);
             }
             gameState.enemySpawnTimer = 0;
             gameState.enemySpawnInterval = Math.max(100, gameState.enemySpawnInterval * 0.985);
@@ -927,35 +832,27 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
             WORLD_STATE_REF().child('enemySpawnTimer').set(gameState.enemySpawnTimer);
         }
 
-        // Host updates global enemies
-        // `enemies` array is kept in sync by DB listener, `updateEnemies` will operate on it.
-        updateEnemies(deltaTime, enemies, player, otherPlayers, showLevelUpOptions, (amount, orbId) => { // MODIFIED: Pass otherPlayers and orbId
-            gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), (p) => triggerNova(p, 50, 200, WORLD_ENEMIES_REF()), camera); // MODIFIED: Pass enemiesRef to triggerNova
-            // If the XP orb was picked up, the host deletes it from the database
+        updateEnemies(deltaTime, enemies, player, otherPlayers, showLevelUpOptions, (amount, orbId) => {
+            gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), (p) => triggerNova(p, 50, 200, WORLD_ENEMIES_REF()), camera);
             if (orbId) {
                 WORLD_XP_ORBS_REF().child(orbId).remove();
             }
-        }, WORLD_ENEMIES_REF(), WORLD_XP_ORBS_REF(), gameState.isHost); // MODIFIED: Pass enemiesRef, xpOrbsRef, isHost
+        }, WORLD_ENEMIES_REF(), WORLD_XP_ORBS_REF(), gameState.isHost);
         
-        // Host manages skill totem collection (removes from global)
-        const updatedSkillTotems = []; // Create a new array for skill totems that are NOT picked up
-
-        for (const totem of skillTotems) { // Iterate using for...of for safer iteration
+        const updatedSkillTotems = [];
+        for (const totem of skillTotems) {
             if (Math.hypot(player.x - totem.x, player.y - totem.y) < player.size + totem.radius) {
-                // Validate the skill name against a whitelist to prevent prototype pollution
                 if (VALID_UNLOCKABLE_SKILLS.includes(totem.skill)) {
                     player.skills[totem.skill].isUnlocked = true;
-                    // Only host should remove from DB
                     WORLD_SKILL_TOTEMS_REF().child(totem.id).remove();
                 } else {
                     console.warn(`Attempted to unlock invalid skill: ${totem.skill} via totem. Ignoring.`);
-                    updatedSkillTotems.push(totem); // Add back to array if invalid or not picked up
+                    updatedSkillTotems.push(totem);
                 }
             } else {
-                updatedSkillTotems.push(totem); // Add back to array if not picked up
+                updatedSkillTotems.push(totem);
             }
         }
-        // Replace skillTotems with the filtered array
         skillTotems = updatedSkillTotems;
     }
     
@@ -970,11 +867,10 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
     }
     const { closestEnemy, closestDist } = updatePlayer(deltaTime, world, enemies, { dx, dy });
     if (closestEnemy && gameState.gameTime - (player.lastFireTime || 0) > player.weapon.cooldown) {
-        fireProjectile(player); // Player's own projectiles
+        fireProjectile(player);
         player.lastFireTime = gameState.gameTime;
     }
 
-    // Player position update to Realtime DB (every client)
     const playerRef = PLAYERS_REF().child(currentUser.uid);
     playerRef.update({
         x: player.x,
@@ -986,28 +882,21 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
         kills: player.kills,
         xp: player.xp,
         xpForNextLevel: player.xpForNextLevel,
-        lastHitTime: player.lastHitTime // Synchronize last hit time for blink effect
+        lastHitTime: player.lastHitTime
     });
 
     camera.x = player.x - camera.width / 2; camera.y = player.y - camera.height / 2;
     camera.x = Math.max(0, Math.min(world.width - camera.width, camera.x));
     camera.y = Math.max(0, Math.min(world.height - camera.height, camera.y));
 
-    // Update the SafeHouse and apply its effects for local player (healing)
     if (safeHouseInstance) {
-        // Player interaction: ONLY HEALING, NO DAMAGE WHEN OUTSIDE
         if (safeHouseInstance.active && safeHouseInstance.isInside(player)) {
-            // Player is safe: Heal (using player's healthRegen + safehouse healing)
             player.health = Math.min(player.maxHealth, player.health + (player.healthRegen + safeHouseInstance.healingRate) * (deltaTime / 1000));
         }
-        // Enemy interaction: This will be handled by host in `updateEnemies`
     }
 
-    // Filter out enemies marked for deletion after their update
-    // This local filtering is only for immediate visual removal, DB listener will eventually sync
     enemies = enemies.filter(enemy => !enemy.markedForDeletion);
 
-    // Update player skills which apply damage to global enemies
     updateLightning(deltaTime, player, WORLD_ENEMIES_REF());
     updateVolcano(deltaTime, player, WORLD_ENEMIES_REF());
     updateFrostNova(deltaTime, player, WORLD_ENEMIES_REF());
@@ -1015,74 +904,61 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
 
     const updateEntityArray = (arr, dt, extra) => {
         for (let i = arr.length - 1; i >= 0; i--) {
-            // XP Orbs pass extra options to their update method
             if (arr[i].update(dt, extra)) arr.splice(i, 1);
         }
     };
     updateEntityArray(projectiles, deltaTime);
-    // XP Orbs are now synchronized globally, local update is visual only before pickup
     updateEntityArray(xpOrbs, deltaTime, { player, gainXPCallback: (amount, orbId) => {
-        // On pickup, locally apply XP
         gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), (p) => triggerNova(p, 50, 200, WORLD_ENEMIES_REF()), camera);
-        if (gameState.isHost) { // Only host should remove from DB to prevent race conditions
+        if (gameState.isHost) {
             WORLD_XP_ORBS_REF().child(orbId).remove();
         }
-    }}); // MODIFIED: Pass options object to XP orb update, including orbId for host deletion
+    }});
     updateEntityArray(particles, deltaTime);
     updateEntityArray(damageNumbers, deltaTime);
     updateEntityArray(lightningBolts, deltaTime);
     updateEntityArray(volcanicEruptions, deltaTime);
     updateEntityArray(visualEffects, deltaTime);
 
-    handleCollisions(WORLD_ENEMIES_REF()); // Pass enemies ref for global damage application
+    handleCollisions(WORLD_ENEMIES_REF());
 }
 
-function handleCollisions(enemiesRef) { // MODIFIED: Added enemiesRef parameter
+function handleCollisions(enemiesRef) {
     projectiles.forEach(p => {
         if (p.pierce < p.hitEnemies.length) return;
         enemies.forEach(e => {
-            if (p.hitEnemies.includes(e.id)) return; // MODIFIED: Check by enemy ID for hitEnemies
-            // MODIFIED: Changed collision check to consider enemy width for better accuracy
-            const combinedRadius = (p.size?.w || 10) + (e.width || 20); // Default to a size if not defined
-            if (Math.hypot(e.x - p.x, e.y - p.y) < combinedRadius / 2) { // Check distance vs half combined size
-                // ADDED: Logic for projectile explosions and crit explosions
+            if (p.hitEnemies.includes(e.id)) return;
+            const combinedRadius = (p.size?.w || 10) + (e.width || 20);
+            if (Math.hypot(e.x - p.x, e.y - p.y) < combinedRadius / 2) {
                 if (p.explodesOnImpact && p.hitEnemies.length === 0) {
-                    triggerNova({x: e.x, y: e.y}, p.explosionDamage, p.explosionRadius, enemiesRef); // Pass enemiesRef to triggerNova
+                    triggerNova({x: e.x, y: e.y}, p.explosionDamage, p.explosionRadius, enemiesRef);
                 }
                 const isCrit = Math.random() < p.critChance;
                 const damage = isCrit ? Math.round(p.damage * p.critDamage) : p.damage;
                 if(isCrit && player.abilities.critExplosion) {
-                    triggerNova({x: e.x, y: e.y}, damage / 2, 80, enemiesRef); // Pass enemiesRef
+                    triggerNova({x: e.x, y: e.y}, damage / 2, 80, enemiesRef);
                 }
                 
-                // Apply damage to shared enemy in DB only if current client is host
                 if (gameState.isHost) {
                     enemiesRef.child(e.id).child('health').set(e.health - damage);
                 } else {
-                    // Non-host clients can apply local health reduction for immediate visual feedback
                     e.health -= damage;
                 }
                 
-                p.hitEnemies.push(e.id); // MODIFIED: Push enemy ID to hitEnemies
+                p.hitEnemies.push(e.id);
                 createImpactParticles(e.x, e.y, 10);
                 spawnDamageNumber(e.x, e.y, Math.round(damage), isCrit);
             }
         });
     });
     enemies.forEach(e => {
-        // MODIFIED: Changed collision check to consider enemy width/player size
-        const combinedRadius = player.size + (e.width || 20); // Assuming player.size is radius
+        const combinedRadius = player.size + (e.width || 20);
         if (Math.hypot(e.x - player.x, e.y - player.y) < combinedRadius / 2) {
-            // Player takes damage directly from enemy contact.
-            // This is a direct hit, so invincibility frames should apply.
-            takeDamage(e.damage || 10, true); // MODIFIED: Pass `true` for `isDirectHit`
-            // Enemy health is managed by the host.
-            // A simple "enemy dies on contact" rule can be applied locally for immediate visual,
-            // but the authoritative state comes from the host via DB listener.
-            if (gameState.isHost) { // Only host makes the authoritative decision for enemy death on contact
-                WORLD_ENEMIES_REF().child(e.id).child('health').set(0); // Mark for death
+            takeDamage(e.damage || 10, true);
+            if (gameState.isHost) {
+                WORLD_ENEMIES_REF().child(e.id).child('health').set(0);
             } else {
-                e.health = -1; // Local immediate visual death
+                e.health = -1;
             }
         }
     });
@@ -1093,11 +969,10 @@ function handleCollisions(enemiesRef) { // MODIFIED: Added enemiesRef parameter
             const angle = shield.angle + (i * (Math.PI * 2 / count));
             if (gameState.gameTime - (shield.lastHitTime?.[i] || 0) > shield.cooldown) {
                 const shieldX = player.x + Math.cos(angle) * shield.distance;
-                const shieldY = player.y + Math.sin(angle) * shield.distance; // Corrected: removed the second Math.sin(angle)
+                const shieldY = player.y + Math.sin(angle) * shield.distance;
                 enemies.forEach(e => {
-                    const combinedRadius = 15 + (e.width || 20); // Shield size (15) + enemy size
+                    const combinedRadius = 15 + (e.width || 20);
                     if (Math.hypot(e.x - shieldX, e.y - shieldY) < combinedRadius / 2) {
-                        // Apply damage to shared enemy in DB only if host
                         if (gameState.isHost) {
                             enemiesRef.child(e.id).child('health').set(e.health - shield.damage);
                         } else {
@@ -1121,30 +996,26 @@ function draw() {
     ctx.translate(-camera.x, -camera.y);
     ctx.drawImage(getBackgroundCanvas(), 0, 0);
 
-    // NEW: Draw the SafeHouse using its own draw method
     if (safeHouseInstance) {
-        safeHouseInstance.draw(ctx, camera); // Pass context and camera
+        safeHouseInstance.draw(ctx, camera);
     }
 
-    drawWorldElements(); // This now only draws skill totems, etc., not the old safeHouse
+    drawWorldElements();
     projectiles.forEach(p => drawProjectile(p));
     enemies.forEach(e => drawEnemy(e));
 
-    // Draw other players
     otherPlayers.forEach(otherPlayer => {
-        // Only draw if within camera view
         if (otherPlayer.x > camera.x - 50 && otherPlayer.x < camera.x + camera.width + 50 &&
             otherPlayer.y > camera.y - 50 && otherPlayer.y < camera.y + camera.height + 50) {
             const otherPlayerBlink = (gameState.gameTime - (otherPlayer.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
-            if (otherPlayer.health > 0 && !otherPlayerBlink) { // Only draw if alive and not blinking
-                drawPlayer(otherPlayer, otherPlayer.angle, otherPlayer.color, otherPlayer.name, otherPlayer.health, otherPlayer.maxHealth); // Pass all required data
+            if (otherPlayer.health > 0 && !otherPlayerBlink) {
+                drawPlayer(otherPlayer, otherPlayer.angle, otherPlayer.color, otherPlayer.name, otherPlayer.health, otherPlayer.maxHealth);
             }
         }
     });
 
-    // Draw current player
     const playerBlink = (gameState.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
-    if (!playerBlink) drawPlayer(player, player.angle, player.color, player.name, player.health, player.maxHealth, true); // Pass true for isLocalPlayer
+    if (!playerBlink) drawPlayer(player, player.angle, player.color, player.name, player.health, player.maxHealth, true);
 
 
     drawParticlesAndEffects();
@@ -1153,17 +1024,17 @@ function draw() {
     if (screenFlash.value > 0) { ctx.fillStyle = `rgba(200, 225, 255, ${screenFlash.value})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenFlash.value -= 0.05; }
     if (joystick.active && !gameState.isAutoMode) drawJoystick(); updateHUD();
 }
-// MODIFIED: drawWorldElements function (removed old safeHouse drawing code)
+
 function drawWorldElements() {
-    // Keep skill totems and other world elements
     skillTotems.forEach(totem => drawSkillTotem(totem));
     lightningBolts.forEach(bolt => drawLightningBolt(bolt));
     volcanicEruptions.forEach(v => drawVolcano(v));
     xpOrbs.forEach(orb => drawXpOrb(orb));
 }
+
 function drawParticlesAndEffects() {
     visualEffects.forEach(effect => {
-        const lifePercent = effect.life / effect.maxLife; // More generic life percentage
+        const lifePercent = effect.life / effect.maxLife;
         ctx.save();
         ctx.beginPath();
         if (effect.type === 'shockwave' || effect.type === 'frostwave') {
@@ -1201,7 +1072,7 @@ function drawParticlesAndEffects() {
             const angle = shield.angle + (i * (Math.PI * 2 / count));
             const pulse = Math.sin(gameState.gameTime / 150 + i * Math.PI);
             const shieldX = player.x + Math.cos(angle) * shield.distance;
-            const shieldY = player.y + Math.sin(angle) * shield.distance; // Corrected: removed the second Math.sin(angle)
+            const shieldY = player.y + Math.sin(angle) * shield.distance;
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
             ctx.fillStyle = `rgba(220, 120, 255, ${0.4 + pulse * 0.2})`;
@@ -1218,14 +1089,13 @@ function drawParticlesAndEffects() {
         }
     }
 }
-// MODIFIED: drawPlayer now accepts an optional color, name, and HP info for other players
+
 function drawPlayer(p, angle, customColor, name, currentHealth, maxHealth, isLocalPlayer = false) {
     const bob = Math.sin(gameState.gameTime / 250) * 2;
     ctx.save();
     ctx.translate(p.x, p.y + bob);
     const hoverPulse = Math.sin(gameState.gameTime / 400);
 
-    // Player shadow/ellipse
     ctx.beginPath();
     ctx.ellipse(0, 25, 20, 8, 0, 0, Math.PI * 2);
     ctx.globalAlpha = 0.2 + hoverPulse * 0.1;
@@ -1236,11 +1106,9 @@ function drawPlayer(p, angle, customColor, name, currentHealth, maxHealth, isLoc
     ctx.save();
     ctx.rotate(angle);
 
-    // Player aura
     const auraPulse = Math.sin(gameState.gameTime / 200);
     ctx.beginPath();
     ctx.arc(0, 0, 30, -1.9, 1.9);
-    // Use customColor for strokeStyle and shadowColor
     ctx.strokeStyle = customColor;
     ctx.lineWidth = 4 + auraPulse * 2;
     ctx.shadowColor = customColor;
@@ -1248,8 +1116,7 @@ function drawPlayer(p, angle, customColor, name, currentHealth, maxHealth, isLoc
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Player body (triangle)
-    ctx.fillStyle = '#fff'; // Body is still white for player
+    ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.moveTo(0, -17);
     ctx.lineTo(8, 15);
@@ -1258,23 +1125,20 @@ function drawPlayer(p, angle, customColor, name, currentHealth, maxHealth, isLoc
     ctx.closePath();
     ctx.fill();
 
-    // Player eyes
     ctx.fillStyle = '#000';
     ctx.fillRect(-5, -15, 10, 10);
 
     ctx.restore();
 
-    // Draw player name and HP bar for other players
     if (name && !isLocalPlayer) {
         ctx.save();
-        ctx.translate(0, -40); // Position name above player
+        ctx.translate(0, -40);
         ctx.font = '14px Arial';
         ctx.fillStyle = customColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillText(name, 0, 0);
 
-        // Draw HP bar for other players
         const barWidth = 40;
         const barHeight = 5;
         const hpPercent = currentHealth / maxHealth;
@@ -1284,14 +1148,13 @@ function drawPlayer(p, angle, customColor, name, currentHealth, maxHealth, isLoc
         ctx.fillRect(-barWidth / 2, 5, barWidth * hpPercent, barHeight);
         ctx.restore();
     } else if (isLocalPlayer) {
-        // Optionally draw local player name for clarity (e.g., above their head if not current HUD)
         ctx.save();
         ctx.translate(0, -40);
         ctx.font = '14px Arial';
-        ctx.fillStyle = customColor; // Use their assigned color
+        ctx.fillStyle = customColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(name + " (YOU)", 0, 0); // Indicate it's the local player
+        ctx.fillText(name + " (YOU)", 0, 0);
         ctx.restore();
     }
 
@@ -1314,14 +1177,11 @@ function updateHUD() {
     hudElements.xpBottomFill.style.width = `${(player.xp / player.xpForNextLevel) * 100}%`;
     hudElements.killCounter.textContent = player.kills;
 
-    // NEW: Update active upgrade stats list
-    hudElements.upgradeStatsList.innerHTML = ''; // Clear existing list
+    hudElements.upgradeStatsList.innerHTML = '';
 
-    // Define base stats for calculations (if you change player's base speed/cooldown, update these)
     const BASE_PLAYER_SPEED = 3.5;
-    const BASE_WEAPON_COOLDOWN = 600; // milliseconds
+    const BASE_WEAPON_COOLDOWN = 600;
 
-    // Sort upgrades by ID for consistent display order
     const sortedUpgradeIds = Object.keys(player.upgradeLevels).sort();
 
     for (const upgradeId of sortedUpgradeIds) {
@@ -1329,153 +1189,55 @@ function updateHUD() {
         const upgradeDef = UPGRADE_POOL.find(up => up.id === upgradeId);
 
         if (upgradeDef) {
-            let displayText = `${upgradeDef.title}: `;
             let statValue = '';
 
-            // Custom display logic for specific upgrades
             switch (upgradeId) {
-                case "vitality":
-                    statValue = `${player.maxHealth} Max HP`;
-                    break;
-                case "recovery":
-                    statValue = `${(player.healthRegen).toFixed(1)} HP/s`;
-                    break;
-                case "agility":
-                    statValue = `${((player.speed / BASE_PLAYER_SPEED) * 100).toFixed(0)}% Speed`;
-                    break;
-                case "armor":
-                    statValue = `${player.armor} Armor`;
-                    break;
-                case "dodge":
-                    statValue = `${(player.dodgeChance * 100).toFixed(0)}% Dodge`;
-                    break;
-                case "wisdom":
-                    statValue = `${(player.xpGainModifier * 100).toFixed(0)}% XP`;
-                    break;
-                case "greed":
-                    statValue = `${player.pickupRadius} Pickup Radius`;
-                    break;
-                case "magnetism":
-                    statValue = `${(player.magnetism).toFixed(1)}x Magnetism`;
-                    break;
-                case "lethality":
-                    statValue = `${(player.weapon.critChance * 100).toFixed(0)}% Crit Chance`;
-                    break;
-                case "overwhelm":
-                    statValue = `${(player.weapon.critDamage * 100).toFixed(0)}% Crit Damage`;
-                    break;
-                case "might":
-                    statValue = `${player.weapon.damage} Damage`;
-                    break;
-                case "haste":
-                    statValue = `${(1000 / player.weapon.cooldown).toFixed(1)} Atk/s`; // Attacks per second
-                    break;
-                case "multishot":
-                    statValue = `${player.weapon.count} Projectiles`;
-                    break;
-                case "impact":
-                    statValue = `${player.weapon.size.h.toFixed(0)} Projectile Size`; // Using 'h' as a representative size
-                    break;
-                case "pierce":
-                    statValue = `${player.weapon.pierce} Pierce`;
-                    break;
-                case "velocity":
-                    statValue = `${player.weapon.speed.toFixed(1)} Projectile Speed`;
-                    break;
-                case "thorns":
-                    statValue = `${player.thorns} Thorns Damage`;
-                    break;
-                case "life_steal":
-                    statValue = `${player.lifeSteal} Life Steal`;
-                    break;
-                // --- Skill-specific stats ---
-                case "lightning":
-                case "lightning_damage":
-                    statValue = `${player.skills.lightning.damage} Lightning Damage`;
-                    break;
-                case "lightning_chains":
-                    statValue = `${player.skills.lightning.chains} Lightning Chains`;
-                    break;
-                case "lightning_cooldown":
-                    statValue = `${(player.skills.lightning.cooldown / 1000).toFixed(1)}s Lightning CD`;
-                    break;
-                case "lightning_shock":
-                    statValue = `${(player.skills.lightning.shockDuration / 1000).toFixed(1)}s Shock Duration`;
-                    break;
-                case "lightning_fork":
-                    statValue = `${(player.skills.lightning.forkChance * 100).toFixed(0)}% Lightning Fork`;
-                    break;
-                case "volcano":
-                case "volcano_damage":
-                    statValue = `${player.skills.volcano.damage} Volcano Damage`;
-                    break;
-                case "volcano_radius":
-                    statValue = `${player.skills.volcano.radius} Volcano Radius`;
-                    break;
-                case "volcano_cooldown":
-                    statValue = `${(player.skills.volcano.cooldown / 1000).toFixed(1)}s Volcano CD`;
-                    break;
-                case "volcano_duration":
-                    statValue = `${(player.skills.volcano.burnDuration / 1000).toFixed(1)}s Burn Duration`;
-                    break;
-                case "volcano_count":
-                    statValue = `${player.skills.volcano.count || 1} Volcano Count`; // Default to 1 if not set
-                    break;
-                case "frostNova":
-                case "frostnova_damage":
-                    statValue = `${player.skills.frostNova.damage} Frost Nova Damage`;
-                    break;
-                case "frostnova_radius":
-                    statValue = `${player.skills.frostNova.radius} Frost Nova Radius`;
-                    break;
-                case "frostnova_cooldown":
-                    statValue = `${(player.skills.frostNova.cooldown / 1000).toFixed(1)}s Frost Nova CD`;
-                    break;
-                case "frostnova_slow":
-                    statValue = `${(player.skills.frostNova.slowAmount * 100).toFixed(0)}% Slow`;
-                    break;
-                case "blackHole":
-                case "blackhole_damage":
-                    statValue = `${player.skills.blackHole.damage} Black Hole Damage`;
-                    break;
-                case "blackhole_radius":
-                    statValue = `${player.skills.blackHole.radius} Black Hole Radius`;
-                    break;
-                case "blackhole_duration":
-                    statValue = `${(player.skills.blackHole.duration / 1000).toFixed(1)}s Black Hole Duration`;
-                    break;
-                case "blackhole_pull":
-                    statValue = `${player.skills.blackHole.pullStrength.toFixed(1)} Pull Strength`;
-                    break;
-                case "soul_vortex":
-                case "vortex_damage":
-                    statValue = `${player.abilities.orbitingShield.damage} Vortex Damage`;
-                    break;
-                case "vortex_speed":
-                    statValue = `${(player.abilities.orbitingShield.speed || 1).toFixed(1)}x Vortex Speed`;
-                    break;
-                case "vortex_twin":
-                    statValue = `${player.abilities.orbitingShield.count} Vortex Count`;
-                    break;
-
-                // Abilities that are just "Active"
-                case "rear_guard":
-                case "diagonalShot": // Corrected from crossfire
-                case "novaOnLevelUp":
-                case "healOnXp":
-                case "crit_explosion":
-                case "demolition":
-                    statValue = `Active`;
-                    break;
-                default:
-                    // Fallback for any other upgrade, display its level
-                    statValue = `Lv ${level}`;
-                    break;
+                case "vitality": statValue = `${player.maxHealth} Max HP`; break;
+                case "recovery": statValue = `${(player.healthRegen).toFixed(1)} HP/s`; break;
+                case "agility": statValue = `${((player.speed / BASE_PLAYER_SPEED) * 100).toFixed(0)}% Speed`; break;
+                case "armor": statValue = `${player.armor} Armor`; break;
+                case "dodge": statValue = `${(player.dodgeChance * 100).toFixed(0)}% Dodge`; break;
+                case "wisdom": statValue = `${(player.xpGainModifier * 100).toFixed(0)}% XP`; break;
+                case "greed": statValue = `${player.pickupRadius} Pickup Radius`; break;
+                case "magnetism": statValue = `${(player.magnetism).toFixed(1)}x Magnetism`; break;
+                case "lethality": statValue = `${(player.weapon.critChance * 100).toFixed(0)}% Crit Chance`; break;
+                case "overwhelm": statValue = `${(player.weapon.critDamage * 100).toFixed(0)}% Crit Damage`; break;
+                case "might": statValue = `${player.weapon.damage} Damage`; break;
+                case "haste": statValue = `${(1000 / player.weapon.cooldown).toFixed(1)} Atk/s`; break;
+                case "multishot": statValue = `${player.weapon.count} Projectiles`; break;
+                case "impact": statValue = `${player.weapon.size.h.toFixed(0)} Projectile Size`; break;
+                case "pierce": statValue = `${player.weapon.pierce} Pierce`; break;
+                case "velocity": statValue = `${player.weapon.speed.toFixed(1)} Projectile Speed`; break;
+                case "thorns": statValue = `${player.thorns} Thorns Damage`; break;
+                case "life_steal": statValue = `${player.lifeSteal} Life Steal`; break;
+                case "lightning": case "lightning_damage": statValue = `${player.skills.lightning.damage} Lightning Damage`; break;
+                case "lightning_chains": statValue = `${player.skills.lightning.chains} Lightning Chains`; break;
+                case "lightning_cooldown": statValue = `${(player.skills.lightning.cooldown / 1000).toFixed(1)}s Lightning CD`; break;
+                case "lightning_shock": statValue = `${(player.skills.lightning.shockDuration / 1000).toFixed(1)}s Shock Duration`; break;
+                case "lightning_fork": statValue = `${(player.skills.lightning.forkChance * 100).toFixed(0)}% Lightning Fork`; break;
+                case "volcano": case "volcano_damage": statValue = `${player.skills.volcano.damage} Volcano Damage`; break;
+                case "volcano_radius": statValue = `${player.skills.volcano.radius} Volcano Radius`; break;
+                case "volcano_cooldown": statValue = `${(player.skills.volcano.cooldown / 1000).toFixed(1)}s Volcano CD`; break;
+                case "volcano_duration": statValue = `${(player.skills.volcano.burnDuration / 1000).toFixed(1)}s Burn Duration`; break;
+                case "volcano_count": statValue = `${player.skills.volcano.count || 1} Volcano Count`; break;
+                case "frostNova": case "frostnova_damage": statValue = `${player.skills.frostNova.damage} Frost Nova Damage`; break;
+                case "frostnova_radius": statValue = `${player.skills.frostNova.radius} Frost Nova Radius`; break;
+                case "frostnova_cooldown": statValue = `${(player.skills.frostNova.cooldown / 1000).toFixed(1)}s Frost Nova CD`; break;
+                case "frostnova_slow": statValue = `${(player.skills.frostNova.slowAmount * 100).toFixed(0)}% Slow`; break;
+                case "blackHole": case "blackhole_damage": statValue = `${player.skills.blackHole.damage} Black Hole Damage`; break;
+                case "blackhole_radius": statValue = `${player.skills.blackHole.radius} Black Hole Radius`; break;
+                case "blackhole_duration": statValue = `${(player.skills.blackHole.duration / 1000).toFixed(1)}s Black Hole Duration`; break;
+                case "blackhole_pull": statValue = `${player.skills.blackHole.pullStrength.toFixed(1)} Pull Strength`; break;
+                case "soul_vortex": case "vortex_damage": statValue = `${player.abilities.orbitingShield.damage} Vortex Damage`; break;
+                case "vortex_speed": statValue = `${(player.abilities.orbitingShield.speed || 1).toFixed(1)}x Vortex Speed`; break;
+                case "vortex_twin": statValue = `${player.abilities.orbitingShield.count} Vortex Count`; break;
+                case "rear_guard": case "diagonalShot": case "novaOnLevelUp": case "healOnXp": case "crit_explosion": case "demolition": statValue = `Active`; break;
+                default: statValue = `Lv ${level}`; break;
             }
 
             const p = document.createElement('p');
             p.className = 'upgrade-stat-item';
-            p.innerHTML = `${upgradeDef.title}: <strong>${statValue}</strong>`; // Using strong for the value
+            p.innerHTML = `${upgradeDef.title}: <strong>${statValue}</strong>`;
             hudElements.upgradeStatsList.appendChild(p);
         }
     }
@@ -1488,7 +1250,6 @@ function showLevelUpOptions() {
         const currentLevel = player.upgradeLevels[upgrade.id] || 0;
         const maxLevel = upgrade.maxLevel || Infinity;
         if (currentLevel >= maxLevel) return false;
-        // Logic to show skill upgrades only if the base skill is unlocked
         if (upgrade.skill === 'lightning' && !player.skills.lightning.isUnlocked) return false;
         if (upgrade.skill === 'volcano' && !player.skills.volcano.isUnlocked) return false;
         if (upgrade.skill === 'frostNova' && !player.skills.frostNova.isUnlocked) return false;
@@ -1519,10 +1280,9 @@ function selectUpgrade(upgrade) {
     requestAnimationFrame(gameLoop);
 }
 
-// IMPORTANT: Update the export list to export the SafeHouse instance as `safeHouse`
 export {
     gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles,
-    damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems, otherPlayers, // MODIFIED: Export otherPlayers
-    safeHouseInstance as safeHouse, // Export the instance under the original name
+    damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems, otherPlayers,
+    safeHouseInstance as safeHouse,
     screenFlash, screenRedFlash, UPGRADE_POOL
 };
