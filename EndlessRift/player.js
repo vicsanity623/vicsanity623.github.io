@@ -134,49 +134,39 @@ function loadPlayer(savedPlayer) {
     if (isNaN(player.health) || typeof player.health !== 'number') {
         player.health = savedPlayer.health || player.maxHealth;
         if (isNaN(player.health)) player.health = 100;
-        console.warn("Player health in save data was not a number. Reset.");
     }
     if (isNaN(player.maxHealth) || typeof player.maxHealth !== 'number') {
         player.maxHealth = 100;
-        console.warn("Player maxHealth in save data was not a number. Reset.");
     }
     if (isNaN(player.armor) || typeof player.armor !== 'number') {
         player.armor = 0;
-        console.warn("Player armor in save data was not a number. Reset to 0.");
     }
     if (isNaN(player.lastHitTime) || typeof player.lastHitTime !== 'number') {
         player.lastHitTime = 0;
-        console.warn("Player lastHitTime in save data was not a number. Reset to 0.");
     }
     if (isNaN(player.speed) || typeof player.speed !== 'number') {
         player.speed = 3.5;
-        console.warn("Player speed in save data was not a number. Reset.");
     }
     if (isNaN(player.xpGainModifier) || typeof player.xpGainModifier !== 'number') {
         player.xpGainModifier = 1;
-        console.warn("Player xpGainModifier in save data was not a number. Reset.");
     }
     if (isNaN(player.pickupRadius) || typeof player.pickupRadius !== 'number') {
         player.pickupRadius = 75;
-        console.warn("Player pickupRadius in save data was not a number. Reset.");
     }
     if (isNaN(player.magnetism) || typeof player.magnetism !== 'number') {
         player.magnetism = 1;
-        console.warn("Player magnetism in save data was not a number. Reset.");
     }
     player.health = Math.min(player.health, player.maxHealth);
 }
 
-function takeDamage(amount, gameTime, spawnDamageNumberCallback, screenRedFlashObject) {
+function takeDamage(amount, gameTime, spawnDamageNumberCallback, screenRedFlashObject, triggerScreenShakeCallback) {
     amount = parseFloat(amount);
     if (isNaN(amount)) {
-        console.warn("takeDamage received NaN or non-numeric amount:", amount);
         return;
     }
 
     const currentArmor = parseFloat(player.armor);
     if (isNaN(currentArmor)) {
-        console.warn("Player armor is NaN, resetting to 0 for damage calculation.");
         player.armor = 0;
     }
 
@@ -196,6 +186,7 @@ function takeDamage(amount, gameTime, spawnDamageNumberCallback, screenRedFlashO
 
     if (amount > 1 && screenRedFlashObject) {
         screenRedFlashObject.value = 0.6;
+        triggerScreenShakeCallback(5, 100);
     }
 
     if (amount > 1) {

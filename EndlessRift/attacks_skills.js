@@ -1,11 +1,28 @@
-import { gameState, enemies, projectiles, xpOrbs, particles, damageNumbers, lightningBolts, volcanicEruptions, visualEffects, screenFlash, camera, safeHouse } from './systemsmanager.js';
+import { gameState, enemies, projectiles, xpOrbs, particles, damageNumbers, lightningBolts, volcanicEruptions, visualEffects, screenFlash, camera, safeHouse, triggerScreenShake } from './systemsmanager.js';
 
 const enemyProjectilePath = new Path2D('M-5,-5 L5,-5 L5,5 L-5,5 Z');
 const enemyProjectileColor = 'rgba(255, 100, 100, 1)';
 
 const playerSkillProjectilePath = new Path2D('M-5,-5 L5,-5 L5,5 L-5,5 Z');
 const playerSkillProjectileColor = '#00FFFF';
-const hyperBeamColor = '#FF0000';
+const hyperBeamColor = '#FF00FF';
+
+function hexToRgb(hex) {
+    let r = 0, g = 0, b = 0;
+    if (hex.startsWith('#')) {
+        hex = hex.slice(1);
+    }
+    if (hex.length === 3) {
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length === 6) {
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+    }
+    return { r, g, b };
+}
 
 function fireProjectile(p) {
     const fire = (angleOffset) => {
@@ -32,7 +49,8 @@ function fireProjectile(p) {
                     this.trail.push({ x: this.x, y: this.y });
                     if (this.trail.length > 7) this.trail.shift();
                     this.life -= dt;
-                    return this.life <= 0 || this.x < camera.x - 50 || this.x > camera.x + camera.width + 50 || this.y < camera.y - 50 || this.y > camera.y + camera.height + 50;
+                    // Remove projectiles that are far off-screen
+                    return this.life <= 0 || this.x < camera.x - 100 || this.x > camera.x + camera.width + 100 || this.y < camera.y - 100 || this.y > camera.y + camera.height + 100;
                 }
             });
         }
@@ -72,7 +90,8 @@ function fireEnemyProjectile(enemy, targetX, targetY) {
             }
 
             this.life -= dt;
-            return this.life <= 0 || this.x < camera.x - 50 || this.x > camera.x + camera.width + 50 || this.y < camera.y - 50 || this.y > camera.y + camera.height + 50;
+            // Remove projectiles that are far off-screen
+            return this.life <= 0 || this.x < camera.x - 100 || this.x > camera.x + camera.width + 100 || this.y < camera.y - 100 || this.y > camera.y + camera.height + 100;
         }
     });
 }
@@ -100,12 +119,14 @@ function firePlayerSkillProjectile(startX, startY, targetX, targetY, damage, spe
             this.trail.push({ x: this.x, y: this.y });
             if (this.trail.length > 5) this.trail.shift();
             this.life -= dt;
-            return this.life <= 0 || this.x < camera.x - 50 || this.x > camera.x + camera.width + 50 || this.y < camera.y - 50 || this.y > camera.y + camera.height + 50;
+            // Remove projectiles that are far off-screen
+            return this.life <= 0 || this.x < camera.x - 100 || this.x > camera.x + camera.width + 100 || this.y < camera.y - 100 || this.y > camera.y + camera.height + 100;
         }
     });
 }
 
 function fireHyperBeam(player, damage, width, duration, chargingTime, color) {
+    const beamRgbColor = hexToRgb(color);
     visualEffects.push({
         type: 'hyperBeamCharge',
         x: player.x,
@@ -113,9 +134,9 @@ function fireHyperBeam(player, damage, width, duration, chargingTime, color) {
         angle: player.angle,
         beamWidth: width,
         life: chargingTime,
-        maxLife: chargingTime, // NEW: Added maxLife here for charge effect
-        color: color,
-        update(dt) { // NEW: Add update method for hyperBeamCharge
+        maxLife: chargingTime,
+        color: beamRgbColor,
+        update(dt) {
             this.life -= dt;
             return this.life <= 0;
         }
@@ -130,23 +151,23 @@ function fireHyperBeam(player, damage, width, duration, chargingTime, color) {
             damage: damage,
             beamWidth: width,
             life: duration,
-            maxLife: duration, // NEW: Added maxLife here for main beam
-            color: color,
+            maxLife: duration,
+            color: beamRgbColor,
             length: Math.max(camera.width, camera.height) * 2,
             hitEnemies: new Set(),
-            update(dt) { // NEW: Add update method for hyperBeam
+            update(dt) {
                 this.life -= dt;
                 return this.life <= 0;
             }
         });
         screenFlash.value = 0.5;
+        triggerScreenShake(15, 300);
         visualEffects.push({
             type: 'shockwave', x: player.x, y: player.y, radius: 20, maxRadius: 250, life: 300,
             update(dt) { this.radius += (this.maxRadius / 300) * dt; this.life -= dt; return this.life <= 0; }
         });
     }, chargingTime);
 }
-
 
 function triggerNova(p, damage = 50, radius = 200) {
     visualEffects.push({
@@ -157,35 +178,38 @@ function triggerNova(p, damage = 50, radius = 200) {
         if (Math.hypot(e.x - p.x, e.y - p.y) < radius) {
             e.health -= damage;
             spawnDamageNumber(e.x, e.y, damage, false);
+            e.lastHitTime = gameState.gameTime;
         }
     });
-    for (let i = 0; i < 60; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 8 + 4;
-        particles.push({
-            x: p.x, y: p.y, life: 800,
-            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-            alpha: 1, type: 'nova',
-            update(dt) {
-                this.x += this.vx; this.y += this.vy;
-                this.vx *= 0.95; this.vy *= 0.95;
-                this.life -= dt; this.alpha = this.life / 800;
-                return this.life <= 0;
-            }
-        });
-    }
+    triggerScreenShake(8, 150);
+    createImpactParticles(p.x, p.y, 30, 'nova'); // Reduced particle count
 }
 
 function createXpOrb(x, y, value, player, gainXPCallback) {
     xpOrbs.push({
         x, y, value, size: 5 + Math.random() * 5,
-        update(dt, playerDist) {
+        isPulled: false,
+        alpha: 1,
+        maxLife: 1000,
+        update(dt, playerClosestDist) { // Use playerClosestDist for more optimized XP pull
             const dx = player.x - this.x, dy = player.y - this.y;
             const dist = Math.hypot(dx, dy);
+
+            // Only pull if within the player's pickup radius
             if (dist < player.pickupRadius) {
-                this.x += (dx / dist) * 8 * player.magnetism;
-                this.y += (dy / dist) * 8 * player.magnetism;
+                this.isPulled = true;
+                this.alpha = Math.max(0.1, 1 - (dist / player.pickupRadius)); // Fades line based on distance
+                
+                // Gradually increase speed as it gets closer
+                const speedFactor = Math.max(1, (player.pickupRadius - dist) / player.pickupRadius * 10);
+                this.x += (dx / dist) * speedFactor * player.magnetism;
+                this.y += (dy / dist) * speedFactor * player.magnetism;
+            } else {
+                this.isPulled = false;
+                this.alpha = 1;
             }
+            
+            // If already at player location
             if (dist < 20) {
                 if (player.abilities.healOnXp && Math.random() < 0.1) {
                     player.health = Math.min(player.maxHealth, player.health + 1);
@@ -198,19 +222,103 @@ function createXpOrb(x, y, value, player, gainXPCallback) {
     });
 }
 
-function createImpactParticles(x, y, count, type = 'normal') {
+function createImpactParticles(x, y, count, type = 'normal', color = null, initialVx = null, initialVy = null) {
     for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 3 + 2;
-        const life = 400 + Math.random() * 200;
+        let angle = Math.random() * Math.PI * 2;
+        let speed = Math.random() * 5 + 1;
+        let size = Math.random() * 4 + 2;
+        let life = Math.random() * 300 + 150;
+
+        let particleColor = color;
+        let gravity = 0;
+        let friction = 0.98;
+        let endSize = size * 0.1;
+        let startAlpha = 1;
+        let endAlpha = 0;
+
+        let vx = initialVx !== null ? initialVx + (Math.random() - 0.5) * 0.5 : Math.cos(angle) * speed;
+        let vy = initialVy !== null ? initialVy + (Math.random() - 0.5) * 0.5 : Math.sin(angle) * speed;
+
+        switch (type) {
+            case 'nova':
+                particleColor = particleColor || `rgba(255, 255, 255, 0.8)`;
+                gravity = 0;
+                friction = 0.99;
+                endSize = size * 0.2;
+                life = 200 + Math.random() * 100; // Shorter life
+                break;
+            case 'fire':
+            case 'ember':
+                particleColor = particleColor || `rgba(${255}, ${Math.floor(Math.random() * 100)}, 0, 0.9)`;
+                gravity = -0.1;
+                friction = 0.95;
+                endSize = size * 2;
+                life = 300 + Math.random() * 150; // Slightly shorter life
+                startAlpha = 0.9;
+                break;
+            case 'ice':
+                particleColor = particleColor || `rgba(${135 + Math.floor(Math.random() * 50)}, ${206 + Math.floor(Math.random() * 50)}, ${250 + Math.floor(Math.random() * 5)}, 0.9)`;
+                gravity = 0.05;
+                friction = 0.97;
+                endSize = size * 0.5;
+                life = 250 + Math.random() * 100; // Shorter life
+                break;
+            case 'spark':
+                particleColor = particleColor || `rgba(255, 255, 255, 0.9)`;
+                life = 80 + Math.random() * 70; // Very short life
+                friction = 0.9;
+                endSize = 0;
+                startAlpha = 1;
+                break;
+            case 'energy':
+                particleColor = particleColor || `rgba(200, 150, 255, 0.7)`;
+                life = 150 + Math.random() * 100; // Shorter life
+                friction = 0.98;
+                endSize = 0;
+                startAlpha = 0.8;
+                break;
+            case 'enemy_death':
+                let rgb = hexToRgb(color || '#A0A0A0');
+                particleColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${0.8 + Math.random() * 0.2})`;
+                life = 300 + Math.random() * 150; // Slightly shorter life
+                speed = Math.random() * 3 + 1;
+                endSize = 0;
+                friction = 0.95;
+                break;
+            case 'impact':
+            default:
+                particleColor = particleColor || `rgba(255, 255, 255, 0.8)`;
+                life = 200 + Math.random() * 100; // Shorter life
+                break;
+        }
+
         particles.push({
-            x, y, life,
-            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-            alpha: 1, type: type, size: Math.random() * 2 + 1,
+            x: x, y: y,
+            life: life,
+            maxLife: life,
+            vx: vx,
+            vy: vy,
+            startAlpha: startAlpha,
+            endAlpha: endAlpha,
+            size: size,
+            startSize: size,
+            endSize: endSize,
+            color: particleColor,
+            gravity: gravity,
+            friction: friction,
+            type: type,
             update(dt) {
-                this.x += this.vx; this.y += this.vy;
-                this.vx *= 0.96; this.vy *= 0.96;
-                this.life -= dt; this.alpha = this.life / 400;
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= dt;
+
+                const lifeRatio = this.life / this.maxLife;
+                this.alpha = this.startAlpha * lifeRatio + this.endAlpha * (1 - lifeRatio);
+                this.currentSize = this.startSize * lifeRatio + this.endSize * (1 - lifeRatio);
+
                 return this.life <= 0;
             }
         });
@@ -253,12 +361,15 @@ function updateLightning(deltaTime, player) {
                 lightningBolts.push({
                     start: { x: lastTarget.x, y: lastTarget.y },
                     end: { x: closestTarget.x, y: closestTarget.y },
-                    life: 150, update(dt) { this.life -= dt; return this.life <= 0; }
+                    life: 150,
+                    color: 'var(--lightning-color)',
+                    update(dt) { this.life -= dt; return this.life <= 0; }
                 });
                 screenFlash.value = 0.2;
-                createImpactParticles(closestTarget.x, closestTarget.y, 5, 'lightning');
+                createImpactParticles(closestTarget.x, closestTarget.y, 3, 'spark', 'var(--lightning-color)'); // Reduced particle count
                 closestTarget.health -= skill.damage;
                 spawnDamageNumber(closestTarget.x, closestTarget.y, Math.round(skill.damage), false);
+                closestTarget.lastHitTime = gameState.gameTime;
                 if (skill.shockDuration > 0) {
                     closestTarget.shockTimer = skill.shockDuration;
                     closestTarget.shockDamage = skill.damage / 2;
@@ -284,33 +395,22 @@ function updateVolcano(deltaTime, player) {
                     x: targetEnemy.x, y: targetEnemy.y, radius: skill.radius,
                     damage: skill.damage, burnDuration: skill.burnDuration,
                     life: skill.burnDuration, hitEnemies: [],
+                    color: 'var(--volcano-color)',
                     update(dt) {
                         enemies.forEach(e => {
                             if (!e.markedForDeletion && !this.hitEnemies.includes(e) && Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
                                 e.health -= this.damage * (dt / 1000);
+                                e.lastHitTime = gameState.gameTime;
                             }
                         });
                         this.life -= dt;
                         return this.life <= 0;
                     }
                 });
-                for (let j = 0; j < 30; j++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 6 + 3;
-                    particles.push({
-                        x: targetEnemy.x, y: targetEnemy.y,
-                        life: 800 + Math.random() * 400,
-                        vx: Math.cos(angle) * speed * 0.3, vy: -speed,
-                        type: 'ember', alpha: 1,
-                        update(dt) {
-                            this.x += this.vx; this.y += this.vy; this.vy += 0.1;
-                            this.life -= dt; this.alpha = this.life / 1000;
-                            return this.life <= 0;
-                        }
-                    });
-                }
+                createImpactParticles(targetEnemy.x, targetEnemy.y, 15, 'fire'); // Reduced particle count
                 targetEnemy.health -= skill.damage;
                 spawnDamageNumber(targetEnemy.x, targetEnemy.y, Math.round(skill.damage), false);
+                targetEnemy.lastHitTime = gameState.gameTime;
             }
             skill.lastEruption = gameState.gameTime;
         }
@@ -331,6 +431,8 @@ function updateFrostNova(deltaTime, player) {
                 e.slowTimer = skill.slowDuration;
                 e.slowAmount = skill.slowAmount;
                 spawnDamageNumber(e.x, e.y, skill.damage, false);
+                createImpactParticles(e.x, e.y, 5, 'ice'); // Reduced particle count
+                e.lastHitTime = gameState.gameTime;
             }
         });
         skill.lastCast = gameState.gameTime;
@@ -346,7 +448,7 @@ function updateBlackHole(deltaTime, player) {
             if (!targetEnemy || targetEnemy.markedForDeletion) return;
             visualEffects.push({
                 type: 'blackHole', x: targetEnemy.x, y: targetEnemy.y,
-                radius: skill.radius, life: skill.duration,
+                radius: skill.radius, life: skill.duration, maxLife: skill.duration,
                 pullStrength: skill.pullStrength, damage: skill.damage,
                 update(dt) {
                     this.life -= dt;
@@ -356,9 +458,10 @@ function updateBlackHole(deltaTime, player) {
                             if (dist < this.radius && dist > 10) {
                                 e.x -= (e.x - this.x) / dist * this.pullStrength;
                                 e.y -= (e.y - this.y) / dist * this.pullStrength;
-                                if (Math.random() < 0.1) {
+                                if (Math.random() < 0.05) { // Reduced damage tick frequency
                                     e.health -= this.damage;
                                     spawnDamageNumber(e.x, e.y, this.damage, false);
+                                    e.lastHitTime = gameState.gameTime;
                                 }
                             }
                         }
@@ -371,4 +474,4 @@ function updateBlackHole(deltaTime, player) {
     }
 }
 
-export { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, createXpOrb, createImpactParticles, spawnDamageNumber, updateLightning, updateVolcano, updateFrostNova, updateBlackHole, fireHyperBeam };
+export { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, createXpOrb, createImpactParticles, spawnDamageNumber, updateLightning, updateVolcano, updateFrostNova, updateBlackHole, fireHyperBeam, hexToRgb };

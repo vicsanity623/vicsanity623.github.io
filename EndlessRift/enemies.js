@@ -1,16 +1,15 @@
-import { camera, gameState, safeHouse } from './systemsmanager.js';
-import { createXpOrb, fireEnemyProjectile } from './attacks_skills.js';
+// enemies.js (Updated)
+
+import { camera, gameState, safeHouse, triggerScreenShake } from './systemsmanager.js';
+import { createXpOrb, fireEnemyProjectile, createImpactParticles } from './attacks_skills.js';
 import { player } from './player.js';
 
-// --- Enemy Visual Paths ---
 const enemyPath = new Path2D('M-12,0 Q-10,-15 0,-15 Q10,-15 12,0 L8,-5 L5,5 L0,0 L-5,5 L-8,-5 Z');
 const largeEnemyPath = new Path2D('M-20,0 L0,-30 L20,0 L15,10 L0,20 L-15,10 Z');
 const fastEnemyPath = new Path2D('M-8,0 L0,-15 L8,0 L0,15 Z');
 const shooterEnemyPath = new Path2D('M-10,-10 L10,-10 L10,10 L-10,10 Z M0,-15 A5 5 0 1 0 0 -5');
 
-// --- Enemy Archetype Definitions ---
 const ENEMY_ARCHETYPES = {
-    // Note: All damage/health values here are explicitly numbers, which is good.
     basic: {
         health: 20, speed: 1.0, damage: 10, width: 40, xpValue: 5, path: enemyPath,
         color: 'var(--enemy-color)', accentColor: 'var(--enemy-accent-color)', canShoot: false,
@@ -69,32 +68,62 @@ function spawnEnemy(enemies) {
         health: archetype.health * healthModifier,
         maxHealth: archetype.health * healthModifier,
         speed: archetype.speed,
-        damage: archetype.damage, // Ensure this is a number from archetype
+        damage: archetype.damage,
         width: archetype.width,
         xpValue: archetype.xpValue,
         path: archetype.path,
         color: archetype.color,
         accentColor: archetype.accentColor,
         canShoot: archetype.canShoot,
-        projectileSpeed: archetype.projectileSpeed, // Ensure this is a number
+        projectileSpeed: archetype.projectileSpeed,
         fireRate: archetype.fireRate,
-        projectileDamage: archetype.projectileDamage, // Ensure this is a number
+        projectileDamage: archetype.projectileDamage,
         lastShotTime: archetype.lastShotTime,
         shockTimer: 0,
         shockDamage: 0,
+        slowTimer: 0,
         speedMultiplier: 1.0,
         markedForDeletion: false,
         type: typeToSpawn,
+        lastHitTime: 0,
+        isDying: false,
+        deathTimer: 0,
+        deathDuration: 300,
+        particlesSpawned: false,
     });
-};
+}
 
 function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback, gainXPCallback) {
-    enemies.forEach((e) => {
-        const angleToPlayer = Math.atan2(playerObj.y - e.y, playerObj.x - e.x);
-        let nextX = e.x + Math.cos(angleToPlayer) * e.speed * e.speedMultiplier;
-        let nextY = e.y + Math.sin(angleToPlayer) * e.speed * e.speedMultiplier;
+    const activeEnemies = enemies.filter(e => {
+        // Only update enemies that are within a reasonable range of the camera
+        // This is a form of frustum culling to reduce update workload
+        const cullBuffer = 100; // Extra buffer around screen
+        return e.x + e.width / 2 > camera.x - cullBuffer &&
+               e.x - e.width / 2 < camera.x + camera.width + cullBuffer &&
+               e.y + e.width / 2 > camera.y - cullBuffer &&
+               e.y - e.width / 2 < camera.y + camera.height + cullBuffer;
+    });
 
-        // Prevent enemies from entering the safe zone
+    activeEnemies.forEach((e) => {
+        if (e.isDying) {
+            e.deathTimer -= deltaTime;
+            if (e.deathTimer <= 0) {
+                e.markedForDeletion = true;
+            }
+            return;
+        }
+
+        const angleToPlayer = Math.atan2(playerObj.y - e.y, playerObj.x - e.x);
+        let currentSpeed = e.speed * e.speedMultiplier;
+
+        if (e.slowTimer > 0) {
+            currentSpeed *= (1 - player.skills.frostNova.slowAmount);
+            e.slowTimer -= deltaTime;
+        }
+
+        let nextX = e.x + Math.cos(angleToPlayer) * currentSpeed;
+        let nextY = e.y + Math.sin(angleToPlayer) * currentSpeed;
+
         if (safeHouse.active) {
             const dx_safeHouse = nextX - safeHouse.x;
             const dy_safeHouse = nextY - safeHouse.y;
@@ -118,24 +147,27 @@ function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback
 
         if (e.canShoot && gameState.gameTime - e.lastShotTime > e.fireRate) {
             const distToPlayer = Math.hypot(playerObj.x - e.x, playerObj.y - e.y);
-            // Only fire if player is within a reasonable range
-            if (distToPlayer < camera.width / 2 + 100) { // Example range, adjust as needed
+            if (distToPlayer < camera.width / 2 + 100) {
                 fireEnemyProjectile(e, playerObj.x, playerObj.y);
                 e.lastShotTime = gameState.gameTime;
             }
         }
 
-        if (e.health <= 0) {
+        if (e.health <= 0 && !e.isDying) {
             playerObj.kills++;
             if (playerObj.lifeSteal > 0) {
                 playerObj.health = Math.min(playerObj.maxHealth, playerObj.health + playerObj.lifeSteal);
             }
             createXpOrb(e.x, e.y, e.xpValue, playerObj, gainXPCallback);
+
             if (gameState.isRunning && playerObj.level >= 20 && playerObj.kills >= playerObj.nextKillUpgrade) {
                 showLevelUpOptionsCallback();
                 playerObj.nextKillUpgrade += 1000;
             }
-            e.markedForDeletion = true;
+            e.isDying = true;
+            e.deathTimer = e.deathDuration;
+            e.speed = 0;
+            createImpactParticles(e.x, e.y, 20, 'enemy_death', e.color);
         }
 
         if (e.shockTimer > 0) {
@@ -146,18 +178,44 @@ function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback
 }
 
 function drawEnemy(e, ctx, playerObj) {
+    if (e.markedForDeletion && !e.isDying) return;
+
+    // Only draw enemies if they are on screen or close to it
+    const drawBuffer = 50;
+    if (e.x + e.width / 2 < camera.x - drawBuffer ||
+        e.x - e.width / 2 > camera.x + camera.width + drawBuffer ||
+        e.y + e.width / 2 < camera.y - drawBuffer ||
+        e.y - e.width / 2 > camera.y + camera.height + drawBuffer) {
+        return;
+    }
+
     ctx.save();
     ctx.translate(e.x, e.y);
     ctx.rotate(Math.atan2(playerObj.y - e.y, playerObj.x - e.x) + Math.PI / 2);
-    if (e.slowTimer > 0) {
-        ctx.fillStyle = '#87CEEB';
-    } else {
-        ctx.fillStyle = e.color;
+
+    if (e.isDying) {
+        ctx.globalAlpha = e.deathTimer / e.deathDuration;
     }
+
+    const HIT_FLASH_DURATION = 100;
+    const isFlashing = e.lastHitTime && (gameState.gameTime - e.lastHitTime < HIT_FLASH_DURATION);
+    if (isFlashing) {
+        const flashAlpha = (HIT_FLASH_DURATION - (gameState.gameTime - e.lastHitTime)) / HIT_FLASH_DURATION;
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.7})`;
+        ctx.fillRect(-e.width / 2, -e.height / 2, e.width, e.height);
+    }
+
+    if (e.slowTimer > 0) {
+        ctx.fillStyle = `rgba(135, 206, 250, 0.7)`;
+        ctx.fill(e.path);
+    }
+
+    ctx.fillStyle = e.color;
     ctx.fill(e.path);
     ctx.strokeStyle = e.accentColor;
     ctx.lineWidth = 1.5;
     ctx.stroke(e.path);
+
     ctx.restore();
 }
 

@@ -109,6 +109,8 @@ let safeHouseInstance;
 let camera = { x: 0, y: 0, width: 0, height: 0, zoom: 1 };
 let screenFlash = { value: 0 };
 let screenRedFlash = { value: 0 };
+let screenShake = { intensity: 0, duration: 0, timer: 0 };
+let manualHyperBeamTrigger = false;
 
 const keys = { w: false, a: false, s: false, d: false };
 const joystick = { active: false, baseX: 0, baseY: 0, handleX: 0, handleY: 0, radius: 60, handleRadius: 25 };
@@ -197,6 +199,7 @@ export function initializeApp() {
     hudElements = {
         gameContainer: document.getElementById('game-container'),
         level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'),
+        hyperBeamButton: document.getElementById('hyperBeamButton'),
         upgradeStatsList: document.getElementById('upgrade-stats-list'),
     };
 
@@ -228,6 +231,12 @@ function setupEventListeners() {
         checkSaveStates();
     });
     hudElements.autoModeButton.addEventListener('click', () => { gameState.isAutoMode = !gameState.isAutoMode; hudElements.autoModeButton.textContent = gameState.isAutoMode ? 'AUTO ON' : 'AUTO OFF'; hudElements.autoModeButton.classList.toggle('auto-on', gameState.isAutoMode); });
+
+    hudElements.hyperBeamButton.addEventListener('click', () => {
+        if (!gameState.isAutoMode && player.skills.hyperBeam.isUnlocked) {
+            manualHyperBeamTrigger = true;
+        }
+    });
 
     auth.onAuthStateChanged(user => {
         currentUser = user;
@@ -335,8 +344,15 @@ function clearSave() {
         firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default').delete().catch(e => console.error("Error clearing cloud save:", e));
     }
 }
+
+export function triggerScreenShake(intensity, duration) {
+    screenShake.intensity = Math.max(screenShake.intensity, intensity);
+    screenShake.duration = Math.max(screenShake.duration, duration);
+    screenShake.timer = screenShake.duration;
+}
+
 function takeDamage(amount, isDirectHit = false) {
-    playerTakeDamage(amount, gameState.gameTime, spawnDamageNumber, screenRedFlash);
+    playerTakeDamage(amount, gameState.gameTime, spawnDamageNumber, screenRedFlash, triggerScreenShake);
 
     if (player.thorns > 0 && isDirectHit) {
         enemies.forEach(e => {
@@ -437,7 +453,6 @@ function getAiMovementVector() {
 
     let target = closestEnemy;
     let targetDist = closestEnemyDist;
-    const SAFE_HOUSE_PRIORITY = 500;
 
     if (safeHouseInstance && !safeHouseInstance.active && safeHouseInstance.respawnTimer > 1) {
     } else if (safeHouseInstance && safeHouseInstance.active) {
@@ -446,7 +461,6 @@ function getAiMovementVector() {
             targetDist = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
         }
     }
-
 
     if (closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) target = closestOrb;
     if (closestTotem && (!player.skills[closestTotem.skill].isUnlocked || (player.abilities.orbitingShield.enabled && closestTotem.skill === 'soul_vortex'))) target = closestTotem;
@@ -485,6 +499,14 @@ function update(deltaTime) {
         fireProjectile(player);
         player.lastFireTime = gameState.gameTime;
     }
+
+    if (screenShake.timer > 0) {
+        screenShake.timer -= deltaTime;
+        const shakeAmount = screenShake.intensity * (screenShake.timer / screenShake.duration);
+        camera.x += (Math.random() - 0.5) * 2 * shakeAmount;
+        camera.y += (Math.random() - 0.5) * 2 * shakeAmount;
+    }
+
     camera.x = player.x - camera.width / 2; camera.y = player.y - camera.height / 2;
     camera.x = Math.max(0, Math.min(world.width - camera.width, camera.x));
     camera.y = Math.max(0, Math.min(world.height - camera.height, camera.y));
@@ -510,13 +532,25 @@ function update(deltaTime) {
 
     if (player.skills.hyperBeam.isUnlocked) {
         const skill = player.skills.hyperBeam;
-        if (gameState.gameTime - skill.lastCast > skill.cooldown) {
+        const isOnCooldown = gameState.gameTime - skill.lastCast < skill.cooldown;
+        let shouldFire = false;
+
+        if (gameState.isAutoMode) {
             const nearbyEnemies = enemies.filter(e => Math.hypot(e.x - player.x, e.y - player.y) < camera.width / 2 + 200);
-            if (nearbyEnemies.length > 15) {
-                console.log("Hyper Beam Fired!");
-                fireHyperBeam(player, skill.damage, skill.width, skill.duration, skill.chargingTime, skill.color);
-                skill.lastCast = gameState.gameTime;
+            if (!isOnCooldown && nearbyEnemies.length > 15) {
+                shouldFire = true;
             }
+        } else {
+            if (!isOnCooldown && manualHyperBeamTrigger) {
+                shouldFire = true;
+            }
+        }
+
+        if (shouldFire) {
+            console.log("Hyper Beam Fired!");
+            fireHyperBeam(player, skill.damage, skill.width, skill.duration, skill.chargingTime, skill.color);
+            skill.lastCast = gameState.gameTime;
+            manualHyperBeamTrigger = false;
         }
     }
 
@@ -579,7 +613,7 @@ function handleCollisions() {
         }
 
         enemies.forEach(e => {
-            if (e.markedForDeletion || p.hitEnemies.includes(e)) return;
+            if (e.markedForDeletion || e.isDying || p.hitEnemies.includes(e)) return;
 
             const combinedRadius = (p.size?.w / 2 || 5) + (e.width / 2 || 20);
             if (Math.hypot(e.x - p.x, e.y - p.y) < combinedRadius) {
@@ -588,11 +622,12 @@ function handleCollisions() {
                 }
 
                 const isCrit = Math.random() < (p.critChance || 0);
-                const damage = isCrit ? Math.round(p.damage * (p.critDamage || 2)) : p.damage;
+                const damage = isCrit ? Math.round(p.damage * (p.critDamage || 2)) : p.damage; // Fixed typo here
                 
                 e.health -= damage;
+                e.lastHitTime = gameState.gameTime;
                 p.hitEnemies.push(e);
-                createImpactParticles(e.x, e.y, 10);
+                createImpactParticles(e.x, e.y, 10, 'impact');
                 spawnDamageNumber(e.x, e.y, Math.round(damage), isCrit);
 
                 if (p.isPlayerSkillProjectile) {
@@ -616,12 +651,18 @@ function handleCollisions() {
     });
 
     enemies.forEach(e => {
+        if (e.isDying) return; // Don't deal damage or re-trigger death if already dying
+
         const enemyCollisionRadius = (e.width / 2 || 20);
         const playerCollisionRadius = player.size;
 
         if (Math.hypot(e.x - player.x, e.y - player.y) < enemyCollisionRadius + playerCollisionRadius) {
             takeDamage(e.damage || 10, true);
-            e.health = -1;
+            e.health = -1; // Mark for immediate "death" in next update loop iteration
+            e.isDying = true;
+            e.deathTimer = 300;
+            e.deathDuration = 300;
+            e.speed = 0;
         }
     });
 
@@ -634,7 +675,7 @@ function handleCollisions() {
                 const shieldX = player.x + Math.cos(angle) * shield.distance;
                 const shieldY = player.y + Math.sin(angle) * shield.distance;
                 enemies.forEach(e => {
-                    if (e.markedForDeletion) return;
+                    if (e.markedForDeletion || e.isDying) return;
                     const combinedRadius = 15 + (e.width / 2 || 20);
                     if (Math.hypot(e.x - shieldX, e.y - shieldY) < combinedRadius) {
                         e.health -= shield.damage;
@@ -651,7 +692,7 @@ function handleCollisions() {
     visualEffects.forEach(effect => {
         if (effect.type === 'hyperBeam' && effect.life > effect.maxLife - effect.maxLife * 0.9) {
             enemies.forEach(e => {
-                if (e.markedForDeletion || effect.hitEnemies.has(e)) return;
+                if (e.markedForDeletion || e.isDying || effect.hitEnemies.has(e)) return;
 
                 const dx = e.x - effect.x;
                 const dy = e.y - effect.y;
@@ -661,7 +702,7 @@ function handleCollisions() {
                 if (Math.abs(rotatedY) < (effect.beamWidth / 2) + (e.width / 2) && rotatedX >= -e.width / 2 && rotatedX < effect.length) {
                     e.health -= effect.damage;
                     spawnDamageNumber(e.x, e.y, effect.damage, true);
-                    createImpactParticles(e.x, e.y, 15, 'nova');
+                    createImpactParticles(e.x, e.y, 15, 'nova', `rgba(${effect.color.r},${effect.color.g},${effect.color.b},1)`);
                     effect.hitEnemies.add(e);
                 }
             });
@@ -673,22 +714,33 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
-    ctx.drawImage(getBackgroundCanvas(), 0, 0);
+    
+    // Drawing Order (from furthest back to front)
+    ctx.drawImage(getBackgroundCanvas(), 0, 0); // Background Rift
 
     if (safeHouseInstance) {
-        safeHouseInstance.draw(ctx, camera);
+        safeHouseInstance.draw(ctx, camera); // Safe House
     }
 
-    drawWorldElements();
-    projectiles.forEach(p => drawProjectile(p, ctx));
-    enemies.forEach(e => drawEnemy(e, ctx, player));
+    drawWorldElements(); // Skill Totems, Lightning, Volcano, XP Orbs
+
+    enemies.forEach(e => drawEnemy(e, ctx, player)); // Enemies
+    projectiles.forEach(p => drawProjectile(p, ctx)); // Projectiles
+
+    // Player drawing (always on top of most game elements)
     const playerBlink = (gameState.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
     if (!playerBlink) drawPlayer(player, player.angle);
-    drawParticlesAndEffects();
+
+    drawParticlesAndEffects(); // Particles (general), HyperBeam, BlackHole (these should generally be on top of player)
+
     ctx.restore();
+
+    // Screen-wide effects (always on top of everything else)
     if (screenRedFlash.value > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${screenRedFlash.value * 0.4})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenRedFlash.value -= 0.04; }
     if (screenFlash.value > 0) { ctx.fillStyle = `rgba(200, 225, 255, ${screenFlash.value})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenFlash.value -= 0.05; }
-    if (joystick.active && !gameState.isAutoMode) drawJoystick(); updateHUD();
+    
+    if (joystick.active && !gameState.isAutoMode) drawJoystick();
+    updateHUD();
 }
 function drawWorldElements() {
     skillTotems.forEach(totem => drawSkillTotem(totem));
@@ -698,63 +750,77 @@ function drawWorldElements() {
 }
 function drawParticlesAndEffects() {
     visualEffects.forEach(effect => {
-        // --- EXISTING UPDATE LOGIC FOR OTHER EFFECTS ---
-        // These need to be updated regardless of whether they are drawn.
-        // The common update logic for visualEffects array members
-        // is typically handled by `updateEntityArray(visualEffects, deltaTime);`
-        // in the main `update` loop.
-        // However, if some effects have custom update logic that should
-        // run *before* or *during* their drawing, it goes here.
-        // For simplicity and clarity, let's ensure HyperBeam related updates
-        // are properly managed.
-
-        // It seems the structure expects an update method directly on the effect objects.
-        // Let's ensure these are called, and also ensure the drawing logic is correct.
-
-        // Update the effect's state (life, alpha, etc.)
-        if (effect.update) { // Call update method if it exists on the effect object
-            // For effects like shockwave, frostwave, blackHole that have their own update:
-            effect.update(0); // Pass 0 as deltaTime here. Their actual life update happens below in updateEntityArray
-        }
-        // ^ This is a bit of a tricky spot. The `updateEntityArray` call in `systemsmanager.js`
-        // already handles `effect.update(dt)`. We *don't* want to call it here again.
-        // So, let's make sure the `hyperBeam` and `hyperBeamCharge` objects *have*
-        // their `update` methods defined in `attacks_skills.js` where they are created,
-        // and then they'll be automatically updated by `updateEntityArray`.
-
-        // Let's re-confirm that the `update` method is called elsewhere, then focus on drawing here.
-        // The current `systemsmanager.js` already has:
-        // `updateEntityArray(visualEffects, deltaTime);`
-        // This is where `effect.update(dt)` is called for *all* visual effects.
-        // So we just need the `drawParticlesAndEffects` to focus purely on drawing based on the *current* state of `effect`.
-    });
-
-    // Drawing loop
-    visualEffects.forEach(effect => {
-        const lifePercent = effect.life / effect.maxLife; // Rely on `effect.life` being updated by updateEntityArray
         ctx.save();
         ctx.beginPath();
         if (effect.type === 'shockwave' || effect.type === 'frostwave') {
+            const lifePercent = effect.life / effect.maxLife;
             ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
             ctx.strokeStyle = effect.type === 'frostwave' ? `rgba(135, 206, 250, ${lifePercent * 0.8})` : `rgba(255, 255, 255, ${lifePercent * 0.8})`;
             ctx.lineWidth = 15 * lifePercent;
             ctx.stroke();
+
+            if (effect.type === 'frostwave') {
+                ctx.beginPath();
+                const innerRadius = effect.radius * 0.8;
+                const numSpikes = 8;
+                for (let i = 0; i < numSpikes; i++) {
+                    const angle = (i / numSpikes) * Math.PI * 2;
+                    const outerX = effect.x + Math.cos(angle) * innerRadius;
+                    const outerY = effect.y + Math.sin(angle) * innerRadius;
+                    const innerX = effect.x + Math.cos(angle + Math.PI / numSpikes) * innerRadius * 0.7;
+                    const innerY = effect.y + Math.sin(angle + Math.PI / numSpikes) * innerRadius * 0.7;
+                    if (i === 0) ctx.moveTo(outerX, outerY);
+                    else ctx.lineTo(outerX, outerY);
+                    ctx.lineTo(innerX, innerY);
+                }
+                ctx.closePath();
+                ctx.fillStyle = `rgba(180, 220, 255, ${lifePercent * 0.3})`;
+                ctx.fill();
+                ctx.strokeStyle = `rgba(135, 206, 250, ${lifePercent * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                if (lifePercent > 0.1 && Math.random() < 0.4) {
+                    createImpactParticles(effect.x + (Math.random() - 0.5) * effect.radius * 0.8,
+                                          effect.y + (Math.random() - 0.5) * effect.radius * 0.8,
+                                          1, 'ice');
+                }
+            }
         } else if (effect.type === 'world_expansion') {
+            const lifePercent = effect.life / effect.maxLife;
             ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
             ctx.strokeStyle = `rgba(150, 255, 150, ${lifePercent * 0.9})`;
             ctx.lineWidth = 20 * lifePercent;
             ctx.stroke();
         } else if (effect.type === 'blackHole') {
+            const lifePercent = effect.life / effect.maxLife;
             ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
             const gradient = ctx.createRadialGradient(effect.x, effect.y, 10, effect.x, effect.y, effect.radius);
             gradient.addColorStop(0, 'rgba(0,0,0,0)');
-            gradient.addColorStop(1, 'rgba(25, 0, 50, 0.7)');
+            gradient.addColorStop(0.7, `rgba(25, 0, 50, ${lifePercent * 0.7})`);
+            gradient.addColorStop(1, `rgba(0, 0, 0, ${lifePercent * 0.9})`);
             ctx.fillStyle = gradient;
             ctx.fill();
+
+            ctx.beginPath();
+            const coreRadius = effect.radius * 0.2 * (Math.sin(gameState.gameTime / 100) * 0.1 + 0.9);
+            ctx.arc(effect.x, effect.y, coreRadius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(100, 0, 200, ${lifePercent * 0.5})`;
+            ctx.shadowColor = `rgba(150, 50, 255, ${lifePercent * 0.8})`;
+            ctx.shadowBlur = coreRadius * 2;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            if (lifePercent > 0.1 && Math.random() < 0.8) {
+                const pAngle = Math.random() * Math.PI * 2;
+                const pDist = Math.random() * effect.radius;
+                const particleX = effect.x + Math.cos(pAngle) * pDist;
+                const particleY = effect.y + Math.sin(pAngle) * pDist;
+                createImpactParticles(particleX, particleY, 1, 'energy', 'rgba(200, 150, 255, 0.7)', (effect.x - particleX) / 100 * effect.pullStrength, (effect.y - particleY) / 100 * effect.pullStrength);
+            }
         }
         ctx.restore();
 
-        // Hyper Beam charging effect drawing
         if (effect.type === 'hyperBeamCharge') {
             ctx.save();
             ctx.translate(effect.x, effect.y);
@@ -769,10 +835,7 @@ function drawParticlesAndEffects() {
             ctx.arc(0, 0, chargeSize, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
-        }
-
-        // Hyper Beam drawing
-        else if (effect.type === 'hyperBeam') {
+        } else if (effect.type === 'hyperBeam') {
             ctx.save();
             ctx.translate(effect.x, effect.y);
             ctx.rotate(effect.angle);
@@ -781,8 +844,10 @@ function drawParticlesAndEffects() {
             const beamStartOffset = 20;
             const glowStrength = currentAlpha * 120;
 
-            ctx.fillStyle = `rgba(255, 0, 0, ${currentAlpha * 0.4})`;
-            ctx.shadowColor = `rgba(255, 0, 0, ${currentAlpha * 0.8})`;
+            const beamColor = effect.color;
+
+            ctx.fillStyle = `rgba(${beamColor.r}, ${beamColor.g}, ${beamColor.b}, ${currentAlpha * 0.4})`;
+            ctx.shadowColor = `rgba(${beamColor.r}, ${beamColor.g}, ${beamColor.b}, ${currentAlpha * 0.8})`;
             ctx.shadowBlur = glowStrength;
             ctx.fillRect(beamStartOffset, -effect.beamWidth / 2, effect.length, effect.beamWidth);
 
@@ -790,42 +855,114 @@ function drawParticlesAndEffects() {
             ctx.shadowBlur = glowStrength * 0.5;
             ctx.fillRect(beamStartOffset, -effect.beamWidth * 0.2, effect.length, effect.beamWidth * 0.4);
 
+            const rippleFactor = Math.sin(gameState.gameTime / 50) * 0.05 + 1;
+            ctx.fillStyle = `rgba(${beamColor.r}, ${beamColor.g}, ${beamColor.b}, ${currentAlpha * 0.1})`;
+            ctx.shadowBlur = 0;
+            ctx.fillRect(beamStartOffset, -effect.beamWidth / 2 * rippleFactor, effect.length, effect.beamWidth * rippleFactor);
+
             ctx.restore();
 
-            if (effect.life === effect.maxLife) {
-                for (let i = 0; i < 50; i++) {
-                    const angle = effect.angle + (Math.random() - 0.5) * Math.PI;
-                    const speed = Math.random() * 10 + 5;
-                    particles.push({
-                        x: effect.x, y: effect.y, life: 300,
-                        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-                        alpha: 1, type: 'nova', size: Math.random() * 5 + 2,
-                        update(dt) { this.x += this.vx; this.y += this.vy; this.life -= dt; this.alpha = this.life / 300; return this.life <= 0; }
-                    });
-                }
-            }
-            if (currentAlpha > 0.1 && Math.random() < 0.8) {
-                ctx.save(); // Save before translation/rotation for particles
-                ctx.translate(effect.x, effect.y);
-                ctx.rotate(effect.angle);
-                particles.push({
-                    x: Math.random() * effect.length, // Random X along beam's length
-                    y: (Math.random() - 0.5) * effect.beamWidth, // Random Y within beam's width
-                    life: 150,
-                    vx: 0, vy: 0,
-                    alpha: currentAlpha * 0.5, type: 'nova', size: Math.random() * 3 + 1,
-                    update(dt) { this.life -= dt; this.alpha = this.life / 150 * currentAlpha * 0.5; return this.life <= 0; }
-                });
-                ctx.restore(); // Restore after particle placement
+            if (currentAlpha > 0.1 && Math.random() < 0.3) {
+                const particleX = beamStartOffset + Math.random() * effect.length;
+                const particleY = (Math.random() - 0.5) * effect.beamWidth;
+                const angleOffset = effect.angle;
+                const speed = Math.random() * 2 + 0.5;
+                
+                const rotatedParticleX = effect.x + Math.cos(angleOffset) * particleX - Math.sin(angleOffset) * particleY;
+                const rotatedParticleY = effect.y + Math.sin(angleOffset) * particleX + Math.cos(angleOffset) * particleY;
+
+                createImpactParticles(rotatedParticleX, rotatedParticleY, 1, 'spark', `rgba(255, 255, 255, ${currentAlpha})`, Math.cos(angleOffset + (Math.random() - 0.5) * 0.5) * speed, Math.sin(angleOffset + (Math.random() - 0.5) * 0.5) * speed);
             }
         }
     });
-    particles.forEach(p => { // Particle drawing loop
-        // ... existing particle drawing ...
+
+    // Drawing of individual particles:
+    particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        // Reduce shadowBlur on particles for performance, especially when many
+        // Only apply shadow to larger/more important particles or remove it
+        if (p.currentSize > 3 && p.type !== 'spark') { // Example: only blur larger non-spark particles
+           ctx.shadowColor = p.color;
+           ctx.shadowBlur = p.currentSize * 1.5; // Slightly less intense blur
+        } else {
+           ctx.shadowBlur = 0; // No blur for small or spark particles
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.currentSize, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
     });
-    // ... rest of drawParticlesAndEffects ...
+    damageNumbers.forEach(dn => drawDamageNumber(dn));
 }
-function drawPlayer(p, angle) { const bob = Math.sin(gameState.gameTime / 250) * 2; ctx.save(); ctx.translate(p.x, p.y + bob); const hoverPulse = Math.sin(gameState.gameTime / 400); ctx.beginPath(); ctx.ellipse(0, 25, 20, 8, 0, 0, Math.PI * 2); ctx.globalAlpha = 0.2 + hoverPulse * 0.1; ctx.fillStyle = '#fff'; ctx.fill(); ctx.globalAlpha = 1; ctx.save(); ctx.rotate(angle); const auraPulse = Math.sin(gameState.gameTime / 200); ctx.beginPath(); ctx.arc(0, 0, 30, -1.9, 1.9); ctx.strokeStyle = 'var(--player-aura-color)'; ctx.lineWidth = 4 + auraPulse * 2; ctx.shadowColor = 'var(--player-aura-color)'; ctx.shadowBlur = 15 + auraPulse * 10; ctx.stroke(); ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(8, 15); ctx.lineTo(0, 10); ctx.lineTo(-8, 15); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#000'; ctx.fillRect(-5, -15, 10, 10); ctx.restore(); ctx.restore(); }
+function drawPlayer(p, angle) {
+    const bob = Math.sin(gameState.gameTime / 250) * 2;
+    ctx.save();
+    ctx.translate(p.x, p.y + bob);
+
+    const hoverPulse = Math.sin(gameState.gameTime / 400);
+
+    // Subtle ground shadow/hover effect
+    ctx.beginPath();
+    ctx.ellipse(0, 25, 20, 8, 0, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.2 + hoverPulse * 0.1;
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.save();
+    ctx.rotate(angle);
+
+    const auraPulse = Math.sin(gameState.gameTime / 200);
+
+    // Layer 1: Strongest Outer Aura
+    ctx.beginPath();
+    ctx.arc(0, 0, 30 + auraPulse * 4, -1.9, 1.9); // Larger pulse range
+    ctx.strokeStyle = 'var(--player-aura-color)';
+    ctx.lineWidth = 8 + auraPulse * 4; // Thicker line
+    ctx.shadowColor = 'var(--player-aura-color)';
+    ctx.shadowBlur = 35 + auraPulse * 20; // More intense glow
+    ctx.stroke();
+
+    // Layer 2: Brighter Inner Aura
+    ctx.beginPath();
+    ctx.arc(0, 0, 25 + auraPulse * 2.5, -1.9, 1.9);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; // Even brighter white/cyan inner glow
+    ctx.lineWidth = 4 + auraPulse * 1.5;
+    ctx.shadowColor = 'rgba(255, 255, 255, 1)';
+    ctx.shadowBlur = 20 + auraPulse * 10;
+    ctx.stroke();
+
+    ctx.shadowBlur = 0; // Reset shadow for body drawing
+
+    // Player Body (fill with a strong color)
+    ctx.fillStyle = '#00FFFF'; // Bright cyan for the player's body
+    ctx.beginPath();
+    ctx.moveTo(0, -17);
+    ctx.lineTo(8, 15);
+    ctx.lineTo(0, 10);
+    ctx.lineTo(-8, 15);
+    ctx.closePath();
+    ctx.fill();
+
+    // Player "Eye" or core (black)
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-5, -15, 10, 10);
+
+    ctx.restore(); // Restore after player rotation
+
+    // Constantly emit small particles from the player (less frequent for performance)
+    if (Math.random() < 0.1) { // Adjusted frequency to 10%
+        createImpactParticles(p.x + (Math.random() - 0.5) * 10,
+                              p.y + (Math.random() - 0.5) * 10,
+                              1, 'spark', 'var(--player-aura-color)');
+    }
+
+    ctx.restore(); // Restore after player translation
+}
 function drawProjectile(p, ctx) {
     if (p.isPlayerProjectile) {
         if (p.isPlayerSkillProjectile) {
@@ -839,12 +976,7 @@ function drawProjectile(p, ctx) {
             ctx.restore();
 
             if (Math.random() < 0.3) {
-                particles.push({
-                    x: p.x - p.vx * 0.1, y: p.y - p.vy * 0.1, life: 100,
-                    vx: (Math.random() - 0.5) * 1, vy: (Math.random() - 0.5) * 1,
-                    alpha: 0.8, type: 'nova', size: Math.random() * 2 + 1,
-                    update(dt) { this.x += this.vx; this.y += this.vy; this.life -= dt; this.alpha = this.life / 100; return this.life <= 0; }
-                });
+                createImpactParticles(p.x - p.vx * 0.1, p.y - p.vy * 0.1, 1, 'nova', p.color);
             }
 
         } else {
@@ -892,11 +1024,76 @@ function drawXpOrb(o) {
 
     ctx.shadowBlur = 0;
     ctx.restore();
+
+    if (o.isPulled) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 255, 0, ${o.alpha || 1})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(o.x, o.y);
+        ctx.lineTo(player.x, player.y);
+        ctx.stroke();
+        ctx.restore();
+    }
 }
 function drawJoystick() { ctx.beginPath(); ctx.arc(joystick.baseX, joystick.baseY, joystick.radius, 0, Math.PI * 2); ctx.fillStyle = 'rgba(128,128,128,0.3)'; ctx.fill(); ctx.beginPath(); ctx.arc(joystick.handleX, joystick.handleY, joystick.handleRadius, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill(); }
 function drawDamageNumber(dn) { ctx.save(); ctx.translate(dn.x, dn.y); ctx.globalAlpha = dn.alpha; ctx.fillStyle = dn.isCrit ? 'yellow' : 'var(--damage-text-color)'; ctx.font = dn.isCrit ? 'bold 24px Roboto' : 'bold 18px Roboto'; ctx.textAlign = 'center'; ctx.shadowColor = '#000'; ctx.shadowBlur = 5; ctx.fillText(dn.value, 0, 0); ctx.restore(); }
-function drawLightningBolt(bolt) { ctx.save(); ctx.globalAlpha = Math.min(1, bolt.life / 100); ctx.strokeStyle = 'var(--lightning-color)'; ctx.lineWidth = 3; ctx.shadowColor = 'var(--lightning-color)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.moveTo(bolt.start.x, bolt.start.y); const segments = 10; for (let i = 1; i <= segments; i++) { const t = i / segments; const x = bolt.start.x * (1 - t) + bolt.end.x * t; const y = bolt.start.y * (1 - t) + bolt.end.y * t; if (i < segments) { ctx.lineTo(x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 20); } else { ctx.lineTo(x, y); } } ctx.stroke(); ctx.restore(); }
-function drawVolcano(v) { ctx.save(); const lifePercent = v.life / v.burnDuration; ctx.globalAlpha = lifePercent * 0.7; ctx.fillStyle = 'var(--volcano-color)'; ctx.beginPath(); ctx.arc(v.x, v.y, v.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+function drawLightningBolt(bolt) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, bolt.life / 100);
+    ctx.strokeStyle = bolt.color || 'var(--lightning-color)';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = bolt.color || 'var(--lightning-color)';
+    ctx.shadowBlur = 15;
+
+    ctx.beginPath();
+    ctx.moveTo(bolt.start.x, bolt.start.y);
+    const segments = 15;
+    for (let i = 1; i <= segments; i++) {
+        const t = i / segments;
+        const x = bolt.start.x * (1 - t) + bolt.end.x * t;
+        const y = bolt.start.y * (1 - t) + bolt.end.y * t;
+        if (i < segments) {
+            ctx.lineTo(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 30);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+
+    if (bolt.life > 50 && Math.random() < 0.5) {
+        createImpactParticles(bolt.end.x, bolt.end.y, 1, 'spark', bolt.color);
+    }
+    ctx.restore();
+}
+function drawVolcano(v) {
+    ctx.save();
+    const lifePercent = v.life / v.burnDuration;
+    ctx.globalAlpha = lifePercent * 0.7;
+    ctx.fillStyle = v.color || 'var(--volcano-color)';
+
+    ctx.beginPath();
+    ctx.arc(v.x, v.y, v.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (let i = 0; i < 3; i++) {
+        const bubbleRadius = v.radius * (0.3 + Math.sin(gameState.gameTime / (100 + i * 50)) * 0.1);
+        const offsetX = Math.cos(gameState.gameTime / (80 + i * 30)) * (v.radius * 0.3);
+        const offsetY = Math.sin(gameState.gameTime / (90 + i * 40)) * (v.radius * 0.3);
+        ctx.globalAlpha = lifePercent * (0.4 + Math.random() * 0.2);
+        ctx.fillStyle = `rgba(255, ${100 + Math.floor(Math.random() * 50)}, 0, 1)`;
+        ctx.beginPath();
+        ctx.arc(v.x + offsetX, v.y + offsetY, bubbleRadius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    if (lifePercent > 0.1 && Math.random() < 0.2) {
+        createImpactParticles(v.x + (Math.random() - 0.5) * v.radius,
+                              v.y + (Math.random() - 0.5) * v.radius,
+                              1, 'fire');
+    }
+    ctx.restore();
+}
 function drawSkillTotem(totem) { ctx.save(); ctx.translate(totem.x, totem.y); ctx.globalAlpha = 0.8 + Math.sin(gameState.gameTime / 200) * 0.2; ctx.beginPath(); ctx.arc(0, 0, totem.radius, 0, Math.PI * 2); ctx.fillStyle = totem.color; ctx.shadowColor = totem.color; ctx.shadowBlur = 20; ctx.fill(); ctx.font = '24px sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(totem.icon, 0, 0); ctx.restore(); }
 function updateHUD() {
     hudElements.level.textContent = `LV ${player.level}`;
@@ -984,6 +1181,26 @@ function updateHUD() {
             hudElements.upgradeStatsList.appendChild(p);
         }
     }
+
+    const hyperBeamSkill = player.skills.hyperBeam;
+    const hyperBeamButton = hudElements.hyperBeamButton;
+
+    if (hyperBeamSkill.isUnlocked) {
+        hyperBeamButton.style.display = 'block';
+        if (gameState.isAutoMode) {
+            hyperBeamButton.textContent = 'AUTO HB';
+            hyperBeamButton.disabled = true;
+            hyperBeamButton.classList.remove('cooldown-active');
+        } else {
+            const timeRemaining = Math.max(0, (hyperBeamSkill.cooldown - (gameState.gameTime - hyperBeamSkill.lastCast)) / 1000);
+            const isOnCooldown = timeRemaining > 0.1;
+            hyperBeamButton.disabled = isOnCooldown;
+            hyperBeamButton.textContent = isOnCooldown ? `HB (${timeRemaining.toFixed(1)}s)` : 'Hyper Beam';
+            hyperBeamButton.classList.toggle('cooldown-active', isOnCooldown);
+        }
+    } else {
+        hyperBeamButton.style.display = 'none';
+    }
 }
 function formatTime(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; }
 function showLevelUpOptions() {
@@ -1023,5 +1240,5 @@ export {
     gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles,
     damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems,
     safeHouseInstance as safeHouse,
-    screenFlash, screenRedFlash, UPGRADE_POOL
+    screenFlash, screenRedFlash, screenShake, UPGRADE_POOL
 };
