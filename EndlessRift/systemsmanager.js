@@ -1,6 +1,6 @@
 import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js';
 import { enemyPath, spawnEnemy, updateEnemies, drawEnemy } from './enemies.js';
-import { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole, fireHyperBeam } from './attacks_skills.js';
+import { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole, fireHyperBeam, drawSoulVortex } from './attacks_skills.js';
 import { initRift, expandWorld, getBackgroundCanvas } from './rift.js';
 
 let auth, firestore, googleProvider, currentUser;
@@ -875,6 +875,7 @@ function drawParticlesAndEffects() {
             }
         }
     });
+    drawSoulVortex(player, ctx);
 
     // Drawing of individual particles:
     particles.forEach(p => {
