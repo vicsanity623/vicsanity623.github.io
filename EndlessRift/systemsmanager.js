@@ -11,7 +11,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
     authDomain: "tap-guardian-rpg.firebaseapp.com",
     projectId: "tap-guardian-rpg",
-    databaseURL: "https://tap-guardian-rpg-default-rtdb.firebaseio.com/", // <<<--- ADDED THIS LINE!
+    databaseURL: "https://tap-guardian-rpg-default-rtdb.firebaseio.com", // ADDED THIS LINE
     storageBucket: "tap-guardian-rpg.firebaseapp.com", // Corrected storageBucket typo
     messagingSenderId: "50272459426",
     appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
@@ -292,7 +292,8 @@ export function initializeApp() {
             menuElements.userDisplay.style.display = 'block';
             menuElements.userName.textContent = user.displayName;
 
-            // NEW: Get or assign player's unique color
+            // This ensures player.color is fetched ASYNCHRONOUSLY after auth state is known
+            // and assigned to player object.
             player.color = await getPlayerColor(user.uid);
             player.name = user.displayName; // Set player name for display
             player.uid = user.uid; // Set player UID
@@ -311,7 +312,7 @@ export function initializeApp() {
 // NEW: Function to get or assign a permanent player color
 async function getPlayerColor(uid) {
     const userDocRef = firestore.collection('users').doc(uid);
-    const doc = await userDocRef.get(); // Corrected typo 'userDocDocRef' to 'userDocRef'
+    const doc = await userDocRef.get();
     if (doc.exists && doc.data().playerColor) {
         return doc.data().playerColor;
     } else {
@@ -473,6 +474,27 @@ async function startGame(forceNew, loadSource = 'cloud') {
         return;
     }
 
+    // NEW: Ensure player.color (and uid, name) is set before proceeding with DB writes.
+    // This will await the asynchronous getPlayerColor call if it hasn't completed yet.
+    if (!player.color || !player.uid || !player.name) {
+        console.log("Player session data not yet ready, awaiting auth state change completion...");
+        // Although onAuthStateChanged sets player.color, etc., it does so asynchronously.
+        // We can force the fetch here as a fallback or if this is the direct entry point.
+        // Re-call getPlayerColor as a guarantee if player.color is missing.
+        // The auth.onAuthStateChanged listener will also eventually fire and set it.
+        // For robustness, we check currentUser.uid and try to fetch.
+        if (currentUser && currentUser.uid) {
+            player.color = await getPlayerColor(currentUser.uid);
+            player.name = currentUser.displayName;
+            player.uid = currentUser.uid;
+        } else {
+             console.error("Critical: Current user is null or missing UID when attempting to start game.");
+             alert("Error: User data not fully loaded. Please refresh or try again.");
+             return;
+        }
+    }
+
+
     menuElements.mainMenu.classList.remove('visible');
     hudElements.gameContainer.style.visibility = 'visible';
     gameState.isAutoMode = false;
@@ -492,7 +514,7 @@ async function startGame(forceNew, loadSource = 'cloud') {
     await initMultiplayerWorld();
 
     // Set up player presence in Realtime DB
-    const playerRef = PLAYERS_REF().child(currentUser.uid); // MODIFIED: Call PLAYERS_REF()
+    const playerRef = PLAYERS_REF().child(currentUser.uid);
     playerRef.onDisconnect().remove(); // Remove player from active list on disconnect
 
     // Push local player's initial state for other clients to see
@@ -502,7 +524,7 @@ async function startGame(forceNew, loadSource = 'cloud') {
         angle: player.angle,
         size: player.size,
         name: currentUser.displayName,
-        color: player.color, // Send the assigned color
+        color: player.color, // This should NOW be guaranteed to have a value
         health: player.health,
         maxHealth: player.maxHealth,
         level: player.level,
@@ -524,7 +546,7 @@ async function startGame(forceNew, loadSource = 'cloud') {
 async function initMultiplayerWorld() {
     // Stop any existing listeners first
     if (worldStateListener) WORLD_STATE_REF().off('value', worldStateListener);
-    if (onlinePlayersListener) PLAYERS_REF().off('value', onlinePlayersListener); // MODIFIED: Call PLAYERS_REF()
+    if (onlinePlayersListener) PLAYERS_REF().off('value', onlinePlayersListener);
     if (enemiesListener) WORLD_ENEMIES_REF().off('value', enemiesListener);
     if (xpOrbsListener) WORLD_XP_ORBS_REF().off('value', xpOrbsListener);
     if (skillTotemsListener) WORLD_SKILL_TOTEMS_REF().off('value', skillTotemsListener);
@@ -535,7 +557,7 @@ async function initMultiplayerWorld() {
     skillTotems.length = 0; // Clear local skill totem data
 
     const worldStateSnapshot = await WORLD_STATE_REF().once('value');
-    const onlinePlayersSnapshot = await PLAYERS_REF().once('value'); // MODIFIED: Call PLAYERS_REF()
+    const onlinePlayersSnapshot = await PLAYERS_REF().once('value');
     const onlinePlayerCount = onlinePlayersSnapshot.val() ? Object.keys(onlinePlayersSnapshot.val()).length : 0;
 
     // Retrieve raw data once from snapshot to validate
@@ -686,7 +708,7 @@ function setupRealtimeDBListeners() {
     });
 
     // Listen to active players
-    onlinePlayersListener = PLAYERS_REF().on('value', (snapshot) => { // MODIFIED: Call PLAYERS_REF()
+    onlinePlayersListener = PLAYERS_REF().on('value', (snapshot) => {
         const playersData = snapshot.val();
         otherPlayers.clear();
         if (playersData) {
@@ -721,7 +743,7 @@ function setupRealtimeDBListeners() {
         if (enemiesData) {
             // Safely reconstruct enemy objects
             Object.values(enemiesData).forEach(rawEnemy => {
-                // Corrected validation: check for rawEnemy.y instead of rawEnemy.x twice
+                // Corrected validation: ensure rawEnemy.y is checked, not rawEnemy.x twice
                 if (typeof rawEnemy === 'object' && rawEnemy !== null && rawEnemy.id && typeof rawEnemy.x === 'number' && typeof rawEnemy.y === 'number') {
                     enemies.push({
                         id: rawEnemy.id,
@@ -801,7 +823,7 @@ function gameOver() {
 
     // Remove player from active players list on game over
     if (currentUser) {
-        PLAYERS_REF().child(currentUser.uid).remove(); // MODIFIED: Call PLAYERS_REF()
+        PLAYERS_REF().child(currentUser.uid).remove();
     }
 }
 
@@ -953,7 +975,7 @@ async function update(deltaTime) { // MODIFIED: Made async to await host check
     }
 
     // Player position update to Realtime DB (every client)
-    const playerRef = PLAYERS_REF().child(currentUser.uid); // MODIFIED: Call PLAYERS_REF()
+    const playerRef = PLAYERS_REF().child(currentUser.uid);
     playerRef.update({
         x: player.x,
         y: player.y,
