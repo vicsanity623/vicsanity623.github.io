@@ -473,5 +473,42 @@ function updateBlackHole(deltaTime, player) {
         }
     }
 }
+function drawSoulVortex(player, ctx) {
+    const shield = player.abilities.orbitingShield;
+    if (!shield.enabled) return;
 
-export { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, createXpOrb, createImpactParticles, spawnDamageNumber, updateLightning, updateVolcano, updateFrostNova, updateBlackHole, fireHyperBeam, hexToRgb };
+    const count = shield.count || 1;
+    const soulRadius = shield.radius || 10; // Default radius for the individual soul
+    const orbitDistance = shield.distance || 50; // Distance from player
+
+    for (let i = 0; i < count; i++) {
+        const angle = shield.angle + (i * (Math.PI * 2 / count));
+        const soulX = player.x + Math.cos(angle) * orbitDistance;
+        const soulY = player.y + Math.sin(angle) * orbitDistance;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(soulX, soulY, soulRadius, 0, Math.PI * 2);
+
+        // You can customize these colors and effects
+        ctx.fillStyle = `rgba(150, 0, 255, 0.7)`; // Purple/magenta color
+        ctx.shadowColor = `rgba(180, 50, 255, 1)`;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+
+        // Optional: Add a subtle inner glow or outline
+        ctx.strokeStyle = `rgba(255, 255, 255, 0.8)`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.restore();
+
+        // Optional: Add some subtle particles for visual flair
+        if (Math.random() < 0.05) { // Control particle frequency
+            createImpactParticles(soulX, soulY, 1, 'energy', `rgba(200, 150, 255, 0.7)`);
+        }
+    }
+}
+
+// Make sure to export it if your systemsmanager.js imports functions explicitly
+export { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, createXpOrb, createImpactParticles, spawnDamageNumber, updateLightning, updateVolcano, updateFrostNova, updateBlackHole, fireHyperBeam, hexToRgb, drawSoulVortex };
