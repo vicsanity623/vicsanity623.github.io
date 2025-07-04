@@ -11,7 +11,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
     authDomain: "tap-guardian-rpg.firebaseapp.com",
     projectId: "tap-guardian-rpg",
-    databaseURL: "https://tap-guardian-rpg-default-rtdb.firebaseio.com", // <<<--- ADDED THIS LINE!
+    databaseURL: "https://tap-guardian-rpg-default-rtdb.firebaseio.com/", // <<<--- ADDED THIS LINE!
     storageBucket: "tap-guardian-rpg.firebaseapp.com", // Corrected storageBucket typo
     messagingSenderId: "50272459426",
     appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
