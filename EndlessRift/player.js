@@ -41,7 +41,7 @@ function initPlayer(world) {
             explosionDamage: 10
         },
         abilities: {
-            orbitingShield: { enabled: false, angle: 0, distance: 70, damage: 5, cooldown: 500, lastHit: 0 },
+            orbitingShield: { enabled: false, angle: 0, distance: 70, damage: 5, cooldown: 500, lastHit: 0, speed: 1, radius: 10, count: 1 },
             backShot: false,
             diagonalShot: false,
             novaOnLevelUp: false,
@@ -95,9 +95,20 @@ function loadPlayer(savedPlayer) {
             if (isNaN(player.abilities.orbitingShield.distance)) player.abilities.orbitingShield.distance = 70;
             if (isNaN(player.abilities.orbitingShield.angle)) player.abilities.orbitingShield.angle = 0;
             if (isNaN(player.abilities.orbitingShield.count)) player.abilities.orbitingShield.count = 1;
+            // ADD THESE TWO LINES:
+            if (isNaN(player.abilities.orbitingShield.speed)) player.abilities.orbitingShield.speed = 1;
+            if (isNaN(player.abilities.orbitingShield.radius)) player.abilities.orbitingShield.radius = 10;
         }
     } else {
-        player.abilities = { orbitingShield: { enabled: false, angle: 0, distance: 70, damage: 5, cooldown: 500, lastHit: 0 }, backShot: false, diagonalShot: false, novaOnLevelUp: false, healOnXp: false, critExplosion: false };
+        // ENSURE ALL PROPERTIES ARE HERE FOR A FRESH ABILITIES OBJECT
+        player.abilities = {
+            orbitingShield: { enabled: false, angle: 0, distance: 70, damage: 5, cooldown: 500, lastHit: 0, speed: 1, radius: 10, count: 1 },
+            backShot: false,
+            diagonalShot: false,
+            novaOnLevelUp: false,
+            healOnXp: false,
+            critExplosion: false
+        };
     }
 
     if (savedPlayer.skills) {
