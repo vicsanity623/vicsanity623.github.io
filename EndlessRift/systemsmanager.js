@@ -512,7 +512,7 @@ function update(deltaTime) {
         const skill = player.skills.hyperBeam;
         if (gameState.gameTime - skill.lastCast > skill.cooldown) {
             const nearbyEnemies = enemies.filter(e => Math.hypot(e.x - player.x, e.y - player.y) < camera.width / 2 + 200);
-            if (gameState.isAutoMode && nearbyEnemies.length > 15) {
+            if (nearbyEnemies.length > 15) {
                 console.log("Hyper Beam Fired!");
                 fireHyperBeam(player, skill.damage, skill.width, skill.duration, skill.chargingTime, skill.color);
                 skill.lastCast = gameState.gameTime;
