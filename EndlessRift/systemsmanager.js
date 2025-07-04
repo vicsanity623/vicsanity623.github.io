@@ -11,6 +11,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
     authDomain: "tap-guardian-rpg.firebaseapp.com",
     projectId: "tap-guardian-rpg",
+    databaseURL: "https://tap-guardian-rpg-default-rtdb.firebaseio.com", // <<<--- ADDED THIS LINE!
     storageBucket: "tap-guardian-rpg.firebaseapp.com", // Corrected storageBucket typo
     messagingSenderId: "50272459426",
     appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
@@ -608,8 +609,8 @@ async function initMultiplayerWorld() {
                 y: typeof totem.y === 'number' ? totem.y : 0,
                 radius: typeof totem.radius === 'number' ? totem.radius : 30,
                 skill: typeof totem.skill === 'string' ? totem.skill : '',
-                color: typeof totem.color === 'string' ? totem.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF', // Basic color sanitize, fallback to white
-                icon: typeof totem.icon === 'string' ? totem.icon : '❓', // Fallback for icon
+                color: typeof totem.color === 'string' ? totem.color.replace(/[^#0-9a-fA-F]/g, '') : '#FFFFFF',
+                icon: typeof totem.icon === 'string' ? totem.icon : '❓',
             })) : defaultWorldData.skillTotems, // Fallback to default totems array
 
             hostId: typeof rawReceivedWorldData.hostId === 'string' ? rawReceivedWorldData.hostId : defaultWorldData.hostId,
@@ -720,7 +721,8 @@ function setupRealtimeDBListeners() {
         if (enemiesData) {
             // Safely reconstruct enemy objects
             Object.values(enemiesData).forEach(rawEnemy => {
-                if (typeof rawEnemy === 'object' && rawEnemy !== null && rawEnemy.id && typeof rawEnemy.x === 'number' && typeof rawEnemy.x === 'number') { // Corrected: typeof rawEnemy.x twice to typeof rawEnemy.y
+                // Corrected validation: check for rawEnemy.y instead of rawEnemy.x twice
+                if (typeof rawEnemy === 'object' && rawEnemy !== null && rawEnemy.id && typeof rawEnemy.x === 'number' && typeof rawEnemy.y === 'number') {
                     enemies.push({
                         id: rawEnemy.id,
                         x: rawEnemy.x,
@@ -1194,7 +1196,86 @@ function drawParticlesAndEffects() {
         }
     }
 }
-function drawPlayer(p, angle) { const bob = Math.sin(gameState.gameTime / 250) * 2; ctx.save(); ctx.translate(p.x, p.y + bob); const hoverPulse = Math.sin(gameState.gameTime / 400); ctx.beginPath(); ctx.ellipse(0, 25, 20, 8, 0, 0, Math.PI * 2); ctx.globalAlpha = 0.2 + hoverPulse * 0.1; ctx.fillStyle = '#fff'; ctx.fill(); ctx.globalAlpha = 1; ctx.save(); ctx.rotate(angle); const auraPulse = Math.sin(gameState.gameTime / 200); ctx.beginPath(); ctx.arc(0, 0, 30, -1.9, 1.9); ctx.strokeStyle = 'var(--player-aura-color)'; ctx.lineWidth = 4 + auraPulse * 2; ctx.shadowColor = 'var(--player-aura-color)'; ctx.shadowBlur = 15 + auraPulse * 10; ctx.stroke(); ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(8, 15); ctx.lineTo(0, 10); ctx.lineTo(-8, 15); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#000'; ctx.fillRect(-5, -15, 10, 10); ctx.restore(); ctx.restore(); }
+// MODIFIED: drawPlayer now accepts an optional color, name, and HP info for other players
+function drawPlayer(p, angle, customColor, name, currentHealth, maxHealth, isLocalPlayer = false) {
+    const bob = Math.sin(gameState.gameTime / 250) * 2;
+    ctx.save();
+    ctx.translate(p.x, p.y + bob);
+    const hoverPulse = Math.sin(gameState.gameTime / 400);
+
+    // Player shadow/ellipse
+    ctx.beginPath();
+    ctx.ellipse(0, 25, 20, 8, 0, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.2 + hoverPulse * 0.1;
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.save();
+    ctx.rotate(angle);
+
+    // Player aura
+    const auraPulse = Math.sin(gameState.gameTime / 200);
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, -1.9, 1.9);
+    // Use customColor for strokeStyle and shadowColor
+    ctx.strokeStyle = customColor;
+    ctx.lineWidth = 4 + auraPulse * 2;
+    ctx.shadowColor = customColor;
+    ctx.shadowBlur = 15 + auraPulse * 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Player body (triangle)
+    ctx.fillStyle = '#fff'; // Body is still white for player
+    ctx.beginPath();
+    ctx.moveTo(0, -17);
+    ctx.lineTo(8, 15);
+    ctx.lineTo(0, 10);
+    ctx.lineTo(-8, 15);
+    ctx.closePath();
+    ctx.fill();
+
+    // Player eyes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-5, -15, 10, 10);
+
+    ctx.restore();
+
+    // Draw player name and HP bar for other players
+    if (name && !isLocalPlayer) {
+        ctx.save();
+        ctx.translate(0, -40); // Position name above player
+        ctx.font = '14px Arial';
+        ctx.fillStyle = customColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(name, 0, 0);
+
+        // Draw HP bar for other players
+        const barWidth = 40;
+        const barHeight = 5;
+        const hpPercent = currentHealth / maxHealth;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(-barWidth / 2, 5, barWidth, barHeight);
+        ctx.fillStyle = 'red';
+        ctx.fillRect(-barWidth / 2, 5, barWidth * hpPercent, barHeight);
+        ctx.restore();
+    } else if (isLocalPlayer) {
+        // Optionally draw local player name for clarity (e.g., above their head if not current HUD)
+        ctx.save();
+        ctx.translate(0, -40);
+        ctx.font = '14px Arial';
+        ctx.fillStyle = customColor; // Use their assigned color
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(name + " (YOU)", 0, 0); // Indicate it's the local player
+        ctx.restore();
+    }
+
+    ctx.restore();
+}
+
 function drawEnemy(e) { ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(Math.atan2(player.y - e.y, player.x - e.x) + Math.PI / 2); if (e.slowTimer > 0) { ctx.fillStyle = '#87CEEB'; } else { ctx.fillStyle = 'var(--enemy-color)'; } ctx.fill(enemyPath); ctx.strokeStyle = 'var(--enemy-accent-color)'; ctx.lineWidth = 1.5; ctx.stroke(enemyPath); ctx.restore(); }
 function drawProjectile(p) { if (p.trail.length < 2) return; ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = 'var(--projectile-color)'; ctx.shadowColor = 'rgba(255, 255, 255, 0.9)'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.moveTo(p.trail[0].x, p.trail[0].y); for (let i = 1; i < p.trail.length; i++) { const point = p.trail[i]; ctx.lineWidth = (i / p.trail.length) * p.size.w * 1.5; ctx.lineTo(point.x, point.y); } ctx.stroke(); ctx.restore(); }
 function drawXpOrb(o) { ctx.beginPath(); ctx.arc(o.x, o.y, o.size, 0, Math.PI * 2); ctx.fillStyle = 'var(--xp-orb-color)'; ctx.shadowColor = 'var(--xp-orb-color)'; ctx.shadowBlur = 15; ctx.fill(); ctx.shadowBlur = 0; }
@@ -1419,7 +1500,7 @@ function selectUpgrade(upgrade) {
 // IMPORTANT: Update the export list to export the SafeHouse instance as `safeHouse`
 export {
     gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles,
-    damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems,
+    damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems, otherPlayers, // MODIFIED: Export otherPlayers
     safeHouseInstance as safeHouse, // Export the instance under the original name
     screenFlash, screenRedFlash, UPGRADE_POOL
 };
