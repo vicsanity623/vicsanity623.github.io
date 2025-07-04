@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!--
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
     crossorigin="anonymous"></script>
+    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     
@@ -18,6 +20,11 @@
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="shortcut icon" href="favicon.ico">
 
+    <!-- Firebase SDK Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
     <!-- Styles and Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,6 +37,7 @@
         <h2>Survive It?</h2>
         <div class="menu-button-group">
             <button id="newGameBtn" class="menu-button">New Game</button>
+            <!-- Load buttons will be dynamically added here -->
             <div id="load-options-container"></div>
         </div>
         <div id="auth-section">
@@ -73,52 +81,14 @@
         </div>
     </div>
 
+    <!-- *** CORE FIX: Consolidated script blocks *** -->
     <script type="module">
-        // Import Firebase services
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js";
-        import { getDatabase } from "https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js";
-
-        // Import your game's main function
-        import { initializeApp as initializeGame } from './systemsmanager.js';
-
-        // Add your Firebase configuration here
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID",
-            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const firestore = getFirestore(app);
-        const database = getDatabase(app);
-        const googleProvider = new GoogleAuthProvider();
-
-        // Bundle all Firebase services for your game to use
-        const firebaseServices = {
-            auth,
-            firestore,
-            database,
-            providers: {
-                google: googleProvider
-            },
-            authMethods: {
-                signInWithPopup,
-                signOut,
-                onAuthStateChanged
-            }
-        };
-
-        // Wait for the page to load, then start the game
+        import { initializeApp } from './systemsmanager.js';
+        
+        // This ensures the DOM is ready before we try to access elements
+        // and that our module has loaded before we call its function.
         document.addEventListener('DOMContentLoaded', () => {
-            initializeGame(firebaseServices);
+            initializeApp();
 
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js').then(registration => {
@@ -129,5 +99,6 @@
             }
         });
     </script>
+
 </body>
 </html>
