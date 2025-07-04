@@ -8,6 +8,9 @@
     /* NEW: Modal specific colors/shadows */
     --modal-shadow: rgba(0,0,0,0.9);
     --card-shadow: rgba(0,0,0,0.5);
+    --bulletstorm-color: #00e0ff; /* Bright neon blue for bulletstorm projectiles */
+    --xp-orb-color: #87ceeb; /* Existing light blue */
+    --highlight-xp-orb-color: #ffd700; /* NEW: A bright gold/yellow for emphasis */
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 100vw; height: 100vh; overflow: hidden; background: radial-gradient(circle, var(--bg-color-center) 0%, var(--bg-color-outer) 80%); color: var(--hud-text); font-family: 'Roboto', sans-serif; font-weight: 700; }

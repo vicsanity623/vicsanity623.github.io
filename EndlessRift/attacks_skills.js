@@ -1,4 +1,11 @@
-import { gameState, enemies, projectiles, xpOrbs, particles, damageNumbers, lightningBolts, volcanicEruptions, visualEffects, screenFlash, camera } from './systemsmanager.js';
+import { gameState, enemies, projectiles, xpOrbs, particles, damageNumbers, lightningBolts, volcanicEruptions, visualEffects, screenFlash, camera, safeHouse } from './systemsmanager.js';
+
+const enemyProjectilePath = new Path2D('M-5,-5 L5,-5 L5,5 L-5,5 Z');
+const enemyProjectileColor = 'rgba(255, 100, 100, 1)';
+
+const playerSkillProjectilePath = new Path2D('M-5,-5 L5,-5 L5,5 L-5,5 Z');
+const playerSkillProjectileColor = '#00FFFF';
+const hyperBeamColor = '#FF0000';
 
 function fireProjectile(p) {
     const fire = (angleOffset) => {
@@ -7,16 +14,19 @@ function fireProjectile(p) {
             const angle = p.angle + angleOffset + spread;
             projectiles.push({
                 x: p.x, y: p.y, angle,
-                vx: Math.cos(angle) * p.weapon.speed,
-                vy: Math.sin(angle) * p.weapon.speed,
-                damage: p.weapon.damage, pierce: p.weapon.pierce,
+                vx: Math.cos(angle) * parseFloat(p.weapon.speed),
+                vy: Math.sin(angle) * parseFloat(p.weapon.speed),
+                damage: parseFloat(p.weapon.damage), pierce: p.weapon.pierce,
                 size: p.weapon.size, critChance: p.weapon.critChance,
-                // ADDED: Pass new weapon properties to the projectile object
                 critDamage: p.weapon.critDamage,
                 explodesOnImpact: p.weapon.explodesOnImpact,
                 explosionRadius: p.weapon.explosionRadius,
                 explosionDamage: p.weapon.explosionDamage,
                 life: 1000, hitEnemies: [], trail: [],
+                isPlayerProjectile: true,
+                isPlayerSkillProjectile: false,
+                path: null,
+                color: 'var(--projectile-color)',
                 update(dt) {
                     this.x += this.vx; this.y += this.vy;
                     this.trail.push({ x: this.x, y: this.y });
@@ -32,9 +42,115 @@ function fireProjectile(p) {
     if (p.abilities.diagonalShot) { fire(Math.PI / 4); fire(-Math.PI / 4); }
 }
 
+function fireEnemyProjectile(enemy, targetX, targetY) {
+    const angleToPlayer = Math.atan2(targetY - enemy.y, targetX - enemy.x);
+    projectiles.push({
+        x: enemy.x, y: enemy.y, angle: angleToPlayer,
+        vx: Math.cos(angleToPlayer) * parseFloat(enemy.projectileSpeed),
+        vy: Math.sin(angleToPlayer) * parseFloat(enemy.projectileSpeed),
+        damage: parseFloat(enemy.projectileDamage),
+        life: 1500,
+        isPlayerProjectile: false,
+        isPlayerSkillProjectile: false,
+        path: enemyProjectilePath,
+        color: enemyProjectileColor,
+        size: { w: 10, h: 10 },
+        trail: [],
+        hitEnemies: [],
+        update(dt) {
+            this.x += this.vx; this.y += this.vy;
+
+            if (safeHouse.active) {
+                const dx_safeHouse = this.x - safeHouse.x;
+                const dy_safeHouse = this.y - safeHouse.y;
+                const distToSafeHouseCenter = Math.hypot(dx_safeHouse, dy_safeHouse);
+                const safeZoneOuterBoundary = safeHouse.radius + (this.size.w / 2);
+
+                if (distToSafeHouseCenter < safeZoneOuterBoundary) {
+                    return true;
+                }
+            }
+
+            this.life -= dt;
+            return this.life <= 0 || this.x < camera.x - 50 || this.x > camera.x + camera.width + 50 || this.y < camera.y - 50 || this.y > camera.y + camera.height + 50;
+        }
+    });
+}
+
+function firePlayerSkillProjectile(startX, startY, targetX, targetY, damage, speed, color, size) {
+    const angle = Math.atan2(targetY - startY, targetX - startX);
+    projectiles.push({
+        x: startX, y: startY, angle,
+        vx: Math.cos(angle) * parseFloat(speed),
+        vy: Math.sin(angle) * parseFloat(speed),
+        damage: parseFloat(damage),
+        life: 1500,
+        isPlayerProjectile: true,
+        isPlayerSkillProjectile: true,
+        path: playerSkillProjectilePath,
+        color: color,
+        size: { w: size, h: size },
+        trail: [],
+        explodesOnImpact: true,
+        explosionRadius: 40,
+        explosionDamage: damage * 0.8,
+        hitEnemies: [],
+        update(dt) {
+            this.x += this.vx; this.y += this.vy;
+            this.trail.push({ x: this.x, y: this.y });
+            if (this.trail.length > 5) this.trail.shift();
+            this.life -= dt;
+            return this.life <= 0 || this.x < camera.x - 50 || this.x > camera.x + camera.width + 50 || this.y < camera.y - 50 || this.y > camera.y + camera.height + 50;
+        }
+    });
+}
+
+function fireHyperBeam(player, damage, width, duration, chargingTime, color) {
+    visualEffects.push({
+        type: 'hyperBeamCharge',
+        x: player.x,
+        y: player.y,
+        angle: player.angle,
+        beamWidth: width,
+        life: chargingTime,
+        maxLife: chargingTime, // NEW: Added maxLife here for charge effect
+        color: color,
+        update(dt) { // NEW: Add update method for hyperBeamCharge
+            this.life -= dt;
+            return this.life <= 0;
+        }
+    });
+
+    setTimeout(() => {
+        visualEffects.push({
+            type: 'hyperBeam',
+            x: player.x,
+            y: player.y,
+            angle: player.angle,
+            damage: damage,
+            beamWidth: width,
+            life: duration,
+            maxLife: duration, // NEW: Added maxLife here for main beam
+            color: color,
+            length: Math.max(camera.width, camera.height) * 2,
+            hitEnemies: new Set(),
+            update(dt) { // NEW: Add update method for hyperBeam
+                this.life -= dt;
+                return this.life <= 0;
+            }
+        });
+        screenFlash.value = 0.5;
+        visualEffects.push({
+            type: 'shockwave', x: player.x, y: player.y, radius: 20, maxRadius: 250, life: 300,
+            update(dt) { this.radius += (this.maxRadius / 300) * dt; this.life -= dt; return this.life <= 0; }
+        });
+    }, chargingTime);
+}
+
+
 function triggerNova(p, damage = 50, radius = 200) {
     visualEffects.push({
-        type: 'shockwave', x: p.x, y: p.y, radius: 20, maxRadius: radius, life: 400, // MODIFIED: Use passed radius
+        type: 'shockwave', x: p.x, y: p.y, radius: 20, maxRadius: radius, life: 400,
         update(dt) { this.radius += (this.maxRadius / 400) * dt; this.life -= dt; return this.life <= 0; }
     });
     enemies.forEach(e => {
@@ -67,12 +183,10 @@ function createXpOrb(x, y, value, player, gainXPCallback) {
             const dx = player.x - this.x, dy = player.y - this.y;
             const dist = Math.hypot(dx, dy);
             if (dist < player.pickupRadius) {
-                // MODIFIED: Use magnetism property
                 this.x += (dx / dist) * 8 * player.magnetism;
                 this.y += (dy / dist) * 8 * player.magnetism;
             }
             if (dist < 20) {
-                // MODIFIED: Check for heal on XP pickup
                 if (player.abilities.healOnXp && Math.random() < 0.1) {
                     player.health = Math.min(player.maxHealth, player.health + 1);
                 }
@@ -121,10 +235,10 @@ function updateLightning(deltaTime, player) {
     const skill = player.skills.lightning;
     if (gameState.gameTime - skill.lastStrike > skill.cooldown) {
         let lastTarget = player;
-        let potentialTargets = [...enemies];
+        let potentialTargets = enemies.filter(e => !e.markedForDeletion);
         for (let i = 0; i <= skill.chains; i++) {
-            if(i > 0 && skill.forkChance && Math.random() < skill.forkChance) { // ADDED: Fork logic
-                lastTarget = player; 
+            if(i > 0 && skill.forkChance && Math.random() < skill.forkChance) {
+                lastTarget = player;
             }
             let closestTarget = null;
             let minDist = Infinity;
@@ -150,7 +264,7 @@ function updateLightning(deltaTime, player) {
                     closestTarget.shockDamage = skill.damage / 2;
                 }
                 lastTarget = closestTarget;
-                potentialTargets = potentialTargets.filter(t => t !== closestTarget);
+                potentialTargets = potentialTargets.filter(t => t !== closestTarget && !t.markedForDeletion);
             } else { break; }
         }
         skill.lastStrike = gameState.gameTime;
@@ -162,16 +276,17 @@ function updateVolcano(deltaTime, player) {
     const skill = player.skills.volcano;
     if (gameState.gameTime - skill.lastEruption > skill.cooldown) {
         if (enemies.length > 0) {
-            const eruptionCount = skill.count || 1; // ADDED: Multiple eruptions
+            const eruptionCount = skill.count || 1;
             for (let i=0; i < eruptionCount; i++) {
                 const targetEnemy = enemies[Math.floor(Math.random() * enemies.length)];
+                if (!targetEnemy || targetEnemy.markedForDeletion) continue;
                 volcanicEruptions.push({
                     x: targetEnemy.x, y: targetEnemy.y, radius: skill.radius,
                     damage: skill.damage, burnDuration: skill.burnDuration,
                     life: skill.burnDuration, hitEnemies: [],
                     update(dt) {
                         enemies.forEach(e => {
-                            if (!this.hitEnemies.includes(e) && Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
+                            if (!e.markedForDeletion && !this.hitEnemies.includes(e) && Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
                                 e.health -= this.damage * (dt / 1000);
                             }
                         });
@@ -202,8 +317,6 @@ function updateVolcano(deltaTime, player) {
     }
 }
 
-// --- ADDED: NEW SKILL FUNCTIONS ---
-
 function updateFrostNova(deltaTime, player) {
     if (!player.skills.frostNova.isUnlocked) return;
     const skill = player.skills.frostNova;
@@ -230,6 +343,7 @@ function updateBlackHole(deltaTime, player) {
     if (gameState.gameTime - skill.lastCast > skill.cooldown) {
         if (enemies.length > 0) {
             const targetEnemy = enemies[Math.floor(Math.random() * enemies.length)];
+            if (!targetEnemy || targetEnemy.markedForDeletion) return;
             visualEffects.push({
                 type: 'blackHole', x: targetEnemy.x, y: targetEnemy.y,
                 radius: skill.radius, life: skill.duration,
@@ -237,13 +351,15 @@ function updateBlackHole(deltaTime, player) {
                 update(dt) {
                     this.life -= dt;
                     enemies.forEach(e => {
-                        const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                        if (dist < this.radius && dist > 10) { // Keep enemies from collapsing to the center
-                            e.x -= (e.x - this.x) / dist * this.pullStrength;
-                            e.y -= (e.y - this.y) / dist * this.pullStrength;
-                            if (Math.random() < 0.1) { // Deal damage periodically
-                                e.health -= this.damage;
-                                spawnDamageNumber(e.x, e.y, this.damage, false);
+                        if (!e.markedForDeletion) {
+                            const dist = Math.hypot(e.x - this.x, e.y - this.y);
+                            if (dist < this.radius && dist > 10) {
+                                e.x -= (e.x - this.x) / dist * this.pullStrength;
+                                e.y -= (e.y - this.y) / dist * this.pullStrength;
+                                if (Math.random() < 0.1) {
+                                    e.health -= this.damage;
+                                    spawnDamageNumber(e.x, e.y, this.damage, false);
+                                }
                             }
                         }
                     });
@@ -255,6 +371,4 @@ function updateBlackHole(deltaTime, player) {
     }
 }
 
-
-// MODIFIED: Export the new functions
-export { fireProjectile, triggerNova, createXpOrb, createImpactParticles, spawnDamageNumber, updateLightning, updateVolcano, updateFrostNova, updateBlackHole };
+export { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, createXpOrb, createImpactParticles, spawnDamageNumber, updateLightning, updateVolcano, updateFrostNova, updateBlackHole, fireHyperBeam };
