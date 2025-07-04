@@ -158,7 +158,7 @@ let skillTotemsListener = null;
 
 const VALID_UNLOCKABLE_SKILLS = ['lightning', 'volcano', 'frostNova', 'blackHole'];
 
-// --- UPGRADE POOL (unchanged, truncated for brevity) ---
+// --- UPGRADE POOL (truncated for brevity) ---
 const UPGRADE_POOL = [
     { id: "might", title: "Might", maxLevel: 5, description: (level) => `Increase projectile damage by 5. (Lvl ${level + 1})`, apply: (p) => { p.weapon.damage += 5; } },
     { id: "haste", title: "Haste", maxLevel: 5, description: (level) => `Attack 15% faster. (Lvl ${level + 1})`, apply: (p) => { p.weapon.cooldown *= 0.85; } },
@@ -214,7 +214,7 @@ export function initializeApp() {
     firebase.initializeApp(firebaseConfig);
     auth = firebase.auth();
     firestore = firebase.firestore();
-    database = firebase.database(); // NEW: Initialize Realtime Database
+    database = firebase.database();
     googleProvider = new firebase.auth.GoogleAuthProvider();
 
     canvas = document.getElementById('gameCanvas');
@@ -232,14 +232,14 @@ export function initializeApp() {
     hudElements = {
         gameContainer: document.getElementById('game-container'),
         level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'),
-        upgradeStatsList: document.getElementById('upgrade-stats-list'), // NEW: Get reference to the new list container
+        upgradeStatsList: document.getElementById('upgrade-stats-list'),
     };
 
     setupEventListeners();
-    // checkSaveStates() is called from auth.onAuthStateChanged initially
-    // and whenever auth state changes.
+    // checkSaveStates() is now called exclusively from auth.onAuthStateChanged initially,
+    // and whenever auth state changes to ensure player data is ready.
 
-    // NEW: Listen to auth state changes for player color and initial player object setup
+    // NEW: Listen to auth state changes to set player details and enable menu options
     auth.onAuthStateChanged(async user => {
         currentUser = user;
         if (user) {
@@ -248,8 +248,8 @@ export function initializeApp() {
             menuElements.userDisplay.style.display = 'block';
             menuElements.userName.textContent = user.displayName;
 
-            // Ensure player.color and other essential player properties are loaded/set
-            // This happens BEFORE checkSaveStates and any potential startGame calls from menu clicks.
+            // This is the critical asynchronous step for player color/name/uid
+            // We await it here to ensure player object is fully hydrated before enabling game start.
             player.color = await getPlayerColor(user.uid);
             player.name = user.displayName;
             player.uid = user.uid;
@@ -259,28 +259,25 @@ export function initializeApp() {
             menuElements.googleSignInBtn.style.display = 'flex';
             menuElements.userDisplay.style.display = 'none';
             player.uid = null;
-            player.color = 'var(--player-aura-color)'; // Reset to default color
-            player.name = 'Guest';
-            // Important: Clear player's client-side object to prevent stale data
-            initPlayer(world); // Re-initialize local player object to defaults
+            player.color = 'var(--player-aura-color)'; // Reset to default color for guest
+            player.name = 'Guest'; // Default name for guest
+            initPlayer(world); // Re-initialize local player object to defaults for guest
         }
-        // ONLY AFTER player.color, name, uid are guaranteed to be set (or reset for guest),
-        // then we can safely check save states and display menu options.
+        // AFTER player.color, name, uid are GUARANTEED to be set (or reset for guest),
+        // then we can safely update menu options, which then allows game start.
         checkSaveStates();
     });
 }
 
-// NEW: Function to get or assign a permanent player color
+// Function to get or assign a permanent player color
 async function getPlayerColor(uid) {
     const userDocRef = firestore.collection('users').doc(uid);
     const doc = await userDocRef.get();
     if (doc.exists && doc.data().playerColor) {
         return doc.data().playerColor;
     } else {
-        // Use crypto.getRandomValues for cryptographically secure random number generation
         const randomBytes = new Uint32Array(1);
         window.crypto.getRandomValues(randomBytes);
-        // Convert to hex string, ensuring 6 digits for a full hex color
         const newColor = '#' + (randomBytes[0] % 16777216).toString(16).padStart(6, '0');
         await userDocRef.set({ playerColor: newColor }, { merge: true });
         return newColor;
@@ -300,8 +297,7 @@ function setupEventListeners() {
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-    // Event listeners for menu buttons now trigger startGame
-    // `startGame` itself will now handle the `player.color` readiness internally.
+    // Menu button listeners remain, but checkSaveStates will control their rendering/clickability.
     menuElements.newGameBtn.addEventListener('click', () => startGame(true));
     menuElements.googleSignInBtn.addEventListener('click', signInWithGoogle);
     menuElements.signOutBtn.addEventListener('click', () => auth.signOut());
@@ -310,55 +306,63 @@ function setupEventListeners() {
         hudElements.gameOverScreen.classList.remove('visible');
         menuElements.mainMenu.classList.add('visible');
         hudElements.gameContainer.style.visibility = 'hidden';
-        checkSaveStates(); // Re-check states after game over for menu refresh
+        // When restarting, re-check save states to refresh menu options
+        // This implicitly waits for onAuthStateChanged to finish if not already.
+        checkSaveStates(); 
     });
     hudElements.autoModeButton.addEventListener('click', () => { gameState.isAutoMode = !gameState.isAutoMode; hudElements.autoModeButton.textContent = gameState.isAutoMode ? 'AUTO ON' : 'AUTO OFF'; hudElements.autoModeButton.classList.toggle('auto-on', gameState.isAutoMode); });
 }
 
-// --- AUTH & SAVE/LOAD ---
-function signInWithGoogle() { auth.signInWithPopup(googleProvider).catch(error => { console.error("Google Sign-In Error:", error); alert("Could not sign in with Google. Please try again."); }); }
-
-// Updated checkSaveStates: now simply displays options based on current user state
+// checkSaveStates now primarily responsible for setting menu button visibility/enabled state
 async function checkSaveStates() {
     menuElements.loadOptionsContainer.innerHTML = ''; // Clear existing buttons
 
     const localSaveExists = !!localStorage.getItem('survivorSaveData');
     let cloudSaveExists = false;
 
+    // Only query Firestore if a user is logged in
     if (currentUser) {
         const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
         const doc = await saveRef.get().catch(e => console.error(e));
         if (doc && doc.exists) cloudSaveExists = true;
     }
 
-    // Add buttons based on what saves exist and if user is logged in
+    // Always re-add New Game button first for consistent order
+    menuElements.loadOptionsContainer.appendChild(menuElements.newGameBtn);
+    menuElements.newGameBtn.textContent = 'New Game (Local)'; // Clarify local only
+
+    // Add buttons based on whether saves exist and if a user is logged in
     if (currentUser) {
+        // If a user is logged in, enable the "New Game" button and add cloud-specific options.
+        menuElements.newGameBtn.disabled = false; // Enable for signed-in users
+
         if (cloudSaveExists) {
             const cloudBtn = document.createElement('button');
-            cloudBtn.className = 'menu-button'; cloudBtn.textContent = 'Load Cloud Save';
+            cloudBtn.className = 'menu-button';
+            cloudBtn.textContent = 'Load Cloud Save';
             cloudBtn.onclick = () => startGame(false, 'cloud');
             menuElements.loadOptionsContainer.appendChild(cloudBtn);
         }
-        // Always show "Play Global" if signed in, potentially as a new game
+        
+        // This is the primary entry for the global world. It always implies new personal progress.
         const globalBtn = document.createElement('button');
         globalBtn.className = 'menu-button';
-        globalBtn.textContent = cloudSaveExists || localSaveExists ? 'Continue Global World (New Save)' : 'Play Global World (New Game)'; // Clarify button text
-        globalBtn.onclick = () => startGame(true); // Always starts a new personal progression but joins global
+        globalBtn.textContent = cloudSaveExists || localSaveExists ? 'Continue Global World (New Save)' : 'Play Global World (New Game)';
+        globalBtn.onclick = () => startGame(true); // `startGame(true)` forces new personal progression
         menuElements.loadOptionsContainer.appendChild(globalBtn);
+
+    } else {
+        // If no user is logged in, disable the New Game button until signed in.
+        menuElements.newGameBtn.disabled = true;
+        menuElements.newGameBtn.textContent = 'New Game (Sign in to Play Global)';
     }
-    
+
     if (localSaveExists) {
         const localBtn = document.createElement('button');
-        localBtn.className = 'menu-button'; localBtn.textContent = 'Load Local Save';
+        localBtn.className = 'menu-button';
+        localBtn.textContent = 'Load Local Save';
         localBtn.onclick = () => startGame(false, 'local');
         menuElements.loadOptionsContainer.appendChild(localBtn);
-    }
-    
-    // If no saves and not signed in, prompt to sign in
-    if (!cloudSaveExists && !localSaveExists && !currentUser) {
-        const noSaveBtn = document.createElement('button');
-        noSaveBtn.className = 'menu-button'; noSaveBtn.textContent = 'No Save Found (Sign in to Play)'; noSaveBtn.disabled = true;
-        menuElements.loadOptionsContainer.appendChild(noSaveBtn);
     }
 }
 
@@ -395,7 +399,6 @@ async function loadGame(source) {
     if (savedData) {
         loadPlayer(savedData.player);
         gameState.gameTime = savedData.gameTime;
-        // World and skillTotems are now globally managed, so they are not loaded from personal save
         return true;
     }
     return false;
@@ -431,15 +434,13 @@ function takeDamage(amount, isDirectHit = false) {
 
 // --- GAME LIFECYCLE ---
 async function startGame(forceNew, loadSource = 'cloud') {
-    // CRITICAL: Ensure currentUser and essential player data (color, name, uid) are ready
+    // This check is now redundant if buttons are properly managed,
+    // but kept as a final fail-safe for unexpected edge cases.
     if (!currentUser || !player.color || !player.uid || !player.name) {
-        console.warn("Attempted to start game before player session data was fully loaded. Retrying in 100ms...");
-        // This is a common pattern for initial load when async auth/profile data isn't ready.
-        // It will retry `startGame` after a short delay.
-        setTimeout(() => startGame(forceNew, loadSource), 100);
-        return; // Exit current call
+        console.error("Critical: Attempted to start game with incomplete player session data. Please ensure user is logged in and refresh.");
+        alert("Error: Player data not fully loaded. Please refresh the page and try again.");
+        return;
     }
-
 
     menuElements.mainMenu.classList.remove('visible');
     hudElements.gameContainer.style.visibility = 'visible';
@@ -460,13 +461,13 @@ async function startGame(forceNew, loadSource = 'cloud') {
     const playerRef = PLAYERS_REF().child(currentUser.uid);
     playerRef.onDisconnect().remove();
 
-    playerRef.set({ // Now player.color, name, uid are guaranteed to be populated
+    playerRef.set({ // player.color, name, uid are now guaranteed to be populated by onAuthStateChanged
         x: player.x,
         y: player.y,
         angle: player.angle,
         size: player.size,
-        name: player.name, // Use player.name which is now guaranteed
-        color: player.color, // Use player.color which is now guaranteed
+        name: player.name,
+        color: player.color,
         health: player.health,
         maxHealth: player.maxHealth,
         level: player.level,
