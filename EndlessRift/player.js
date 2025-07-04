@@ -31,10 +31,6 @@ function initPlayer(world) {
         magnetism: 1,
         // NEW: Added lastHitTime for invincibility frames (if needed)
         lastHitTime: 0,
-        // NEW: Player's unique color and name will be set by systemsmanager based on auth
-        color: null, // Will be assigned a hex color by systemsmanager
-        name: null,  // Will be assigned display name by systemsmanager
-        uid: null,   // Will be assigned Firebase UID by systemsmanager
 
         weapon: {
             damage: 10,
@@ -72,33 +68,28 @@ function initPlayer(world) {
 // *** THIS IS THE CRITICAL FIX ***
 // This function now upgrades old save files to be compatible with new code.
 function loadPlayer(savedPlayer) {
-    // Save current color, name, and UID before re-initialization if they exist
-    const currentColor = player.color;
-    const currentName = player.name;
-    const currentUid = player.uid;
-
     // Create a fresh, complete player object with all new properties and default values.
     initPlayer({ width: 3000, height: 2000 }); // The world size here is a placeholder.
 
-    // Restore color, name, and UID
-    player.color = currentColor;
-    player.name = currentName;
-    player.uid = currentUid;
-
     // Now, copy the saved data on top of the default object.
     // This preserves progress while adding any new properties that were missing.
-    // Ensure that color, name, and UID from the *savedPlayer* are NOT loaded,
-    // as these are assigned by the current session's auth.
-    const propertiesToExclude = ['color', 'name', 'uid'];
-    for (const key in savedPlayer) {
-        if (savedPlayer.hasOwnProperty(key) && !propertiesToExclude.includes(key)) {
-            if (typeof savedPlayer[key] === 'object' && savedPlayer[key] !== null && !Array.isArray(savedPlayer[key])) {
-                // If it's an object, merge it deeply
-                player[key] = { ...player[key], ...savedPlayer[key] };
-            } else {
-                player[key] = savedPlayer[key];
-            }
-        }
+    Object.assign(player, savedPlayer);
+
+    // Deep merge nested objects to ensure they are also upgraded.
+    if (savedPlayer.weapon) {
+        player.weapon = { ...player.weapon, ...savedPlayer.weapon };
+    }
+    if (savedPlayer.abilities) {
+        player.abilities = { ...player.abilities, ...savedPlayer.abilities };
+    }
+    if (savedPlayer.skills) {
+        player.skills = { ...player.skills, ...savedPlayer.skills };
+        // Also merge the individual skills inside
+        if(savedPlayer.skills.lightning) player.skills.lightning = { ...player.skills.lightning, ...savedPlayer.skills.lightning };
+        if(savedPlayer.skills.volcano) player.skills.volcano = { ...player.skills.volcano, ...savedPlayer.skills.volcano };
+        // NEW: Merge new skills if they exist in save, otherwise they'll be defaults from initPlayer
+        if(savedPlayer.skills.frostNova) player.skills.frostNova = { ...player.skills.frostNova, ...savedPlayer.skills.frostNova };
+        if(savedPlayer.skills.blackHole) player.skills.blackHole = { ...player.skills.blackHole, ...savedPlayer.skills.blackHole };
     }
 }
 
