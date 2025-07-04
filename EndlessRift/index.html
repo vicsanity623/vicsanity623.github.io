@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!--
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
+    crossorigin="anonymous"></script>
+    -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    
+    <!-- PWA and Mobile Meta Tags -->
+    <meta name="theme-color" content="#4c2a4c"/>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+    <title>Survive It?</title>
+    
+    <!-- Favicon Links -->
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="shortcut icon" href="favicon.ico">
+
+    <!-- Firebase SDK Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Styles and Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Main Menu (Visible on load) -->
+    <div id="main-menu" class="modal visible">
+        <h2>Survive It?</h2>
+        <div class="menu-button-group">
+            <button id="newGameBtn" class="menu-button">New Game</button>
+            <!-- Load buttons will be dynamically added here -->
+            <div id="load-options-container"></div>
+        </div>
+        <div id="auth-section">
+            <button id="googleSignInBtn" class="menu-button secondary">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google icon">
+                <span>Sign in for Cloud Saves</span>
+            </button>
+            <p id="userStatus">You are playing as a guest.</p>
+        </div>
+    </div>
+
+    <!-- Game Elements (Initially hidden) -->
+    <div id="game-container" style="visibility: hidden;">
+        <canvas id="gameCanvas"></canvas>
+        <div id="hud-top-left" class="hud">
+            <div id="user-display" class="hud-user-status" style="display: none;">
+                Logged in as: <span id="userName"></span> | <a href="#" id="signOutBtn">Sign Out</a>
+            </div>
+            <div class="hud-main-stats">
+                <span id="level-text">LV 1</span>
+                <div id="hp-bar-container"><div id="hp-bar-fill"></div></div>
+                <span id="hp-text">100/100</span>
+            </div>
+            <div id="upgrade-stats-list"></div>
+            <button id="auto-mode-button" class="control-button">AUTO OFF</button>
+            <button id="hyperBeamButton" class="skill-button">Hyper Beam</button> <!-- NEWLY ADDED BUTTON -->
+        </div>
+        <div id="hud-top-right" class="hud">
+            <span id="timer-text">0:00</span>
+            <div id="kill-counter">💀 <span id="kill-counter-text">0</span></div>
+        </div>
+        <div id="xp-bar-bottom-container"><div id="xp-bar-bottom-fill"></div></div>
+        <div id="level-up-window" class="modal">
+            <h2>SELECT POWER</h2>
+            <div id="upgrade-options"></div>
+            <div class="stat-bar"><div id="xp-bar-fill"></div></div>
+        </div>
+        <div id="game-over-screen" class="modal">
+            <h2>DEFEATED</h2>
+            <p>You survived for <span id="final-time-text">0:00</span>, reached Level <span id="final-level-text">1</span>, and defeated <span id="final-kills-text">0</span> enemies.</p>
+            <button id="restart-button">RESTART</button>
+        </div>
+    </div>
+
+    <!-- *** CORE FIX: Consolidated script blocks *** -->
+    <script type="module">
+        import { initializeApp } from './systemsmanager.js';
+        
+        // This ensures the DOM is ready before we try to access elements
+        // and that our module has loaded before we call its function.
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>
