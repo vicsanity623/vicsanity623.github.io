@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Assist - Peer-to-Peer Aid</title>
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
+
+    <style>
+        /* ... (Your existing CSS here, it remains unchanged) ... */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header {
+            background-color: #28a745;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        main {
+            flex-grow: 1;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align content to the top */
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+        }
+        h1, h2, h3 {
+            color: #28a745;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="number"], textarea, select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-right: 10px;
+            transition: background-color 0.2s ease;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .message-list, .request-list, .chat-box {
+            border: 1px solid #eee;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #fcfcfc;
+            margin-bottom: 20px;
+        }
+        .message-item, .request-item {
+            background-color: #e9f7ef;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 5px solid #28a745;
+            word-wrap: break-word;
+        }
+        .message-item strong {
+            color: #007bff;
+        }
+        .message-item.self {
+            background-color: #d1ecf1;
+            border-left-color: #007bff;
+            text-align: right;
+        }
+        .message-item.self strong {
+            color: #28a745;
+        }
+        .request-item.accepted {
+            border-left-color: #ffc107;
+            background-color: #fff3cd;
+        }
+        .request-item.completed {
+            border-left-color: #17a2b8;
+            background-color: #d1ecf1;
+        }
+        .status-message {
+            text-align: center;
+            font-style: italic;
+            color: #666;
+            margin-top: 15px;
+        }
+        .hidden {
+            display: none;
+        }
+        #map {
+            height: 300px;
+            width: 100%;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        footer {
+            margin-top: 20px;
+            padding: 15px;
+            text-align: center;
+            color: #666;
+            font-size: 0.85rem;
+            border-top: 1px solid #eee;
+        }
+        .tab-buttons {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            margin: 0 2px;
+        }
+        .tab-button.active {
+            background-color: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+        .tab-content {
+            padding-top: 10px;
+        }
+        .message-input-area {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .message-input-area input {
+            flex-grow: 1;
+            margin-bottom: 0;
+        }
+        .item-list {
+            list-style-type: none;
+            padding: 0;
+            margin-top: 10px;
+        }
+        .item-list li {
+            background-color: #f0f0f0;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-list li button {
+            padding: 5px 8px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        .request-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .request-header h3 {
+            margin: 0;
+            text-align: left;
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Local Assist</h1>
+        <p id="user-info"></p>
+        <button id="logout-button" class="btn-secondary hidden">Logout</button>
+    </header>
+
+    <main>
+        <div class="container" id="app-container">
+            <!-- Content will be dynamically loaded here -->
+            <div id="loading-screen" style="text-align: center;">
+                <p>Connecting to server...</p>
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>© 2023 Local Assist. All rights reserved. Prototype Version.</p>
+    </footer>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // --- Configuration ---
+        const API_BASE_URL = 'http://localhost:3000/api';
+        const WS_URL = 'ws://localhost:3000';
+
+        // --- Core Application State (now derived from server or current session) ---
+        let currentUser = null; // { username: '', role: 'help' | 'assist', lat: null, lng: null, cashapp: '' }
+        let allUsers = []; // Fetched from server
+        let requests = []; // Fetched from server and updated via WebSockets
+        let activeRequestId = null; // The request ID currently being viewed/chatted in.
+        let ws = null; // WebSocket connection instance
+
+        // --- Constants ---
+        const DISTANCE_THRESHOLD_MILES = 50;
+        const POLL_INTERVAL_DASHBOARD_MS = 5000; // Poll less frequently for dashboard data
+        const POLL_INTERVAL_CHAT_MS = 1000; // Poll faster if in chat (redundant if WS works perfectly)
+
+        // --- Default Locations for Simulation (if Geolocation fails) ---
+        const DEFAULT_LOCATIONS = {
+            help: { lat: 33.584, lng: -112.015 }, // Near downtown Phoenix, AZ
+            assist: { lat: 33.425, lng: -111.940 } // Near Tempe, AZ (approx 10-15 miles from help default)
+        };
+
+        // --- DOM Elements Cache ---
+        const appContainer = document.getElementById('app-container');
+        const userInfoDisplay = document.getElementById('user-info');
+        const logoutButton = document.getElementById('logout-button');
+
+        // --- API Helper Functions ---
+        async function apiFetch(endpoint, method = 'GET', body = null) {
+            try {
+                const options = { method, headers: { 'Content-Type': 'application/json' } };
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'Server error' }));
+                    throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`API Error on ${method} ${endpoint}:`, error);
+                alert(`Error: ${error.message}. Please check console.`);
+                return null;
+            }
+        }
+
+        // --- WebSocket Initialization ---
+        function initWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) return; // Already connected
+
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected.');
+                if (currentUser) {
+                    // Identify self to the server
+                    ws.send(JSON.stringify({
+                        type: 'IDENTIFY',
+                        payload: {
+                            username: currentUser.username,
+                            role: currentUser.role,
+                            lat: currentUser.lat,
+                            lng: currentUser.lng
+                        }
+                    }));
+                }
+            };
+
+            ws.onmessage = event => {
+                const message = JSON.parse(event.data);
+                console.log('WS Message received:', message);
+
+                switch (message.type) {
+                    case 'NEW_REQUEST':
+                        // Only add if not already present
+                        if (!requests.some(r => r.id === message.payload.id)) {
+                             requests.push(message.payload);
+                             // If assistant on dashboard, re-render to show new request
+                             if (currentUser && currentUser.role === 'assist' && !activeRequestId) {
+                                 renderApp();
+                                 alert(`New request from ${message.payload.helpUser} for ${message.payload.store}!`);
+                             }
+                        }
+                        break;
+                    case 'REQUEST_UPDATE':
+                        const updatedReq = message.payload;
+                        const reqIndex = requests.findIndex(r => r.id === updatedReq.id);
+                        if (reqIndex !== -1) {
+                            requests[reqIndex] = updatedReq;
+                            // Re-render only if it affects the current view
+                            if (activeRequestId === updatedReq.id || (!activeRequestId && (currentUser.role === 'help' || currentUser.role === 'assist'))) {
+                                renderApp();
+                                if(activeRequestId !== updatedReq.id) { // Alert only if not in chat already
+                                   alert(`Request for ${updatedReq.store} updated to: ${updatedReq.status.replace('_', ' ').toUpperCase()}`);
+                                }
+                            }
+                        }
+                        break;
+                    case 'CHAT_MESSAGE':
+                        const { requestId, message: chatMsg } = message.payload;
+                        const targetRequest = requests.find(r => r.id === requestId);
+                        if (targetRequest) {
+                            if (!targetRequest.messages) targetRequest.messages = [];
+                            targetRequest.messages.push(chatMsg);
+                            // Only re-render chat messages if currently viewing this chat
+                            if (activeRequestId === requestId) {
+                                renderMessages(targetRequest.messages, document.getElementById('chat-messages'));
+                            } else {
+                                alert(`New message for request ${requestId} from ${chatMsg.sender}`);
+                            }
+                        }
+                        break;
+                    case 'ASSISTANT_LOCATION_UPDATE':
+                        const { requestId: locReqId, location: loc } = message.payload;
+                        const locRequest = requests.find(r => r.id === locReqId);
+                        if (locRequest) {
+                            locRequest.assistantCurrentLoc = loc;
+                            // If Help user viewing map, update marker
+                            if (activeRequestId === locReqId && currentUser.role === 'help' && map && assistantMarker) {
+                                assistantMarker.setLatLng([loc.lat, loc.lng]);
+                                map.panTo([loc.lat, loc.lng]);
+                            }
+                        }
+                        break;
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected. Attempting to reconnect...');
+                setTimeout(initWebSocket, 5000); // Try to reconnect after 5 seconds
+            };
+
+            ws.onerror = error => {
+                console.error('WebSocket error:', error);
+                ws.close();
+            };
+        }
+
+        // --- Helper Functions (mostly unchanged, except for data persistence) ---
+
+        /**
+         * Generates a unique ID (simple UUID-like for prototype).
+         */
+        function generateUniqueId() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        /**
+         * Calculates distance between two lat/lng points in miles.
+         */
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            if (typeof lat1 !== 'number' || typeof lon1 !== 'number' || typeof lat2 !== 'number' || typeof lon2 !== 'number' ||
+                isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) {
+                return Infinity;
+            }
+
+            const R = 3958.8;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            const distance = R * c;
+            return distance;
+        }
+
+        /**
+         * Gets user's current geolocation or falls back to a default based on role.
+         */
+        function getUserLocation(role) {
+            return new Promise((resolve) => {
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            console.log("Geolocation successful:", position.coords.latitude, position.coords.longitude);
+                            resolve({
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude
+                            });
+                        },
+                        (error) => {
+                            console.warn(`Geolocation error: ${error.message}. Using default location for role: ${role}.`);
+                            resolve(DEFAULT_LOCATIONS[role] || DEFAULT_LOCATIONS.help);
+                        },
+                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                    );
+                } else {
+                    console.warn(`Geolocation is not supported by this browser. Using default location for role: ${role}.`);
+                    resolve(DEFAULT_LOCATIONS[role] || DEFAULT_LOCATIONS.help);
+                }
+            });
+        }
+
+        // --- UI Rendering Functions (mostly unchanged, except API calls and WS events) ---
+
+        function renderApp() {
+            appContainer.innerHTML = '';
+            userInfoDisplay.textContent = currentUser ? `${currentUser.username} (${currentUser.role === 'help' ? 'Needs Help' : 'Provides Assistance'})` : 'Please Login';
+            logoutButton.classList.toggle('hidden', !currentUser);
+
+            if (!currentUser) {
+                renderLogin();
+                return;
+            }
+
+            if (!currentUser.role) {
+                renderRoleSelection();
+                return;
+            }
+
+            if (currentUser.lat === null || currentUser.lng === null || isNaN(currentUser.lat) || isNaN(currentUser.lng)) {
+                renderLocationPrompt();
+                return;
+            }
+
+            if (activeRequestId) {
+                const request = requests.find(r => r.id === activeRequestId);
+                if (request && (request.helpUser === currentUser.username || request.assistUser === currentUser.username)) {
+                    renderChatScreen(request);
+                } else {
+                    activeRequestId = null;
+                    renderApp();
+                }
+                return;
+            }
+
+            if (currentUser.role === 'help') {
+                renderHelpUserDashboard();
+            } else if (currentUser.role === 'assist') {
+                renderAssistUserDashboard();
+            }
+        }
+
+        function renderLogin() {
+            appContainer.innerHTML = `
+                <h2>Welcome to Local Assist!</h2>
+                <p>Please enter your username to continue.</p>
+                <div class="form-group">
+                    <label for="username-input">Username:</label>
+                    <input type="text" id="username-input" placeholder="Enter your username" required>
+                </div>
+                <div class="form-group">
+                    <label for="cashapp-input">Your CashApp Tag (for assistants, optional):</label>
+                    <input type="text" id="cashapp-input" placeholder="e.g., $YourCashAppTag">
+                    <small>Help users will see this if you accept their request.</small>
+                </div>
+                <button id="login-button">Login</button>
+            `;
+            document.getElementById('login-button').addEventListener('click', handleLogin);
+        }
+
+        async function handleLogin() {
+            const usernameInput = document.getElementById('username-input');
+            const cashappInput = document.getElementById('cashapp-input');
+            const username = usernameInput.value.trim();
+            const cashappTag = cashappInput.value.trim();
+
+            if (!username) {
+                alert('Please enter a username.');
+                return;
+            }
+
+            // Attempt to fetch existing user first, then register/update
+            const response = await apiFetch(`/login`, 'POST', { username, cashapp: cashappTag });
+            if (response) {
+                currentUser = response;
+                localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Store for session continuity
+                initWebSocket(); // Initialize WebSocket *after* currentUser is set
+                renderApp();
+            }
+        }
+
+        function renderRoleSelection() {
+            appContainer.innerHTML = `
+                <h2>Select Your Role</h2>
+                <p>Are you looking for help, or offering assistance?</p>
+                <button id="select-help-user-button">I Need Help</button>
+                <button id="select-assist-user-button">I Can Assist</button>
+            `;
+            document.getElementById('select-help-user-button').addEventListener('click', () => handleRoleSelection('help'));
+            document.getElementById('select-assist-user-button').addEventListener('click', () => handleRoleSelection('assist'));
+        }
+
+        async function handleRoleSelection(role) {
+            currentUser.role = role;
+            const loc = await getUserLocation(role);
+            currentUser.lat = loc.lat;
+            currentUser.lng = loc.lng;
+
+            // Send updated role and location to backend
+            const response = await apiFetch(`/login`, 'POST', currentUser);
+            if (response) {
+                currentUser = response;
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'IDENTIFY',
+                        payload: { username: currentUser.username, role: currentUser.role, lat: currentUser.lat, lng: currentUser.lng }
+                    }));
+                }
+                renderApp();
+            }
+        }
+
+        function renderLocationPrompt() {
+            appContainer.innerHTML = `
+                <h2>Get Your Location</h2>
+                <p>We need your location to connect you with relevant users. Please click "Share My Location" and allow browser permissions.</p>
+                <button id="get-location-button">Share My Location</button>
+                <p class="status-message" id="location-status-message"></p>
+            `;
+            const locationStatusMessage = document.getElementById('location-status-message');
+            document.getElementById('get-location-button').addEventListener('click', async () => {
+                locationStatusMessage.textContent = "Attempting to get location...";
+                const loc = await getUserLocation(currentUser.role);
+                currentUser.lat = loc.lat;
+                currentUser.lng = loc.lng;
+
+                // Send updated location to backend
+                const response = await apiFetch(`/login`, 'POST', currentUser);
+                if (response) {
+                    currentUser = response;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                     if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'IDENTIFY',
+                            payload: { username: currentUser.username, role: currentUser.role, lat: currentUser.lat, lng: currentUser.lng }
+                        }));
+                    }
+                    if (currentUser.lat !== null && currentUser.lng !== null && !isNaN(currentUser.lat)) {
+                        locationStatusMessage.textContent = `Location obtained: ${currentUser.lat.toFixed(4)}, ${currentUser.lng.toFixed(4)}`;
+                    } else {
+                        locationStatusMessage.textContent = "Could not get precise location. Using a default location. Please enable GPS and try again.";
+                    }
+                    setTimeout(renderApp, 1500);
+                }
+            });
+        }
+
+
+        function renderHelpUserDashboard() {
+            appContainer.innerHTML = `
+                <h2>Hello, ${currentUser.username}! What do you need help with?</h2>
+                <p>Your Location: ${currentUser.lat ? `${currentUser.lat.toFixed(4)}, ${currentUser.lng.toFixed(4)}` : 'Unknown'}</p>
+                <button id="refresh-location-button">Refresh Location</button>
+                <hr>
+                <h3>Request New Assistance</h3>
+                <div class="form-group">
+                    <label for="store-name">Store Name:</label>
+                    <input type="text" id="store-name" placeholder="e.g., Walmart, Local Pharmacy" required>
+                </div>
+                <div class="form-group">
+                    <label for="items-needed">Items Needed (one per line):</label>
+                    <textarea id="items-needed" rows="5" placeholder="Milk
+Bread
+Eggs"></textarea>
+                </div>
+                <button id="request-assistance-button">Request Assistance</button>
+
+                <h3>Your Active Requests</h3>
+                <div id="your-requests" class="request-list">
+                    <p class="status-message">Loading requests...</p>
+                </div>
+            `;
+            document.getElementById('refresh-location-button').addEventListener('click', async () => {
+                await updateCurrentUserLocation(currentUser.role);
+                renderApp(); // Re-render to show updated location
+            });
+            document.getElementById('request-assistance-button').addEventListener('click', handleRequestAssistance);
+            fetchRequests(); // Now fetches from API
+        }
+
+        async function fetchRequests() {
+            const allFetchedRequests = await apiFetch('/requests');
+            if (allFetchedRequests) {
+                requests = allFetchedRequests; // Update local state from server
+                if (currentUser.role === 'help') {
+                    renderHelpUserRequests();
+                } else if (currentUser.role === 'assist') {
+                    renderAvailableRequests();
+                    renderAssistUserAcceptedRequests();
+                }
+            }
+        }
+
+        function renderHelpUserRequests() {
+            const yourRequestsDiv = document.getElementById('your-requests');
+            if (!yourRequestsDiv) return; // Ensure element exists before manipulating
+
+            yourRequestsDiv.innerHTML = '';
+            const userRequests = requests.filter(r => r.helpUser === currentUser.username);
+
+            if (userRequests.length === 0) {
+                yourRequestsDiv.innerHTML = '<p class="status-message">You have no active requests.</p>';
+                return;
+            }
+
+            userRequests.sort((a, b) => {
+                const order = { 'pending': 1, 'accepted': 2, 'in_progress': 3, 'completed': 4, 'denied': 5 };
+                return order[a.status] - order[b.status];
+            });
+
+            userRequests.forEach(request => {
+                const requestEl = document.createElement('div');
+                requestEl.classList.add('request-item', request.status);
+                let statusText = '';
+                let actions = '';
+
+                switch (request.status) {
+                    case 'pending':
+                        statusText = 'Waiting for an assistant...';
+                        actions = `<button class="delete-request-button btn-secondary" data-request-id="${request.id}">Cancel Request</button>`;
+                        break;
+                    case 'accepted':
+                        statusText = `Accepted by ${request.assistUser}!`;
+                        actions = `<button class="view-chat-button" data-request-id="${request.id}">View Live Map & Chat</button>`;
+                        break;
+                    case 'in_progress':
+                        statusText = `Shopping in progress by ${request.assistUser}`;
+                        actions = `<button class="view-chat-button" data-request-id="${request.id}">View Live Map & Chat</button>`;
+                        break;
+                    case 'completed':
+                        statusText = `Delivered by ${request.assistUser}!`;
+                        if (request.confirmDeliveryTimestamp) {
+                           statusText = `Completed! You confirmed delivery.`;
+                           actions = `<button class="view-chat-button" data-request-id="${request.id}">View Details & Chat</button>
+                                      <button class="delete-request-button btn-secondary" data-request-id="${request.id}">Delete Record</button>`;
+                        } else {
+                            actions = `<button class="help-confirm-delivery-button" data-request-id="${request.id}">Confirm Delivery & Complete</button>
+                                       <button class="view-chat-button btn-secondary" data-request-id="${request.id}">View Details & Chat</button>`;
+                        }
+                        break;
+                    case 'denied':
+                        statusText = `Request denied by ${request.assistUser || 'an assistant'}.`;
+                        actions = `<button class="delete-request-button btn-secondary" data-request-id="${request.id}">Delete</button>`;
+                        break;
+                }
+
+                requestEl.innerHTML = `
+                    <div class="request-header">
+                        <h3>Request for ${request.store}</h3>
+                        <div>Status: <strong>${statusText}</strong></div>
+                    </div>
+                    <p><strong>Items:</strong></p>
+                    <ul class="item-list">
+                        ${request.items.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                    ${request.subtotal ? `<p><strong>Subtotal:</strong> $${request.subtotal.toFixed(2)}</p>` : ''}
+                    ${request.cashappTag ? `<p><strong>Assistant's CashApp:</strong> <span style="font-family: monospace; font-weight: bold; color: #6200EE;">${request.cashappTag}</span></p>` : ''}
+                    ${request.receiptImage ? `<p><strong>Receipt:</strong> <a href="${request.receiptImage}" target="_blank">View Receipt</a><br><img src="${request.receiptImage}" alt="Receipt" style="max-width: 100%; height: auto; display: block; margin-top: 10px; border: 1px solid #ddd;"></p>` : ''}
+                    <div style="text-align: right; margin-top: 10px;">${actions}</div>
+                `;
+                yourRequestsDiv.appendChild(requestEl);
+            });
+
+            yourRequestsDiv.querySelectorAll('.view-chat-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    activeRequestId = e.target.dataset.requestId;
+                    renderApp();
+                });
+            });
+            yourRequestsDiv.querySelectorAll('.delete-request-button').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    if (confirm('Are you sure you want to delete this request? This cannot be undone.')) {
+                        const success = await apiFetch(`/requests/${e.target.dataset.requestId}`, 'DELETE');
+                        if (success) { // Server would confirm deletion
+                             requests = requests.filter(r => r.id !== e.target.dataset.requestId); // Optimistic update
+                             renderApp();
+                        }
+                    }
+                });
+            });
+            yourRequestsDiv.querySelectorAll('.help-confirm-delivery-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    handleHelpConfirmDelivery({ target: { dataset: { requestId: e.target.dataset.requestId } } });
+                });
+            });
+        }
+
+        async function handleRequestAssistance() {
+            const storeName = document.getElementById('store-name').value.trim();
+            const itemsNeeded = document.getElementById('items-needed').value.split('\n').map(item => item.trim()).filter(item => item !== '');
+
+            if (!storeName || itemsNeeded.length === 0) {
+                alert('Please enter a store name and at least one item.');
+                return;
+            }
+             if (currentUser.lat === null || currentUser.lng === null || isNaN(currentUser.lat) || isNaN(currentUser.lng)) {
+                alert('Your location is not set or invalid. Please refresh your location before requesting assistance.');
+                return;
+            }
+
+            const newRequestData = {
+                helpUser: currentUser.username,
+                helpUserLoc: { lat: currentUser.lat, lng: currentUser.lng },
+                status: 'pending',
+                store: storeName,
+                items: itemsNeeded,
+                messages: []
+            };
+            const response = await apiFetch('/requests', 'POST', newRequestData);
+            if (response) {
+                // requests.push(response); // WS will handle adding new request, no need to push here
+                alert('Assistance request sent! We will notify you when an assistant accepts.');
+                // renderApp(); // WS update will trigger re-render
+            }
+        }
+
+        function renderAssistUserDashboard() {
+            appContainer.innerHTML = `
+                <h2>Hello, ${currentUser.username}! Ready to assist?</h2>
+                <p>Your Location: ${currentUser.lat ? `${currentUser.lat.toFixed(4)}, ${currentUser.lng.toFixed(4)}` : 'Unknown'}</p>
+                <button id="refresh-location-button">Refresh Location</button>
+                <hr>
+                <div class="tab-buttons">
+                    <button class="tab-button active" data-tab="available-requests">Available Requests</button>
+                    <button class="tab-button" data-tab="your-accepted-requests">Your Accepted Requests</button>
+                </div>
+                <div id="tab-content-wrapper">
+                    <div id="available-requests-tab" class="tab-content">
+                        <h3>Nearby Help Requests (within ${DISTANCE_THRESHOLD_MILES} miles)</h3>
+                        <div id="available-requests" class="request-list">
+                            <p class="status-message">Loading requests...</p>
+                        </div>
+                    </div>
+                    <div id="your-accepted-requests-tab" class="tab-content hidden">
+                        <h3>Your Accepted Requests</h3>
+                        <div id="your-accepted-requests" class="request-list">
+                            <p class="status-message">You haven't accepted any requests yet.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('refresh-location-button').addEventListener('click', async () => {
+                await updateCurrentUserLocation(currentUser.role);
+                renderApp();
+            });
+
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+                    document.getElementById(`${e.target.dataset.tab}-tab`).classList.remove('hidden');
+                });
+            });
+
+            fetchRequests(); // Now fetches from API
+        }
+
+        function renderAvailableRequests() {
+            const availableRequestsDiv = document.getElementById('available-requests');
+            if (!availableRequestsDiv) return;
+
+            availableRequestsDiv.innerHTML = '';
+
+            const nearbyPendingRequests = requests.filter(req => {
+                if (req.status !== 'pending') return false;
+                if (!req.helpUserLoc || typeof req.helpUserLoc.lat !== 'number' || isNaN(req.helpUserLoc.lat)) return false;
+                if (currentUser.lat === null || currentUser.lng === null || isNaN(currentUser.lat)) return false;
+
+                const distance = calculateDistance(currentUser.lat, currentUser.lng, req.helpUserLoc.lat, req.helpUserLoc.lng);
+                return distance <= DISTANCE_THRESHOLD_MILES;
+            });
+
+            if (nearbyPendingRequests.length === 0) {
+                availableRequestsDiv.innerHTML = '<p class="status-message">No nearby requests currently available within 50 miles.</p>';
+                return;
+            }
+
+            nearbyPendingRequests.forEach(request => {
+                const distance = calculateDistance(currentUser.lat, currentUser.lng, request.helpUserLoc.lat, request.helpUserLoc.lng).toFixed(1);
+                const requestEl = document.createElement('div');
+                requestEl.classList.add('request-item');
+                requestEl.innerHTML = `
+                    <div class="request-header">
+                        <h3>Request from ${request.helpUser}</h3>
+                        <div>${distance} miles away</div>
+                    </div>
+                    <p><strong>Store:</strong> ${request.store}</p>
+                    <p><strong>Items:</strong></p>
+                    <ul class="item-list">
+                        ${request.items.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                    <div style="text-align: right; margin-top: 10px;">
+                        <button class="accept-request-button" data-request-id="${request.id}">Accept Request</button>
+                        <button class="deny-request-button btn-secondary" data-request-id="${request.id}">Deny Request</button>
+                    </div>
+                `;
+                availableRequestsDiv.appendChild(requestEl);
+            });
+
+            availableRequestsDiv.querySelectorAll('.accept-request-button').forEach(button => {
+                button.addEventListener('click', handleAcceptRequest);
+            });
+            availableRequestsDiv.querySelectorAll('.deny-request-button').forEach(button => {
+                button.addEventListener('click', handleDenyRequest);
+            });
+        }
+
+        function renderAssistUserAcceptedRequests() {
+            const acceptedRequestsDiv = document.getElementById('your-accepted-requests');
+            if (!acceptedRequestsDiv) return;
+
+            acceptedRequestsDiv.innerHTML = '';
+            const acceptedRequests = requests.filter(r =>
+                r.assistUser === currentUser.username && (r.status === 'accepted' || r.status === 'in_progress' || r.status === 'completed')
+            );
+
+            if (acceptedRequests.length === 0) {
+                acceptedRequestsDiv.innerHTML = '<p class="status-message">You haven\'t accepted any requests yet.</p>';
+                return;
+            }
+
+            acceptedRequests.sort((a, b) => {
+                const order = { 'accepted': 1, 'in_progress': 2, 'completed': 3 };
+                return order[a.status] - order[b.status];
+            });
+
+            acceptedRequests.forEach(request => {
+                const requestEl = document.createElement('div');
+                requestEl.classList.add('request-item', request.status);
+                let statusText = '';
+                let actions = '';
+
+                switch (request.status) {
+                    case 'accepted':
+                        statusText = `Accepted, heading to ${request.store}!`;
+                        actions = `
+                            <button class="view-chat-button" data-request-id="${request.id}">View Live Map & Chat</button>
+                            <button class="update-location-button" data-request-id="${request.id}">Update My Location</button>
+                            <button class="mark-arrived-button" data-request-id="${request.id}">Arrived at Store</button>
+                        `;
+                        break;
+                    case 'in_progress':
+                        statusText = `Shopping for ${request.helpUser} at ${request.store}`;
+                        actions = `
+                            <button class="view-chat-button" data-request-id="${request.id}">View Live Map & Chat</button>
+                            <button class="update-location-button" data-request-id="${request.id}">Update My Location</button>
+                            ${!request.subtotal ? `<button class="confirm-purchase-button" data-request-id="${request.id}">Confirm Purchase</button>` : ''}
+                            ${request.subtotal && !request.confirmDeliveryTimestamp ? `<button class="mark-delivered-button" data-request-id="${request.id}">Mark as Delivered</button>` : ''}
+                        `;
+                        break;
+                    case 'completed':
+                        statusText = `Delivered to ${request.helpUser}! ${request.confirmDeliveryTimestamp ? '(Confirmed by them)' : '(Awaiting their confirmation)'}`;
+                        actions = `<button class="view-chat-button" data-request-id="${request.id}">View Details & Chat</button>`;
+                        if (request.confirmDeliveryTimestamp) {
+                            actions += `<button class="delete-request-button btn-secondary" data-request-id="${request.id}">Delete Record</button>`;
+                        }
+                        break;
+                }
+
+                requestEl.innerHTML = `
+                    <div class="request-header">
+                        <h3>Request for ${request.store} from ${request.helpUser}</h3>
+                        <div>Status: <strong>${statusText}</strong></div>
+                    </div>
+                    <p><strong>Items:</strong></p>
+                    <ul class="item-list">
+                        ${request.items.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                    ${request.subtotal ? `<p><strong>Subtotal:</strong> $${request.subtotal.toFixed(2)}</p>` : ''}
+                    ${request.receiptImage ? `<p><strong>Receipt:</strong> <a href="${request.receiptImage}" target="_blank">View Receipt</a><br><img src="${request.receiptImage}" alt="Receipt" style="max-width: 100%; height: auto; display: block; margin-top: 10px; border: 1px solid #ddd;"></p>` : ''}
+                    <div style="text-align: right; margin-top: 10px;">${actions}</div>
+                `;
+                acceptedRequestsDiv.appendChild(requestEl);
+            });
+
+            acceptedRequestsDiv.querySelectorAll('.view-chat-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    activeRequestId = e.target.dataset.requestId;
+                    renderApp();
+                });
+            });
+            acceptedRequestsDiv.querySelectorAll('.update-location-button').forEach(button => {
+                button.addEventListener('click', handleAssistantUpdateLocation);
+            });
+            acceptedRequestsDiv.querySelectorAll('.mark-arrived-button').forEach(button => {
+                button.addEventListener('click', handleAssistantArrivedAtStore);
+            });
+            acceptedRequestsDiv.querySelectorAll('.confirm-purchase-button').forEach(button => {
+                button.addEventListener('click', handleAssistantConfirmPurchase);
+            });
+            acceptedRequestsDiv.querySelectorAll('.mark-delivered-button').forEach(button => {
+                button.addEventListener('click', handleAssistantMarkDelivered);
+            });
+            acceptedRequestsDiv.querySelectorAll('.delete-request-button').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    if (confirm('Are you sure you want to delete this completed request record?')) {
+                        const success = await apiFetch(`/requests/${e.target.dataset.requestId}`, 'DELETE');
+                        if (success) {
+                            requests = requests.filter(r => r.id !== e.target.dataset.requestId);
+                            renderApp();
+                        }
+                    }
+                });
+            });
+        }
+
+
+        async function handleAcceptRequest(event) {
+            const requestId = event.target.dataset.requestId;
+            const requestIndex = requests.findIndex(r => r.id === requestId);
+
+            if (requestIndex !== -1 && requests[requestIndex].status === 'pending') {
+                if (!currentUser.cashapp || currentUser.cashapp.length < 2 || !currentUser.cashapp.startsWith('$')) {
+                    alert("Please set a valid CashApp tag (starting with $) on your login screen before accepting requests.");
+                    return;
+                }
+
+                // First, try to update on server (server will handle optimistic locking/race conditions)
+                const updatedRequest = await apiFetch(`/requests/${requestId}`, 'PUT', {
+                    status: 'accepted',
+                    assistUser: currentUser.username,
+                    assistUserLoc: { lat: currentUser.lat, lng: currentUser.lng },
+                    cashappTag: currentUser.cashapp,
+                    messages: [{
+                        sender: currentUser.username,
+                        text: `I've accepted your request! I'm heading to ${requests[requestIndex].store} now. My CashApp tag is ${currentUser.cashapp}.`,
+                        timestamp: new Date().toISOString()
+                    }]
+                });
+
+                if (updatedRequest) {
+                    // Requests array will be updated by WebSocket, so no need to splice here directly
+                    activeRequestId = requestId;
+                    renderApp();
+                } else {
+                    alert('Could not accept request. It might have been accepted by another assistant or cancelled.');
+                    fetchRequests(); // Refresh data from server
+                }
+            }
+        }
+
+        async function handleDenyRequest(event) {
+            const requestId = event.target.dataset.requestId;
+            const requestIndex = requests.findIndex(r => r.id === requestId);
+
+            if (requestIndex !== -1 && requests[requestIndex].status === 'pending') {
+                 // Try to update on server
+                const updatedRequest = await apiFetch(`/requests/${requestId}`, 'PUT', {
+                    status: 'denied',
+                    assistUser: currentUser.username
+                });
+                if (updatedRequest) {
+                    // Requests array will be updated by WebSocket
+                    alert(`Request from ${requests[requestIndex].helpUser} has been denied.`);
+                    // renderApp(); // WS update will trigger
+                } else {
+                    alert('Could not deny request. It might have been accepted or cancelled.');
+                    fetchRequests(); // Refresh data
+                }
+            }
+        }
+
+        async function handleAssistantUpdateLocation(event) {
+            const requestId = event.target.dataset.requestId;
+            const requestIndex = requests.findIndex(r => r.id === requestId);
+
+            if (requestIndex !== -1) {
+                const loc = await getUserLocation(currentUser.role);
+                const newMessage = {
+                    sender: currentUser.username,
+                    text: `My live location has been updated. I'm currently at ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}.`,
+                    timestamp: new Date().toISOString()
+                };
+
+                // Send live location update via WebSocket
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'LIVE_LOCATION_UPDATE',
+                        payload: {
+                            username: currentUser.username,
+                            lat: loc.lat,
+                            lng: loc.lng,
+                            requestId: requestId
+                        }
+                    }));
+                     // Also send as a chat message for history/notification
+                    ws.send(JSON.stringify({
+                        type: 'CHAT_MESSAGE',
+                        payload: {
+                            requestId: requestId,
+                            sender: newMessage.sender,
+                            text: newMessage.text
+                        }
+                    }));
+                    alert('Your live location and message sent!');
+                } else {
+                    alert('WebSocket not connected. Could not update live location.');
+                }
+            }
+        }
+
+        async function handleAssistantArrivedAtStore(event) {
+            const requestId = event.target.dataset.requestId;
+            const requestIndex = requests.findIndex(r => r.id === requestId);
+
+            if (requestIndex !== -1 && requests[requestIndex].status === 'accepted') {
+                const newMessage = {
+                    sender: currentUser.username,
+                    text: `I have arrived at ${requests[requestIndex].store}! What items are hard to find?`,
+                    timestamp: new Date().toISOString()
+                };
+
+                const updatedRequest = await apiFetch(`/requests/${requestId}`, 'PUT', {
+                    status: 'in_progress',
+                    messages: [...requests[requestIndex].messages, newMessage] // Append new message
+                });
+
+                if (updatedRequest) {
+                    activeRequestId = requestId;
+                    renderApp(); // WS update will trigger, but explicitly re-rendering for immediacy
+                }
+            }
+        }
+
+        async function handleAssistantConfirmPurchase(event) {
+            const requestId = event.target.dataset.requestId;
+            const requestIndex = requests.findIndex(r => r.id === requestId);
+
+            if (requestIndex !== -1) {
+                const subtotalStr = prompt("Enter the subtotal amount for the items (e.g., 25.50):");
+                const subtotal = parseFloat(subtotalStr);
+
+                if (isNaN(subtotal) || subtotal <= 0) {
+                    alert("Please enter a valid positive number for the subtotal.");
+                    return;
+                }
+
+                const receiptUrl = prompt("Enter a URL for the receipt image (optional, leave blank or type N/A if none):");
+                const finalReceiptUrl = (receiptUrl && receiptUrl.toLowerCase() !== 'n/a' && receiptUrl.startsWith('http')) ? receiptUrl : null;
+
+                let messageText = `Shopping complete! Your subtotal is $${subtotal.toFixed(2)}.`;
+                if (requests[requestIndex].cashappTag) {
+                    messageText += ` Please send funds to my CashApp: ${requests[requestIndex].cashappTag}.`;
+                }
+                if (finalReceiptUrl) {
+                    messageText += `\nReceipt attached: ${finalReceiptUrl}`;
+                } else {
+                    messageText += `\n(No digital receipt provided).`;
+                }
+                const newMessage = { sender: currentUser.username, text: messageText, timestamp: new Date().toISOString() };
+
+                const updatedRequest = await apiFetch(`/requests/${requestId}`, 'PUT', {
+                    subtotal: subtotal,
+                    receiptImage: finalReceiptUrl,
+                    messages: [...requests[requestIndex].messages, newMessage]
+                });
+
+                if (updatedRequest) {
+                    activeRequestId = requestId;
+                    renderApp();
+                }
+            }
+        }
+
+        async function handleAssistantMarkDelivered(event) {
+            const requestId = event.target.dataset.requestId;
+            const requestIndex = requests.findIndex(r => r.id === requestId);
+
+            if (requestIndex !== -1 && requests[requestIndex].status === 'in_progress') {
+                const newMessage = {
+                    sender: currentUser.username,
+                    text: "Items delivered! Please confirm delivery on your end.",
+                    timestamp: new Date().toISOString()
+                };
+
+                const updatedRequest = await apiFetch(`/requests/${requestId}`, 'PUT', {
+                    status: 'completed',
+                    messages: [...requests[requestIndex].messages, newMessage]
+                });
+
+                if (updatedRequest) {
+                    alert("Items marked as delivered. Awaiting help user's confirmation.");
+                    activeRequestId = requestId;
+                    renderApp();
+                }
+            }
+        }
+
+        async function handleHelpConfirmDelivery(event) {
+            const requestId = event.target.dataset.requestId;
+            const requestIndex = requests.findIndex(r => r.id === requestId);
+
+            if (requestIndex !== -1 && requests[requestIndex].status === 'completed') {
+                const newMessage = {
+                    sender: currentUser.username,
+                    text: "Delivery confirmed! Thank you for your assistance!",
+                    timestamp: new Date().toISOString()
+                };
+
+                const updatedRequest = await apiFetch(`/requests/${requestId}`, 'PUT', {
+                    confirmDeliveryTimestamp: new Date().toISOString(),
+                    messages: [...requests[requestIndex].messages, newMessage]
+                });
+
+                if (updatedRequest) {
+                    alert("Delivery confirmed! Thank you for using Local Assist!");
+                    activeRequestId = null; // Exit chat
+                    renderApp();
+                }
+            }
+        }
+
+        function renderChatScreen(request) {
+            if (map) {
+                map.remove();
+                map = null;
+            }
+
+            appContainer.innerHTML = `
+                <h2>Chat with ${request.helpUser === currentUser.username ? request.assistUser : request.helpUser} for ${request.store}</h2>
+                <p>Status: <strong>${request.status.replace('_', ' ').toUpperCase()}</strong></p>
+                <div id="map"></div>
+                <div id="chat-messages" class="chat-box"></div>
+                <div class="message-input-area">
+                    <input type="text" id="chat-input" placeholder="Type your message...">
+                    <button id="send-chat-message-button">Send</button>
+                </div>
+                <div style="margin-top: 15px; text-align: center;">
+                    ${currentUser.role === 'assist' && request.status === 'accepted' ?
+                        `<button id="assist-update-location-btn">Update My Live Location</button>
+                         <button id="assist-mark-arrived-btn">Arrived at Store</button>` : ''}
+                    ${currentUser.role === 'assist' && request.status === 'in_progress' ?
+                         `<button id="assist-update-location-btn">Update My Live Location</button>
+                          ${!request.subtotal ? `<button id="assist-confirm-purchase-btn">Confirm Purchase & Send Subtotal</button>` : ''}
+                          ${request.subtotal && !request.confirmDeliveryTimestamp ? `<button id="assist-mark-delivered-btn">Mark as Delivered</button>` : ''}`
+                       : ''}
+                    ${currentUser.role === 'help' && request.status === 'completed' && !request.confirmDeliveryTimestamp ?
+                        `<button id="help-confirm-delivery-btn">Confirm Delivery & Complete</button>` : ''}
+                    ${(request.status === 'denied' || (request.status === 'completed' && request.confirmDeliveryTimestamp)) &&
+                       (request.helpUser === currentUser.username || (request.assistUser === currentUser.username && request.confirmDeliveryTimestamp)) ?
+                        `<button class="delete-request-button btn-secondary" data-request-id="${request.id}">Delete Record</button>` : ''}
+                    <button class="btn-secondary" id="back-to-dashboard">Back to Dashboard</button>
+                </div>
+            `;
+
+            const chatMessagesDiv = document.getElementById('chat-messages');
+            const chatInput = document.getElementById('chat-input');
+            const sendButton = document.getElementById('send-chat-message-button');
+            const backButton = document.getElementById('back-to-dashboard');
+
+            sendButton.addEventListener('click', () => handleSendChatMessage(request.id, chatInput.value));
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSendChatMessage(request.id, chatInput.value);
+                }
+            });
+            backButton.addEventListener('click', () => {
+                activeRequestId = null;
+                renderApp();
+            });
+
+            if (currentUser.role === 'assist') {
+                document.getElementById('assist-update-location-btn')?.addEventListener('click', () => handleAssistantUpdateLocation({ target: { dataset: { requestId: request.id } } }));
+                document.getElementById('assist-mark-arrived-btn')?.addEventListener('click', () => handleAssistantArrivedAtStore({ target: { dataset: { requestId: request.id } } }));
+                document.getElementById('assist-confirm-purchase-btn')?.addEventListener('click', () => handleAssistantConfirmPurchase({ target: { dataset: { requestId: request.id } } }));
+                document.getElementById('assist-mark-delivered-btn')?.addEventListener('click', () => handleAssistantMarkDelivered({ target: { dataset: { requestId: request.id } } }));
+            } else if (currentUser.role === 'help' && request.status === 'completed' && !request.confirmDeliveryTimestamp) {
+                document.getElementById('help-confirm-delivery-btn')?.addEventListener('click', () => handleHelpConfirmDelivery({ target: { dataset: { requestId: request.id } } }));
+            }
+            document.querySelector('.delete-request-button')?.addEventListener('click', async (e) => {
+                if (confirm('Are you sure you want to delete this request record? This cannot be undone.')) {
+                    const success = await apiFetch(`/requests/${e.target.dataset.requestId}`, 'DELETE');
+                    if (success) {
+                        activeRequestId = null;
+                        renderApp();
+                    }
+                }
+            });
+
+            renderMessages(request.messages, chatMessagesDiv);
+            setupMap(request);
+
+            chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+        }
+
+        function renderMessages(messages, chatMessagesDiv) {
+            chatMessagesDiv.innerHTML = messages.map(msg => `
+                <div class="message-item ${msg.sender === currentUser.username ? 'self' : ''}">
+                    <strong>${msg.sender === currentUser.username ? 'You' : msg.sender}:</strong> ${msg.text.replace(/\n/g, '<br>')}
+                    <small style="float: right; color: #888; font-size: 0.75em;">${new Date(msg.timestamp).toLocaleTimeString()}</small>
+                </div>
+            `).join('');
+            chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+        }
+
+        async function handleSendChatMessage(requestId, messageText) {
+            messageText = messageText.trim();
+            if (!messageText || !ws || ws.readyState !== WebSocket.OPEN) {
+                console.warn("Cannot send message: empty, or WebSocket not open.");
+                alert("Cannot send message. Please ensure you are connected to the server.");
+                return;
+            }
+
+            // Send message via WebSocket
+            ws.send(JSON.stringify({
+                type: 'CHAT_MESSAGE',
+                payload: {
+                    requestId: requestId,
+                    sender: currentUser.username,
+                    text: messageText
+                }
+            }));
+            document.getElementById('chat-input').value = ''; // Clear input
+            // The message will appear via the WebSocket 'onmessage' handler, keeping UI in sync
+        }
+
+        let map = null;
+        let helpUserMarker = null;
+        let assistantMarker = null;
+
+        function setupMap(request) {
+            const mapDiv = document.getElementById('map');
+            if (!mapDiv) return;
+
+            if (map) {
+                map.remove();
+                map = null;
+            }
+
+            const initialCenter = request.helpUserLoc || DEFAULT_LOCATIONS.help;
+            map = L.map('map').setView([initialCenter.lat, initialCenter.lng], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            const markers = [];
+
+            if (request.helpUserLoc && typeof request.helpUserLoc.lat === 'number' && !isNaN(request.helpUserLoc.lat)) {
+                helpUserMarker = L.marker([request.helpUserLoc.lat, request.helpUserLoc.lng], {
+                    icon: L.divIcon({
+                        className: 'leaflet-div-icon help-marker',
+                        html: '<div style="background-color: #007bff; width: 25px; height: 25px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8em;">HELP</div>',
+                        iconSize: [25, 25],
+                        iconAnchor: [12.5, 12.5]
+                    })
+                })
+                .addTo(map)
+                .bindPopup(`<b>${request.helpUser}</b><br>Help User Location`);
+                markers.push(helpUserMarker);
+            }
+
+            let currentAssistantLocation = null;
+            if (request.assistantCurrentLoc && typeof request.assistantCurrentLoc.lat === 'number' && !isNaN(request.assistantCurrentLoc.lat)) {
+                currentAssistantLocation = request.assistantCurrentLoc;
+            } else if (request.assistUserLoc && typeof request.assistUserLoc.lat === 'number' && !isNaN(request.assistUserLoc.lat) && request.status !== 'denied') {
+                currentAssistantLocation = request.assistUserLoc;
+            }
+
+            if (currentAssistantLocation) {
+                assistantMarker = L.marker([currentAssistantLocation.lat, currentAssistantLocation.lng], {
+                    icon: L.divIcon({
+                        className: 'leaflet-div-icon assist-marker',
+                        html: '<div style="background-color: #28a745; width: 25px; height: 25px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8em;">ASSIST</div>',
+                        iconSize: [25, 25],
+                        iconAnchor: [12.5, 12.5]
+                    })
+                })
+                .addTo(map)
+                .bindPopup(`<b>${request.assistUser}</b><br>Assistant's Location`);
+                markers.push(assistantMarker);
+            }
+
+            if (markers.length > 0) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.5));
+            } else {
+                map.setView([initialCenter.lat, initialCenter.lng], 13);
+            }
+        }
+
+
+        // --- Polling (for initial data and fallback) ---
+        let fetchInterval = null;
+        function startDataFetching() {
+            if (fetchInterval) clearInterval(fetchInterval);
+
+            fetchInterval = setInterval(async () => {
+                // Periodically fetch ALL data, then let renderApp decide if UI update is needed
+                // This is a fallback/consistency check. WebSockets are the primary real-time source.
+                const fetchedRequests = await apiFetch('/requests');
+                if (fetchedRequests && JSON.stringify(requests) !== JSON.stringify(fetchedRequests)) {
+                    requests = fetchedRequests;
+                    // Only trigger renderApp if not in an active chat and list has visibly changed
+                    if (!activeRequestId) {
+                        console.log("Polling detected dashboard data change, re-rendering.");
+                        renderApp();
+                    } else {
+                        // If in chat, just update local 'requests' array, WS will handle chat specific re-render
+                    }
+                }
+            }, POLL_INTERVAL_DASHBOARD_MS);
+        }
+
+        // --- Initial Load Logic ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            appContainer.innerHTML = '<p class="status-message">Connecting to server...</p>';
+            
+            // Try to load currentUser from localStorage for session continuity
+            try {
+                const storedUserRaw = localStorage.getItem('currentUser');
+                if (storedUserRaw) {
+                    currentUser = JSON.parse(storedUserRaw);
+                }
+            } catch (e) {
+                console.error("Error parsing currentUser from localStorage on init:", e);
+                currentUser = null;
+            }
+
+            // Always try to init WebSocket on load, even if no user yet, for reconnection logic
+            initWebSocket();
+
+            // Fetch initial requests and allUsers state from the server
+            // This replaces the initial localStorage loads
+            const [fetchedRequests, fetchedUsers] = await Promise.all([
+                apiFetch('/requests'),
+                apiFetch('/users') // Assuming a /api/users endpoint on backend
+            ]);
+
+            if (fetchedRequests) requests = fetchedRequests;
+            if (fetchedUsers) allUsers = fetchedUsers;
+
+            // Re-validate currentUser against fetched allUsers
+            if (currentUser && currentUser.username) {
+                const storedUserInAllUsers = allUsers.find(u => u.username === currentUser.username);
+                if (storedUserInAllUsers) {
+                    currentUser = { ...currentUser, ...storedUserInAllUsers }; // Update with server-side latest
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Persist updated current user
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'IDENTIFY',
+                            payload: { username: currentUser.username, role: currentUser.role, lat: currentUser.lat, lng: currentUser.lng }
+                        }));
+                    }
+                } else {
+                    console.warn("User in 'currentUser' localStorage not found on server. Resetting session.");
+                    currentUser = null;
+                    localStorage.removeItem('currentUser');
+                }
+            }
+            
+            // If user is logged in but their location is null or NaN, try to get it now
+            if (currentUser && (currentUser.lat === null || currentUser.lng === null || isNaN(currentUser.lat) || isNaN(currentUser.lng))) {
+                console.log("Current user needs location. Attempting to get it on startup.");
+                await updateCurrentUserLocation(currentUser.role);
+            } else if (currentUser) {
+                console.log(`Current user loaded: ${currentUser.username} (${currentUser.role}), Location: ${currentUser.lat}, ${currentUser.lng}`);
+            } else {
+                console.log("No current user logged in. Presenting login screen.");
+            }
+
+            startDataFetching(); // Start polling for general data consistency
+            renderApp(); // Initial render based on current state
+        });
+
+    </script>
+</body>
+</html>
