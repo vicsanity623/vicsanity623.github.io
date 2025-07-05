@@ -208,10 +208,9 @@
         }
     </style>
 
-    <!-- Firebase SDKs - ADDED -->
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-    <!-- You might need other services like auth or functions, but these are core for data & chat -->
 
 </head>
 <body>
@@ -238,15 +237,19 @@
     <!-- Leaflet JavaScript -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
+        // --- Firebase Configuration ---
+        // !!! IMPORTANT !!!
+        // REPLACE the placeholder values below with your ACTUAL Firebase project config!
+        // You can find this in Firebase Console -> Project settings (gear icon) -> Your apps -> Web app -> Firebase SDK snippet -> Config
         const firebaseConfig = {
-        apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
-        authDomain: "tap-guardian-rpg.firebaseapp.com",
-        databaseURL: "https://tap-guardian-rpg-default-rtdb.firebaseio.com",
-        projectId: "tap-guardian-rpg",
-        storageBucket: "tap-guardian-rpg.firebasestorage.app",
-        messagingSenderId: "50272459426",
-        appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
-        measurementId: "G-XJRE7YNPZR"
+          apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY", // YOUR_API_KEY
+          authDomain: "tap-guardian-rpg.firebaseapp.com", // YOUR_PROJECT_ID.firebaseapp.com
+          databaseURL: "https://tap-guardian-rpg-default-rtdb.firebaseio.com", // This is usually for Realtime DB, Firestore is primary
+          projectId: "tap-guardian-rpg", // YOUR_PROJECT_ID
+          storageBucket: "tap-guardian-rpg.firebasestorage.app",
+          messagingSenderId: "50272459426",
+          appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
+          measurementId: "G-XJRE7YNPZR" // For Analytics, not directly used in app logic
         };
 
         // Initialize Firebase
@@ -255,7 +258,6 @@
 
         // --- Configuration ---
         // Your Cloud Functions API endpoint
-        // This will be based on your projectId and the default region (us-central1 is common)
         const API_BASE_URL = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/api`;
 
         // --- Core Application State ---
@@ -288,20 +290,17 @@
                 }
                 const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
                 if (!response.ok) {
-                    // Try to parse error message from server
                     const errorText = await response.text();
                     console.error(`API Error on ${method} ${endpoint}: Status ${response.status}, Response:`, errorText);
                     try {
                         const errorData = JSON.parse(errorText);
                         throw new Error(errorData.message || `Server error! Status: ${response.status}`);
                     } catch {
-                        // If response is not JSON, just show generic error
                         throw new Error(`Server error! Status: ${response.status}: ${errorText.substring(0, 100)}...`);
                     }
                 }
-                // Handle 204 No Content for DELETE requests
                 if (response.status === 204) {
-                    return true; // Indicate success for deletion
+                    return true;
                 }
                 return await response.json();
             } catch (error) {
@@ -315,7 +314,6 @@
 
         /**
          * Generates a unique ID (simple UUID-like for prototype).
-         * Note: Backend generates its own ID now, but this is still useful for local temp IDs or testing.
          */
         function generateUniqueId() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -390,11 +388,13 @@
                 return;
             }
 
+            // Ensure currentUser.role is defined before proceeding
             if (!currentUser.role) {
                 renderRoleSelection();
                 return;
             }
 
+            // Ensure currentUser.lat/lng are defined before proceeding
             if (currentUser.lat === null || currentUser.lng === null || isNaN(currentUser.lat) || isNaN(currentUser.lng)) {
                 renderLocationPrompt();
                 return;
@@ -402,7 +402,6 @@
 
             if (activeRequestId) {
                 const request = requests.find(r => r.id === activeRequestId);
-                // Ensure the request belongs to the current user before rendering chat
                 if (request && (request.helpUser === currentUser.username || request.assistUser === currentUser.username)) {
                     renderChatScreen(request);
                 } else {
@@ -411,6 +410,9 @@
                 }
                 return;
             }
+
+            // Only fetch requests if on a dashboard view and not in a chat
+            fetchRequests(); // This will populate 'requests' and call relevant render dashboards
 
             if (currentUser.role === 'help') {
                 renderHelpUserDashboard();
@@ -454,7 +456,7 @@
             if (response) {
                 currentUser = response;
                 localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Store for session continuity
-                renderApp();
+                renderApp(); // Proceed to role selection or dashboard
             }
         }
 
@@ -551,29 +553,34 @@ Eggs"></textarea>
                 renderApp();
             });
             document.getElementById('request-assistance-button').addEventListener('click', handleRequestAssistance);
-            fetchRequests();
+            renderHelpUserRequests(); // Populate requests based on current 'requests' array
         }
 
         async function fetchRequests() {
+            // Check if currentUser is null, if so, don't fetch requests yet
+            if (!currentUser || !currentUser.role) {
+                return; // Exit if user not fully logged in/role selected
+            }
+
             const allFetchedRequests = await apiFetch('/requests');
             if (allFetchedRequests) {
-                // Ensure timestamps are converted from Firestore format to Date objects for client-side use
                 requests = allFetchedRequests.map(req => ({
                     ...req,
-                    // Firestore `timestamp` field is a Timestamp object, convert to Date
-                    // Messages can also have Timestamp objects
                     timestamp: req.timestamp && req.timestamp._seconds ? new Date(req.timestamp._seconds * 1000 + req.timestamp._nanoseconds / 1000000) : req.timestamp,
                     messages: req.messages ? req.messages.map(msg => ({
                         ...msg,
-                        timestamp: msg.timestamp && msg.timestamp._seconds ? new Date(msg.timestamp._seconds * 1000 + msg.timestamp._nanoseconds / 1000000) : msg.timestamp // Handles embedded message timestamps
+                        timestamp: msg.timestamp && msg.timestamp._seconds ? new Date(msg.timestamp._seconds * 1000 + msg.timestamp._nanoseconds / 1000000) : msg.timestamp
                     })) : []
                 }));
 
-                if (currentUser.role === 'help') {
-                    renderHelpUserRequests();
-                } else if (currentUser.role === 'assist') {
-                    renderAvailableRequests();
-                    renderAssistUserAcceptedRequests();
+                // Re-render the specific dashboard part if it's visible
+                if (!activeRequestId) { // Only update if not in a chat screen
+                    if (currentUser.role === 'help') {
+                        renderHelpUserRequests();
+                    } else if (currentUser.role === 'assist') {
+                        renderAvailableRequests();
+                        renderAssistUserAcceptedRequests();
+                    }
                 }
             }
         }
@@ -697,7 +704,7 @@ Eggs"></textarea>
             if (response) {
                 alert('Assistance request sent! We will notify you when an assistant accepts.');
                 await fetchRequests(); // Refresh requests after sending
-                renderApp();
+                // renderApp() will be called by fetchRequests, or on next poll
             }
         }
 
@@ -741,7 +748,8 @@ Eggs"></textarea>
                 });
             });
 
-            fetchRequests();
+            renderAvailableRequests(); // Populate requests based on current 'requests' array
+            renderAssistUserAcceptedRequests(); // Populate requests based on current 'requests' array
         }
 
         function renderAvailableRequests() {
@@ -904,13 +912,12 @@ Eggs"></textarea>
                     return;
                 }
 
-                // IMPORTANT: Fetch latest from DB to prevent race condition
                 const latestRequestsFromServer = await apiFetch(`/requests`);
                 const latestRequest = latestRequestsFromServer.find(r => r.id === requestId);
 
                 if (latestRequest && latestRequest.status !== 'pending') {
                     alert(`This request has already been ${latestRequest.status} by another user.`);
-                    await fetchRequests(); // Refresh data
+                    await fetchRequests();
                     renderApp();
                     return;
                 }
@@ -930,7 +937,6 @@ Eggs"></textarea>
                 });
 
                 if (updatedRequest) {
-                    // Update the local requests array with the new request data (if API provides it)
                     const idx = requests.findIndex(r => r.id === updatedRequest.id);
                     if (idx !== -1) { requests[idx] = updatedRequest; } else { requests.push(updatedRequest); } // Should be update
 
@@ -982,15 +988,14 @@ Eggs"></textarea>
                     timestamp: new Date().toISOString()
                 };
 
-                // Update request on server
                 const updatedRequest = await apiFetch(`/requests/${requestId}`, 'PUT', {
                     assistantCurrentLoc: { lat: loc.lat, lng: loc.lng },
-                    messages: [...currentRequest.messages, newMessage] // Append new message
+                    messages: [...currentRequest.messages, newMessage]
                 });
 
                 if (updatedRequest) {
-                    // Firestore listener will automatically update `requests` and re-render the chat screen.
                     alert('Your live location and message sent!');
+                    // Firestore listener will automatically update `requests` and re-render the chat screen.
                 }
             }
         }
@@ -1009,13 +1014,12 @@ Eggs"></textarea>
 
                 const updatedRequest = await apiFetch(`/requests/${requestId}`, 'PUT', {
                     status: 'in_progress',
-                    messages: [...currentRequest.messages, newMessage] // Append new message
+                    messages: [...currentRequest.messages, newMessage]
                 });
 
                 if (updatedRequest) {
-                    // Firestore listener will automatically update `requests` and trigger re-render
                     activeRequestId = requestId; // Keep on this chat screen
-                    renderApp(); // Force re-render to update buttons if status changed
+                    renderApp();
                 }
             }
         }
@@ -1055,9 +1059,8 @@ Eggs"></textarea>
                 });
 
                 if (updatedRequest) {
-                    // Firestore listener will automatically update `requests` and re-render
                     activeRequestId = requestId;
-                    renderApp(); // Force re-render to update buttons if subtotal changed
+                    renderApp();
                 }
             }
         }
@@ -1082,7 +1085,7 @@ Eggs"></textarea>
                 if (updatedRequest) {
                     alert("Items marked as delivered. Awaiting help user's confirmation.");
                     activeRequestId = requestId;
-                    renderApp(); // Force re-render to update buttons if status changed
+                    renderApp();
                 }
             }
         }
@@ -1205,6 +1208,7 @@ Eggs"></textarea>
                             updatedRequest.confirmDeliveryTimestamp = updatedRequest.confirmDeliveryTimestamp.toDate();
                         }
 
+
                         // Find and update this request in the global 'requests' array
                         const reqIndex = requests.findIndex(r => r.id === updatedRequest.id);
                         if (reqIndex !== -1) {
@@ -1255,7 +1259,6 @@ Eggs"></textarea>
                 timestamp: new Date().toISOString() // Send as ISO string, Cloud Function will convert to Firestore Timestamp
             };
 
-            // Update request on server
             const updatedRequest = await apiFetch(`/requests/${requestId}`, 'PUT', {
                 messages: [...currentRequest.messages, newMessage] // Append new message
             });
@@ -1334,29 +1337,15 @@ Eggs"></textarea>
             }
         }
 
-        // --- Polling for Dashboard Updates (remains, as Firestore listeners are per-document) ---
+        // --- Polling for Dashboard Updates ---
         let dashboardPollInterval = null;
         function startDashboardPolling() {
             if (dashboardPollInterval) clearInterval(dashboardPollInterval);
 
             dashboardPollInterval = setInterval(async () => {
-                // Only poll if not in an active chat screen, to save resources
-                if (activeRequestId) return;
+                if (activeRequestId) return; // Don't poll if in active chat
 
-                const fetchedRequests = await apiFetch('/requests');
-                if (fetchedRequests && JSON.stringify(requests) !== JSON.stringify(fetchedRequests)) {
-                    // Map timestamps from Firestore format to Date objects
-                    requests = fetchedRequests.map(req => ({
-                        ...req,
-                        timestamp: req.timestamp && req.timestamp._seconds ? new Date(req.timestamp._seconds * 1000 + req.timestamp._nanoseconds / 1000000) : req.timestamp,
-                        messages: req.messages ? req.messages.map(msg => ({
-                            ...msg,
-                            timestamp: msg.timestamp && msg.timestamp._seconds ? new Date(msg.timestamp._seconds * 1000 + msg.timestamp._nanoseconds / 1000000) : msg.timestamp
-                        })) : []
-                    }));
-                    console.log("Dashboard polling detected request changes, re-rendering.");
-                    renderApp();
-                }
+                await fetchRequests(); // This will refresh the global 'requests' array and re-render relevant dashboard parts.
             }, POLL_INTERVAL_DASHBOARD_MS);
         }
 
@@ -1367,7 +1356,7 @@ Eggs"></textarea>
             activeRequestId = null;
             localStorage.removeItem('currentUser');
             if (map) { map.remove(); map = null; }
-            if (unsubscribeFromRequest) { unsubscribeFromRequest(); unsubscribeFromRequest = null; } // Crucial: clean up listener
+            if (unsubscribeFromRequest) { unsubscribeFromRequest(); unsubscribeFromRequest = null; }
             renderApp();
         });
 
@@ -1376,7 +1365,6 @@ Eggs"></textarea>
         document.addEventListener('DOMContentLoaded', async () => {
             appContainer.innerHTML = '<p class="status-message">Initializing Local Assist...</p>';
 
-            // Try to restore user from local storage
             try {
                 const storedUserRaw = localStorage.getItem('currentUser');
                 if (storedUserRaw) {
@@ -1387,14 +1375,11 @@ Eggs"></textarea>
                 currentUser = null;
             }
 
-            // If a user was found in local storage, try to refresh their full data from Firestore
             if (currentUser && currentUser.username) {
-                // Fetch the user's latest data from the database to ensure consistency
-                const userFromServer = await apiFetch('/login', 'POST', { username: currentUser.username }); // Use login to re-fetch/update user
+                const userFromServer = await apiFetch('/login', 'POST', { username: currentUser.username });
                 if (userFromServer) {
-                    // Update currentUser with any potentially newer data from server (e.g., location if refreshed elsewhere)
                     currentUser = { ...currentUser, ...userFromServer };
-                    localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Persist updated current user locally
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     console.log(`Current user loaded from server: ${currentUser.username} (${currentUser.role})`);
                 } else {
                     console.warn("Could not retrieve current user from server. Resetting session.");
@@ -1405,17 +1390,11 @@ Eggs"></textarea>
                 console.log("No current user found in localStorage. Displaying login.");
             }
             
-            // Initial fetch of all requests for dashboard views
-            await fetchRequests();
+            // Start polling as soon as possible, but it will only trigger fetchRequests
+            // if not in an active chat and currentUser is valid.
+            startDashboardPolling(); 
             
-            // If user logged in but location isn't set/valid, try to get it
-            if (currentUser && (currentUser.lat === null || currentUser.lng === null || isNaN(currentUser.lat) || isNaN(currentUser.lng))) {
-                console.log("Current user needs location. Attempting to get it on startup.");
-                await updateCurrentUserLocation(currentUser.role);
-            }
-
-            startDashboardPolling(); // Start polling for general dashboard updates
-            renderApp(); // Initial render based on current state
+            renderApp(); // Initial render based on current state (will call fetchRequests if appropriate)
         });
 
     </script>
