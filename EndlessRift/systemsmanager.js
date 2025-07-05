@@ -122,12 +122,12 @@ let canvas, ctx, hudElements, menuElements;
 const UPGRADE_POOL = [
     { id: "might", title: "Might", maxLevel: 5, description: (level) => `Increase projectile damage by 5. (Lvl ${level + 1})`, apply: (p) => { p.weapon.damage += 5; } },
     { id: "haste", title: "Haste", maxLevel: 5, description: (level) => `Attack 15% faster. (Lvl ${level + 1})`, apply: (p) => { p.weapon.cooldown *= 0.85; } },
-    { id: "multishot", title: "Multi-Shot", maxLevel: 4, description: (level) => `Fire ${level + 4} total projectiles.`, apply: (p) => { p.weapon.count += 3; } },
-    { id: "multishot", title: "Multi-Shot", maxLevel: 4, description: (level) => `Fire ${level + 2} total projectiles.`, apply: (p) => { p.weapon.count += 1; } },
+    // CONSOLIDATED: Multi-Shot
+    { id: "multishot", title: "Multi-Shot", maxLevel: 4, description: (level) => `Fire ${level + 1} more projectile(s).`, apply: (p) => { p.weapon.count += 1; } },
     { id: "impact", title: "Greater Impact", maxLevel: 3, description: (level) => `Increase projectile size by 25%. (Lvl ${level + 1})`, apply: (p) => { p.weapon.size.h *= 1.25; } },
     { id: "pierce", title: "Piercing Shots", maxLevel: 3, description: (level) => `Projectiles pierce ${level + 1} more enemies.`, apply: (p) => { p.weapon.pierce += 1; } },
     { id: "velocity", title: "Velocity", maxLevel: 5, description: (level) => `Projectiles travel 20% faster. (Lvl ${level+1})`, apply: (p) => { p.weapon.speed *= 1.20; } },
-    { id: "vitality", title: "Vitality", description: (level) => `Increase Max HP by 25. (Lvl ${level + 1})`, apply: (p) => { p.maxHealth += 25; p.health += 25; } },
+    { id: "vitality", title: "Vitality", maxLevel: 5, description: (level) => `Increase Max HP by 25. (Lvl ${level + 1})`, apply: (p) => { p.maxHealth += 25; p.health += 25; } },
     { id: "recovery", title: "Recovery", maxLevel: 3, description: (level) => `Heal ${0.5 * (level + 1)} HP/sec. (Lvl ${level + 1})`, apply: (p) => { p.healthRegen += 0.5; } },
     { id: "agility", title: "Agility", maxLevel: 3, description: (level) => `Increase movement speed by 10%. (Lvl ${level + 1})`, apply: (p) => { p.speed *= 1.10; } },
     { id: "armor", title: "Armor", maxLevel: 5, description: (level) => `Reduce incoming damage by 1. (Lvl ${level+1})`, apply: (p) => { p.armor += 1; } },
@@ -139,21 +139,64 @@ const UPGRADE_POOL = [
     { id: "lethality", title: "Lethality", maxLevel: 5, description: (level) => `+10% chance to deal double damage. (Lvl ${level + 1})`, apply: (p) => { p.weapon.critChance += 0.1; } },
     { id: "overwhelm", title: "Overwhelm", maxLevel: 5, description: (level) => `Critical hits do +50% more damage. (Lvl ${level+1})`, apply: (p) => { p.weapon.critDamage += 0.5; } },
     { id: "crit_explosion", title: "Critical Mass", maxLevel: 1, description: () => `Critical hits cause a small explosion.`, apply: (p) => { p.abilities.critExplosion = true; } },
-    { id: "soul_vortex", title: "Soul Vortex", maxLevel: 1, description: () => `Gain an orbiting soul that damages enemies.`, apply: (p) => { p.abilities.orbitingShield.enabled = true; } },
+    // CORRECTED: Soul Vortex base skill - Initializes orbitingShield object
+    {
+        id: "soul_vortex",
+        title: "Soul Vortex",
+        maxLevel: 1,
+        description: () => `Gain an orbiting soul that damages enemies.`,
+        apply: (p) => {
+            p.abilities.orbitingShield = {
+                enabled: true,
+                damage: 10, // Base damage for the soul (adjust as desired)
+                speed: 1,   // Base speed (adjust as desired)
+                count: 1,   // Starts with one soul
+            };
+        }
+    },
     { id: "rear_guard", title: "Rear Guard", maxLevel: 1, description: () => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; } },
     { id: "crossfire", title: "Crossfire", maxLevel: 1, description: () => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; } },
-    { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(p, 50, 200); } },
+    { id: "soul_nova", title: "Soul Nova", maxLevel: 1, description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; /* triggerNova(p, 50, 200); // This should probably be triggered by the level-up event, not during upgrade apply */ } },
     { id: "thorns", title: "Thorns", maxLevel: 3, description: (level) => `Enemies that hit you take ${5 * (level+1)} damage.`, apply: (p) => { p.thorns += 5; } },
     { id: "life_steal", title: "Life Steal", maxLevel: 3, description: (level) => `Heal for ${level+1} HP on kill.`, apply: (p) => { p.lifeSteal += 1; } },
     { id: "demolition", title: "Demolition", maxLevel: 1, description: () => `Projectiles explode on their first hit.`, apply: (p) => { p.weapon.explodesOnImpact = true; } },
-    { id: "vortex_damage", title: "Vortex: Sharpen", maxLevel: 5, skill: "soul_vortex", description: (level) => `Soul Vortex deals +5 damage. (Lvl ${level + 1})`, apply: (p) => { p.abilities.orbitingShield.damage += 5; } },
-    { id: "vortex_damage", title: "Vortex: Sharpen", maxLevel: 15, skill: "soul_vortex", description: (level) => `Soul Vortex deals +15 damage. (Lvl ${level + 1})`, apply: (p) => { p.abilities.orbitingShield.damage += 15; } },
-    { id: "vortex_speed", title: "Vortex: Accelerate", maxLevel: 3, skill: "soul_vortex", description: (level) => `Soul Vortex orbits faster. (Lvl ${level+1})`, apply: (p) => { p.abilities.orbitingShield.speed = (p.abilities.orbitingShield.speed || 1) * 1.25; } },
-    { id: "vortex_speed", title: "Vortex: Accelerate", maxLevel: 3, skill: "soul_vortex", description: (level) => `Soul Vortex orbits faster. (Lvl ${level+1})`, apply: (p) => { p.abilities.orbitingShield.speed = (p.abilities.orbitingShield.speed || 1) * 1.75; } },
-    { id: "vortex_twin", title: "Vortex: Twin Souls", maxLevel: 1, skill: "soul_vortex", description: () => `Gain a second orbiting soul.`, apply: (p) => { p.abilities.orbitingShield.count = 2; } },
-    { id: "vortex_twin", title: "Vortex: Twin Souls", maxLevel: 1, skill: "soul_vortex", description: () => `Gain a third orbiting soul.`, apply: (p) => { p.abilities.orbitingShield.count = 3; } },
-    { id: "vortex_twin", title: "Vortex: Twin Souls", maxLevel: 1, skill: "soul_vortex", description: () => `Gain a fourth orbiting soul.`, apply: (p) => { p.abilities.orbitingShield.count = 4; } },
-    { id: "vortex_twin", title: "Vortex: Twin Souls", maxLevel: 1, skill: "soul_vortex", description: () => `Gain five orbiting souls.`, apply: (p) => { p.abilities.orbitingShield.count = 5; } },
+
+    // CONSOLIDATED: Vortex Damage
+    {
+        id: "vortex_damage",
+        title: "Vortex: Sharpen",
+        maxLevel: 15,
+        skill: "soul_vortex",
+        description: (level) => `Soul Vortex deals +5 damage. (Lvl ${level + 1})`,
+        apply: (p) => { p.abilities.orbitingShield.damage += 5; }
+    },
+    // CONSOLIDATED: Vortex Speed
+    {
+        id: "vortex_speed",
+        title: "Vortex: Accelerate",
+        maxLevel: 5, // Increased max level for more impactful scaling
+        skill: "soul_vortex",
+        description: (level) => `Soul Vortex orbits ${Math.round((1.25**(level + 1) - 1) * 100)}% faster. (Lvl ${level + 1})`, // Dynamic percentage description
+        apply: (p) => { p.abilities.orbitingShield.speed *= 1.25; }
+    },
+    // CONSOLIDATED: Vortex Twin Souls
+    {
+        id: "vortex_twin",
+        title: "Vortex: Twin Souls",
+        maxLevel: 4, // Allows for second, third, fourth, and fifth soul
+        skill: "soul_vortex",
+        description: (level) => {
+            const currentTotalSouls = (p.abilities.orbitingShield ? p.abilities.orbitingShield.count : 1) + 1;
+            const ordinal = ["second", "third", "fourth", "fifth"][level];
+            return `Gain a ${ordinal} orbiting soul (Total: ${currentTotalSouls}).`;
+        },
+        apply: (p) => {
+            // Ensure count is initialized (it should be by soul_vortex now)
+            p.abilities.orbitingShield.count = (p.abilities.orbitingShield.count || 1) + 1;
+        }
+    },
+
+    // Lightning skills (assuming their initialization is handled elsewhere if they're not in the base abilities)
     { id: "lightning_damage", title: "Lightning: High Voltage", maxLevel: 5, skill: "lightning", description: (level) => `Increase lightning damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.damage += 5; } },
     { id: "lightning_chains", title: "Lightning: Chain Lightning", maxLevel: 4, skill: "lightning", description: (level) => `Lightning chains to ${level + 2} enemies.`, apply: (p) => { p.skills.lightning.chains += 1; } },
     { id: "lightning_cooldown", title: "Lightning: Storm Caller", maxLevel: 3, skill: "lightning", description: () => `Lightning strikes more frequently.`, apply: (p) => { p.skills.lightning.cooldown *= 0.8; } },
