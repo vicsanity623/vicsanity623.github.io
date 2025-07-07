@@ -370,7 +370,7 @@
 
         // Geolocation tracking
         let lastKnownGeoCoords = null; // {latitude, longitude}
-        const MOVEMENT_THRESHOLD_METERS = 1; // Distance moved to trigger new spawns (Changed to 1m as requested)
+        const MOVEMENT_THRESHOLD_METERS = 11; // Distance moved to trigger new spawns (Changed to 1m as requested)
         const SPAWN_ON_MOVE_COUNT = 5; // How many creatures spawn when player moves due to GPS
         let gpsWatchId = null; // To store the watchPosition ID to clear it later if needed
         let initialCreaturesSpawned = false; // Flag to ensure initial creatures are only spawned once
