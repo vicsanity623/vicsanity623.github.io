@@ -10,8 +10,8 @@
             margin: 0;
             overflow: hidden;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1a1a2e; /* Dark background */
-            color: #e0e0e0; /* Light text */
+            background-color: #222222; /* Dark grey background */
+            color: #eeeeee; /* Light grey text */
             -webkit-user-select: none; /* Disable text selection for game feel */
             -moz-user-select: none;
             -ms-user-select: none;
@@ -22,7 +22,7 @@
             display: block;
             width: 100vw;
             height: 100vh;
-            background-color: #1a1a2e; /* Match body for seamless look */
+            background-color: #222222; /* Match body for seamless look */
         }
 
         /* UI Overlay Container */
@@ -42,11 +42,11 @@
 
         /* Generic Panel Styling */
         .ui-panel {
-            background: rgba(0, 0, 0, 0.85); /* Semi-transparent dark background */
-            border: 2px solid #6c5ce7; /* Purple border */
+            background: rgba(0, 0, 0, 0.85); /* Semi-transparent black background */
+            border: 2px solid #888888; /* Mid-grey border */
             border-radius: 12px; /* Rounded corners */
             padding: 20px;
-            box-shadow: 0 0 20px rgba(108, 92, 231, 0.7); /* Glowing shadow */
+            box-shadow: 0 0 20px rgba(136, 136, 136, 0.7); /* Glowing shadow */
             pointer-events: auto; /* Re-enable pointer events for interaction */
             margin: 15px; /* Spacing from edges */
             max-width: 90%;
@@ -59,15 +59,15 @@
             gap: 10px; /* Space between internal elements */
         }
         .ui-panel h2 {
-            color: #8e44ad; /* Violet heading */
+            color: #aaaaaa; /* Lighter grey heading */
             margin-top: 0;
             margin-bottom: 15px;
-            text-shadow: 0 0 5px rgba(142, 68, 173, 0.5);
+            text-shadow: 0 0 5px rgba(170, 170, 170, 0.5);
         }
 
         /* Buttons */
         .ui-button {
-            background: #6c5ce7; /* Purple button background */
+            background: #555555; /* Dark grey button background */
             color: white;
             border: none;
             padding: 12px 20px;
@@ -80,7 +80,7 @@
             flex-shrink: 0; /* Prevent buttons from shrinking in flex containers */
         }
         .ui-button:hover {
-            background: #8e44ad; /* Darker purple on hover */
+            background: #777777; /* Lighter grey on hover */
             transform: translateY(-2px); /* Slight lift effect */
         }
         .ui-button:active {
@@ -88,7 +88,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.4);
         }
         .ui-button:disabled {
-            background: #555;
+            background: #444444;
             cursor: not-allowed;
             opacity: 0.7;
             box-shadow: none;
@@ -106,15 +106,15 @@
 
         /* Stat/item display within panels */
         .stat-item, .item-entry {
-            background: rgba(108, 92, 231, 0.2); /* Light purple background */
+            background: rgba(85, 85, 85, 0.2); /* Light grey background */
             border-radius: 6px;
             padding: 8px 12px;
             text-align: left;
-            border: 1px solid rgba(108, 92, 231, 0.5);
+            border: 1px solid rgba(136, 136, 136, 0.5);
             flex-grow: 1; /* Allows items to fill available space */
             min-width: 150px; /* Minimum width for readability */
         }
-        .item-entry strong { color: #bb86fc; } /* Accent color for item names */
+        .item-entry strong { color: #cccccc; } /* Accent color for item names */
         .item-entry em { font-size: 0.9em; opacity: 0.8; } /* Lighter description text */
 
         /* Specific UI element positioning */
@@ -132,7 +132,7 @@
             padding: 8px 12px;
             border-radius: 8px;
             font-size: 0.9em;
-            color: #ccc;
+            color: #bbbbbb;
             pointer-events: none; /* Non-interactive */
         }
         #bottomMenu { /* Currently unused, but kept for future expansion */
@@ -145,25 +145,25 @@
             gap: 10px;
         }
 
-        /* Global message box */
+        /* Global message box (moved to bottom center) */
         #messageBox {
             position: absolute;
-            top: 50%;
+            bottom: 50px; /* Offset from the bottom */
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translateX(-50%); /* Center horizontally */
             background: rgba(0, 0, 0, 0.9);
-            border: 3px solid #e74c3c; /* Red border for warnings/important messages */
+            border: 3px solid #888888; /* Grey border for warnings/important messages */
             color: white;
-            padding: 25px;
+            padding: 15px 25px; /* Reduced padding slightly */
             border-radius: 15px;
-            box-shadow: 0 0 25px rgba(231, 76, 60, 0.8);
-            font-size: 1.3em;
+            box-shadow: 0 0 20px rgba(136, 136, 136, 0.6);
+            font-size: 1.1em; /* Slightly smaller font */
             text-align: center;
             z-index: 1000; /* Highest z-index */
             pointer-events: none; /* Don't block clicks */
             opacity: 0; /* Hidden by default */
             transition: opacity 0.4s ease-in-out; /* Fade in/out */
-            max-width: 80%;
+            max-width: 70%; /* Narrower width */
         }
 
         /* Creature 3D view in creature panel */
@@ -180,7 +180,6 @@
             display: block; /* Remove extra space below canvas */
         }
 
-
         /* Taming Bar */
         #tameBarContainer {
             width: 90%;
@@ -195,10 +194,55 @@
         #tameBar {
             height: 100%;
             width: 0%;
-            background: linear-gradient(to right, #4CAF50, #8BC34A); /* Green gradient */
+            background: linear-gradient(to right, #444444, #888888); /* Greyscale gradient */
             border-radius: 18px;
             transition: width 0.1s linear, background 0.3s ease; /* Smooth bar filling */
         }
+
+        /* Placement Controls */
+        #placementControls {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: auto;
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #888888;
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 0 15px rgba(136, 136, 136, 0.7);
+        }
+
+        #activeCrafts {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #666;
+            border-radius: 8px;
+            padding: 10px;
+            pointer-events: none; /* Read-only for now */
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            text-align: left;
+            z-index: 10;
+        }
+        #activeCrafts h4 {
+            margin: 0 0 5px 0;
+            color: #cccccc;
+        }
+        #activeCrafts ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #activeCrafts li {
+            margin-bottom: 3px;
+        }
+
 
         /* Utility Class */
         .hidden {
@@ -226,8 +270,15 @@
                 height: 25px;
             }
             #messageBox {
-                font-size: 1em;
-                padding: 15px;
+                font-size: 0.9em;
+                padding: 10px 15px;
+                bottom: 20px; /* Adjust for smaller screens */
+            }
+            #placementControls {
+                flex-direction: column;
+                gap: 5px;
+                padding: 8px;
+                bottom: 10px;
             }
         }
     </style>
@@ -313,9 +364,18 @@
             <button class="ui-button" id="closeArenaButton">Close</button>
         </div>
 
-        <!-- Bottom UI for player actions / indicators (currently empty) -->
-        <div id="bottomMenu">
-            <!-- Could add movement controls here later if needed -->
+        <!-- Placement Controls -->
+        <div id="placementControls" class="hidden">
+            <button class="ui-button" id="confirmPlacementButton">Place Here</button>
+            <button class="ui-button" id="cancelPlacementButton">Cancel</button>
+        </div>
+
+        <!-- Active Crafts Display (simple placeholder for now) -->
+        <div id="activeCrafts">
+            <h4>Active Crafts</h4>
+            <ul id="activeCraftsList">
+                <li>None</li>
+            </ul>
         </div>
     </div>
 
@@ -336,6 +396,7 @@
         let wildCreatureMeshes = []; // Array to hold active wild creature Three.js objects
         let activePlacedBuildingMeshes = []; // Array to hold active placed building Three.js objects
         let activeTreeMeshes = []; // Array to hold active tree Three.js objects
+        let activeStoneMeshes = []; // New array for stone models
         let traderModel; // The single, static trader model
 
         // Player's game state (will be loaded/saved)
@@ -359,30 +420,34 @@
             INVENTORY: 'inventory',
             TRADER: 'trader',
             CRAFTING: 'crafting',
-            ARENA: 'arena'
+            ARENA: 'arena',
+            PLACEMENT: 'placement' // New state for placing items
         };
         let currentGameState = GAME_STATE.EXPLORE;
 
         const MAP_SIZE = 400; // Size of our simulated world map (e.g., 400 units x 400 units)
         const CREATURE_SPAWN_RADIUS = 70; // Max distance from player for creature spawns
         const INITIAL_TREES = 30; // Number of trees spawned at start
+        const INITIAL_STONES = 20; // New: Number of stones spawned at start
         const SPAWN_LIFESPAN_SECONDS = 60; // How long a creature spawn lasts
 
         // Geolocation tracking
         let lastKnownGeoCoords = null; // {latitude, longitude}
-        const MOVEMENT_THRESHOLD_METERS = 11; // Distance moved to trigger new spawns (Changed to 1m as requested)
+        const MOVEMENT_THRESHOLD_METERS = 1; // Distance moved to trigger new spawns (Changed to 1m)
         const SPAWN_ON_MOVE_COUNT = 5; // How many creatures spawn when player moves due to GPS
         let gpsWatchId = null; // To store the watchPosition ID to clear it later if needed
         let initialCreaturesSpawned = false; // Flag to ensure initial creatures are only spawned once
 
+        // Placement mode variables
+        let placementMode = false;
+        let placementItemData = null; // Stores data of item to be placed {name: "House", kitName: "House Kit"}
+        let placementGhostMesh = null;
+        let placementGroundIntersection = null; // Stores where the raycaster hits the ground
+
         // Raycaster for object interaction (mouse/touch picking)
         const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-
-        // Currently selected creature for interaction (when the creature panel is open)
-        let selectedCreature = null;
-        let tamingBarProgress = 0; // Progress for the taming mini-game bar
-        let tamingInterval = null; // Interval ID for the taming bar decay
+        const mouse = new THREE.Vector2(); // For mouse/touch input in 2D screen space
+        const raycastPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Ground plane for placement intersection
 
         // UI Element References
         const mainMenuPanel = document.getElementById('mainMenuPanel');
@@ -392,6 +457,8 @@
         const traderPanel = document.getElementById('traderPanel');
         const craftingPanel = document.getElementById('craftingPanel');
         const arenaPanel = document.getElementById('arenaPanel');
+        const placementControls = document.getElementById('placementControls'); // For confirm/cancel
+        const activeCraftsList = document.getElementById('activeCraftsList'); // For active crafts display
 
         const creatureNameElem = document.getElementById('creatureName');
         const creature3DViewDiv = document.getElementById('creature3DView'); // Div for the mini 3D renderer
@@ -409,225 +476,196 @@
         const arenaCreatureListElem = document.getElementById('arenaCreatureList');
         const arenaBattleLogElem = document.getElementById('arenaBattleLog');
         const arenaNextOpponentButton = document.getElementById('arenaNextOpponentButton');
+        const confirmPlacementButton = document.getElementById('confirmPlacementButton');
+        const cancelPlacementButton = document.getElementById('cancelPlacementButton');
 
 
         // --- Game Data Definitions ---
 
-        // Different creature types with their visual properties
+        // Greyscale color definitions for game elements
+        const G_BLACK = 0x111111;
+        const G_DARK_GREY = 0x333333;
+        const G_MEDIUM_GREY = 0x666666;
+        const G_LIGHT_GREY = 0xaaaaaa;
+        const G_WHITE = 0xeeeeee;
+        const G_ACCENT_1 = 0x555555; // Used for UI buttons, etc.
+        const G_ACCENT_2 = 0x888888; // Used for borders, highlights
+        const G_PLAYER_ORANGE = 0xFF4500; // Player specific color from screenshot example
+
+        // Different creature types with their visual properties (colors converted to greyscale)
         const CREATURE_TYPES = [
-            { name: "Glimmerwing", baseColor: 0x88EEFF, modelType: 'flying', size: 1.5, likesBerry: true },
-            { name: "Stonehide", baseColor: 0x8B4513, modelType: 'quadruped', size: 2.2, likesBerry: false },
-            { name: "Whisperoot", baseColor: 0x228B22, modelType: 'plantoid', size: 1.8, likesBerry: true },
-            { name: "Blazefang", baseColor: 0xFF4500, modelType: 'bipedal', size: 2, likesBerry: false },
-            { name: "Moonpetal", baseColor: 0xCCCCCC, modelType: 'plantoid', size: 1.5, likesBerry: true },
-            { name: "Deepscale", baseColor: 0x0077BE, modelType: 'quadruped', size: 2.5, likesBerry: false }
+            { name: "Glimmerwing", baseColor: 0x888888, modelType: 'flying', size: 1.5, likesBerry: true }, // Light grey
+            { name: "Stonehide", baseColor: 0x666666, modelType: 'quadruped', size: 2.2, likesBerry: false }, // Mid grey
+            { name: "Whisperoot", baseColor: 0x444444, modelType: 'plantoid', size: 1.8, likesBerry: true }, // Darker grey
+            { name: "Blazefang", baseColor: 0x333333, modelType: 'bipedal', size: 2, likesBerry: false }, // Very dark grey
+            { name: "Moonpetal", baseColor: 0xcccccc, modelType: 'plantoid', size: 1.5, likesBerry: true }, // Very light grey
+            { name: "Deepscale", baseColor: 0x555555, modelType: 'quadruped', size: 2.5, likesBerry: false } // Medium dark grey
         ];
 
         // Item definitions (properties like value, description)
         const ITEM_DEFINITIONS = {
             "Berry": { type: "consumable", value: 5, description: "A juicy berry, some creatures love it!" },
             "Axe": { type: "tool", value: 50, description: "Allows you to chop down trees for wood." },
+            "Pickaxe": { type: "tool", value: 75, description: "Allows you to mine stones for stone." }, // New: Pickaxe
             "Wood": { type: "material", value: 10, description: "Basic crafting material from trees." },
             "Stone": { type: "material", value: 8, description: "Basic building material from rocks." },
             "Tent Kit": { type: "blueprint", value: 150, description: "Blueprint to build a cozy tent.", crafts: [{item: "Wood", amount: 20}] },
-            "Campfire Kit": { type: "blueprint", value: 100, description: "Blueprint to build a warm campfire.", crafts: [{item: "Wood", amount: 10}, {item: "Stone", amount: 5}] }
+            "Campfire Kit": { type: "blueprint", value: 100, description: "Blueprint to build a warm campfire.", crafts: [{item: "Wood", amount: 10}, {item: "Stone", amount: 5}] },
+            "Small House Kit": { type: "blueprint", value: 500, description: "Blueprint to build a small house.", crafts: [{item: "Wood", amount: 50}, {item: "Stone", amount: 30}] }, // New: House
+            "Stone Wall Kit": { type: "blueprint", value: 50, description: "Blueprint for a sturdy stone wall.", crafts: [{item: "Stone", amount: 10}] }, // New: Stone Wall
+            "Wooden Fence Kit": { type: "blueprint", value: 30, description: "Blueprint for a simple wooden fence.", crafts: [{item: "Wood", amount: 10}] } // New: Wooden Fence
         };
 
         // Items available at the trader shop
         const TRADER_ITEMS = [
             { id: "Berry", price: 10, stock: 10 },
             { id: "Axe", price: 50, stock: 1 },
+            { id: "Pickaxe", price: 75, stock: 1 }, // New: Pickaxe in trader
             { id: "Tent Kit", price: 150, stock: 1 },
-            { id: "Campfire Kit", price: 100, stock: 1 }
+            { id: "Campfire Kit", price: 100, stock: 1 },
+            { id: "Small House Kit", price: 500, stock: 1 }, // New: House in trader
+            { id: "Stone Wall Kit", price: 50, stock: 5 }, // New: Stone Wall in trader
+            { id: "Wooden Fence Kit", price: 30, stock: 5 } // New: Wooden Fence in trader
         ];
 
-        // Crafting recipes
+        // Crafting recipes (expanded)
         const CRAFTING_RECIPES = [
             { name: "Tent", requires: { "Wood": 20 }, result: { type: "placeable", name: "Tent" }, description: "A cozy place to rest." },
-            { name: "Campfire", requires: { "Wood": 10, "Stone": 5 }, result: { type: "placeable", name: "Campfire" }, description: "Provides warmth and light." }
+            { name: "Campfire", requires: { "Wood": 10, "Stone": 5 }, result: { type: "placeable", name: "Campfire" }, description: "Provides warmth and light." },
+            { name: "Small House", requires: { "Wood": 50, "Stone": 30 }, result: { type: "placeable", name: "Small House" }, description: "A sturdy home for your adventures." },
+            { name: "Stone Wall", requires: { "Stone": 10 }, result: { type: "placeable", name: "Stone Wall" }, description: "Protects your base." },
+            { name: "Wooden Fence", requires: { "Wood": 10 }, result: { type: "placeable", name: "Wooden Fence" }, description: "Defines your property." }
         ];
 
         // --- Helper Functions ---
 
-        // Displays a temporary message box on screen
         function showMessage(text, duration = 2000) {
             messageBox.textContent = text;
             messageBox.classList.remove('hidden');
             messageBox.style.opacity = 1;
-            clearTimeout(messageBox.hideTimeout); // Clear any existing hide timeout
+            clearTimeout(messageBox.hideTimeout);
             messageBox.hideTimeout = setTimeout(() => {
                 messageBox.style.opacity = 0;
-                setTimeout(() => messageBox.classList.add('hidden'), 300); // Allow fade out before hiding
+                setTimeout(() => messageBox.classList.add('hidden'), 300);
             }, duration);
         }
 
-        // Toggles visibility of UI panels and updates game state
         function toggleUIPanel(panelElement, stateToSet) {
-            // Hide all other panels
             document.querySelectorAll('.ui-panel').forEach(panel => {
                 if (panel !== panelElement) {
                     panel.classList.add('hidden');
                 }
             });
-            // Toggle the target panel
+            if (currentGameState === GAME_STATE.PLACEMENT) {
+                 exitPlacementMode(); // Always exit placement mode when opening a menu
+            }
             panelElement.classList.toggle('hidden');
             currentGameState = panelElement.classList.contains('hidden') ? GAME_STATE.EXPLORE : stateToSet;
         }
 
-        // Generates a random integer within a range
         function getRandomInt(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
-        // Generates a random float within a range
         function getRandomFloat(min, max) {
             return Math.random() * (max - min) + min;
         }
 
-        // Calculates distance between two lat/lon points using Haversine formula
         function haversineDistance(coords1, coords2) {
-            const R = 6371e3; // metres
-            const φ1 = coords1.latitude * Math.PI / 180; // φ, λ in radians
+            const R = 6371e3;
+            const φ1 = coords1.latitude * Math.PI / 180;
             const φ2 = coords2.latitude * Math.PI / 180;
             const Δφ = (coords2.latitude - coords1.latitude) * Math.PI / 180;
             const Δλ = (coords2.longitude - coords1.longitude) * Math.PI / 180;
-
             const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
                       Math.cos(φ1) * Math.cos(φ2) *
                       Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-            return R * c; // in metres
+            return R * c;
         }
 
+        // --- 3D Model Creation Functions ---
 
-        // Creates a stylized 3D model for creatures based on their type
         function createCreatureModel(typeDef, isMini = false) {
             let group = new THREE.Group();
             const baseColor = new THREE.Color(typeDef.baseColor);
             const material = new THREE.MeshPhongMaterial({ color: baseColor });
-            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Black eyes
-            const accentMaterial = new THREE.MeshPhongMaterial({ color: baseColor.clone().offsetHSL(0, 0, 0.2) }); // Slightly lighter/darker
+            const eyeMaterial = new THREE.MeshBasicMaterial({ color: G_BLACK });
+            const accentMaterial = new THREE.MeshPhongMaterial({ color: baseColor.clone().offsetHSL(0, 0, 0.2) });
 
             const scale = isMini ? 0.4 : 1;
-            const sizeM = typeDef.size * scale; // Overall size multiplier
+            const sizeM = typeDef.size * scale;
 
             let head, body;
 
             switch (typeDef.modelType) {
                 case 'flying': // Dragonfly/Butterfly like
-                    body = new THREE.Mesh(new THREE.CylinderGeometry(0.3 * sizeM, 0.6 * sizeM, 1.5 * sizeM, 8), material); // Tapered body
+                    body = new THREE.Mesh(new THREE.CylinderGeometry(0.3 * sizeM, 0.6 * sizeM, 1.5 * sizeM, 8), material);
                     body.position.y = 0.75 * sizeM;
                     head = new THREE.Mesh(new THREE.SphereGeometry(0.5 * sizeM, 16, 16), material);
                     head.position.y = 1.6 * sizeM;
                     group.add(body, head);
-
-                    // Wings (stylized flat planes)
                     const wingGeom = new THREE.PlaneGeometry(2 * sizeM, 0.8 * sizeM);
                     const wingMat = new THREE.MeshPhongMaterial({ color: accentMaterial.color, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
-                    const wing1 = new THREE.Mesh(wingGeom, wingMat);
-                    const wing2 = wing1.clone();
-                    const wing3 = wing1.clone();
-                    const wing4 = wing1.clone();
-
-                    wing1.position.set(0.6 * sizeM, 1.2 * sizeM, 0);
-                    wing1.rotation.y = Math.PI / 4;
-                    wing2.position.set(-0.6 * sizeM, 1.2 * sizeM, 0);
-                    wing2.rotation.y = -Math.PI / 4;
-
-                    wing3.position.set(0.6 * sizeM, 1 * sizeM, 0.3 * sizeM);
-                    wing3.rotation.y = Math.PI / 4;
-                    wing4.position.set(-0.6 * sizeM, 1 * sizeM, 0.3 * sizeM);
-                    wing4.rotation.y = -Math.PI / 4;
-
+                    const wing1 = new THREE.Mesh(wingGeom, wingMat); wing1.position.set(0.6 * sizeM, 1.2 * sizeM, 0); wing1.rotation.y = Math.PI / 4;
+                    const wing2 = wing1.clone(); wing2.position.x = -0.6 * sizeM; wing2.rotation.y = -Math.PI / 4;
+                    const wing3 = wing1.clone(); wing3.position.set(0.6 * sizeM, 1 * sizeM, 0.3 * sizeM); wing3.rotation.y = Math.PI / 4;
+                    const wing4 = wing3.clone(); wing4.position.x = -0.6 * sizeM; wing4.rotation.y = -Math.PI / 4;
                     group.add(wing1, wing2, wing3, wing4);
                     break;
-
                 case 'quadruped': // Dog/Wolf like
                     body = new THREE.Mesh(new THREE.BoxGeometry(1.2 * sizeM, 0.9 * sizeM, 2.0 * sizeM), material);
                     body.position.y = 0.5 * sizeM;
                     head = new THREE.Mesh(new THREE.SphereGeometry(0.6 * sizeM, 16, 16), material);
-                    head.position.set(0, 0.7 * sizeM, 1.2 * sizeM); // Snout
+                    head.position.set(0, 0.7 * sizeM, 1.2 * sizeM);
                     group.add(body, head);
-
-                    // Legs (cylinders)
                     const legGeom = new THREE.CylinderGeometry(0.2 * sizeM, 0.2 * sizeM, 1.0 * sizeM, 8);
                     for (let i = 0; i < 4; i++) {
                         let leg = new THREE.Mesh(legGeom, material);
-                        leg.position.set(
-                            (i % 2 === 0 ? 0.5 : -0.5) * sizeM,
-                            -0.1 * sizeM,
-                            (i < 2 ? 0.7 : -0.7) * sizeM
-                        );
+                        leg.position.set((i % 2 === 0 ? 0.5 : -0.5) * sizeM, -0.1 * sizeM, (i < 2 ? 0.7 : -0.7) * sizeM);
                         group.add(leg);
                     }
-                    // Tail (simple cone)
                     const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3 * sizeM, 1.0 * sizeM, 8), accentMaterial);
-                    tail.position.set(0, 0.7 * sizeM, -1.2 * sizeM);
-                    tail.rotation.x = Math.PI / 2;
+                    tail.position.set(0, 0.7 * sizeM, -1.2 * sizeM); tail.rotation.x = Math.PI / 2;
                     group.add(tail);
                     break;
-
                 case 'plantoid': // Flower/Golem like
                     body = new THREE.Mesh(new THREE.CylinderGeometry(0.8 * sizeM, 1.0 * sizeM, 1.8 * sizeM, 16), material);
                     body.position.y = 0.9 * sizeM;
-                    head = new THREE.Mesh(new THREE.SphereGeometry(0.7 * sizeM, 16, 16), accentMaterial); // Flower head
+                    head = new THREE.Mesh(new THREE.SphereGeometry(0.7 * sizeM, 16, 16), accentMaterial);
                     head.position.y = 2.0 * sizeM;
                     group.add(body, head);
-
-                    // Petals (thin boxes)
                     const petalGeom = new THREE.BoxGeometry(0.2 * sizeM, 1.0 * sizeM, 0.1 * sizeM);
                     for (let i = 0; i < 6; i++) {
                         let petal = new THREE.Mesh(petalGeom, material);
-                        petal.position.copy(head.position);
-                        petal.rotation.y = i * Math.PI / 3;
+                        petal.position.copy(head.position); petal.rotation.y = i * Math.PI / 3;
                         petal.position.y += 0.3 * sizeM;
                         petal.position.x += Math.sin(petal.rotation.y) * 0.5 * sizeM;
                         petal.position.z += Math.cos(petal.rotation.y) * 0.5 * sizeM;
                         group.add(petal);
                     }
                     break;
-
                 case 'bipedal': // Humanoid/Monster like
                     body = new THREE.Mesh(new THREE.BoxGeometry(1.0 * sizeM, 1.8 * sizeM, 0.8 * sizeM), material);
                     body.position.y = 0.9 * sizeM;
                     head = new THREE.Mesh(new THREE.SphereGeometry(0.55 * sizeM, 16, 16), material);
                     head.position.y = 2.0 * sizeM;
                     group.add(body, head);
-
-                    // Legs (cylinders)
                     const bipedLegGeom = new THREE.CylinderGeometry(0.25 * sizeM, 0.25 * sizeM, 1.0 * sizeM, 8);
-                    const leg1 = new THREE.Mesh(bipedLegGeom, material);
-                    leg1.position.set(0.3 * sizeM, -0.1 * sizeM, 0);
-                    const leg2 = leg1.clone();
-                    leg2.position.x = -0.3 * sizeM;
+                    const leg1 = new THREE.Mesh(bipedLegGeom, material); leg1.position.set(0.3 * sizeM, -0.1 * sizeM, 0);
+                    const leg2 = leg1.clone(); leg2.position.x = -0.3 * sizeM;
                     group.add(leg1, leg2);
-
-                    // Arms (cylinders)
                     const armGeom = new THREE.CylinderGeometry(0.2 * sizeM, 0.2 * sizeM, 1.0 * sizeM, 8);
-                    const arm1 = new THREE.Mesh(armGeom, material);
-                    arm1.position.set(0.8 * sizeM, 1.2 * sizeM, 0);
-                    arm1.rotation.z = -Math.PI / 6;
-                    const arm2 = arm1.clone();
-                    arm2.position.x = -0.8 * sizeM;
-                    arm2.rotation.z = Math.PI / 6;
+                    const arm1 = new THREE.Mesh(armGeom, material); arm1.position.set(0.8 * sizeM, 1.2 * sizeM, 0); arm1.rotation.z = -Math.PI / 6;
+                    const arm2 = arm1.clone(); arm2.position.x = -0.8 * sizeM; arm2.rotation.z = Math.PI / 6;
                     group.add(arm1, arm2);
-
-                    // Horns (cones)
                     const hornGeom = new THREE.ConeGeometry(0.15 * sizeM, 0.5 * sizeM, 8);
-                    const hornMat = new THREE.MeshPhongMaterial({ color: 0xAAAAAA });
-                    const horn1 = new THREE.Mesh(hornGeom, hornMat);
-                    horn1.position.set(-0.3 * sizeM, 2.3 * sizeM, 0.2 * sizeM);
-                    horn1.rotation.x = Math.PI / 2;
-                    horn1.rotation.y = Math.PI / 6;
-                    const horn2 = horn1.clone();
-                    horn2.position.x = 0.3 * sizeM;
-                    horn2.rotation.y = -Math.PI / 6;
+                    const hornMat = new THREE.MeshPhongMaterial({ color: G_LIGHT_GREY });
+                    const horn1 = new THREE.Mesh(hornGeom, hornMat); horn1.position.set(-0.3 * sizeM, 2.3 * sizeM, 0.2 * sizeM); horn1.rotation.x = Math.PI / 2; horn1.rotation.y = Math.PI / 6;
+                    const horn2 = horn1.clone(); horn2.position.x = 0.3 * sizeM; horn2.rotation.y = -Math.PI / 6;
                     group.add(horn1, horn2);
                     break;
             }
-
-            // Add simple eyes to head for basic models
             if (head) {
                 let eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.06 * sizeM, 8, 8), eyeMaterial);
                 let eye2 = eye1.clone();
@@ -635,44 +673,59 @@
                 eye2.position.set(0.18 * sizeM, 0.12 * sizeM, 0.4 * sizeM);
                 head.add(eye1, eye2);
             }
-
             group.castShadow = true;
             group.receiveShadow = true;
             return group;
         }
 
-
-        // Creates a stylized 3D model for buildings
         function createBuildingModel(type) {
             let model;
-            const material = new THREE.MeshPhongMaterial({ color: 0x7a5230 }); // Wood-like color
-
+            const material = new THREE.MeshPhongMaterial({ color: G_MEDIUM_GREY });
             switch(type) {
                 case "Tent":
                     model = new THREE.Group();
-                    let tentBody = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 0.1, 2.5, 4), material); // Cone shape for tent
-                    tentBody.rotation.y = Math.PI / 4; // Point the front
-                    tentBody.position.y = 1.25; // Center on ground
+                    let tentBody = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 0.1, 2.5, 4), material);
+                    tentBody.rotation.y = Math.PI / 4; tentBody.position.y = 1.25;
                     model.add(tentBody);
                     break;
                 case "Campfire":
                     model = new THREE.Group();
-                    let logs = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.2, 8), new THREE.MeshPhongMaterial({color: 0x8B4513}));
-                    logs.position.y = 0.2;
-                    logs.rotation.x = Math.PI / 2;
-                    let logs2 = logs.clone();
-                    logs2.rotation.y = Math.PI / 2;
-                    let stoneRing = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.2, 8, 16), new THREE.MeshPhongMaterial({color: 0x777777}));
-                    stoneRing.rotation.x = Math.PI / 2;
-                    stoneRing.position.y = 0.1;
+                    let logs = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.2, 8), new THREE.MeshPhongMaterial({color: G_DARK_GREY}));
+                    logs.position.y = 0.2; logs.rotation.x = Math.PI / 2;
+                    let logs2 = logs.clone(); logs2.rotation.y = Math.PI / 2;
+                    let stoneRing = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.2, 8, 16), new THREE.MeshPhongMaterial({color: G_MEDIUM_GREY}));
+                    stoneRing.rotation.x = Math.PI / 2; stoneRing.position.y = 0.1;
                     model.add(logs, logs2, stoneRing);
-                    // Add a glowing core (simple sphere)
                     let fireCore = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), new THREE.MeshBasicMaterial({color: 0xFF5500, transparent: true, opacity: 0.8}));
                     fireCore.position.y = 0.5;
                     model.add(fireCore);
                     break;
+                case "Small House":
+                    model = new THREE.Group();
+                    const houseBody = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 6), new THREE.MeshPhongMaterial({color: G_MEDIUM_GREY}));
+                    houseBody.position.y = 2;
+                    const roof = new THREE.Mesh(new THREE.ConeGeometry(4.5, 3, 4), new THREE.MeshPhongMaterial({color: G_DARK_GREY}));
+                    roof.position.y = 5.5; roof.rotation.y = Math.PI / 4;
+                    const door = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshPhongMaterial({color: G_BLACK}));
+                    door.position.set(0, 1, 3.05);
+                    model.add(houseBody, roof, door);
+                    break;
+                case "Stone Wall":
+                    model = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 0.5), new THREE.MeshPhongMaterial({color: G_LIGHT_GREY}));
+                    model.position.y = 1;
+                    break;
+                case "Wooden Fence":
+                    model = new THREE.Group();
+                    const fencePost = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8), new THREE.MeshPhongMaterial({color: G_DARK_GREY}));
+                    const rail = new THREE.Mesh(new THREE.BoxGeometry(3, 0.1, 0.1), new THREE.MeshPhongMaterial({color: G_DARK_GREY}));
+                    for(let i = 0; i < 2; i++) {
+                        let p = fencePost.clone(); p.position.set(1.5, 0.75, 0); if(i===1) p.position.x = -1.5; model.add(p);
+                        let r = rail.clone(); r.position.y = (i === 0 ? 0.5 : 1.2); model.add(r);
+                    }
+                    model.position.y = 0;
+                    break;
                 default:
-                    model = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshPhongMaterial({color: 0xcccccc}));
+                    model = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshPhongMaterial({color: G_MEDIUM_GREY}));
                     model.position.y = 1;
                     break;
             }
@@ -683,312 +736,266 @@
             return model;
         }
 
-        // Creates a stylized 3D model for a tree
         function createTreeModel() {
             const tree = new THREE.Group();
-
-            // Trunk
             const trunkHeight = getRandomFloat(3, 5);
             const trunkRadius = getRandomFloat(0.3, 0.5);
             const trunkGeometry = new THREE.CylinderGeometry(trunkRadius, trunkRadius, trunkHeight, 8);
-            const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 }); // Brown
+            const trunkMaterial = new THREE.MeshPhongMaterial({ color: G_DARK_GREY });
             const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.y = trunkHeight / 2; // Base on ground
-
+            trunk.position.y = trunkHeight / 2;
             tree.add(trunk);
-
-            // Leaves (multiple spheres/octahedrons for a stylized look)
-            const leavesMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 }); // Forest Green
-
+            const leavesMaterial = new THREE.MeshPhongMaterial({ color: G_MEDIUM_GREY });
             const numLeavesLayers = getRandomInt(2, 3);
             for (let i = 0; i < numLeavesLayers; i++) {
-                const leafSize = getRandomFloat(1.5, 2.5) * (1 - i * 0.2); // Smaller for higher layers
-                const leafGeometry = new THREE.SphereGeometry(leafSize, 16, 16); // Using sphere for softer look
+                const leafSize = getRandomFloat(1.5, 2.5) * (1 - i * 0.2);
+                const leafGeometry = new THREE.SphereGeometry(leafSize, 16, 16);
                 const leaves = new THREE.Mesh(leafGeometry, leavesMaterial);
-                leaves.position.y = trunkHeight + (i * (leafSize * 0.5 + 0.5)); // Stack them
+                leaves.position.y = trunkHeight + (i * (leafSize * 0.5 + 0.5));
                 leaves.position.x = getRandomFloat(-0.5, 0.5);
                 leaves.position.z = getRandomFloat(-0.5, 0.5);
                 tree.add(leaves);
             }
-
             tree.castShadow = true;
             tree.receiveShadow = true;
-            tree.userData.gameType = 'tree'; // Mark this object as a tree for raycasting
+            tree.userData.gameType = 'tree';
             return tree;
         }
 
-        // Creates a simple 3D model for the static trader stall
+        function createStoneModel() {
+            const stone = new THREE.Group();
+            const stoneSize = getRandomFloat(1, 2);
+            const numChunks = getRandomInt(1, 3); // Multiple chunks for a more natural look
+            const stoneMaterial = new THREE.MeshPhongMaterial({ color: G_LIGHT_GREY });
+
+            for (let i = 0; i < numChunks; i++) {
+                const chunkGeometry = new THREE.DodecahedronGeometry(stoneSize * getRandomFloat(0.5, 1.0), 0); // Irregular polyhedra
+                const chunk = new THREE.Mesh(chunkGeometry, stoneMaterial);
+                chunk.position.set(getRandomFloat(-stoneSize * 0.3, stoneSize * 0.3), getRandomFloat(0, stoneSize * 0.2), getRandomFloat(-stoneSize * 0.3, stoneSize * 0.3));
+                chunk.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                stone.add(chunk);
+            }
+            stone.castShadow = true;
+            stone.receiveShadow = true;
+            stone.userData.gameType = 'stone'; // Mark as stone for raycasting
+            return stone;
+        }
+
         function createTraderModel() {
             const traderGroup = new THREE.Group();
-            const woodMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 }); // Brown wood
-            const roofMaterial = new THREE.MeshPhongMaterial({ color: 0x607D8B }); // Grey/blue for roof
+            const woodMaterial = new THREE.MeshPhongMaterial({ color: G_DARK_GREY });
+            const roofMaterial = new THREE.MeshPhongMaterial({ color: G_MEDIUM_GREY });
 
-            // Base platform
             const base = new THREE.Mesh(new THREE.BoxGeometry(6, 0.5, 4), woodMaterial);
             base.position.y = 0.25;
             traderGroup.add(base);
 
-            // Corner posts
             const postGeometry = new THREE.CylinderGeometry(0.2, 0.2, 3, 8);
-            const post1 = new THREE.Mesh(postGeometry, woodMaterial);
-            post1.position.set(2.5, 2, 1.5);
+            const post1 = new THREE.Mesh(postGeometry, woodMaterial); post1.position.set(2.5, 2, 1.5);
             const post2 = post1.clone(); post2.position.x = -2.5;
             const post3 = post1.clone(); post3.position.z = -1.5;
             const post4 = post3.clone(); post4.position.x = -2.5;
             traderGroup.add(post1, post2, post3, post4);
 
-            // Roof (Pyramid/Cone)
             const roof = new THREE.Mesh(new THREE.ConeGeometry(4, 2, 4), roofMaterial);
-            roof.position.y = 3.5;
-            roof.rotation.y = Math.PI / 4; // Align with square base
+            roof.position.y = 3.5; roof.rotation.y = Math.PI / 4;
             traderGroup.add(roof);
 
-            // Counter/table
             const counter = new THREE.Mesh(new THREE.BoxGeometry(5, 0.8, 1.5), woodMaterial);
             counter.position.set(0, 1, 1.5);
             traderGroup.add(counter);
 
             traderGroup.castShadow = true;
             traderGroup.receiveShadow = true;
-            traderGroup.userData.gameType = 'trader'; // Mark for raycasting if needed later
+            traderGroup.userData.gameType = 'trader';
             return traderGroup;
         }
 
-
-        // Generates unique stats and skills for a creature
         function generateCreatureData(typeDef) {
             const stats = {
-                strength: getRandomInt(5, 15),
-                stamina: getRandomInt(50, 100),
-                luck: getRandomInt(1, 10),
-                defense: getRandomInt(3, 12),
-                hp: getRandomInt(80, 150)
+                strength: getRandomInt(5, 15), stamina: getRandomInt(50, 100),
+                luck: getRandomInt(1, 10), defense: getRandomInt(3, 12), hp: getRandomInt(80, 150)
             };
-            // Basic skills based on type, can be expanded
             const skills = [`Attack`, `Defend`];
             if (typeDef.modelType === 'flying') skills.push('Gust');
             if (typeDef.modelType === 'plantoid') skills.push('Heal');
             if (typeDef.modelType === 'quadruped' || typeDef.modelType === 'bipedal') skills.push('Charge');
-
             return {
-                id: THREE.MathUtils.generateUUID(), // Unique ID for each creature instance
-                type: typeDef.name,
-                modelType: typeDef.modelType,
-                baseColor: typeDef.baseColor,
-                size: typeDef.size,
-                stats: stats,
-                currentHp: stats.hp,
-                skills: skills,
-                // Affinity towards berry is defined by the CREATURE_TYPES data
-                affinity: typeDef.likesBerry ? 'likes_berry' : 'dislikes_berry',
-                isTamed: false,
-                spawnTime: Date.now() // Timestamp when spawned for lifespan tracking
+                id: THREE.MathUtils.generateUUID(), type: typeDef.name, modelType: typeDef.modelType,
+                baseColor: typeDef.baseColor, size: typeDef.size, stats: stats,
+                currentHp: stats.hp, skills: skills, affinity: typeDef.likesBerry ? 'likes_berry' : 'dislikes_berry',
+                isTamed: false, spawnTime: Date.now()
             };
         }
 
         // --- Game Initialization ---
         function init() {
-            // 1. Scene Setup
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x334455); // A pleasant sky blue/grey background
+            scene.background = new THREE.Color(G_DARK_GREY);
 
-            // 2. Camera Setup (Top-down angled view)
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 120, 80); // High up, looking down slightly
-            camera.lookAt(0, 0, 0); // Always look at the origin (where the player is)
+            camera.position.set(0, 120, 80);
+            camera.lookAt(0, 0, 0);
 
-            // 3. Renderer Setup
             renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.shadowMap.enabled = true; // Enable shadows for depth
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadow edges
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-            // 4. Lights
-            const ambientLight = new THREE.AmbientLight(0x404040, 2); // Soft overall light
+            const ambientLight = new THREE.AmbientLight(G_MEDIUM_GREY, 2);
             scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // "Sun" light
-            directionalLight.position.set(100, 200, 100); // Position the light source
+            const directionalLight = new THREE.DirectionalLight(G_WHITE, 1.5);
+            directionalLight.position.set(100, 200, 100);
             directionalLight.castShadow = true;
-            // Configure shadow camera for a large area
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
-            directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 500;
-            directionalLight.shadow.camera.left = -MAP_SIZE / 2;
-            directionalLight.shadow.camera.right = MAP_SIZE / 2;
-            directionalLight.shadow.camera.top = MAP_SIZE / 2;
-            directionalLight.shadow.camera.bottom = -MAP_SIZE / 2;
+            directionalLight.shadow.mapSize.width = 2048; directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 500;
+            directionalLight.shadow.camera.left = -MAP_SIZE / 2; directionalLight.shadow.camera.right = MAP_SIZE / 2;
+            directionalLight.shadow.camera.top = MAP_SIZE / 2; directionalLight.shadow.camera.bottom = -MAP_SIZE / 2;
             scene.add(directionalLight);
 
-            // 5. Create Player Avatar (fixed at origin, camera moves around it)
-            const playerGeometry = new THREE.CylinderGeometry(0.7, 0.7, 2, 16); // A capsule-like shape
-            const playerMaterial = new THREE.MeshPhongMaterial({ color: 0xFF4500 }); // Orange color, matching screenshot
+            const playerGeometry = new THREE.CylinderGeometry(0.7, 0.7, 2, 16);
+            const playerMaterial = new THREE.MeshPhongMaterial({ color: G_PLAYER_ORANGE });
             player = new THREE.Mesh(playerGeometry, playerMaterial);
-            player.position.y = 1; // Position on the ground
+            player.position.y = 1;
             player.castShadow = true;
             player.receiveShadow = true;
             scene.add(player);
 
-            // 6. Create Stylized World Map (grid-based, matching screenshot)
-            const mapGridSize = 25; // Number of 'blocks' in the grid
-            const blockSize = MAP_SIZE / mapGridSize; // Size of each block
-
+            const mapGridSize = 25;
+            const blockSize = MAP_SIZE / mapGridSize;
             for (let x = 0; x < mapGridSize; x++) {
                 for (let z = 0; z < mapGridSize; z++) {
                     const blockX = (x - mapGridSize / 2 + 0.5) * blockSize;
                     const blockZ = (z - mapGridSize / 2 + 0.5) * blockSize;
+                    let blockHeight = 0.1;
+                    let objectMesh = null;
 
-                    let blockHeight = 0.1; // Default for ground
-                    let blockColor;
-                    let objectMesh = null; // To hold the mesh for ground/building
-
-                    // Create Roads (a simple cross pattern)
-                    if (x % 5 === 2 || z % 5 === 2) { // Center of every 5x5 block area
-                        blockColor = 0x5C6BC0; // Slightly darker blue-grey for roads
-                        blockHeight = 0.05; // Roads are slightly lower
+                    if (x % 5 === 2 || z % 5 === 2) {
                         objectMesh = new THREE.Mesh(
                             new THREE.PlaneGeometry(blockSize, blockSize),
-                            new THREE.MeshPhongMaterial({ color: blockColor, side: THREE.DoubleSide })
+                            new THREE.MeshPhongMaterial({ color: G_MEDIUM_GREY, side: THREE.DoubleSide })
                         );
-                        objectMesh.rotation.x = -Math.PI / 2; // Orient horizontally
-                        objectMesh.position.set(blockX, blockHeight, blockZ);
-                    } else if (Math.random() < 0.15) { // Random chance for water
-                        blockColor = 0x2196F3; // Bright blue for water
-                        blockHeight = -0.5; // Water is significantly lower
+                        objectMesh.rotation.x = -Math.PI / 2; objectMesh.position.set(blockX, 0.05, blockZ);
+                    } else if (Math.random() < 0.15) {
                         objectMesh = new THREE.Mesh(
                             new THREE.PlaneGeometry(blockSize, blockSize),
-                            new THREE.MeshPhongMaterial({ color: blockColor, side: THREE.DoubleSide })
+                            new THREE.MeshPhongMaterial({ color: G_LIGHT_GREY, side: THREE.DoubleSide }) // Water as lighter grey
                         );
-                        objectMesh.rotation.x = -Math.PI / 2;
-                        objectMesh.position.set(blockX, blockHeight, blockZ);
-                    } else if (Math.random() < 0.25) { // Random chance for buildings
-                        blockColor = new THREE.Color(Math.random() * 0xffffff); // Random building color
-                        blockHeight = getRandomFloat(3, 10); // Taller for buildings
+                        objectMesh.rotation.x = -Math.PI / 2; objectMesh.position.set(blockX, -0.5, blockZ);
+                    } else if (Math.random() < 0.25) {
+                        blockHeight = getRandomFloat(3, 10);
                         objectMesh = new THREE.Mesh(
                             new THREE.BoxGeometry(blockSize * 0.8, blockHeight, blockSize * 0.8),
-                            new THREE.MeshPhongMaterial({ color: blockColor })
+                            new THREE.MeshPhongMaterial({ color: G_MEDIUM_GREY })
                         );
                         objectMesh.position.set(blockX, blockHeight / 2, blockZ);
-                        objectMesh.castShadow = true; // Buildings cast shadows
-                    } else { // Default to grass
-                        blockColor = 0x8BC34A; // Green for grass
-                        blockHeight = 0.1;
+                        objectMesh.castShadow = true;
+                    } else {
                         objectMesh = new THREE.Mesh(
                             new THREE.PlaneGeometry(blockSize, blockSize),
-                            new THREE.MeshPhongMaterial({ color: blockColor, side: THREE.DoubleSide })
+                            new THREE.MeshPhongMaterial({ color: G_DARK_GREY, side: THREE.DoubleSide })
                         );
-                        objectMesh.rotation.x = -Math.PI / 2;
-                        objectMesh.position.set(blockX, blockHeight, blockZ);
+                        objectMesh.rotation.x = -Math.PI / 2; objectMesh.position.set(blockX, 0.1, blockZ);
                     }
-
                     if (objectMesh) {
-                        objectMesh.receiveShadow = true; // All map elements receive shadows
+                        objectMesh.receiveShadow = true;
                         scene.add(objectMesh);
                     }
                 }
             }
 
-
-            // 7. Mini-renderer for Creature Display in UI panel
             creatureMiniScene = new THREE.Scene();
             creatureMiniCamera = new THREE.PerspectiveCamera(75, creature3DViewDiv.clientWidth / creature3DViewDiv.clientHeight, 0.1, 100);
-            creatureMiniCamera.position.set(0, 1, 3); // Position for viewing creature
-            creatureMiniCamera.lookAt(0, 0.5, 0); // Look at center of model
+            creatureMiniCamera.position.set(0, 1, 3);
+            creatureMiniCamera.lookAt(0, 0.5, 0);
 
-            creatureMiniRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // Alpha true for transparent background
+            creatureMiniRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             creatureMiniRenderer.setSize(creature3DViewDiv.clientWidth, creature3DViewDiv.clientHeight);
-            creatureMiniRenderer.setClearColor(0x000000, 0); // Fully transparent background
-            creature3DViewDiv.appendChild(creatureMiniRenderer.domElement); // Append renderer's canvas to the div
+            creatureMiniRenderer.setClearColor(0x000000, 0);
+            creature3DViewDiv.appendChild(creatureMiniRenderer.domElement);
 
-            const miniLight = new THREE.DirectionalLight(0xffffff, 1.5); // Light for mini scene
+            const miniLight = new THREE.DirectionalLight(G_WHITE, 1.5);
             miniLight.position.set(5, 5, 5);
             creatureMiniScene.add(miniLight);
-            creatureMiniScene.add(new THREE.AmbientLight(0x404040, 1));
+            creatureMiniScene.add(new THREE.AmbientLight(G_MEDIUM_GREY, 1));
 
-            // 8. Load Game, or start fresh if no save data
             loadGame();
 
-            // 9. Initial Game State setup (after loading)
-            spawnInitialTrees(); // Spawn trees (these are not persistent for now, but easily could be)
-            renderPlacedBuildings(); // Render buildings loaded from save
+            spawnInitialTrees();
+            spawnInitialStones();
+            renderPlacedBuildings();
 
-            // Spawn static trader model
             traderModel = createTraderModel();
-            traderModel.position.set(MAP_SIZE / 4, 0.25, MAP_SIZE / 4); // Fixed position for the trader
+            traderModel.position.set(MAP_SIZE / 4, 0.25, MAP_SIZE / 4);
             scene.add(traderModel);
 
             setupEventListeners();
-            startGPSWatch(); // Start listening for GPS
-            setInterval(saveGame, 10000); // Auto-save every 10 seconds
-            animate(); // Start the game loop
+            startGPSWatch();
+            setInterval(saveGame, 10000);
+            animate();
         }
 
-        // Spawns a specified number of WILD creatures around the player
+        // --- Spawning and Despawning ---
+
         function spawnWildCreatures(count = 5) {
-            // Despawn existing wild creatures
             wildCreatureMeshes.forEach(mesh => {
                 scene.remove(mesh);
-                mesh.traverse(child => { // Dispose of geometry/material
-                    if (child.isMesh) {
-                        child.geometry.dispose();
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(material => material.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
+                mesh.traverse(child => {
+                    if (child.isMesh) { child.geometry.dispose(); if (Array.isArray(child.material)) { child.material.forEach(material => material.dispose()); } else { child.material.dispose(); } }
                 });
             });
-            wildCreatureMeshes = []; // Clear array
+            wildCreatureMeshes = [];
 
             for (let i = 0; i < count; i++) {
-                const typeDef = CREATURE_TYPES[getRandomInt(0, CREATURE_TYPES.length - 1)]; // Random creature type
+                const typeDef = CREATURE_TYPES[getRandomInt(0, CREATURE_TYPES.length - 1)];
                 const creatureData = generateCreatureData(typeDef);
                 const creatureModel = createCreatureModel(typeDef);
-
-                // Position randomly within CREATURE_SPAWN_RADIUS of the player (which is at 0,0,0)
                 const angle = Math.random() * Math.PI * 2;
-                const distance = getRandomInt(10, CREATURE_SPAWN_RADIUS); // Ensures they're not spawned directly on top
+                const distance = getRandomInt(10, CREATURE_SPAWN_RADIUS);
                 const spawnX = player.position.x + distance * Math.cos(angle);
                 const spawnZ = player.position.z + distance * Math.sin(angle);
-
                 creatureModel.position.x = spawnX;
                 creatureModel.position.z = spawnZ;
-                creatureModel.position.y = 0.5; // Place on ground level
-
-                creatureModel.userData.gameType = 'creature'; // Mark for raycasting
-                creatureModel.userData.data = creatureData; // Attach creature data to the 3D object for easy access
+                creatureModel.position.y = 0.5;
+                creatureModel.userData.gameType = 'creature';
+                creatureModel.userData.data = creatureData;
                 scene.add(creatureModel);
                 wildCreatureMeshes.push(creatureModel);
             }
-            console.log(`Spawned ${count} new wild creatures.`);
             showMessage(`New creatures detected!`, 2000);
         }
 
-        // Spawns initial trees
         function spawnInitialTrees() {
             for (let i = 0; i < INITIAL_TREES; i++) {
                 const treeModel = createTreeModel();
                 treeModel.position.x = getRandomInt(-MAP_SIZE / 2 + 5, MAP_SIZE / 2 - 5);
                 treeModel.position.z = getRandomInt(-MAP_SIZE / 2 + 5, MAP_SIZE / 2 - 5);
-                treeModel.position.y = 0; // Trees sit on the ground plane
+                treeModel.position.y = 0;
                 scene.add(treeModel);
                 activeTreeMeshes.push(treeModel);
             }
         }
 
-        // Renders buildings from the saved game data
+        function spawnInitialStones() {
+            for (let i = 0; i < INITIAL_STONES; i++) {
+                const stoneModel = createStoneModel();
+                stoneModel.position.x = getRandomInt(-MAP_SIZE / 2 + 5, MAP_SIZE / 2 - 5);
+                stoneModel.position.z = getRandomInt(-MAP_SIZE / 2 + 5, MAP_SIZE / 2 - 5);
+                stoneModel.position.y = 0;
+                scene.add(stoneModel);
+                activeStoneMeshes.push(stoneModel);
+            }
+        }
+
         function renderPlacedBuildings() {
-            // Clear any existing building meshes first if this is a reload
             activePlacedBuildingMeshes.forEach(mesh => scene.remove(mesh));
             activePlacedBuildingMeshes = [];
-
             worldObjects.placedBuildings.forEach(bData => {
                 const buildingModel = createBuildingModel(bData.type);
                 buildingModel.position.set(bData.position.x, bData.position.y, bData.position.z);
                 buildingModel.userData.gameType = 'building';
-                buildingModel.userData.data = bData; // Attach the saved data
+                buildingModel.userData.data = bData;
                 scene.add(buildingModel);
                 activePlacedBuildingMeshes.push(buildingModel);
             });
@@ -996,38 +1003,45 @@
 
         // --- Game Loop ---
         function animate() {
-            requestAnimationFrame(animate); // Request next frame
-
+            requestAnimationFrame(animate);
             const currentTime = Date.now();
 
-            // Creature lifespan management
             wildCreatureMeshes = wildCreatureMeshes.filter(creatureMesh => {
                 const data = creatureMesh.userData.data;
                 const elapsedSeconds = (currentTime - data.spawnTime) / 1000;
                 if (elapsedSeconds > SPAWN_LIFESPAN_SECONDS) {
                     scene.remove(creatureMesh);
-                    creatureMesh.traverse(child => { // Dispose of geometry/material
-                        if (child.isMesh) {
-                            child.geometry.dispose();
-                            if (Array.isArray(child.material)) {
-                                child.material.forEach(material => material.dispose());
-                            } else {
-                                child.material.dispose();
-                            }
-                        }
+                    creatureMesh.traverse(child => {
+                        if (child.isMesh) { child.geometry.dispose(); if (Array.isArray(child.material)) { child.material.forEach(material => material.dispose()); } else { child.material.dispose(); } }
                     });
-                    return false; // Remove from array
+                    return false;
                 }
-                return true; // Keep in array
+                return true;
             });
 
+            if (currentGameState === GAME_STATE.PLACEMENT && placementGhostMesh) {
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(scene.children.find(c => c instanceof THREE.Mesh && c.geometry instanceof THREE.PlaneGeometry), true); // Intersect with ground plane
+                if (intersects.length > 0) {
+                    placementGhostMesh.position.copy(intersects[0].point);
+                    placementGroundIntersection = intersects[0].point; // Store intersection point
+                    // Adjust ghost mesh y-position based on its type
+                    if (placementItemData.name === "Campfire") {
+                         placementGhostMesh.position.y = 0.3;
+                    } else if (placementItemData.name === "Small House") {
+                        placementGhostMesh.position.y = 0; // Base of house
+                    } else if (placementItemData.name === "Stone Wall" || placementItemData.name === "Wooden Fence") {
+                        placementGhostMesh.position.y = 0; // Base of walls/fences
+                    } else {
+                        placementGhostMesh.position.y = 0.05; // Slightly above ground
+                    }
+                }
+            }
 
-            // Render the main game scene
             renderer.render(scene, camera);
 
-            // If creature panel is active, rotate the creature in its mini-view
             if (currentGameState === GAME_STATE.CREATURE_INTERACT && currentCreature3DModel) {
-                currentCreature3DModel.rotation.y += 0.01; // Gentle rotation
+                currentCreature3DModel.rotation.y += 0.01;
                 creatureMiniRenderer.render(creatureMiniScene, creatureMiniCamera);
             }
         }
@@ -1036,90 +1050,75 @@
         let isDragging = false;
         let previousMouseX, previousMouseY;
 
-        // Handles mouse/touch down events for camera control
         function onPointerDown(event) {
-            // Only start drag if not clicking on UI elements
             if (event.target !== canvas && event.target.tagName !== 'CANVAS') return;
-
             isDragging = true;
-            // Get client coordinates, handling both mouse and touch events
             previousMouseX = event.clientX || event.touches[0].clientX;
             previousMouseY = event.clientY || event.touches[0].clientY;
         }
 
-        // Handles mouse/touch move events for camera control
         function onPointerMove(event) {
-            if (isDragging && currentGameState === GAME_STATE.EXPLORE) {
-                const currentX = event.clientX || event.touches[0].clientX;
-                const currentY = event.clientY || event.touches[0].clientY;
+            const currentX = event.clientX || event.touches[0].clientX;
+            const currentY = event.clientY || event.touches[0].clientY;
+            mouse.x = (currentX / window.innerWidth) * 2 - 1;
+            mouse.y = -(currentY / window.innerHeight) * 2 + 1;
 
+            if (isDragging && currentGameState === GAME_STATE.EXPLORE) {
                 const deltaX = currentX - previousMouseX;
                 const deltaY = currentY - previousMouseY;
+                const rotationSpeed = 0.005;
+                const verticalPanSpeed = 0.5;
 
-                const rotationSpeed = 0.005; // Adjust sensitivity
-                const verticalPanSpeed = 0.5; // Adjust vertical pan sensitivity
-
-                // Rotate camera around the player (origin) for horizontal movement
                 const angleX = deltaX * rotationSpeed;
                 const oldX = camera.position.x;
                 const oldZ = camera.position.z;
                 camera.position.x = oldX * Math.cos(angleX) - oldZ * Math.sin(angleX);
                 camera.position.z = oldX * Math.sin(angleX) + oldZ * Math.cos(angleX);
-
-                // Adjust camera height for vertical movement (simulates zooming in/out or tilting)
-                camera.position.y = Math.max(20, Math.min(200, camera.position.y - deltaY * verticalPanSpeed)); // Clamp height
-
-                camera.lookAt(player.position); // Always keep player in view
-
+                camera.position.y = Math.max(20, Math.min(200, camera.position.y - deltaY * verticalPanSpeed));
+                camera.lookAt(player.position);
                 previousMouseX = currentX;
                 previousMouseY = currentY;
             }
         }
 
-        // Handles mouse/touch up events
         function onPointerUp() {
             isDragging = false;
         }
 
-        // Handles clicks/taps on the canvas for game interaction
         function onCanvasClick(event) {
-            // If it was a significant drag, ignore as a click
             const currentX = event.clientX || (event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientX : 0);
             const currentY = event.clientY || (event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientY : 0);
             if (isDragging && (Math.abs(currentX - previousMouseX) > 5 || Math.abs(currentY - previousMouseY) > 5)) {
-                return; // It was a drag, not a tap/click
+                return;
             }
 
-            // Handle taming mini-game clicks regardless of explore state
             if (currentGameState === GAME_STATE.TAMING) {
                 handleTamingClick();
-                return; // Don't process other clicks while taming
+                return;
             }
 
-            // Only interact with objects in explore mode
+            if (currentGameState === GAME_STATE.PLACEMENT) {
+                if (placementGhostMesh && placementGroundIntersection) {
+                    confirmPlacement(); // Place item on click
+                } else {
+                    showMessage("Cannot place here. Click on valid ground.", 2000);
+                }
+                return; // Consume click for placement mode
+            }
+
             if (currentGameState === GAME_STATE.EXPLORE) {
-                // Normalize mouse coordinates to Three.js NDC (-1 to +1)
                 mouse.x = (currentX / window.innerWidth) * 2 - 1;
                 mouse.y = -(currentY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
 
-                raycaster.setFromCamera(mouse, camera); // Set raycaster from camera through mouse position
-
-                // Collect all interactable objects (only meshes that are directly clickable)
-                // Filter to only include meshes, as Groups themselves aren't usually intersected directly
-                const interactableMeshes = [
-                    ...wildCreatureMeshes.flatMap(group => group.children), // Get all child meshes of creature groups
-                    ...activeTreeMeshes.flatMap(group => group.children), // Get all child meshes of tree groups
-                    ...activePlacedBuildingMeshes.flatMap(group => group.children), // Children of building groups
-                    ...(traderModel ? traderModel.children : []) // Children of trader group
-                ];
+                const allWorldGroups = [...wildCreatureMeshes, ...activeTreeMeshes, ...activeStoneMeshes, ...activePlacedBuildingMeshes];
+                if (traderModel) allWorldGroups.push(traderModel);
                 
-                const intersects = raycaster.intersectObjects(interactableMeshes, true); // True to check children too
+                const intersects = raycaster.intersectObjects(allWorldGroups, true);
 
                 if (intersects.length > 0) {
                     const clickedChildMesh = intersects[0].object;
                     let rootInteractiveObject = clickedChildMesh;
-
-                    // Traverse up the parent hierarchy to find the main game object (the Group with userData.gameType)
                     while (rootInteractiveObject && !rootInteractiveObject.userData.gameType && rootInteractiveObject.parent) {
                         rootInteractiveObject = rootInteractiveObject.parent;
                     }
@@ -1127,7 +1126,7 @@
                     if (rootInteractiveObject && rootInteractiveObject.userData.gameType) {
                         switch (rootInteractiveObject.userData.gameType) {
                             case 'creature':
-                                selectedCreature = rootInteractiveObject.userData.data; // Retrieve creature data
+                                selectedCreature = rootInteractiveObject.userData.data;
                                 showCreaturePanel(selectedCreature);
                                 break;
                             case 'tree':
@@ -1137,43 +1136,43 @@
                                     showMessage("Need an Axe to chop trees! Check the Trader.", 2500);
                                 }
                                 break;
+                            case 'stone':
+                                if (playerInventory.items["Pickaxe"] > 0) {
+                                    mineStone(rootInteractiveObject);
+                                } else {
+                                    showMessage("Need a Pickaxe to mine stones! Check the Trader.", 2500);
+                                }
+                                break;
                             case 'building':
                                 showMessage(`This is a ${rootInteractiveObject.userData.data.type}.`, 1500);
                                 break;
                             case 'trader':
                                 showMessage("Welcome to the Trader! Buy and sell here.", 1500);
-                                showTraderPanel(); // Open trader panel
+                                showTraderPanel();
                                 break;
                             default:
                                 break;
                         }
                     }
-                } else {
-                    // Clicked on the ground or a non-interactive terrain tile, do nothing specific.
                 }
             }
         }
 
-        // Set up all event listeners for window, canvas, and UI buttons
         function setupEventListeners() {
-            window.addEventListener('resize', onWindowResize); // Handle window resizing
-
-            // Pointer events for unified mouse and touch handling
+            window.addEventListener('resize', onWindowResize);
             canvas.addEventListener('pointerdown', onPointerDown);
             canvas.addEventListener('pointermove', onPointerMove);
             canvas.addEventListener('pointerup', onPointerUp);
-            canvas.addEventListener('pointerleave', onPointerUp); // End drag if pointer leaves canvas
-            canvas.addEventListener('click', onCanvasClick); // Use 'click' for intentional taps
+            canvas.addEventListener('pointerleave', onPointerUp);
+            canvas.addEventListener('click', onCanvasClick);
 
-            // UI Button Event Listeners
             document.getElementById('mainMenuButton').addEventListener('click', () => toggleUIPanel(mainMenuPanel, GAME_STATE.MENU));
             document.getElementById('closeMainMenuButton').addEventListener('click', () => toggleUIPanel(mainMenuPanel, GAME_STATE.EXPLORE));
 
-            // Fixed: These buttons now open their respective panels
             document.getElementById('inventoryButton').addEventListener('click', () => { toggleUIPanel(inventoryPanel, GAME_STATE.INVENTORY); updateInventoryList(); });
             document.getElementById('traderButton').addEventListener('click', () => { toggleUIPanel(traderPanel, GAME_STATE.TRADER); updateTraderLists(); });
             document.getElementById('craftingButton').addEventListener('click', () => { toggleUIPanel(craftingPanel, GAME_STATE.CRAFTING); updateCraftingRecipes(); });
-            document.getElementById('arenaButton').addEventListener('click', () => { toggleUIPanel(arenaPanel, GAME_STATE.ARENA); updateArenaCreatureList(); arenaBattleLogElem.innerHTML = ''; }); // Clear log on open
+            document.getElementById('arenaButton').addEventListener('click', () => { toggleUIPanel(arenaPanel, GAME_STATE.ARENA); updateArenaCreatureList(); arenaBattleLogElem.innerHTML = ''; });
 
             document.getElementById('closeCreaturePanelButton').addEventListener('click', () => toggleUIPanel(creaturePanel, GAME_STATE.EXPLORE));
             document.getElementById('feedBerryButton').addEventListener('click', feedBerryToCreature);
@@ -1186,26 +1185,26 @@
             document.getElementById('closeArenaButton').addEventListener('click', () => toggleUIPanel(arenaPanel, GAME_STATE.EXPLORE));
             document.getElementById('arenaNextOpponentButton').addEventListener('click', () => {
                 if (playerInventory.creatures.length > 0) {
-                    // Pick a random tamed creature for the next battle
                     const randomTamedCreature = playerInventory.creatures[getRandomInt(0, playerInventory.creatures.length - 1)];
                     if (randomTamedCreature.currentHp > 0) {
                         startArenaBattle(randomTamedCreature);
                     } else {
                         showMessage("Your selected creature has fainted! Choose another or heal it.", 2500);
-                        updateArenaCreatureList(); // Refresh list to show fainted status
+                        updateArenaCreatureList();
                     }
                 } else {
                     showMessage("You need to tame creatures to battle in the Arena!", 2500);
                 }
             });
+
+            confirmPlacementButton.addEventListener('click', confirmPlacement);
+            cancelPlacementButton.addEventListener('click', exitPlacementMode);
         }
 
-        // Handles window resize to adjust camera aspect and renderer size
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            // Also resize the mini renderer for the creature panel
             if (creatureMiniRenderer && creature3DViewDiv.clientWidth > 0 && creature3DViewDiv.clientHeight > 0) {
                  creatureMiniCamera.aspect = creature3DViewDiv.clientWidth / creature3DViewDiv.clientHeight;
                  creatureMiniCamera.updateProjectionMatrix();
@@ -1214,7 +1213,6 @@
         }
 
         // --- UI Update Functions ---
-        // Updates all dynamic UI elements
         function updateUI() {
             playerGoldElem.textContent = playerInventory.gold;
             traderGoldElem.textContent = playerInventory.gold;
@@ -1222,30 +1220,28 @@
             updateTraderLists();
             updateCraftingRecipes();
             updateArenaCreatureList();
+            updateActiveCraftsDisplay();
         }
 
-        // Displays the creature interaction panel with its 3D model and stats
+        function updateActiveCraftsDisplay() {
+            activeCraftsList.innerHTML = '';
+            // For this version, active crafts are instant, so this list is just a placeholder.
+            // In a real idle crafting system, this would show items in progress.
+            const li = document.createElement('li');
+            li.textContent = "No active crafts (instant)";
+            activeCraftsList.appendChild(li);
+        }
+
         function showCreaturePanel(creatureData) {
-            // Clear previous creature model from mini scene if any
             if (currentCreature3DModel) {
                 creatureMiniScene.remove(currentCreature3DModel);
-                // Dispose of its geometry and material to free up memory (important!)
                 currentCreature3DModel.traverse(child => {
-                    if (child.isMesh) {
-                        child.geometry.dispose();
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(material => material.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
+                    if (child.isMesh) { child.geometry.dispose(); if (Array.isArray(child.material)) { child.material.forEach(material => material.dispose()); } else { child.material.dispose(); } }
                 });
             }
-
             const typeDef = CREATURE_TYPES.find(type => type.name === creatureData.type);
-            currentCreature3DModel = createCreatureModel(typeDef, true); // Create a mini version of the creature model
+            currentCreature3DModel = createCreatureModel(typeDef, true);
             creatureMiniScene.add(currentCreature3DModel);
-
             creatureNameElem.textContent = creatureData.type;
             creatureStatsElem.innerHTML = `
                 <div class="stat-item">Strength: ${creatureData.stats.strength}</div>
@@ -1258,34 +1254,27 @@
             toggleUIPanel(creaturePanel, GAME_STATE.CREATURE_INTERACT);
         }
 
-        // Updates the inventory list in the UI
         function updateInventoryList() {
-            inventoryListElem.innerHTML = ''; // Clear current list
+            inventoryListElem.innerHTML = '';
             let hasItemsOrCreatures = false;
-
-            // List items
             for (const item in playerInventory.items) {
                 if (playerInventory.items[item] > 0) {
                     const itemDef = ITEM_DEFINITIONS[item];
                     const li = document.createElement('div');
                     li.classList.add('item-entry');
                     li.innerHTML = `<strong>${item}</strong> x ${playerInventory.items[item]} <br> <em>${itemDef.description}</em>`;
-
-                    // Add "Place" button for blueprint kits
                     if (itemDef.type === "blueprint") {
                         const placeButton = document.createElement('button');
                         placeButton.classList.add('ui-button');
                         placeButton.textContent = `Place ${item.replace(' Kit', '')}`;
                         placeButton.style.marginLeft = '10px';
-                        placeButton.onclick = () => placeBuilding(item.replace(' Kit', ''));
+                        placeButton.onclick = () => enterPlacementMode(item.replace(' Kit', ''), item); // Pass item name and kit name
                         li.appendChild(placeButton);
                     }
                     inventoryListElem.appendChild(li);
                     hasItemsOrCreatures = true;
                 }
             }
-
-            // List tamed creatures
             if (playerInventory.creatures.length > 0) {
                 const creatureHeader = document.createElement('h4');
                 creatureHeader.textContent = "Tamed Creatures:";
@@ -1303,7 +1292,6 @@
             }
         }
 
-        // Updates the trader buy/sell lists
         function updateTraderLists() {
             buyItemsListElem.innerHTML = '';
             TRADER_ITEMS.forEach(item => {
@@ -1326,7 +1314,6 @@
             sellItemsListElem.innerHTML = '';
             let canSellAnything = false;
             for (const item in playerInventory.items) {
-                // Only allow selling if player has the item and it has a positive value
                 if (playerInventory.items[item] > 0 && ITEM_DEFINITIONS[item] && ITEM_DEFINITIONS[item].value > 0) {
                     const itemDef = ITEM_DEFINITIONS[item];
                     const li = document.createElement('div');
@@ -1346,7 +1333,6 @@
             }
         }
 
-        // Updates the crafting recipes list
         function updateCraftingRecipes() {
             craftingRecipesListElem.innerHTML = '';
             CRAFTING_RECIPES.forEach(recipe => {
@@ -1364,7 +1350,7 @@
                 let canCraft = true;
                 for (const reqItem in recipe.requires) {
                     if (playerInventory.items[reqItem] === undefined || playerInventory.items[reqItem] < recipe.requires[reqItem]) {
-                        canCraft = false; // Player doesn't have enough resources
+                        canCraft = false;
                         break;
                     }
                 }
@@ -1377,146 +1363,91 @@
             });
         }
 
-        // Updates the list of player's creatures available for arena battle
-        function updateArenaCreatureList() {
-            arenaCreatureListElem.innerHTML = '';
-            if (playerInventory.creatures.length === 0) {
-                arenaCreatureListElem.textContent = "You need to tame creatures before entering the Arena!";
-                arenaNextOpponentButton.disabled = true;
-                return;
-            }
-            arenaNextOpponentButton.disabled = false; // Enable if creatures exist
-
-            playerInventory.creatures.forEach(creature => {
-                const li = document.createElement('div');
-                li.classList.add('item-entry');
-                li.innerHTML = `<strong>${creature.type}</strong> (HP: ${creature.currentHp}/${creature.stats.hp}, Str: ${creature.stats.strength})`;
-                arenaCreatureListElem.appendChild(li);
-            });
-        }
-
-
         // --- Game Actions ---
 
-        // Attempts to feed a berry to the selected creature
         function feedBerryToCreature() {
             if (!selectedCreature) return;
-
             if (playerInventory.items["Berry"] > 0) {
                 playerInventory.items["Berry"]--;
                 showMessage(`Used a Berry. You have ${playerInventory.items["Berry"]} left.`, 1500);
                 if (selectedCreature.affinity === 'likes_berry') {
                     showMessage(`${selectedCreature.type} glows green! It likes the berry!`, 2500);
-                    // Could add a temporary buff to taming bar fill rate here for complexity
                 } else {
                     showMessage(`${selectedCreature.type} glows red. It didn't like that berry.`, 2500);
-                    // Could add a temporary debuff to taming bar fill rate here
                 }
-                updateUI(); // Update berry count in inventory
+                updateUI();
             } else {
                 showMessage("You don't have any Berries!", 2000);
             }
         }
 
-        // Initiates the taming mini-game
         function startTamingMiniGame() {
             if (!selectedCreature) return;
-
-            toggleUIPanel(creaturePanel, GAME_STATE.EXPLORE); // Hide creature panel
-            toggleUIPanel(tamingPanel, GAME_STATE.TAMING); // Show taming panel
-
-            tamingBarProgress = 10; // Start with a little progress so it doesn't instantly fail
+            toggleUIPanel(creaturePanel, GAME_STATE.EXPLORE);
+            toggleUIPanel(tamingPanel, GAME_STATE.TAMING);
+            tamingBarProgress = 10;
             tameBar.style.width = `${tamingBarProgress}%`;
-            tameBar.style.background = 'linear-gradient(to right, #4CAF50, #8BC34A)'; // Reset color
+            tameBar.style.background = `linear-gradient(to right, ${G_DARK_GREY}, ${G_MEDIUM_GREY})`;
             showMessage("Tap the game screen fast to fill the bar!", 3000);
-
-            // Set up interval for bar decay after a short delay
-            clearInterval(tamingInterval); // Clear any previous interval
-            tamingInterval = setTimeout(() => { // Initial delay
+            clearInterval(tamingInterval);
+            tamingInterval = setTimeout(() => {
                 tamingInterval = setInterval(() => {
-                    // Decay rate depends on creature's affinity
                     const decayRate = selectedCreature.affinity === 'likes_berry' ? 0.7 : 1.5;
                     tamingBarProgress = Math.max(0, tamingBarProgress - decayRate);
                     tameBar.style.width = `${tamingBarProgress}%`;
-                    // If bar empties, taming fails
                     if (tamingBarProgress <= 0) {
                         cancelTaming();
                         showMessage(`The ${selectedCreature.type} got away!`, 2500);
                     }
-                }, 100); // Decay every 100ms
-            }, 500); // Delay start of decay for 500ms
+                }, 100);
+            }, 500);
         }
 
-        // Handles a click/tap during the taming mini-game
         function handleTamingClick() {
             if (currentGameState !== GAME_STATE.TAMING || !selectedCreature) return;
-
-            // Fill rate depends on creature's affinity
             const fillRate = selectedCreature.affinity === 'likes_berry' ? 5 : 3;
             tamingBarProgress = Math.min(100, tamingBarProgress + fillRate);
             tameBar.style.width = `${tamingBarProgress}%`;
-
-            // Change bar color based on progress
             if (tamingBarProgress >= 100) {
                 completeTaming();
             } else if (tamingBarProgress > 75) {
-                 tameBar.style.background = 'linear-gradient(to right, #FFC107, #FF9800)'; // Orange
+                 tameBar.style.background = `linear-gradient(to right, ${G_MEDIUM_GREY}, ${G_LIGHT_GREY})`;
             } else if (tamingBarProgress > 50) {
-                 tameBar.style.background = 'linear-gradient(to right, #FFEB3B, #FFC107)'; // Yellow
+                 tameBar.style.background = `linear-gradient(to right, ${G_DARK_GREY}, ${G_MEDIUM_GREY})`;
             } else {
-                 tameBar.style.background = 'linear-gradient(to right, #4CAF50, #8BC34A)'; // Green
+                 tameBar.style.background = `linear-gradient(to right, ${G_DARK_GREY}, ${G_DARK_GREY})`;
             }
         }
 
-        // Completes the taming process
         function completeTaming() {
-            clearInterval(tamingInterval); // Stop decay
-            clearTimeout(tamingInterval); // Also clear the initial timeout if still active
-            toggleUIPanel(tamingPanel, GAME_STATE.EXPLORE); // Hide taming panel
-
+            clearInterval(tamingInterval); clearTimeout(tamingInterval);
+            toggleUIPanel(tamingPanel, GAME_STATE.EXPLORE);
             selectedCreature.isTamed = true;
-            playerInventory.creatures.push(selectedCreature); // Add to player's inventory
-
-            // Remove the 3D model from the game world
+            playerInventory.creatures.push(selectedCreature);
             const objToRemove = wildCreatureMeshes.find(obj => obj.userData.data.id === selectedCreature.id);
             if (objToRemove) {
                 scene.remove(objToRemove);
-                // Dispose of its geometry and material to free up memory (important!)
-                objToRemove.traverse(child => {
-                    if (child.isMesh) {
-                        child.geometry.dispose();
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(material => material.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
-                });
-                wildCreatureMeshes = wildCreatureMeshes.filter(c => c !== objToRemove); // Remove from active creatures list
-                // We won't spawn a new one immediately here; relies on GPS movement now.
+                objToRemove.traverse(child => { if (child.isMesh) { child.geometry.dispose(); if (Array.isArray(child.material)) { child.material.forEach(material => material.dispose()); } else { child.material.dispose(); } } });
+                wildCreatureMeshes = wildCreatureMeshes.filter(c => c !== objToRemove);
             }
-
             showMessage(`Successfully tamed ${selectedCreature.type}! It's now in your inventory.`, 3000);
-            selectedCreature = null; // Clear selected creature
-            updateUI(); // Update UI, especially inventory
+            selectedCreature = null;
+            updateUI();
         }
 
-        // Cancels the taming mini-game
         function cancelTaming() {
-            clearInterval(tamingInterval);
-            clearTimeout(tamingInterval); // Also clear the initial timeout if still active
+            clearInterval(tamingInterval); clearTimeout(tamingInterval);
             toggleUIPanel(tamingPanel, GAME_STATE.EXPLORE);
             selectedCreature = null;
             showMessage("Taming cancelled.", 1500);
         }
 
-        // Handles purchasing an item from the trader
         function buyItem(itemId, price) {
             const item = TRADER_ITEMS.find(i => i.id === itemId);
             if (item && playerInventory.gold >= price && item.stock > 0) {
                 playerInventory.gold -= price;
-                playerInventory.items[itemId] = (playerInventory.items[itemId] || 0) + 1; // Add item to inventory
-                item.stock--; // Reduce trader's stock
+                playerInventory.items[itemId] = (playerInventory.items[itemId] || 0) + 1;
+                item.stock--;
                 showMessage(`Bought ${itemId} for ${price} gold.`, 1500);
                 updateUI();
             } else {
@@ -1524,7 +1455,6 @@
             }
         }
 
-        // Handles selling an item to the trader
         function sellItem(itemId, value) {
             if (playerInventory.items[itemId] > 0) {
                 playerInventory.gold += value;
@@ -1536,31 +1466,26 @@
             }
         }
 
-        // Handles crafting an item from a recipe
         function craftItem(recipe) {
             let canCraft = true;
             for (const reqItem in recipe.requires) {
                 if (playerInventory.items[reqItem] === undefined || playerInventory.items[reqItem] < recipe.requires[reqItem]) {
-                    canCraft = false; // Check if player has all required resources
+                    canCraft = false;
                     break;
                 }
             }
-
             if (canCraft) {
-                // Consume resources
                 for (const reqItem in recipe.requires) {
                     playerInventory.items[reqItem] -= recipe.requires[reqItem];
                 }
-                // Add crafted item (as a kit/blueprint) to inventory
                 playerInventory.items[recipe.result.name + ' Kit'] = (playerInventory.items[recipe.result.name + ' Kit'] || 0) + 1;
-                showMessage(`Crafted a ${recipe.name} Kit! Check your inventory to place it.`, 2500);
+                showMessage(`Crafted a ${recipe.name} Kit! Now enter placement mode to build.`, 2500);
                 updateUI();
             } else {
                 showMessage("Not enough resources to craft this!", 2000);
             }
         }
 
-        // Simulates chopping down a tree and gaining wood, and removes the tree model
         function chopTree(treeObject) {
             if (playerInventory.items["Axe"] <= 0) {
                 showMessage("You need an Axe to chop trees!", 2000);
@@ -1570,143 +1495,154 @@
             playerInventory.items["Wood"] = (playerInventory.items["Wood"] || 0) + woodGained;
             showMessage(`Chopped down a tree! Gained ${woodGained} Wood.`, 2000);
             updateUI();
-
-            // Remove the tree model from the scene and active list
             scene.remove(treeObject);
-            treeObject.traverse(child => { // Dispose geometry and materials to prevent memory leaks
-                if (child.isMesh) {
-                    child.geometry.dispose();
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach(material => material.dispose());
-                    } else {
-                        child.material.dispose();
-                    }
-                }
-            });
+            treeObject.traverse(child => { if (child.isMesh) { child.geometry.dispose(); if (Array.isArray(child.material)) { child.material.forEach(material => material.dispose()); } else { child.material.dispose(); } } });
             activeTreeMeshes = activeTreeMeshes.filter(tree => tree !== treeObject);
         }
 
-        // Places a crafted building model in the world
-        function placeBuilding(buildingType) {
-            if (playerInventory.items[buildingType + ' Kit'] > 0) {
-                const buildingModel = createBuildingModel(buildingType);
-                // Place building near player, but offset randomly to simulate placement
-                const spawnX = player.position.x + getRandomInt(-10, 10);
-                const spawnZ = player.position.z + getRandomInt(-10, 10);
-                const spawnY = (buildingType === "Campfire") ? 0.3 : 0; // Adjust height for specific models
+        function mineStone(stoneObject) {
+            if (playerInventory.items["Pickaxe"] <= 0) {
+                showMessage("You need a Pickaxe to mine stones!", 2000);
+                return;
+            }
+            const stoneGained = getRandomInt(3, 8);
+            playerInventory.items["Stone"] = (playerInventory.items["Stone"] || 0) + stoneGained;
+            showMessage(`Mined a stone! Gained ${stoneGained} Stone.`, 2000);
+            updateUI();
+            scene.remove(stoneObject);
+            stoneObject.traverse(child => { if (child.isMesh) { child.geometry.dispose(); if (Array.isArray(child.material)) { child.material.forEach(material => material.dispose()); } else { child.material.dispose(); } } });
+            activeStoneMeshes = activeStoneMeshes.filter(stone => stone !== stoneObject);
+        }
 
-                buildingModel.position.set(spawnX, spawnY, spawnZ);
-                buildingModel.userData.gameType = 'building';
-                // Store data for saving
-                buildingModel.userData.data = {
+        function enterPlacementMode(itemName, kitName) {
+            if (playerInventory.items[kitName] <= 0) {
+                showMessage(`You don't have a ${kitName} to place!`, 2000);
+                return;
+            }
+            toggleUIPanel(document.getElementById('inventoryPanel'), GAME_STATE.PLACEMENT); // Hide inventory, enter placement
+            placementMode = true;
+            placementItemData = { name: itemName, kitName: kitName };
+
+            placementGhostMesh = createBuildingModel(itemName);
+            placementGhostMesh.material = new THREE.MeshBasicMaterial({ color: G_WHITE, transparent: true, opacity: 0.5 });
+            scene.add(placementGhostMesh);
+
+            placementControls.classList.remove('hidden');
+            showMessage(`Tap/drag to position the ${itemName}. Tap 'Place Here' to confirm.`, 3000);
+        }
+
+        function confirmPlacement() {
+            if (!placementMode || !placementGhostMesh || !placementGroundIntersection) {
+                showMessage("No item to place or invalid location.", 2000);
+                return;
+            }
+            const buildingType = placementItemData.name;
+            const kitName = placementItemData.kitName;
+
+            if (playerInventory.items[kitName] > 0) {
+                const finalBuilding = createBuildingModel(buildingType);
+                finalBuilding.position.copy(placementGhostMesh.position); // Use ghost's final position
+                finalBuilding.userData.gameType = 'building';
+                finalBuilding.userData.data = {
                     id: THREE.MathUtils.generateUUID(),
                     type: buildingType,
-                    position: { x: spawnX, y: spawnY, z: spawnZ }
+                    position: { x: finalBuilding.position.x, y: finalBuilding.position.y, z: finalBuilding.position.z }
                 };
-
-                scene.add(buildingModel);
-                activePlacedBuildingMeshes.push(buildingModel); // Add to active meshes
-                worldObjects.placedBuildings.push(buildingModel.userData.data); // Add to persistent data
-
-                playerInventory.items[buildingType + ' Kit']--; // Consume the kit
+                scene.add(finalBuilding);
+                activePlacedBuildingMeshes.push(finalBuilding);
+                worldObjects.placedBuildings.push(finalBuilding.userData.data);
+                playerInventory.items[kitName]--;
                 showMessage(`Placed a ${buildingType}!`, 2000);
                 updateUI();
             } else {
-                showMessage(`You don't have a ${buildingType} Kit!`, 2000);
+                showMessage(`You ran out of ${kitName}s!`, 2000);
             }
+            exitPlacementMode();
         }
 
-        // Simulates an arena battle
-        function startArenaBattle(playerCreature) {
-            arenaBattleLogElem.innerHTML = ''; // Clear previous battle log
-            // Ensure arena panel is visible (it should already be if triggered from a button on it)
+        function exitPlacementMode() {
+            if (placementGhostMesh) {
+                scene.remove(placementGhostMesh);
+                placementGhostMesh.geometry.dispose();
+                if (Array.isArray(placementGhostMesh.material)) {
+                    placementGhostMesh.material.forEach(m => m.dispose());
+                } else {
+                    placementGhostMesh.material.dispose();
+                }
+                placementGhostMesh = null;
+            }
+            placementMode = false;
+            placementItemData = null;
+            placementGroundIntersection = null;
+            placementControls.classList.add('hidden');
+            currentGameState = GAME_STATE.EXPLORE;
+            showMessage("Placement cancelled.", 1500); // Only show if explicitly cancelled
+        }
 
+        function startArenaBattle(playerCreature) {
+            arenaBattleLogElem.innerHTML = '';
             if (playerCreature.currentHp <= 0) {
                  logBattleMessage(`Your ${playerCreature.type} has fainted and cannot battle!`);
                  return;
             }
-
-            // Create a random wild enemy creature
             const enemyTypeDef = CREATURE_TYPES[getRandomInt(0, CREATURE_TYPES.length - 1)];
             const enemyCreature = generateCreatureData(enemyTypeDef);
-            enemyCreature.type = "Wild " + enemyCreature.type; // Mark as a wild opponent
-
+            enemyCreature.type = "Wild " + enemyCreature.type;
             logBattleMessage(`A ${enemyCreature.type} challenges your ${playerCreature.type}!`);
             logBattleMessage(`Your HP: ${playerCreature.currentHp}/${playerCreature.stats.hp} | Enemy HP: ${enemyCreature.currentHp}/${enemyCreature.stats.hp}`);
-
             let turn = 0;
             const battleInterval = setInterval(() => {
-                turn++;
-                logBattleMessage(`--- Turn ${turn} ---`);
-
-                // Player creature attacks
+                turn++; logBattleMessage(`--- Turn ${turn} ---`);
                 const playerDamage = Math.max(1, playerCreature.stats.strength + getRandomInt(-2, 2) - enemyCreature.stats.defense / 2);
                 enemyCreature.currentHp -= playerDamage;
                 logBattleMessage(`${playerCreature.type} attacks! Deals ${playerDamage.toFixed(0)} damage to ${enemyCreature.type}.`);
-
                 if (enemyCreature.currentHp <= 0) {
                     enemyCreature.currentHp = 0;
                     logBattleMessage(`${enemyCreature.type} defeated! Your ${playerCreature.type} wins!`);
-                    playerInventory.gold += 50; // Reward for winning
-                    playerCreature.currentHp = playerCreature.stats.hp; // Fully heal player creature on win
+                    playerInventory.gold += 50;
+                    playerCreature.currentHp = playerCreature.stats.hp;
                     showMessage(`You won the battle and gained 50 gold! Your ${playerCreature.type} is fully healed.`, 3000);
-                    updateUI();
-                    clearInterval(battleInterval); // End battle
+                    updateUI(); clearInterval(battleInterval);
                     logBattleMessage(`Battle finished! Click 'Fight Next Opponent' for another challenge.`);
                     return;
                 }
-
-                // Enemy creature attacks
                 const enemyDamage = Math.max(1, enemyCreature.stats.strength + getRandomInt(-2, 2) - playerCreature.stats.defense / 2);
                 playerCreature.currentHp -= enemyDamage;
                 logBattleMessage(`${enemyCreature.type} attacks! Deals ${enemyDamage.toFixed(0)} damage to ${playerCreature.type}.`);
-
                 if (playerCreature.currentHp <= 0) {
                     playerCreature.currentHp = 0;
                     logBattleMessage(`Your ${playerCreature.type} was defeated!`);
                     showMessage(`Your ${playerCreature.type} fainted! You lost the battle.`, 3000);
-                    updateUI();
-                    clearInterval(battleInterval); // End battle
+                    updateUI(); clearInterval(battleInterval);
                     logBattleMessage(`Battle finished! Your creature fainted. Choose another or find a way to heal.`);
                     return;
                 }
-
                 logBattleMessage(`Your HP: ${playerCreature.currentHp}/${playerCreature.stats.hp} | Enemy HP: ${enemyCreature.currentHp}/${enemyCreature.stats.hp}`);
-
-            }, 1500); // Each turn takes 1.5 seconds
+            }, 1500);
         }
 
-        // Logs messages to the arena battle log
         function logBattleMessage(message) {
             const p = document.createElement('p');
             p.textContent = message;
             arenaBattleLogElem.appendChild(p);
-            arenaBattleLogElem.scrollTop = arenaBattleLogElem.scrollHeight; // Auto-scroll to bottom
+            arenaBattleLogElem.scrollTop = arenaBattleLogElem.scrollHeight;
         }
 
         // --- Geolocation Functions ---
         function startGPSWatch() {
             if ("geolocation" in navigator) {
-                // Clear any existing watch to prevent multiple listeners
                 if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
-
                 gpsStatusElement.textContent = "Requesting GPS permission...";
-                gpsStatusElement.style.color = '#FFC107'; // Yellow for requesting
-
+                gpsStatusElement.style.color = '#DDDD00'; // Yellow for requesting
                 gpsWatchId = navigator.geolocation.watchPosition(
                     (position) => {
-                        const currentCoords = {
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude
-                        };
-                        gpsStatusElement.textContent = `GPS Active: Lat ${currentCoords.latitude.toFixed(4)}, Lon ${currentCoords.longitude.toFixed(4)} (Accuracy: ${position.coords.accuracy.toFixed(1)}m)`;
-                        gpsStatusElement.style.color = '#8BC34A'; // Green for active
-
+                        const currentCoords = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+                        gpsStatusElement.textContent = `GPS Active: Lat ${currentCoords.latitude.toFixed(4)}, Lon ${currentCoords.longitude.toFixed(4)} (Acc: ${position.coords.accuracy.toFixed(1)}m)`;
+                        gpsStatusElement.style.color = '#00DD00'; // Green for active
                         if (!lastKnownGeoCoords) {
-                            // This is the first successful GPS reading
                             lastKnownGeoCoords = currentCoords;
                             if (!initialCreaturesSpawned) {
-                                spawnWildCreatures(SPAWN_ON_MOVE_COUNT); // Spawn initial set of creatures
+                                spawnWildCreatures(SPAWN_ON_MOVE_COUNT);
                                 showMessage("GPS Active. Creatures appearing!", 2500);
                                 initialCreaturesSpawned = true;
                             }
@@ -1715,76 +1651,54 @@
                             if (distance >= MOVEMENT_THRESHOLD_METERS) {
                                 showMessage(`Moved ${distance.toFixed(1)}m. New creatures appear!`, 2500);
                                 spawnWildCreatures(SPAWN_ON_MOVE_COUNT);
-                                lastKnownGeoCoords = currentCoords; // Update last known coords
+                                lastKnownGeoCoords = currentCoords;
                             }
                         }
                     },
                     (error) => {
                         let errorMessage;
                         switch(error.code) {
-                            case error.PERMISSION_DENIED:
-                                errorMessage = "GPS Error: Permission denied. Cannot track movement or spawn creatures.";
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                errorMessage = "GPS Error: Position unavailable. Check your device settings.";
-                                break;
-                            case error.TIMEOUT:
-                                errorMessage = "GPS Error: Timeout. Cannot get a GPS fix.";
-                                break;
-                            default:
-                                errorMessage = `GPS Error: ${error.message}.`;
+                            case error.PERMISSION_DENIED: errorMessage = "GPS Error: Permission denied. Cannot track movement."; break;
+                            case error.POSITION_UNAVAILABLE: errorMessage = "GPS Error: Position unavailable. Check device settings."; break;
+                            case error.TIMEOUT: errorMessage = "GPS Error: Timeout. Cannot get GPS fix."; break;
+                            default: errorMessage = `GPS Error: ${error.message}.`;
                         }
                         gpsStatusElement.textContent = errorMessage;
-                        gpsStatusElement.style.color = '#E74C3C'; // Red for error
+                        gpsStatusElement.style.color = '#DD0000'; // Red for error
                         console.error("Geolocation error:", error);
-
                         if (error.code === error.PERMISSION_DENIED) {
-                             showMessage("GPS permission denied. Real-world movement features disabled. Please enable location services for this site.", 5000);
+                             showMessage("GPS permission denied. Real-world movement features disabled.", 5000);
                         } else {
                              showMessage("GPS issues. Cannot track real-world movement or find new creatures.", 4000);
                         }
-
-                        // Fallback: If initial creatures haven't spawned yet due to no GPS access, spawn them for basic play.
-                        // But future spaw based on movement will still require GPS.
                         if (!initialCreaturesSpawned && (error.code === error.PERMISSION_DENIED || error.code === error.POSITION_UNAVAILABLE)) {
                             showMessage("Starting game without real-world tracking. Creatures will not respawn from movement.", 5000);
-                            // Provide a dummy lastKnownGeoCoords to prevent repeated messages and allow "initial" game state
                             lastKnownGeoCoords = { latitude: 0, longitude: 0 };
-                            spawnWildCreatures(SPAWN_ON_MOVE_COUNT); // Provide some creatures for basic interaction
-                            initialCreaturesSpawned = true; // Mark as spawned
+                            spawnWildCreatures(SPAWN_ON_MOVE_COUNT);
+                            initialCreaturesSpawned = true;
                         }
                     },
-                    {
-                        enableHighAccuracy: true,
-                        maximumAge: 0,
-                        timeout: 10000 // Give it up to 10 seconds to get a valid position
-                    }
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
                 );
             } else {
                 gpsStatusElement.textContent = "Geolocation not supported by your browser.";
-                gpsStatusElement.style.color = '#E74C3C';
+                gpsStatusElement.style.color = '#DD0000';
                 showMessage("Geolocation not supported. Cannot track real-world movement or find new creatures. Spawning some for demo.", 4000);
-                // Fallback for browsers without GPS: spawn initial creatures
                 if (!initialCreaturesSpawned) {
-                    spawnWildCreatures(SPAWN_ON_MOVE_COUNT); // Spawn a small batch for basic interactivity
+                    spawnWildCreatures(SPAWN_ON_MOVE_COUNT);
                     initialCreaturesSpawned = true;
-                    lastKnownGeoCoords = { latitude: 0, longitude: 0 }; // Dummy
+                    lastKnownGeoCoords = { latitude: 0, longitude: 0 };
                 }
             }
         }
-
 
         // --- Save/Load Game Functions ---
         const SAVE_KEY = 'arcaneBeastsSave';
 
         function saveGame() {
             try {
-                const saveData = {
-                    playerInventory: playerInventory,
-                    worldObjects: worldObjects // Contains placed buildings
-                };
+                const saveData = { playerInventory: playerInventory, worldObjects: worldObjects };
                 localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
-                console.log("Game saved!");
                 showMessage("Game saved!", 1000);
             } catch (e) {
                 console.error("Failed to save game:", e);
@@ -1799,25 +1713,18 @@
                     const data = JSON.parse(savedData);
                     playerInventory = data.playerInventory || { gold: 0, items: {}, creatures: [] };
                     worldObjects = data.worldObjects || { placedBuildings: [] };
-
-                    // Ensure basic items for starting if inventory is empty (for new players or corrupted saves)
                     if (Object.keys(playerInventory.items).length === 0 || playerInventory.items["Berry"] === undefined) {
                         playerInventory.items["Berry"] = 10;
                     }
-                    if (playerInventory.gold === 0) {
-                         playerInventory.gold = 200; // Give starting gold if none
-                    }
-
-                    console.log("Game loaded!");
+                    if (playerInventory.gold === 0) { playerInventory.gold = 200; }
                     showMessage("Game loaded!", 1500);
                 } else {
-                    console.log("No saved game found. Starting new game.");
-                    resetGameData(); // Initialize with default new game data
+                    resetGameData();
                     showMessage("New game started!", 1500);
                 }
             } catch (e) {
                 console.error("Failed to load game, starting new:", e);
-                resetGameData(); // Fallback to new game on load error
+                resetGameData();
                 showMessage("Error: Could not load game, starting new!", 2000);
             }
         }
@@ -1825,22 +1732,14 @@
         function resetGameData() {
             playerInventory = {
                 gold: 200,
-                items: {
-                    "Berry": 10,
-                    "Axe": 0,
-                    "Wood": 0,
-                    "Stone": 0
-                },
+                items: { "Berry": 10, "Axe": 0, "Pickaxe": 0, "Wood": 0, "Stone": 0 },
                 creatures: []
             };
-            worldObjects = {
-                placedBuildings: []
-            };
+            worldObjects = { placedBuildings: [] };
         }
 
-
         // --- Start the game ---
-        init(); // Call the initialization function to set up the game
+        init();
     </script>
 </body>
 </html>
