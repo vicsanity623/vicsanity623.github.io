@@ -117,32 +117,63 @@
         .item-entry strong { color: #cccccc; } /* Accent color for item names */
         .item-entry em { font-size: 0.9em; opacity: 0.8; } /* Lighter description text */
 
-        /* Specific UI element positioning */
-        #topMenu {
+        /* Top Bar Layout (GPS, HUD, Menu) */
+        #topBar {
             position: absolute;
-            top: 15px;
-            right: 15px;
-            pointer-events: auto;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            display: grid;
+            grid-template-columns: auto 1fr auto; /* GPS | HUD | Menu */
+            gap: 10px; /* Space between elements */
+            padding: 0 10px; /* Outer padding */
+            box-sizing: border-box; /* Include padding in width */
+            align-items: center;
+            pointer-events: none; /* Allow clicks through by default */
+            z-index: 10;
         }
         #gpsStatus {
-            position: absolute;
-            top: 15px;
-            left: 15px;
+            grid-column: 1;
+            pointer-events: auto; /* Re-enable for status if clickable for info */
             background: rgba(0, 0, 0, 0.6);
             padding: 8px 12px;
             border-radius: 8px;
             font-size: 0.9em;
             color: #bbbbbb;
-            pointer-events: none; /* Non-interactive */
         }
-        #bottomMenu { /* Currently unused, but kept for future expansion */
-            position: absolute;
-            bottom: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            pointer-events: auto;
+        /* Player HUD */
+        #playerHud {
+            grid-column: 2;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #888888;
+            border-radius: 10px;
+            padding: 8px 10px; /* Reduced horizontal padding */
             display: flex;
-            gap: 10px;
+            justify-content: center; /* Center stats within their grid cell */
+            align-items: center;
+            gap: 5px; /* Reduced gap further */
+            font-size: 0.9em; /* Slightly smaller font */
+            color: #cccccc;
+            pointer-events: none; /* Non-interactive for now */
+            white-space: nowrap; /* Prevent text wrapping */
+            overflow: hidden; /* Hide overflow if content is too long */
+            text-overflow: ellipsis; /* Add ellipsis for overflowed text */
+        }
+        #playerHud .stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0; /* Prevent stats from shrinking too much */
+        }
+        #playerHud .stat-value {
+            font-weight: bold;
+            color: #eeeeee;
+        }
+        #topMenu {
+            grid-column: 3;
+            pointer-events: auto; /* Re-enable for menu button */
+            display: flex; /* To center its content if needed */
+            justify-content: flex-end; /* Push button to right within its cell */
         }
 
         /* Global message box (moved to bottom center) */
@@ -215,6 +246,7 @@
             box-shadow: 0 0 15px rgba(136, 136, 136, 0.7);
         }
 
+        /* Active Crafts Display */
         #activeCrafts {
             position: absolute;
             bottom: 15px;
@@ -241,6 +273,37 @@
         }
         #activeCrafts li {
             margin-bottom: 3px;
+        }
+
+        /* Joystick */
+        #joystickBase {
+            position: absolute;
+            bottom: 40px; /* Offset from bottom */
+            left: 40px; /* Offset from left */
+            width: 120px;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #888888;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto; /* Make it clickable */
+            z-index: 20; /* Above other UI */
+        }
+
+        #joystickHandle {
+            width: 50px;
+            height: 50px;
+            background: rgba(136, 136, 136, 0.7); /* Semi-transparent handle */
+            border: 2px solid #eeeeee;
+            border-radius: 50%;
+            position: absolute; /* Allows handle to move within base */
+            transform: translate(0, 0); /* Initial position */
+            transition: background 0.1s ease; /* Smooth color change on active */
+        }
+        #joystickHandle.active {
+            background: rgba(255, 255, 255, 0.8); /* Brighter when active */
         }
 
 
@@ -280,6 +343,36 @@
                 padding: 8px;
                 bottom: 10px;
             }
+            #activeCrafts {
+                right: 5px;
+                bottom: 5px;
+                padding: 5px;
+                font-size: 0.8em;
+            }
+            #joystickBase {
+                width: 100px;
+                height: 100px;
+                bottom: 20px;
+                left: 20px;
+            }
+            #joystickHandle {
+                width: 40px;
+                height: 40px;
+            }
+            #topBar {
+                grid-template-columns: auto 1fr auto; /* Still 3 columns */
+                gap: 5px; /* Smaller gap */
+                padding: 0 5px; /* Smaller outer padding */
+            }
+            #gpsStatus {
+                padding: 6px 8px;
+                font-size: 0.8em;
+            }
+            #playerHud {
+                padding: 6px 8px;
+                font-size: 0.8em;
+                gap: 3px; /* Even smaller gap for very compact stats */
+            }
         }
     </style>
 </head>
@@ -287,13 +380,25 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="uiOverlay">
-        <!-- GPS Status Indicator -->
-        <div id="gpsStatus">Waiting for GPS...</div>
+        <div id="topBar">
+            <!-- GPS Status Indicator -->
+            <div id="gpsStatus">Waiting for GPS...</div>
 
-        <!-- Top Menu Button -->
-        <div id="topMenu">
-            <button class="ui-button" id="mainMenuButton">Menu</button>
+            <!-- Player HUD -->
+            <div id="playerHud">
+                <div class="stat">HP: <span id="playerHp" class="stat-value">100</span></div>
+                <div class="stat">XP: <span id="playerXp" class="stat-value">0</span></div>
+                <div class="stat">Hunger: <span id="playerHunger" class="stat-value">100</span></div>
+                <div class="stat">Thirst: <span id="playerThirst" class="stat-value">100</span></div>
+                <div class="stat">Gold: <span id="playerGoldHud" class="stat-value">0</span></div>
+            </div>
+
+            <!-- Top Menu Button -->
+            <div id="topMenu">
+                <button class="ui-button" id="mainMenuButton">Menu</button>
+            </div>
         </div>
+
 
         <!-- Main Menu Panel -->
         <div id="mainMenuPanel" class="ui-panel hidden">
@@ -370,12 +475,17 @@
             <button class="ui-button" id="cancelPlacementButton">Cancel</button>
         </div>
 
-        <!-- Active Crafts Display (simple placeholder for now) -->
+        <!-- Active Crafts Display -->
         <div id="activeCrafts">
             <h4>Active Crafts</h4>
             <ul id="activeCraftsList">
                 <li>None</li>
             </ul>
+        </div>
+
+        <!-- Joystick -->
+        <div id="joystickBase">
+            <div id="joystickHandle"></div>
         </div>
     </div>
 
@@ -390,26 +500,41 @@
         const uiOverlay = document.getElementById('uiOverlay');
         const messageBox = document.getElementById('messageBox');
         const gpsStatusElement = document.getElementById('gpsStatus');
+        const playerHud = document.getElementById('playerHud'); // The HUD container
 
         let scene, camera, renderer;
-        let player; // Player's 3D avatar
-        let wildCreatureMeshes = []; // Array to hold active wild creature Three.js objects
-        let activePlacedBuildingMeshes = []; // Array to hold active placed building Three.js objects
-        let activeTreeMeshes = []; // Array to hold active tree Three.js objects
-        let activeStoneMeshes = []; // New array for stone models
-        let traderModel; // The single, static trader model
+        let player; // Player's 3D avatar (will now move)
+        let wildCreatureMeshes = [];
+        let activePlacedBuildingMeshes = [];
+        let activeTreeMeshes = [];
+        let activeStoneMeshes = [];
+        let traderModel;
 
         // Player's game state (will be loaded/saved)
         let playerInventory = {
             gold: 0,
             items: {},
-            creatures: [] // Tamed creatures (data objects)
+            creatures: [],
+            stats: { // New player stats
+                health: 100,
+                maxHealth: 100,
+                xp: 0,
+                level: 1, // Basic level for future
+                hunger: 100,
+                maxHunger: 100,
+                thirst: 100,
+                maxThirst: 100
+            },
+            playerPos: { x: 0, y: 1, z: 0 } // Player's world position
         };
 
         // World objects that persist (will be loaded/saved)
         let worldObjects = {
-            placedBuildings: [] // Array of building data {type, position: {x,y,z}}
+            placedBuildings: []
         };
+
+        // Active Crafting System
+        let activeCrafts = []; // Stores {id, name, startTime, duration, kitName}
 
         // Game state management for UI and interaction
         const GAME_STATE = {
@@ -421,35 +546,45 @@
             TRADER: 'trader',
             CRAFTING: 'crafting',
             ARENA: 'arena',
-            PLACEMENT: 'placement' // New state for placing items
+            PLACEMENT: 'placement'
         };
         let currentGameState = GAME_STATE.EXPLORE;
 
-        const MAP_SIZE = 400; // Size of our simulated world map (e.g., 400 units x 400 units)
+        const MAP_SIZE = 400; // Size of our simulated world map
         const CREATURE_SPAWN_RADIUS = 70; // Max distance from player for creature spawns
-        const INITIAL_TREES = 30; // Number of trees spawned at start
-        const INITIAL_STONES = 20; // New: Number of stones spawned at start
+        const INITIAL_TREES = 30;
+        const INITIAL_STONES = 20;
         const SPAWN_LIFESPAN_SECONDS = 60; // How long a creature spawn lasts
 
         // Geolocation tracking
-        let lastKnownGeoCoords = null; // {latitude, longitude}
-        const MOVEMENT_THRESHOLD_METERS = 1; // Distance moved to trigger new spawns (Changed to 1m)
-        const SPAWN_ON_MOVE_COUNT = 5; // How many creatures spawn when player moves due to GPS
-        let gpsWatchId = null; // To store the watchPosition ID to clear it later if needed
-        let initialCreaturesSpawned = false; // Flag to ensure initial creatures are only spawned once
+        let lastKnownGeoCoords = null;
+        const MOVEMENT_THRESHOLD_METERS = 1; // Distance moved to trigger new spawns
+        const SPAWN_ON_MOVE_COUNT = 5;
+        let gpsWatchId = null;
+        let initialCreaturesSpawned = false;
+
+        // Player Movement (Joystick)
+        const PLAYER_MOVE_SPEED = 0.5; // Units per frame
+        let moveDirection = new THREE.Vector3(); // Current normalized movement direction from joystick
 
         // Placement mode variables
         let placementMode = false;
-        let placementItemData = null; // Stores data of item to be placed {name: "House", kitName: "House Kit"}
+        let placementItemData = null;
         let placementGhostMesh = null;
-        let placementGroundIntersection = null; // Stores where the raycaster hits the ground
+        let placementGroundIntersection = null;
 
-        // Raycaster for object interaction (mouse/touch picking)
+        // Raycaster for object interaction
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2(); // For mouse/touch input in 2D screen space
-        const raycastPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Ground plane for placement intersection
+        const raycastPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Ground plane for placement intersection (y=0)
 
-        // UI Element References
+        // UI Element References (for Player HUD)
+        const playerHpElem = document.getElementById('playerHp');
+        const playerXpElem = document.getElementById('playerXp');
+        const playerHungerElem = document.getElementById('playerHunger');
+        const playerThirstElem = document.getElementById('playerThirst');
+        const playerGoldHudElem = document.getElementById('playerGoldHud'); // New for HUD Gold
+
         const mainMenuPanel = document.getElementById('mainMenuPanel');
         const creaturePanel = document.getElementById('creaturePanel');
         const tamingPanel = document.getElementById('tamingPanel');
@@ -461,13 +596,13 @@
         const activeCraftsList = document.getElementById('activeCraftsList'); // For active crafts display
 
         const creatureNameElem = document.getElementById('creatureName');
-        const creature3DViewDiv = document.getElementById('creature3DView'); // Div for the mini 3D renderer
+        const creature3DViewDiv = document.getElementById('creature3DView');
         let creatureMiniScene, creatureMiniCamera, creatureMiniRenderer;
-        let currentCreature3DModel = null; // Reference to the 3D model in the mini-view
+        let currentCreature3DModel = null;
         const creatureStatsElem = document.getElementById('creatureStats');
         const tameBar = document.getElementById('tameBar');
 
-        const playerGoldElem = document.getElementById('playerGold');
+        const playerGoldElem = document.getElementById('playerGold'); // For inventory/trader panel
         const traderGoldElem = document.getElementById('traderGold');
         const inventoryListElem = document.getElementById('inventoryList');
         const buyItemsListElem = document.getElementById('buyItemsList');
@@ -479,6 +614,12 @@
         const confirmPlacementButton = document.getElementById('confirmPlacementButton');
         const cancelPlacementButton = document.getElementById('cancelPlacementButton');
 
+        // Joystick Elements
+        const joystickBase = document.getElementById('joystickBase');
+        const joystickHandle = document.getElementById('joystickHandle');
+        let joystickActive = false;
+        const joystickRadius = joystickBase.clientWidth / 2;
+
 
         // --- Game Data Definitions ---
 
@@ -488,8 +629,6 @@
         const G_MEDIUM_GREY = 0x666666;
         const G_LIGHT_GREY = 0xaaaaaa;
         const G_WHITE = 0xeeeeee;
-        const G_ACCENT_1 = 0x555555; // Used for UI buttons, etc.
-        const G_ACCENT_2 = 0x888888; // Used for borders, highlights
         const G_PLAYER_ORANGE = 0xFF4500; // Player specific color from screenshot example
 
         // Different creature types with their visual properties (colors converted to greyscale)
@@ -502,39 +641,39 @@
             { name: "Deepscale", baseColor: 0x555555, modelType: 'quadruped', size: 2.5, likesBerry: false } // Medium dark grey
         ];
 
-        // Item definitions (properties like value, description)
+        // Item definitions (properties like value, description, craftTime)
         const ITEM_DEFINITIONS = {
             "Berry": { type: "consumable", value: 5, description: "A juicy berry, some creatures love it!" },
             "Axe": { type: "tool", value: 50, description: "Allows you to chop down trees for wood." },
-            "Pickaxe": { type: "tool", value: 75, description: "Allows you to mine stones for stone." }, // New: Pickaxe
+            "Pickaxe": { type: "tool", value: 75, description: "Allows you to mine stones for stone." },
             "Wood": { type: "material", value: 10, description: "Basic crafting material from trees." },
             "Stone": { type: "material", value: 8, description: "Basic building material from rocks." },
-            "Tent Kit": { type: "blueprint", value: 150, description: "Blueprint to build a cozy tent.", crafts: [{item: "Wood", amount: 20}] },
-            "Campfire Kit": { type: "blueprint", value: 100, description: "Blueprint to build a warm campfire.", crafts: [{item: "Wood", amount: 10}, {item: "Stone", amount: 5}] },
-            "Small House Kit": { type: "blueprint", value: 500, description: "Blueprint to build a small house.", crafts: [{item: "Wood", amount: 50}, {item: "Stone", amount: 30}] }, // New: House
-            "Stone Wall Kit": { type: "blueprint", value: 50, description: "Blueprint for a sturdy stone wall.", crafts: [{item: "Stone", amount: 10}] }, // New: Stone Wall
-            "Wooden Fence Kit": { type: "blueprint", value: 30, description: "Blueprint for a simple wooden fence.", crafts: [{item: "Wood", amount: 10}] } // New: Wooden Fence
+            "Tent Kit": { type: "blueprint", value: 150, description: "Blueprint to build a cozy tent.", crafts: [{item: "Wood", amount: 20}], craftTime: 5 },
+            "Campfire Kit": { type: "blueprint", value: 100, description: "Blueprint to build a warm campfire.", crafts: [{item: "Wood", amount: 10}, {item: "Stone", amount: 5}], craftTime: 7 },
+            "Small House Kit": { type: "blueprint", value: 500, description: "Blueprint to build a small house.", crafts: [{item: "Wood", amount: 50}, {item: "Stone", amount: 30}], craftTime: 15 },
+            "Stone Wall Kit": { type: "blueprint", value: 50, description: "Blueprint for a sturdy stone wall.", crafts: [{item: "Stone", amount: 10}], craftTime: 3 },
+            "Wooden Fence Kit": { type: "blueprint", value: 30, description: "Blueprint for a simple wooden fence.", crafts: [{item: "Wood", amount: 10}], craftTime: 3 }
         };
 
         // Items available at the trader shop
         const TRADER_ITEMS = [
             { id: "Berry", price: 10, stock: 10 },
             { id: "Axe", price: 50, stock: 1 },
-            { id: "Pickaxe", price: 75, stock: 1 }, // New: Pickaxe in trader
+            { id: "Pickaxe", price: 75, stock: 1 },
             { id: "Tent Kit", price: 150, stock: 1 },
             { id: "Campfire Kit", price: 100, stock: 1 },
-            { id: "Small House Kit", price: 500, stock: 1 }, // New: House in trader
-            { id: "Stone Wall Kit", price: 50, stock: 5 }, // New: Stone Wall in trader
-            { id: "Wooden Fence Kit", price: 30, stock: 5 } // New: Wooden Fence in trader
+            { id: "Small House Kit", price: 500, stock: 1 },
+            { id: "Stone Wall Kit", price: 50, stock: 5 },
+            { id: "Wooden Fence Kit", price: 30, stock: 5 }
         ];
 
-        // Crafting recipes (expanded)
+        // Crafting recipes
         const CRAFTING_RECIPES = [
-            { name: "Tent", requires: { "Wood": 20 }, result: { type: "placeable", name: "Tent" }, description: "A cozy place to rest." },
-            { name: "Campfire", requires: { "Wood": 10, "Stone": 5 }, result: { type: "placeable", name: "Campfire" }, description: "Provides warmth and light." },
-            { name: "Small House", requires: { "Wood": 50, "Stone": 30 }, result: { type: "placeable", name: "Small House" }, description: "A sturdy home for your adventures." },
-            { name: "Stone Wall", requires: { "Stone": 10 }, result: { type: "placeable", name: "Stone Wall" }, description: "Protects your base." },
-            { name: "Wooden Fence", requires: { "Wood": 10 }, result: { type: "placeable", name: "Wooden Fence" }, description: "Defines your property." }
+            { name: "Tent", requires: { "Wood": 20 }, result: { type: "placeable", name: "Tent", kitName: "Tent Kit" } },
+            { name: "Campfire", requires: { "Wood": 10, "Stone": 5 }, result: { type: "placeable", name: "Campfire", kitName: "Campfire Kit" } },
+            { name: "Small House", requires: { "Wood": 50, "Stone": 30 }, result: { type: "placeable", name: "Small House", kitName: "Small House Kit" } },
+            { name: "Stone Wall", requires: { "Stone": 10 }, result: { type: "placeable", name: "Stone Wall", kitName: "Stone Wall Kit" } },
+            { name: "Wooden Fence", requires: { "Wood": 10 }, result: { type: "placeable", name: "Wooden Fence", kitName: "Wooden Fence Kit" } }
         ];
 
         // --- Helper Functions ---
@@ -557,7 +696,7 @@
                 }
             });
             if (currentGameState === GAME_STATE.PLACEMENT) {
-                 exitPlacementMode(); // Always exit placement mode when opening a menu
+                 exitPlacementMode();
             }
             panelElement.classList.toggle('hidden');
             currentGameState = panelElement.classList.contains('hidden') ? GAME_STATE.EXPLORE : stateToSet;
@@ -584,7 +723,7 @@
             return R * c;
         }
 
-        // --- 3D Model Creation Functions ---
+        // --- Advanced 3D Model Creation Functions ---
 
         function createCreatureModel(typeDef, isMini = false) {
             let group = new THREE.Group();
@@ -599,78 +738,99 @@
             let head, body;
 
             switch (typeDef.modelType) {
-                case 'flying': // Dragonfly/Butterfly like
-                    body = new THREE.Mesh(new THREE.CylinderGeometry(0.3 * sizeM, 0.6 * sizeM, 1.5 * sizeM, 8), material);
-                    body.position.y = 0.75 * sizeM;
-                    head = new THREE.Mesh(new THREE.SphereGeometry(0.5 * sizeM, 16, 16), material);
-                    head.position.y = 1.6 * sizeM;
-                    group.add(body, head);
-                    const wingGeom = new THREE.PlaneGeometry(2 * sizeM, 0.8 * sizeM);
-                    const wingMat = new THREE.MeshPhongMaterial({ color: accentMaterial.color, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
-                    const wing1 = new THREE.Mesh(wingGeom, wingMat); wing1.position.set(0.6 * sizeM, 1.2 * sizeM, 0); wing1.rotation.y = Math.PI / 4;
-                    const wing2 = wing1.clone(); wing2.position.x = -0.6 * sizeM; wing2.rotation.y = -Math.PI / 4;
-                    const wing3 = wing1.clone(); wing3.position.set(0.6 * sizeM, 1 * sizeM, 0.3 * sizeM); wing3.rotation.y = Math.PI / 4;
-                    const wing4 = wing3.clone(); wing4.position.x = -0.6 * sizeM; wing4.rotation.y = -Math.PI / 4;
-                    group.add(wing1, wing2, wing3, wing4);
-                    break;
-                case 'quadruped': // Dog/Wolf like
-                    body = new THREE.Mesh(new THREE.BoxGeometry(1.2 * sizeM, 0.9 * sizeM, 2.0 * sizeM), material);
+                case 'flying':
+                    body = new THREE.Mesh(new THREE.SphereGeometry(0.5 * sizeM, 16, 8), material);
+                    body.scale.z = 2;
                     body.position.y = 0.5 * sizeM;
-                    head = new THREE.Mesh(new THREE.SphereGeometry(0.6 * sizeM, 16, 16), material);
-                    head.position.set(0, 0.7 * sizeM, 1.2 * sizeM);
+                    head = new THREE.Mesh(new THREE.SphereGeometry(0.3 * sizeM, 12, 12), material);
+                    head.position.set(0, 0.8 * sizeM, 0.7 * sizeM);
                     group.add(body, head);
-                    const legGeom = new THREE.CylinderGeometry(0.2 * sizeM, 0.2 * sizeM, 1.0 * sizeM, 8);
-                    for (let i = 0; i < 4; i++) {
+                    const wingGeom = new THREE.PlaneGeometry(1.8 * sizeM, 0.6 * sizeM);
+                    const wingMat = new THREE.MeshPhongMaterial({ color: accentMaterial.color, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+                    const createWingPair = (yPos, zOffset, rotY) => {
+                        let w1 = new THREE.Mesh(wingGeom, wingMat); w1.position.set(0.6 * sizeM, yPos, zOffset); w1.rotation.y = rotY;
+                        let w2 = w1.clone(); w2.position.x *= -1; w2.rotation.y *= -1;
+                        group.add(w1, w2);
+                    };
+                    createWingPair(0.9 * sizeM, 0.2 * sizeM, Math.PI / 5);
+                    createWingPair(0.7 * sizeM, -0.1 * sizeM, Math.PI / 4);
+                    break;
+
+                case 'quadruped':
+                    body = new THREE.Mesh(new THREE.BoxGeometry(1.5 * sizeM, 1.0 * sizeM, 2.5 * sizeM), material);
+                    body.position.y = 0.5 * sizeM;
+                    head = new THREE.Mesh(new THREE.ConeGeometry(0.6 * sizeM, 1.0 * sizeM, 12), material);
+                    head.rotation.x = Math.PI / 2;
+                    head.position.set(0, 0.8 * sizeM, 1.5 * sizeM);
+                    group.add(body, head);
+                    const legGeom = new THREE.CylinderGeometry(0.2 * sizeM, 0.2 * sizeM, 1.2 * sizeM, 8);
+                    const footGeom = new THREE.SphereGeometry(0.25 * sizeM, 8, 8);
+                    const createLeg = (xPos, zPos) => {
                         let leg = new THREE.Mesh(legGeom, material);
-                        leg.position.set((i % 2 === 0 ? 0.5 : -0.5) * sizeM, -0.1 * sizeM, (i < 2 ? 0.7 : -0.7) * sizeM);
+                        leg.position.set(xPos, -0.1 * sizeM, zPos);
+                        let foot = new THREE.Mesh(footGeom, accentMaterial);
+                        foot.position.y = -0.6 * sizeM;
+                        leg.add(foot);
                         group.add(leg);
-                    }
-                    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3 * sizeM, 1.0 * sizeM, 8), accentMaterial);
-                    tail.position.set(0, 0.7 * sizeM, -1.2 * sizeM); tail.rotation.x = Math.PI / 2;
+                    };
+                    createLeg(0.6 * sizeM, 1.0 * sizeM);
+                    createLeg(-0.6 * sizeM, 1.0 * sizeM);
+                    createLeg(0.6 * sizeM, -1.0 * sizeM);
+                    createLeg(-0.6 * sizeM, -1.0 * sizeM);
+                    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * sizeM, 0.3 * sizeM, 1.5 * sizeM, 8), accentMaterial);
+                    tail.rotation.x = -Math.PI / 3;
+                    tail.position.set(0, 0.8 * sizeM, -1.5 * sizeM);
                     group.add(tail);
                     break;
-                case 'plantoid': // Flower/Golem like
-                    body = new THREE.Mesh(new THREE.CylinderGeometry(0.8 * sizeM, 1.0 * sizeM, 1.8 * sizeM, 16), material);
-                    body.position.y = 0.9 * sizeM;
+
+                case 'plantoid':
+                    body = new THREE.Mesh(new THREE.CylinderGeometry(0.8 * sizeM, 1.0 * sizeM, 2.0 * sizeM, 16), material);
+                    body.position.y = 1.0 * sizeM;
                     head = new THREE.Mesh(new THREE.SphereGeometry(0.7 * sizeM, 16, 16), accentMaterial);
-                    head.position.y = 2.0 * sizeM;
+                    head.position.y = 2.5 * sizeM;
                     group.add(body, head);
-                    const petalGeom = new THREE.BoxGeometry(0.2 * sizeM, 1.0 * sizeM, 0.1 * sizeM);
-                    for (let i = 0; i < 6; i++) {
-                        let petal = new THREE.Mesh(petalGeom, material);
-                        petal.position.copy(head.position); petal.rotation.y = i * Math.PI / 3;
-                        petal.position.y += 0.3 * sizeM;
-                        petal.position.x += Math.sin(petal.rotation.y) * 0.5 * sizeM;
-                        petal.position.z += Math.cos(petal.rotation.y) * 0.5 * sizeM;
-                        group.add(petal);
+                    const rootGeom = new THREE.ConeGeometry(0.3 * sizeM, 1.0 * sizeM, 8);
+                    for(let i=0; i<3; i++) {
+                        let root = new THREE.Mesh(rootGeom, material);
+                        root.rotation.x = Math.PI / 2; root.rotation.z = (i * Math.PI * 2 / 3);
+                        root.position.set(Math.sin(root.rotation.z) * 0.7 * sizeM, 0, Math.cos(root.rotation.z) * 0.7 * sizeM);
+                        group.add(root);
                     }
+                    const leafGeom = new THREE.BoxGeometry(0.3 * sizeM, 1.5 * sizeM, 0.1 * sizeM);
+                    const leafArm1 = new THREE.Mesh(leafGeom, accentMaterial);
+                    leafArm1.position.set(1.0 * sizeM, 1.5 * sizeM, 0); leafArm1.rotation.z = -Math.PI / 4;
+                    const leafArm2 = leafArm1.clone(); leafArm2.position.x *= -1; leafArm2.rotation.z *= -1;
+                    group.add(leafArm1, leafArm2);
                     break;
-                case 'bipedal': // Humanoid/Monster like
-                    body = new THREE.Mesh(new THREE.BoxGeometry(1.0 * sizeM, 1.8 * sizeM, 0.8 * sizeM), material);
-                    body.position.y = 0.9 * sizeM;
-                    head = new THREE.Mesh(new THREE.SphereGeometry(0.55 * sizeM, 16, 16), material);
-                    head.position.y = 2.0 * sizeM;
+
+                case 'bipedal':
+                    body = new THREE.Mesh(new THREE.BoxGeometry(1.2 * sizeM, 2.0 * sizeM, 0.8 * sizeM), material);
+                    body.position.y = 1.0 * sizeM;
+                    head = new THREE.Mesh(new THREE.SphereGeometry(0.6 * sizeM, 16, 16), material);
+                    head.position.y = 2.3 * sizeM;
                     group.add(body, head);
-                    const bipedLegGeom = new THREE.CylinderGeometry(0.25 * sizeM, 0.25 * sizeM, 1.0 * sizeM, 8);
-                    const leg1 = new THREE.Mesh(bipedLegGeom, material); leg1.position.set(0.3 * sizeM, -0.1 * sizeM, 0);
-                    const leg2 = leg1.clone(); leg2.position.x = -0.3 * sizeM;
-                    group.add(leg1, leg2);
-                    const armGeom = new THREE.CylinderGeometry(0.2 * sizeM, 0.2 * sizeM, 1.0 * sizeM, 8);
-                    const arm1 = new THREE.Mesh(armGeom, material); arm1.position.set(0.8 * sizeM, 1.2 * sizeM, 0); arm1.rotation.z = -Math.PI / 6;
-                    const arm2 = arm1.clone(); arm2.position.x = -0.8 * sizeM; arm2.rotation.z = Math.PI / 6;
+                    const bipedLegGeom = new THREE.CylinderGeometry(0.3 * sizeM, 0.4 * sizeM, 1.2 * sizeM, 8);
+                    const bLeg1 = new THREE.Mesh(bipedLegGeom, material); bLeg1.position.set(0.4 * sizeM, -0.2 * sizeM, 0);
+                    const bLeg2 = bLeg1.clone(); bLeg2.position.x *= -1;
+                    group.add(bLeg1, bLeg2);
+                    const armGeom = new THREE.CapsuleGeometry(0.25 * sizeM, 1.0 * sizeM, 8, 8);
+                    const arm1 = new THREE.Mesh(armGeom, material);
+                    arm1.position.set(0.9 * sizeM, 1.5 * sizeM, 0); arm1.rotation.z = -Math.PI / 6;
+                    const arm2 = arm1.clone(); arm2.position.x *= -1; arm2.rotation.z *= -1;
                     group.add(arm1, arm2);
-                    const hornGeom = new THREE.ConeGeometry(0.15 * sizeM, 0.5 * sizeM, 8);
+                    const hornGeom = new THREE.ConeGeometry(0.2 * sizeM, 0.8 * sizeM, 12);
                     const hornMat = new THREE.MeshPhongMaterial({ color: G_LIGHT_GREY });
-                    const horn1 = new THREE.Mesh(hornGeom, hornMat); horn1.position.set(-0.3 * sizeM, 2.3 * sizeM, 0.2 * sizeM); horn1.rotation.x = Math.PI / 2; horn1.rotation.y = Math.PI / 6;
-                    const horn2 = horn1.clone(); horn2.position.x = 0.3 * sizeM; horn2.rotation.y = -Math.PI / 6;
+                    const horn1 = new THREE.Mesh(hornGeom, hornMat);
+                    horn1.position.set(-0.35 * sizeM, 2.7 * sizeM, 0.1 * sizeM); horn1.rotation.x = Math.PI / 2; horn1.rotation.y = Math.PI / 8;
+                    const horn2 = horn1.clone(); horn2.position.x *= -1; horn2.rotation.y *= -1;
                     group.add(horn1, horn2);
                     break;
             }
             if (head) {
-                let eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.06 * sizeM, 8, 8), eyeMaterial);
+                let eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.08 * sizeM, 8, 8), eyeMaterial);
                 let eye2 = eye1.clone();
-                eye1.position.set(-0.18 * sizeM, 0.12 * sizeM, 0.4 * sizeM);
-                eye2.position.set(0.18 * sizeM, 0.12 * sizeM, 0.4 * sizeM);
+                eye1.position.set(-0.18 * sizeM, 0.12 * sizeM, 0.45 * sizeM);
+                eye2.position.set(0.18 * sizeM, 0.12 * sizeM, 0.45 * sizeM);
                 head.add(eye1, eye2);
             }
             group.castShadow = true;
@@ -702,27 +862,38 @@
                     break;
                 case "Small House":
                     model = new THREE.Group();
-                    const houseBody = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 6), new THREE.MeshPhongMaterial({color: G_MEDIUM_GREY}));
+                    const houseBody = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 6), new THREE.MeshPhongMaterial({color: G_LIGHT_GREY}));
                     houseBody.position.y = 2;
                     const roof = new THREE.Mesh(new THREE.ConeGeometry(4.5, 3, 4), new THREE.MeshPhongMaterial({color: G_DARK_GREY}));
                     roof.position.y = 5.5; roof.rotation.y = Math.PI / 4;
-                    const door = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshPhongMaterial({color: G_BLACK}));
-                    door.position.set(0, 1, 3.05);
-                    model.add(houseBody, roof, door);
+                    const door = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.5, 0.1), new THREE.MeshPhongMaterial({color: G_BLACK}));
+                    door.position.set(0, 1.25, 3.05);
+                    const windowGeom = new THREE.BoxGeometry(1.5, 1.5, 0.1);
+                    const windowMat = new THREE.MeshPhongMaterial({color: G_MEDIUM_GREY});
+                    const window1 = new THREE.Mesh(windowGeom, windowMat); window1.position.set(2.5, 2.5, 3.05);
+                    const window2 = window1.clone(); window2.position.x = -2.5;
+                    model.add(houseBody, roof, door, window1, window2);
                     break;
                 case "Stone Wall":
-                    model = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 0.5), new THREE.MeshPhongMaterial({color: G_LIGHT_GREY}));
-                    model.position.y = 1;
+                    model = new THREE.Group();
+                    const segmentGeom = new THREE.BoxGeometry(1, 2, 0.5);
+                    const wallMat = new THREE.MeshPhongMaterial({color: G_LIGHT_GREY});
+                    for(let i = 0; i < 3; i++) {
+                        let segment = new THREE.Mesh(segmentGeom, wallMat);
+                        segment.position.set((i-1)*1.05, 1, 0);
+                        model.add(segment);
+                    }
                     break;
                 case "Wooden Fence":
                     model = new THREE.Group();
-                    const fencePost = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8), new THREE.MeshPhongMaterial({color: G_DARK_GREY}));
-                    const rail = new THREE.Mesh(new THREE.BoxGeometry(3, 0.1, 0.1), new THREE.MeshPhongMaterial({color: G_DARK_GREY}));
-                    for(let i = 0; i < 2; i++) {
-                        let p = fencePost.clone(); p.position.set(1.5, 0.75, 0); if(i===1) p.position.x = -1.5; model.add(p);
-                        let r = rail.clone(); r.position.y = (i === 0 ? 0.5 : 1.2); model.add(r);
-                    }
-                    model.position.y = 0;
+                    const postGeom = new THREE.CylinderGeometry(0.15, 0.15, 1.5, 8);
+                    const railGeom = new THREE.BoxGeometry(3.5, 0.1, 0.1);
+                    const fenceMat = new THREE.MeshPhongMaterial({color: G_DARK_GREY});
+                    const post1 = new THREE.Mesh(postGeom, fenceMat); post1.position.set(1.75, 0.75, 0);
+                    const post2 = post1.clone(); post2.position.x = -1.75;
+                    const rail1 = new THREE.Mesh(railGeom, fenceMat); rail1.position.y = 0.5;
+                    const rail2 = rail1.clone(); rail2.position.y = 1.2;
+                    model.add(post1, post2, rail1, rail2);
                     break;
                 default:
                     model = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshPhongMaterial({color: G_MEDIUM_GREY}));
@@ -745,13 +916,14 @@
             const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
             trunk.position.y = trunkHeight / 2;
             tree.add(trunk);
+
             const leavesMaterial = new THREE.MeshPhongMaterial({ color: G_MEDIUM_GREY });
             const numLeavesLayers = getRandomInt(2, 3);
             for (let i = 0; i < numLeavesLayers; i++) {
                 const leafSize = getRandomFloat(1.5, 2.5) * (1 - i * 0.2);
-                const leafGeometry = new THREE.SphereGeometry(leafSize, 16, 16);
+                const leafGeometry = new THREE.SphereGeometry(leafSize, 16, 12);
                 const leaves = new THREE.Mesh(leafGeometry, leavesMaterial);
-                leaves.position.y = trunkHeight + (i * (leafSize * 0.5 + 0.5));
+                leaves.position.y = trunkHeight + (i * (leafSize * 0.4 + 0.5));
                 leaves.position.x = getRandomFloat(-0.5, 0.5);
                 leaves.position.z = getRandomFloat(-0.5, 0.5);
                 tree.add(leaves);
@@ -765,11 +937,11 @@
         function createStoneModel() {
             const stone = new THREE.Group();
             const stoneSize = getRandomFloat(1, 2);
-            const numChunks = getRandomInt(1, 3); // Multiple chunks for a more natural look
+            const numChunks = getRandomInt(1, 3);
             const stoneMaterial = new THREE.MeshPhongMaterial({ color: G_LIGHT_GREY });
 
             for (let i = 0; i < numChunks; i++) {
-                const chunkGeometry = new THREE.DodecahedronGeometry(stoneSize * getRandomFloat(0.5, 1.0), 0); // Irregular polyhedra
+                const chunkGeometry = new THREE.IcosahedronGeometry(stoneSize * getRandomFloat(0.5, 1.0), 0);
                 const chunk = new THREE.Mesh(chunkGeometry, stoneMaterial);
                 chunk.position.set(getRandomFloat(-stoneSize * 0.3, stoneSize * 0.3), getRandomFloat(0, stoneSize * 0.2), getRandomFloat(-stoneSize * 0.3, stoneSize * 0.3));
                 chunk.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
@@ -777,7 +949,7 @@
             }
             stone.castShadow = true;
             stone.receiveShadow = true;
-            stone.userData.gameType = 'stone'; // Mark as stone for raycasting
+            stone.userData.gameType = 'stone';
             return stone;
         }
 
@@ -834,8 +1006,8 @@
             scene.background = new THREE.Color(G_DARK_GREY);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 120, 80);
-            camera.lookAt(0, 0, 0);
+            camera.position.set(0, 120, 80); // Initial camera position (will follow player)
+            camera.lookAt(0, 0, 0); // Initially looks at origin
 
             renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -857,10 +1029,15 @@
             const playerGeometry = new THREE.CylinderGeometry(0.7, 0.7, 2, 16);
             const playerMaterial = new THREE.MeshPhongMaterial({ color: G_PLAYER_ORANGE });
             player = new THREE.Mesh(playerGeometry, playerMaterial);
-            player.position.y = 1;
+            player.position.set(playerInventory.playerPos.x, playerInventory.playerPos.y, playerInventory.playerPos.z); // Set initial position from saved data
             player.castShadow = true;
             player.receiveShadow = true;
             scene.add(player);
+
+            // Camera setup relative to player (follow offset)
+            const cameraOffset = new THREE.Vector3(0, 120, 80); // Relative offset from player
+            camera.position.copy(player.position).add(cameraOffset);
+            camera.lookAt(player.position);
 
             const mapGridSize = 25;
             const blockSize = MAP_SIZE / mapGridSize;
@@ -868,36 +1045,51 @@
                 for (let z = 0; z < mapGridSize; z++) {
                     const blockX = (x - mapGridSize / 2 + 0.5) * blockSize;
                     const blockZ = (z - mapGridSize / 2 + 0.5) * blockSize;
-                    let blockHeight = 0.1;
                     let objectMesh = null;
+                    let blockColor;
+                    let blockY = 0;
 
-                    if (x % 5 === 2 || z % 5 === 2) {
+                    const isRoadX = (x % 5 === 2);
+                    const isRoadZ = (z % 5 === 2);
+
+                    if (isRoadX || isRoadZ) {
+                        blockColor = G_MEDIUM_GREY;
+                        blockY = 0.05;
                         objectMesh = new THREE.Mesh(
                             new THREE.PlaneGeometry(blockSize, blockSize),
-                            new THREE.MeshPhongMaterial({ color: G_MEDIUM_GREY, side: THREE.DoubleSide })
+                            new THREE.MeshPhongMaterial({ color: blockColor, side: THREE.DoubleSide })
                         );
-                        objectMesh.rotation.x = -Math.PI / 2; objectMesh.position.set(blockX, 0.05, blockZ);
+                        objectMesh.rotation.x = -Math.PI / 2;
+                        objectMesh.position.set(blockX, blockY, blockZ);
                     } else if (Math.random() < 0.15) {
+                        blockColor = G_LIGHT_GREY;
+                        blockY = -0.5;
                         objectMesh = new THREE.Mesh(
                             new THREE.PlaneGeometry(blockSize, blockSize),
-                            new THREE.MeshPhongMaterial({ color: G_LIGHT_GREY, side: THREE.DoubleSide }) // Water as lighter grey
+                            new THREE.MeshPhongMaterial({ color: blockColor, side: THREE.DoubleSide })
                         );
-                        objectMesh.rotation.x = -Math.PI / 2; objectMesh.position.set(blockX, -0.5, blockZ);
+                        objectMesh.rotation.x = -Math.PI / 2;
+                        objectMesh.position.set(blockX, blockY, blockZ);
                     } else if (Math.random() < 0.25) {
-                        blockHeight = getRandomFloat(3, 10);
+                        blockColor = new THREE.Color(G_MEDIUM_GREY).offsetHSL(0, 0, getRandomFloat(-0.1, 0.1));
+                        blockY = getRandomFloat(3, 10);
                         objectMesh = new THREE.Mesh(
-                            new THREE.BoxGeometry(blockSize * 0.8, blockHeight, blockSize * 0.8),
-                            new THREE.MeshPhongMaterial({ color: G_MEDIUM_GREY })
+                            new THREE.BoxGeometry(blockSize * 0.8, blockY, blockSize * 0.8),
+                            new THREE.MeshPhongMaterial({ color: blockColor })
                         );
-                        objectMesh.position.set(blockX, blockHeight / 2, blockZ);
+                        objectMesh.position.set(blockX, blockY / 2, blockZ);
                         objectMesh.castShadow = true;
                     } else {
+                        blockColor = G_DARK_GREY;
+                        blockY = 0.1;
                         objectMesh = new THREE.Mesh(
                             new THREE.PlaneGeometry(blockSize, blockSize),
-                            new THREE.MeshPhongMaterial({ color: G_DARK_GREY, side: THREE.DoubleSide })
+                            new THREE.MeshPhongMaterial({ color: blockColor, side: THREE.DoubleSide })
                         );
-                        objectMesh.rotation.x = -Math.PI / 2; objectMesh.position.set(blockX, 0.1, blockZ);
+                        objectMesh.rotation.x = -Math.PI / 2;
+                        objectMesh.position.set(blockX, blockY, blockZ);
                     }
+
                     if (objectMesh) {
                         objectMesh.receiveShadow = true;
                         scene.add(objectMesh);
@@ -951,6 +1143,7 @@
                 const typeDef = CREATURE_TYPES[getRandomInt(0, CREATURE_TYPES.length - 1)];
                 const creatureData = generateCreatureData(typeDef);
                 const creatureModel = createCreatureModel(typeDef);
+                // Spawn creatures around player's current position
                 const angle = Math.random() * Math.PI * 2;
                 const distance = getRandomInt(10, CREATURE_SPAWN_RADIUS);
                 const spawnX = player.position.x + distance * Math.cos(angle);
@@ -1006,6 +1199,49 @@
             requestAnimationFrame(animate);
             const currentTime = Date.now();
 
+            // Player Stats Update
+            const stats = playerInventory.stats;
+            stats.hunger = Math.max(0, stats.hunger - 0.01); // Hunger decay over time
+            stats.thirst = Math.max(0, stats.thirst - 0.015); // Thirst decay over time
+            
+            if (stats.hunger <= 0 || stats.thirst <= 0) {
+                stats.health = Math.max(0, stats.health - 0.05); // Health decay if hungry/thirsty
+                if (stats.health <= 0) {
+                    showMessage("You fainted! Game Over (auto-healing to 50 HP).", 3000);
+                    stats.health = 50; // Simple respawn
+                    stats.hunger = 50;
+                    stats.thirst = 50;
+                }
+            }
+            updatePlayerHud();
+
+            // Player Movement
+            if (moveDirection.lengthSq() > 0 && currentGameState === GAME_STATE.EXPLORE) {
+                // Determine player's forward direction based on camera rotation (if camera orbits player)
+                // Or simply move relative to world axes if a simple top-down joystick
+                // For a simple top-down joystick, moveDirection is already global XZ
+                player.position.addScaledVector(moveDirection, PLAYER_MOVE_SPEED);
+                
+                // Clamp player position within map boundaries
+                player.position.x = Math.max(-MAP_SIZE/2, Math.min(MAP_SIZE/2, player.position.x));
+                player.position.z = Math.max(-MAP_SIZE/2, Math.min(MAP_SIZE/2, player.position.z));
+
+                // Make player object face direction of movement (relative to world XZ plane)
+                const angle = Math.atan2(moveDirection.x, moveDirection.z); // Z for forward, X for sideways
+                player.rotation.y = angle;
+
+                // Update camera to follow player
+                const cameraOffset = new THREE.Vector3(0, 120, 80); // Keep original camera offset
+                camera.position.copy(player.position).add(cameraOffset);
+                camera.lookAt(player.position); // Always look at current player position
+
+                // Update playerPos for saving
+                playerInventory.playerPos.x = player.position.x;
+                playerInventory.playerPos.y = player.position.y;
+                playerInventory.playerPos.z = player.position.z;
+            }
+
+            // Creature lifespan management
             wildCreatureMeshes = wildCreatureMeshes.filter(creatureMesh => {
                 const data = creatureMesh.userData.data;
                 const elapsedSeconds = (currentTime - data.spawnTime) / 1000;
@@ -1019,23 +1255,75 @@
                 return true;
             });
 
+            // Handle active crafts completion
+            activeCrafts = activeCrafts.filter(craft => {
+                const timeElapsed = (currentTime - craft.startTime) / 1000;
+                if (timeElapsed >= craft.duration) {
+                    playerInventory.items[craft.kitName] = (playerInventory.items[craft.kitName] || 0) + 1;
+                    showMessage(`Crafted ${craft.name}! Added to your inventory.`, 2000);
+                    updateUI();
+                    return false;
+                }
+                return true;
+            });
+            updateActiveCraftsDisplay();
+
+            // Update placement ghost mesh position and color
             if (currentGameState === GAME_STATE.PLACEMENT && placementGhostMesh) {
                 raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObject(scene.children.find(c => c instanceof THREE.Mesh && c.geometry instanceof THREE.PlaneGeometry), true); // Intersect with ground plane
-                if (intersects.length > 0) {
-                    placementGhostMesh.position.copy(intersects[0].point);
-                    placementGroundIntersection = intersects[0].point; // Store intersection point
-                    // Adjust ghost mesh y-position based on its type
+                // Intersect with ground planes only
+                const groundIntersects = raycaster.intersectObjects(scene.children.filter(c => c instanceof THREE.Mesh && c.geometry instanceof THREE.PlaneGeometry), true);
+                
+                let isValidPlacement = false;
+                if (groundIntersects.length > 0) {
+                    placementGroundIntersection = groundIntersects[0].point;
+                    
+                    const snapSize = 5;
+                    placementGroundIntersection.x = Math.round(placementGroundIntersection.x / snapSize) * snapSize;
+                    placementGroundIntersection.z = Math.round(placementGroundIntersection.z / snapSize) * snapSize;
+
+                    // Check bounds & proximity to other objects
+                    const playerProximityBuffer = 5;
+                    const tooCloseToPlayer = placementGroundIntersection.distanceTo(player.position) < playerProximityBuffer;
+
+                    if (!tooCloseToPlayer && Math.abs(placementGroundIntersection.x) < MAP_SIZE / 2 - 5 && Math.abs(placementGroundIntersection.z) < MAP_SIZE / 2 - 5) {
+                        const checkRadius = 5;
+                        isValidPlacement = true;
+                        
+                        const objectsToCheck = [...activePlacedBuildingMeshes, ...activeTreeMeshes, ...activeStoneMeshes];
+                        if (traderModel) objectsToCheck.push(traderModel);
+
+                        for (const obj of objectsToCheck) {
+                            let effectiveRadius = checkRadius;
+                            if (obj.userData.gameType === 'building') effectiveRadius = 10;
+                            if (obj.userData.gameType === 'tree') effectiveRadius = 7;
+                            if (obj.userData.gameType === 'stone') effectiveRadius = 3;
+
+                            if (placementGroundIntersection.distanceTo(obj.position) < effectiveRadius) {
+                                isValidPlacement = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    placementGhostMesh.position.copy(placementGroundIntersection);
                     if (placementItemData.name === "Campfire") {
                          placementGhostMesh.position.y = 0.3;
                     } else if (placementItemData.name === "Small House") {
-                        placementGhostMesh.position.y = 0; // Base of house
+                        placementGhostMesh.position.y = 0;
                     } else if (placementItemData.name === "Stone Wall" || placementItemData.name === "Wooden Fence") {
-                        placementGhostMesh.position.y = 0; // Base of walls/fences
+                        placementGhostMesh.position.y = 0;
                     } else {
-                        placementGhostMesh.position.y = 0.05; // Slightly above ground
+                        placementGhostMesh.position.y = 0.05;
                     }
+                } else {
+                    placementGhostMesh.position.y = -1000; // Move off screen if no ground intersection
+                    isValidPlacement = false;
                 }
+
+                placementGhostMesh.material.color.set(isValidPlacement ? 0x00FF00 : 0xFF0000); // Green/Red feedback
+                placementGhostMesh.material.opacity = 0.5;
+                confirmPlacementButton.disabled = !isValidPlacement;
             }
 
             renderer.render(scene, camera);
@@ -1047,48 +1335,71 @@
         }
 
         // --- Input Handling ---
-        let isDragging = false;
+        let isDraggingCamera = false; // Separate flag for camera drag
         let previousMouseX, previousMouseY;
 
         function onPointerDown(event) {
-            if (event.target !== canvas && event.target.tagName !== 'CANVAS') return;
-            isDragging = true;
-            previousMouseX = event.clientX || event.touches[0].clientX;
-            previousMouseY = event.clientY || event.touches[0].clientY;
+            event.preventDefault(); // Prevent default touch actions (like scrolling, zooming)
+            const targetElement = event.target;
+            if (targetElement.closest('#joystickBase')) {
+                // Joystick will handle its own pointerdown
+                return;
+            }
+
+            // Only allow camera drag if not in a UI panel and not placement mode
+            if (currentGameState === GAME_STATE.EXPLORE) {
+                isDraggingCamera = true;
+                previousMouseX = event.clientX || event.touches[0].clientX;
+                previousMouseY = event.clientY || event.touches[0].clientY;
+            }
         }
 
         function onPointerMove(event) {
+            event.preventDefault(); // Prevent default
             const currentX = event.clientX || event.touches[0].clientX;
             const currentY = event.clientY || event.touches[0].clientY;
             mouse.x = (currentX / window.innerWidth) * 2 - 1;
-            mouse.y = -(currentY / window.innerHeight) * 2 + 1;
+            mouse.y = -(currentY / window.innerHeight) * 2 + 1; // Update global mouse coords for raycaster
 
-            if (isDragging && currentGameState === GAME_STATE.EXPLORE) {
+            if (isDraggingCamera && currentGameState === GAME_STATE.EXPLORE) {
                 const deltaX = currentX - previousMouseX;
                 const deltaY = currentY - previousMouseY;
                 const rotationSpeed = 0.005;
                 const verticalPanSpeed = 0.5;
 
+                const relativeCameraPos = camera.position.clone().sub(player.position);
                 const angleX = deltaX * rotationSpeed;
-                const oldX = camera.position.x;
-                const oldZ = camera.position.z;
-                camera.position.x = oldX * Math.cos(angleX) - oldZ * Math.sin(angleX);
-                camera.position.z = oldX * Math.sin(angleX) + oldZ * Math.cos(angleX);
-                camera.position.y = Math.max(20, Math.min(200, camera.position.y - deltaY * verticalPanSpeed));
+                const currentAngle = Math.atan2(relativeCameraPos.x, relativeCameraPos.z);
+                const newAngle = currentAngle - angleX;
+                const distanceXY = Math.sqrt(relativeCameraPos.x * relativeCameraPos.x + relativeCameraPos.z * relativeCameraPos.z);
+                
+                relativeCameraPos.x = distanceXY * Math.sin(newAngle);
+                relativeCameraPos.z = distanceXY * Math.cos(newAngle);
+
+                relativeCameraPos.y = Math.max(20, Math.min(200, relativeCameraPos.y + deltaY * verticalPanSpeed));
+
+                camera.position.copy(player.position).add(relativeCameraPos);
                 camera.lookAt(player.position);
+                
                 previousMouseX = currentX;
                 previousMouseY = currentY;
             }
         }
 
-        function onPointerUp() {
-            isDragging = false;
+        function onPointerUp(event) {
+            event.preventDefault(); // Prevent default
+            isDraggingCamera = false;
         }
 
         function onCanvasClick(event) {
+            // Check if it was a drag or a click originating from UI
             const currentX = event.clientX || (event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientX : 0);
             const currentY = event.clientY || (event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientY : 0);
-            if (isDragging && (Math.abs(currentX - previousMouseX) > 5 || Math.abs(currentY - previousMouseY) > 5)) {
+            if (isDraggingCamera && (Math.abs(currentX - previousMouseX) > 5 || Math.abs(currentY - previousMouseY) > 5)) {
+                return;
+            }
+            if (event.target.closest('.ui-panel') || event.target.closest('#topBar') || event.target.closest('#joystickBase') || event.target.closest('#activeCrafts')) {
+                // Click was on a UI element, not the game world
                 return;
             }
 
@@ -1098,12 +1409,12 @@
             }
 
             if (currentGameState === GAME_STATE.PLACEMENT) {
-                if (placementGhostMesh && placementGroundIntersection) {
-                    confirmPlacement(); // Place item on click
+                if (placementGhostMesh && confirmPlacementButton.disabled === false) {
+                    confirmPlacement();
                 } else {
-                    showMessage("Cannot place here. Click on valid ground.", 2000);
+                    showMessage("Cannot place here. Move ghost to a valid spot.", 2000);
                 }
-                return; // Consume click for placement mode
+                return;
             }
 
             if (currentGameState === GAME_STATE.EXPLORE) {
@@ -1113,6 +1424,7 @@
 
                 const allWorldGroups = [...wildCreatureMeshes, ...activeTreeMeshes, ...activeStoneMeshes, ...activePlacedBuildingMeshes];
                 if (traderModel) allWorldGroups.push(traderModel);
+                allWorldGroups.push(player); // Player can be clicked too
                 
                 const intersects = raycaster.intersectObjects(allWorldGroups, true);
 
@@ -1150,12 +1462,85 @@
                                 showMessage("Welcome to the Trader! Buy and sell here.", 1500);
                                 showTraderPanel();
                                 break;
+                            case 'player':
+                                showMessage("That's you!", 1000);
+                                break;
                             default:
                                 break;
                         }
                     }
+                } else {
+                    // Clicked on empty ground
+                    showMessage("Nothing here to interact with.", 1000); // Optional feedback
                 }
             }
+        }
+
+        // Joystick Control Functions
+        function onJoystickDown(event) {
+            event.preventDefault();
+            joystickActive = true;
+            joystickHandle.classList.add('active');
+            // Initial position based on touch/mouse
+            const rect = joystickBase.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const clientX = event.clientX || event.touches[0].clientX;
+            const clientY = event.clientY || event.touches[0].clientY;
+            
+            let deltaX = clientX - centerX;
+            let deltaY = clientY - centerY;
+
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (distance > joystickRadius) {
+                const angle = Math.atan2(deltaY, deltaX);
+                deltaX = joystickRadius * Math.cos(angle);
+                deltaY = joystickRadius * Math.sin(angle);
+            }
+            joystickHandle.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            moveDirection.set(deltaX, 0, deltaY).normalize();
+
+            if (currentGameState !== GAME_STATE.EXPLORE) { // Stop movement if UI is open
+                moveDirection.set(0,0,0);
+            }
+        }
+
+        function onJoystickMove(event) {
+            event.preventDefault();
+            if (!joystickActive) return;
+
+            const rect = joystickBase.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            const clientX = event.clientX || event.touches[0].clientX;
+            const clientY = event.clientY || event.touches[0].clientY;
+
+            let deltaX = clientX - centerX;
+            let deltaY = clientY - centerY;
+
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (distance > joystickRadius) {
+                const angle = Math.atan2(deltaY, deltaX);
+                deltaX = joystickRadius * Math.cos(angle);
+                deltaY = joystickRadius * Math.sin(angle);
+            }
+
+            joystickHandle.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+
+            moveDirection.set(deltaX, 0, deltaY).normalize();
+
+            if (currentGameState !== GAME_STATE.EXPLORE) {
+                moveDirection.set(0,0,0);
+            }
+        }
+
+        function onJoystickUp(event) {
+            event.preventDefault();
+            joystickActive = false;
+            joystickHandle.classList.remove('active');
+            joystickHandle.style.transform = `translate(0, 0)`; // Reset handle to center
+            moveDirection.set(0, 0, 0); // Stop player movement
         }
 
         function setupEventListeners() {
@@ -1165,6 +1550,12 @@
             canvas.addEventListener('pointerup', onPointerUp);
             canvas.addEventListener('pointerleave', onPointerUp);
             canvas.addEventListener('click', onCanvasClick);
+
+            // Joystick event listeners (use pointer events for universal touch/mouse)
+            joystickBase.addEventListener('pointerdown', onJoystickDown);
+            joystickBase.addEventListener('pointermove', onJoystickMove);
+            joystickBase.addEventListener('pointerup', onJoystickUp);
+            joystickBase.addEventListener('pointerleave', onJoystickUp);
 
             document.getElementById('mainMenuButton').addEventListener('click', () => toggleUIPanel(mainMenuPanel, GAME_STATE.MENU));
             document.getElementById('closeMainMenuButton').addEventListener('click', () => toggleUIPanel(mainMenuPanel, GAME_STATE.EXPLORE));
@@ -1214,22 +1605,40 @@
 
         // --- UI Update Functions ---
         function updateUI() {
-            playerGoldElem.textContent = playerInventory.gold;
+            playerGoldElem.textContent = playerInventory.gold; // Update gold in inventory/trader panels
             traderGoldElem.textContent = playerInventory.gold;
             updateInventoryList();
             updateTraderLists();
             updateCraftingRecipes();
             updateArenaCreatureList();
             updateActiveCraftsDisplay();
+            updatePlayerHud(); // Update new player HUD
+        }
+
+        function updatePlayerHud() {
+            playerHpElem.textContent = `${playerInventory.stats.health.toFixed(0)}/${playerInventory.stats.maxHealth}`;
+            playerXpElem.textContent = playerInventory.stats.xp.toFixed(0);
+            playerHungerElem.textContent = `${playerInventory.stats.hunger.toFixed(0)}/${playerInventory.stats.maxHunger}`;
+            playerThirstElem.textContent = `${playerInventory.stats.thirst.toFixed(0)}/${playerInventory.stats.maxThirst}`;
+            playerGoldHudElem.textContent = playerInventory.gold.toFixed(0);
         }
 
         function updateActiveCraftsDisplay() {
             activeCraftsList.innerHTML = '';
-            // For this version, active crafts are instant, so this list is just a placeholder.
-            // In a real idle crafting system, this would show items in progress.
-            const li = document.createElement('li');
-            li.textContent = "No active crafts (instant)";
-            activeCraftsList.appendChild(li);
+            if (activeCrafts.length === 0) {
+                const li = document.createElement('li');
+                li.textContent = "No active crafts.";
+                activeCraftsList.appendChild(li);
+                return;
+            }
+
+            const currentTime = Date.now();
+            activeCrafts.forEach(craft => {
+                const timeRemaining = Math.max(0, craft.duration - ((currentTime - craft.startTime) / 1000));
+                const li = document.createElement('li');
+                li.textContent = `${craft.name}: ${timeRemaining.toFixed(0)}s remaining`;
+                activeCraftsList.appendChild(li);
+            });
         }
 
         function showCreaturePanel(creatureData) {
@@ -1268,7 +1677,7 @@
                         placeButton.classList.add('ui-button');
                         placeButton.textContent = `Place ${item.replace(' Kit', '')}`;
                         placeButton.style.marginLeft = '10px';
-                        placeButton.onclick = () => enterPlacementMode(item.replace(' Kit', ''), item); // Pass item name and kit name
+                        placeButton.onclick = () => enterPlacementMode(item.replace(' Kit', ''), item);
                         li.appendChild(placeButton);
                     }
                     inventoryListElem.appendChild(li);
@@ -1339,7 +1748,10 @@
                 const li = document.createElement('div');
                 li.classList.add('item-entry');
                 let requiresText = Object.entries(recipe.requires).map(([item, amount]) => `${item} x${amount}`).join(', ');
-                li.innerHTML = `<strong>${recipe.name}</strong><br>Requires: ${requiresText}<br><em>${recipe.description}</em>`;
+                li.innerHTML = `<strong>${recipe.name}</strong><br>Requires: ${requiresText}`;
+                if (ITEM_DEFINITIONS[recipe.result.kitName]) {
+                     li.innerHTML += `<br>Craft Time: ${ITEM_DEFINITIONS[recipe.result.kitName].craftTime}s`;
+                }
 
                 const craftButton = document.createElement('button');
                 craftButton.classList.add('ui-button');
@@ -1369,6 +1781,9 @@
             if (!selectedCreature) return;
             if (playerInventory.items["Berry"] > 0) {
                 playerInventory.items["Berry"]--;
+                // Restore some hunger/thirst by consuming berry
+                playerInventory.stats.hunger = Math.min(playerInventory.stats.maxHunger, playerInventory.stats.hunger + 10);
+                playerInventory.stats.thirst = Math.min(playerInventory.stats.maxThirst, playerInventory.stats.thirst + 10);
                 showMessage(`Used a Berry. You have ${playerInventory.items["Berry"]} left.`, 1500);
                 if (selectedCreature.affinity === 'likes_berry') {
                     showMessage(`${selectedCreature.type} glows green! It likes the berry!`, 2500);
@@ -1411,11 +1826,11 @@
             if (tamingBarProgress >= 100) {
                 completeTaming();
             } else if (tamingBarProgress > 75) {
-                 tameBar.style.background = `linear-gradient(to right, ${G_MEDIUM_GREY}, ${G_LIGHT_GREY})`;
+                 tameBar.style.background = `linear-gradient(to right, #00FF00, #AAFF00)`; // Green
             } else if (tamingBarProgress > 50) {
-                 tameBar.style.background = `linear-gradient(to right, ${G_DARK_GREY}, ${G_MEDIUM_GREY})`;
+                 tameBar.style.background = `linear-gradient(to right, #DDDD00, #FFFF00)`; // Yellow
             } else {
-                 tameBar.style.background = `linear-gradient(to right, ${G_DARK_GREY}, ${G_DARK_GREY})`;
+                 tameBar.style.background = `linear-gradient(to right, ${G_DARK_GREY}, ${G_DARK_GREY})`; // Dark Grey
             }
         }
 
@@ -1474,12 +1889,24 @@
                     break;
                 }
             }
+            const itemDef = ITEM_DEFINITIONS[recipe.result.kitName];
+            if (!itemDef || !itemDef.craftTime) {
+                showMessage("Crafting recipe data incomplete!", 2000);
+                return;
+            }
+
             if (canCraft) {
                 for (const reqItem in recipe.requires) {
                     playerInventory.items[reqItem] -= recipe.requires[reqItem];
                 }
-                playerInventory.items[recipe.result.name + ' Kit'] = (playerInventory.items[recipe.result.name + ' Kit'] || 0) + 1;
-                showMessage(`Crafted a ${recipe.name} Kit! Now enter placement mode to build.`, 2500);
+                activeCrafts.push({
+                    id: THREE.MathUtils.generateUUID(),
+                    name: recipe.name,
+                    kitName: recipe.result.kitName,
+                    startTime: Date.now(),
+                    duration: itemDef.craftTime
+                });
+                showMessage(`Started crafting ${recipe.name}! Check 'Active Crafts'.`, 2500);
                 updateUI();
             } else {
                 showMessage("Not enough resources to craft this!", 2000);
@@ -1488,7 +1915,7 @@
 
         function chopTree(treeObject) {
             if (playerInventory.items["Axe"] <= 0) {
-                showMessage("You need an Axe to chop trees!", 2000);
+                showMessage("You need an Axe to chop trees! Check the Trader.", 2000);
                 return;
             }
             const woodGained = getRandomInt(5, 15);
@@ -1502,7 +1929,7 @@
 
         function mineStone(stoneObject) {
             if (playerInventory.items["Pickaxe"] <= 0) {
-                showMessage("You need a Pickaxe to mine stones!", 2000);
+                showMessage("You need a Pickaxe to mine stones! Check the Trader.", 2000);
                 return;
             }
             const stoneGained = getRandomInt(3, 8);
@@ -1519,12 +1946,12 @@
                 showMessage(`You don't have a ${kitName} to place!`, 2000);
                 return;
             }
-            toggleUIPanel(document.getElementById('inventoryPanel'), GAME_STATE.PLACEMENT); // Hide inventory, enter placement
+            toggleUIPanel(document.getElementById('inventoryPanel'), GAME_STATE.PLACEMENT);
             placementMode = true;
             placementItemData = { name: itemName, kitName: kitName };
 
             placementGhostMesh = createBuildingModel(itemName);
-            placementGhostMesh.material = new THREE.MeshBasicMaterial({ color: G_WHITE, transparent: true, opacity: 0.5 });
+            placementGhostMesh.material = new THREE.MeshBasicMaterial({ color: 0x00FF00, transparent: true, opacity: 0.5 });
             scene.add(placementGhostMesh);
 
             placementControls.classList.remove('hidden');
@@ -1532,8 +1959,8 @@
         }
 
         function confirmPlacement() {
-            if (!placementMode || !placementGhostMesh || !placementGroundIntersection) {
-                showMessage("No item to place or invalid location.", 2000);
+            if (!placementMode || !placementGhostMesh || !placementGroundIntersection || confirmPlacementButton.disabled) {
+                showMessage("Invalid placement location or no item selected.", 2000);
                 return;
             }
             const buildingType = placementItemData.name;
@@ -1541,7 +1968,7 @@
 
             if (playerInventory.items[kitName] > 0) {
                 const finalBuilding = createBuildingModel(buildingType);
-                finalBuilding.position.copy(placementGhostMesh.position); // Use ghost's final position
+                finalBuilding.position.copy(placementGhostMesh.position);
                 finalBuilding.userData.gameType = 'building';
                 finalBuilding.userData.data = {
                     id: THREE.MathUtils.generateUUID(),
@@ -1576,7 +2003,7 @@
             placementGroundIntersection = null;
             placementControls.classList.add('hidden');
             currentGameState = GAME_STATE.EXPLORE;
-            showMessage("Placement cancelled.", 1500); // Only show if explicitly cancelled
+            showMessage("Placement cancelled.", 1500);
         }
 
         function startArenaBattle(playerCreature) {
@@ -1600,8 +2027,9 @@
                     enemyCreature.currentHp = 0;
                     logBattleMessage(`${enemyCreature.type} defeated! Your ${playerCreature.type} wins!`);
                     playerInventory.gold += 50;
+                    playerInventory.stats.xp += 20;
                     playerCreature.currentHp = playerCreature.stats.hp;
-                    showMessage(`You won the battle and gained 50 gold! Your ${playerCreature.type} is fully healed.`, 3000);
+                    showMessage(`You won the battle and gained 50 gold & 20 XP! Your ${playerCreature.type} is fully healed.`, 3000);
                     updateUI(); clearInterval(battleInterval);
                     logBattleMessage(`Battle finished! Click 'Fight Next Opponent' for another challenge.`);
                     return;
@@ -1633,12 +2061,12 @@
             if ("geolocation" in navigator) {
                 if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
                 gpsStatusElement.textContent = "Requesting GPS permission...";
-                gpsStatusElement.style.color = '#DDDD00'; // Yellow for requesting
+                gpsStatusElement.style.color = '#DDDD00';
                 gpsWatchId = navigator.geolocation.watchPosition(
                     (position) => {
                         const currentCoords = { latitude: position.coords.latitude, longitude: position.coords.longitude };
                         gpsStatusElement.textContent = `GPS Active: Lat ${currentCoords.latitude.toFixed(4)}, Lon ${currentCoords.longitude.toFixed(4)} (Acc: ${position.coords.accuracy.toFixed(1)}m)`;
-                        gpsStatusElement.style.color = '#00DD00'; // Green for active
+                        gpsStatusElement.style.color = '#00DD00';
                         if (!lastKnownGeoCoords) {
                             lastKnownGeoCoords = currentCoords;
                             if (!initialCreaturesSpawned) {
@@ -1664,7 +2092,7 @@
                             default: errorMessage = `GPS Error: ${error.message}.`;
                         }
                         gpsStatusElement.textContent = errorMessage;
-                        gpsStatusElement.style.color = '#DD0000'; // Red for error
+                        gpsStatusElement.style.color = '#DD0000';
                         console.error("Geolocation error:", error);
                         if (error.code === error.PERMISSION_DENIED) {
                              showMessage("GPS permission denied. Real-world movement features disabled.", 5000);
@@ -1697,7 +2125,16 @@
 
         function saveGame() {
             try {
-                const saveData = { playerInventory: playerInventory, worldObjects: worldObjects };
+                const saveData = {
+                    playerInventory: {
+                        gold: playerInventory.gold,
+                        items: playerInventory.items,
+                        creatures: playerInventory.creatures,
+                        stats: playerInventory.stats,
+                        playerPos: playerInventory.playerPos
+                    },
+                    worldObjects: worldObjects
+                };
                 localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
                 showMessage("Game saved!", 1000);
             } catch (e) {
@@ -1711,12 +2148,40 @@
                 const savedData = localStorage.getItem(SAVE_KEY);
                 if (savedData) {
                     const data = JSON.parse(savedData);
-                    playerInventory = data.playerInventory || { gold: 0, items: {}, creatures: [] };
+                    playerInventory = data.playerInventory || {};
+                    playerInventory.items = playerInventory.items || {};
+                    playerInventory.creatures = playerInventory.creatures || [];
+                    playerInventory.stats = playerInventory.stats || {};
+                    playerInventory.playerPos = playerInventory.playerPos || { x: 0, y: 1, z: 0 };
+
                     worldObjects = data.worldObjects || { placedBuildings: [] };
+                    
+                    // Initialize new default stats if not present in old saves
+                    playerInventory.stats.health = playerInventory.stats.health !== undefined ? playerInventory.stats.health : 100;
+                    playerInventory.stats.maxHealth = playerInventory.stats.maxHealth !== undefined ? playerInventory.stats.maxHealth : 100;
+                    playerInventory.stats.xp = playerInventory.stats.xp !== undefined ? playerInventory.stats.xp : 0;
+                    playerInventory.stats.level = playerInventory.stats.level !== undefined ? playerInventory.stats.level : 1;
+                    playerInventory.stats.hunger = playerInventory.stats.hunger !== undefined ? playerInventory.stats.hunger : 100;
+                    playerInventory.stats.maxHunger = playerInventory.stats.maxHunger !== undefined ? playerInventory.stats.maxHunger : 100;
+                    playerInventory.stats.thirst = playerInventory.stats.thirst !== undefined ? playerInventory.stats.thirst : 100;
+                    playerInventory.stats.maxThirst = playerInventory.stats.maxThirst !== undefined ? playerInventory.stats.maxThirst : 100;
+
+                    // Ensure player's 3D object position is set from loaded data
+                    player.position.set(playerInventory.playerPos.x, playerInventory.playerPos.y, playerInventory.playerPos.z);
+                    // Also update camera to follow immediately
+                    const cameraOffset = new THREE.Vector3(0, 120, 80);
+                    camera.position.copy(player.position).add(cameraOffset);
+                    camera.lookAt(player.position);
+
+                    // Ensure basic items for starting if inventory is empty (for new players or corrupted saves)
                     if (Object.keys(playerInventory.items).length === 0 || playerInventory.items["Berry"] === undefined) {
                         playerInventory.items["Berry"] = 10;
                     }
                     if (playerInventory.gold === 0) { playerInventory.gold = 200; }
+                    if (playerInventory.items["Axe"] === undefined) playerInventory.items["Axe"] = 0;
+                    if (playerInventory.items["Pickaxe"] === undefined) playerInventory.items["Pickaxe"] = 0;
+
+
                     showMessage("Game loaded!", 1500);
                 } else {
                     resetGameData();
@@ -1733,9 +2198,18 @@
             playerInventory = {
                 gold: 200,
                 items: { "Berry": 10, "Axe": 0, "Pickaxe": 0, "Wood": 0, "Stone": 0 },
-                creatures: []
+                creatures: [],
+                stats: {
+                    health: 100, maxHealth: 100, xp: 0, level: 1,
+                    hunger: 100, maxHunger: 100, thirst: 100, maxThirst: 100
+                },
+                playerPos: { x: 0, y: 1, z: 0 } // Reset player position
             };
             worldObjects = { placedBuildings: [] };
+            activeCrafts = [];
+            
+            // Reset player's 3D object position to initial
+            player.position.set(0, 1, 0);
         }
 
         // --- Start the game ---
