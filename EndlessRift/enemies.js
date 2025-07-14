@@ -1,8 +1,8 @@
-// enemies.js
+// enemies.js (Updated)
 
-// Import necessary functions and the player object
-import { player } from './player.js'; 
-import { createXpOrb, fireEnemyProjectile, createImpactParticles, spawnDamageNumber } from './attacks_skills.js'; // Ensure spawnDamageNumber is also imported
+import { camera, gameState, safeHouse, triggerScreenShake } from './systemsmanager.js';
+import { createXpOrb, fireEnemyProjectile, createImpactParticles } from './attacks_skills.js';
+import { player } from './player.js';
 
 const enemyPath = new Path2D('M-12,0 Q-10,-15 0,-15 Q10,-15 12,0 L8,-5 L5,5 L0,0 L-5,5 L-8,-5 Z');
 const largeEnemyPath = new Path2D('M-20,0 L0,-30 L20,0 L15,10 L0,20 L-15,10 Z');
@@ -29,25 +29,19 @@ const ENEMY_ARCHETYPES = {
     }
 };
 
-// Pass enemiesArray, camera, world, gameTime as parameters
-function spawnEnemy(enemiesArray, camera, world, gameTime) {
+function spawnEnemy(enemies) {
     const side = Math.floor(Math.random() * 4);
     let x, y;
     const buffer = 50;
-    // Spawn relative to camera, but ensure within world bounds
     switch (side) {
         case 0: x = camera.x + Math.random() * camera.width; y = camera.y - buffer; break;
         case 1: x = camera.x + camera.width + buffer; y = camera.y + Math.random() * camera.height; break;
         case 2: x = camera.x + Math.random() * camera.width; y = camera.y + camera.height + buffer; break;
         case 3: x = camera.x - buffer; y = camera.y + Math.random() * camera.height; break;
     }
-    // Clamp to world boundaries just in case
-    x = Math.max(0, Math.min(world.width, x));
-    y = Math.max(0, Math.min(world.height, y));
-
 
     let typeToSpawn = 'basic';
-    const gameTimeSeconds = gameTime / 1000;
+    const gameTimeSeconds = gameState.gameTime / 1000;
 
     if (gameTimeSeconds > 30) {
         if (Math.random() < 0.4) typeToSpawn = 'skirmisher';
@@ -69,7 +63,7 @@ function spawnEnemy(enemiesArray, camera, world, gameTime) {
     const archetype = ENEMY_ARCHETYPES[typeToSpawn];
     const healthModifier = 1 + (gameTimeSeconds / 60) * 0.1;
 
-    enemiesArray.push({
+    enemies.push({
         x, y,
         health: archetype.health * healthModifier,
         maxHealth: archetype.health * healthModifier,
@@ -95,13 +89,12 @@ function spawnEnemy(enemiesArray, camera, world, gameTime) {
         isDying: false,
         deathTimer: 0,
         deathDuration: 300,
-        particlesSpawned: false, // Flag to ensure particles are spawned only once on death
+        particlesSpawned: false,
     });
 }
 
-// Pass enemiesArray, playerObj, showLevelUpOptionsCallback, gainXPCallback, camera, safeHouse, fireEnemyProjectileCallback, createXpOrbCallback, createImpactParticlesCallback, gameTime, gameState (for isRunning) as parameters
-function updateEnemies(deltaTime, enemiesArray, playerObj, showLevelUpOptionsCallback, gainXPCallback, camera, safeHouse, fireEnemyProjectileCallback, createXpOrbCallback, createImpactParticlesCallback, gameTime, gameState) {
-    const activeEnemies = enemiesArray.filter(e => {
+function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback, gainXPCallback) {
+    const activeEnemies = enemies.filter(e => {
         // Only update enemies that are within a reasonable range of the camera
         // This is a form of frustum culling to reduce update workload
         const cullBuffer = 100; // Extra buffer around screen
@@ -114,36 +107,31 @@ function updateEnemies(deltaTime, enemiesArray, playerObj, showLevelUpOptionsCal
     activeEnemies.forEach((e) => {
         if (e.isDying) {
             e.deathTimer -= deltaTime;
-            if (!e.particlesSpawned) { // Spawn particles once when death animation starts
-                createImpactParticlesCallback(e.x, e.y, 20, 'enemy_death', e.color);
-                e.particlesSpawned = true;
-            }
             if (e.deathTimer <= 0) {
-                e.markedForDeletion = true; // Mark for removal from the array
+                e.markedForDeletion = true;
             }
-            return; // Skip movement and attack logic for dying enemies
+            return;
         }
 
         const angleToPlayer = Math.atan2(playerObj.y - e.y, playerObj.x - e.x);
         let currentSpeed = e.speed * e.speedMultiplier;
 
         if (e.slowTimer > 0) {
-            currentSpeed *= (1 - player.skills.frostNova.slowAmount); // Apply slow effect
+            currentSpeed *= (1 - player.skills.frostNova.slowAmount);
             e.slowTimer -= deltaTime;
         }
 
         let nextX = e.x + Math.cos(angleToPlayer) * currentSpeed;
         let nextY = e.y + Math.sin(angleToPlayer) * currentSpeed;
 
-        if (safeHouse && safeHouse.active) { // Check if safeHouse exists and is active
+        if (safeHouse.active) {
             const dx_safeHouse = nextX - safeHouse.x;
             const dy_safeHouse = nextY - safeHouse.y;
             const distToSafeHouseCenter = Math.hypot(dx_safeHouse, dy_safeHouse);
             const safeZoneOuterBoundary = safeHouse.radius + (e.width / 2);
 
             if (distToSafeHouseCenter < safeZoneOuterBoundary) {
-                // If enemy is moving into or within safe zone, try to push it out
-                if (distToSafeHouseCenter === 0) { // Avoid division by zero if exactly at center
+                if (distToSafeHouseCenter === 0) {
                     nextX = safeHouse.x + Math.random() * 2 - 1;
                     nextY = safeHouse.y + Math.random() * 2 - 1;
                 } else {
@@ -157,34 +145,31 @@ function updateEnemies(deltaTime, enemiesArray, playerObj, showLevelUpOptionsCal
         e.x = nextX;
         e.y = nextY;
 
-        // Enemy shooting logic
-        if (e.canShoot && gameTime - e.lastShotTime > e.fireRate) { 
+        if (e.canShoot && gameState.gameTime - e.lastShotTime > e.fireRate) {
             const distToPlayer = Math.hypot(playerObj.x - e.x, playerObj.y - e.y);
-            if (distToPlayer < camera.width / 2 + 100) { // Only shoot if player is somewhat nearby
-                fireEnemyProjectileCallback(e, playerObj.x, playerObj.y); // Use passed callback
-                e.lastShotTime = gameTime;
+            if (distToPlayer < camera.width / 2 + 100) {
+                fireEnemyProjectile(e, playerObj.x, playerObj.y);
+                e.lastShotTime = gameState.gameTime;
             }
         }
 
-        // Enemy health check and death handling
         if (e.health <= 0 && !e.isDying) {
-            playerObj.kills++; // Increment player kills
-            if (playerObj.lifeSteal > 0) { // Apply life steal
+            playerObj.kills++;
+            if (playerObj.lifeSteal > 0) {
                 playerObj.health = Math.min(playerObj.maxHealth, playerObj.health + playerObj.lifeSteal);
             }
-            createXpOrbCallback(e.x, e.y, e.xpValue, playerObj, gainXPCallback); // Use passed callback
+            createXpOrb(e.x, e.y, e.xpValue, playerObj, gainXPCallback);
 
-            // Special level up trigger for level 20+ based on kills
-            if (gameState && gameState.isRunning && playerObj.level >= 20 && playerObj.kills >= playerObj.nextKillUpgrade) { // Ensure gameState is checked
-                showLevelUpOptionsCallback(); // Use passed callback
-                playerObj.nextKillUpgrade += 1000; // Increase next target
+            if (gameState.isRunning && playerObj.level >= 20 && playerObj.kills >= playerObj.nextKillUpgrade) {
+                showLevelUpOptionsCallback();
+                playerObj.nextKillUpgrade += 1000;
             }
-            e.isDying = true; // Start death animation/timer
+            e.isDying = true;
             e.deathTimer = e.deathDuration;
-            e.speed = 0; // Stop enemy movement on death
+            e.speed = 0;
+            createImpactParticles(e.x, e.y, 20, 'enemy_death', e.color);
         }
 
-        // Apply shock damage over time
         if (e.shockTimer > 0) {
             e.health -= e.shockDamage * (deltaTime / 1000);
             e.shockTimer -= deltaTime;
@@ -192,11 +177,10 @@ function updateEnemies(deltaTime, enemiesArray, playerObj, showLevelUpOptionsCal
     });
 }
 
-// Pass ctx, playerObj, gameTime, camera as parameters
-function drawEnemy(e, ctx, playerObj, gameTime, camera) {
-    if (e.markedForDeletion && !e.isDying) return; // Don't draw if marked for deletion and not in dying phase
+function drawEnemy(e, ctx, playerObj) {
+    if (e.markedForDeletion && !e.isDying) return;
 
-    // Only draw enemies if they are on screen or close to it (frustum culling for drawing)
+    // Only draw enemies if they are on screen or close to it
     const drawBuffer = 50;
     if (e.x + e.width / 2 < camera.x - drawBuffer ||
         e.x - e.width / 2 > camera.x + camera.width + drawBuffer ||
@@ -207,26 +191,25 @@ function drawEnemy(e, ctx, playerObj, gameTime, camera) {
 
     ctx.save();
     ctx.translate(e.x, e.y);
-    ctx.rotate(Math.atan2(playerObj.y - e.y, playerObj.x - e.x) + Math.PI / 2); // Rotate to face player
+    ctx.rotate(Math.atan2(playerObj.y - e.y, playerObj.x - e.x) + Math.PI / 2);
 
     if (e.isDying) {
-        ctx.globalAlpha = e.deathTimer / e.deathDuration; // Fade out during death animation
+        ctx.globalAlpha = e.deathTimer / e.deathDuration;
     }
 
-    const HIT_FLASH_DURATION = 100; // milliseconds
-    const isFlashing = e.lastHitTime && (gameTime - e.lastHitTime < HIT_FLASH_DURATION);
+    const HIT_FLASH_DURATION = 100;
+    const isFlashing = e.lastHitTime && (gameState.gameTime - e.lastHitTime < HIT_FLASH_DURATION);
     if (isFlashing) {
-        const flashAlpha = (HIT_FLASH_DURATION - (gameTime - e.lastHitTime)) / HIT_FLASH_DURATION;
-        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.7})`; // White flash
-        ctx.fillRect(-e.width / 2, -e.width / 2, e.width, e.width); // Draw a square flash over enemy
+        const flashAlpha = (HIT_FLASH_DURATION - (gameState.gameTime - e.lastHitTime)) / HIT_FLASH_DURATION;
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.7})`;
+        ctx.fillRect(-e.width / 2, -e.height / 2, e.width, e.height);
     }
 
     if (e.slowTimer > 0) {
-        ctx.fillStyle = `rgba(135, 206, 250, 0.7)`; // Blue overlay for slow effect
-        ctx.fill(e.path); // Fill the enemy's path with the overlay
+        ctx.fillStyle = `rgba(135, 206, 250, 0.7)`;
+        ctx.fill(e.path);
     }
 
-    // Draw enemy body
     ctx.fillStyle = e.color;
     ctx.fill(e.path);
     ctx.strokeStyle = e.accentColor;
@@ -236,5 +219,4 @@ function drawEnemy(e, ctx, playerObj, gameTime, camera) {
     ctx.restore();
 }
 
-// Export all functions that are used by other modules
 export { enemyPath, spawnEnemy, updateEnemies, drawEnemy };
