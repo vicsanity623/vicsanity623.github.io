@@ -175,7 +175,7 @@ function updateEnemies(deltaTime, enemiesArray, playerObj, showLevelUpOptionsCal
             createXpOrbCallback(e.x, e.y, e.xpValue, playerObj, gainXPCallback); // Use passed callback
 
             // Special level up trigger for level 20+ based on kills
-            if (gameState.isRunning && playerObj.level >= 20 && playerObj.kills >= playerObj.nextKillUpgrade) { 
+            if (gameState && gameState.isRunning && playerObj.level >= 20 && playerObj.kills >= playerObj.nextKillUpgrade) { // Ensure gameState is checked
                 showLevelUpOptionsCallback(); // Use passed callback
                 playerObj.nextKillUpgrade += 1000; // Increase next target
             }
