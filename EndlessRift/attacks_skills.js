@@ -372,7 +372,7 @@ function updateLightning(deltaTime, player, enemiesArray, gameTime, lightningBol
                     update(dt) { this.life -= dt; return this.life <= 0; }
                 });
                 screenFlashObject.value = 0.2; // Use passed screenFlashObject
-                createImpactParticlesCallback(closestTarget.x, closestTarget.y, 3, 'spark', 'var(--lightning-color)'); // Use passed callback
+                createImpactParticlesCallback(closestTarget.x, closestTarget.y, 3, 'spark', 'var(--lightning-color')); // Use passed callback
                 closestTarget.health -= skill.damage;
                 spawnDamageNumberCallback(closestTarget.x, closestTarget.y, Math.round(skill.damage), false); // Use passed callback
                 closestTarget.lastHitTime = gameTime;
@@ -485,7 +485,7 @@ function updateBlackHole(deltaTime, player, enemiesArray, gameTime, visualEffect
 }
 
 // New: Projectile drawing logic (moved from systemsmanager.js)
-// Assumes 'ctx' (the canvas rendering context) is available in the scope where drawProjectile is called.
+// CRITICAL FIX: Explicitly accept 'ctx' as a parameter.
 function drawProjectile(p, ctx) { 
     if (p.isPlayerProjectile) {
         if (p.isPlayerSkillProjectile) {
@@ -539,7 +539,7 @@ function drawProjectile(p, ctx) {
 }
 
 // New: XP Orb drawing logic (moved from systemsmanager.js)
-// Assumes 'ctx' is available.
+// CRITICAL FIX: Explicitly accept 'ctx' as a parameter.
 function drawXpOrb(o, ctx, playerObj, gameTime) { 
     ctx.save();
     ctx.fillStyle = 'var(--highlight-xp-orb-color)';
@@ -569,13 +569,13 @@ function drawXpOrb(o, ctx, playerObj, gameTime) {
 }
 
 // New: Damage Number drawing logic (moved from systemsmanager.js)
-// Assumes 'ctx' is available.
+// CRITICAL FIX: Explicitly accept 'ctx' as a parameter.
 function drawDamageNumber(dn, ctx) { 
     ctx.save(); ctx.translate(dn.x, dn.y); ctx.globalAlpha = dn.alpha; ctx.fillStyle = dn.isCrit ? 'yellow' : 'var(--damage-text-color)'; ctx.font = dn.isCrit ? 'bold 24px Roboto' : 'bold 18px Roboto'; ctx.textAlign = 'center'; ctx.shadowColor = '#000'; ctx.shadowBlur = 5; ctx.fillText(dn.value, 0, 0); ctx.restore();
 }
 
 // New: Lightning Bolt drawing logic (moved from systemsmanager.js)
-// Assumes 'ctx' is available.
+// CRITICAL FIX: Explicitly accept 'ctx' as a parameter.
 function drawLightningBolt(bolt, ctx, createImpactParticlesCallback) { 
     ctx.save();
     ctx.globalAlpha = Math.min(1, bolt.life / 100);
@@ -606,7 +606,7 @@ function drawLightningBolt(bolt, ctx, createImpactParticlesCallback) {
 }
 
 // New: Volcano drawing logic (moved from systemsmanager.js)
-// Assumes 'ctx' is available.
+// CRITICAL FIX: Explicitly accept 'ctx' as a parameter.
 function drawVolcano(v, ctx, gameTime, createImpactParticlesCallback) { 
     ctx.save();
     const lifePercent = v.life / v.burnDuration;
@@ -637,7 +637,7 @@ function drawVolcano(v, ctx, gameTime, createImpactParticlesCallback) {
 }
 
 // New: Soul Vortex drawing logic (moved from systemsmanager.js)
-// Assumes 'ctx' is available.
+// CRITICAL FIX: Explicitly accept 'ctx' as a parameter.
 function drawSoulVortex(playerObj, ctx) { 
     const shield = playerObj.abilities.orbitingShield;
     if (!shield.enabled) return;
