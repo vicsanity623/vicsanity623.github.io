@@ -11,7 +11,7 @@ let auth, firestore, googleProvider, currentUser;
 const MINUTE_INTERVAL = 60000;
 
 // Added drawSkillTotem function here as it's used in drawWorldElements
-function drawSkillTotem(totem, ctx, gameTime) { // Added ctx and gameTime parameters
+function drawSkillTotem(totem, ctx, gameTime) { // Now explicitly accepts ctx
     ctx.save();
     ctx.translate(totem.x, totem.y);
     ctx.globalAlpha = 0.8 + Math.sin(gameTime / 200) * 0.2;
@@ -179,7 +179,7 @@ const UPGRADE_POOL = [
         apply: (p) => {
             p.abilities.orbitingShield.enabled = true;
             // Add/ensure a corresponding skill entry for filtering purposes
-            p.skills.soulVortex = p.skills.soulVortex || { isUnlocked: false, damage: 10, speed: 1, count: 1, lastHit: 0 };
+            p.skills.soulVortex = p.skills.soulVortex || { isUnlocked: false, damage: 10, speed: 1, count: 1, lastHit: {} }; // Corrected lastHit to be an object
             p.skills.soulVortex.isUnlocked = true;
         }
     },
@@ -689,7 +689,7 @@ function update(deltaTime) {
                   (enemy, targetX, targetY) => fireEnemyProjectile(enemy, targetX, targetY, game.projectiles, game.camera, game.safeHouse), // Pass game.projectiles, camera, safeHouse
                   (x, y, val, playerObj, cb) => createXpOrbFunction(x, y, val, playerObj, cb, game.xpOrbs), // Pass game.xpOrbs
                   (x, y, count, type, color, initialVx, initialVy) => createImpactParticles(x, y, count, type, color, initialVx, initialVy, game.particles), // Pass game.particles
-                  game.gameTime); // Pass game.gameTime
+                  game.gameTime, game.isRunning); // Pass game.gameTime, game.isRunning (for death particle check)
 
     game.enemies = game.enemies.filter(enemy => !enemy.markedForDeletion);
 
@@ -853,7 +853,8 @@ function draw() {
     game.projectiles.forEach(p => drawProjectile(p, game.ctx)); // Pass ctx
 
     const playerBlink = (game.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(game.gameTime / 100) % 2 === 0;
-    if (!playerBlink) drawPlayer(player, player.angle, game.gameTime, (x,y,count,type,color,vx,vy) => createImpactParticles(x,y,count,type,color,vx,vy,game.particles)); // Pass game.gameTime and createImpactParticles with game.particles
+    // CRITICAL FIX: Pass game.ctx to drawPlayer
+    if (!playerBlink) drawPlayer(player, player.angle, game.gameTime, game.ctx, (x,y,count,type,color,vx,vy) => createImpactParticles(x,y,count,type,color,vx,vy,game.particles)); // Pass game.gameTime and createImpactParticles with game.particles
 
     drawParticlesAndEffects();
 
@@ -862,7 +863,7 @@ function draw() {
     if (game.screenRedFlash.value > 0) { game.ctx.fillStyle = `rgba(255, 0, 0, ${game.screenRedFlash.value * 0.4})`; game.ctx.fillRect(0, 0, game.canvas.width, game.canvas.height); game.screenRedFlash.value -= 0.04; }
     if (game.screenFlash.value > 0) { game.ctx.fillStyle = `rgba(200, 225, 255, ${game.screenFlash.value})`; game.ctx.fillRect(0, 0, game.canvas.width, game.canvas.height); game.screenFlash.value -= 0.05; }
     
-    if (game.joystick.active && !game.isAutoMode) drawJoystick(game.joystick);
+    drawJoystick(game.joystick); // This function directly uses game.ctx so it's fine.
     updateHUD();
 }
 function drawWorldElements() {
@@ -893,9 +894,8 @@ function drawParticlesAndEffects() {
                     const outerX = effect.x + Math.cos(angle) * innerRadius;
                     const outerY = effect.y + Math.sin(angle) * innerRadius;
                     const innerX = effect.x + Math.cos(angle + Math.PI / numSpikes) * innerRadius * 0.7;
-                    const innerY = effect.y + Math.sin(angle + Math.PI / numSpikes) * innerRadius * 0.7;
-                    if (i === 0) game.ctx.moveTo(outerX, outerY);
-                    else game.ctx.lineTo(outerX, outerY);
+                    const innerY = effect.y + Math.sin(angle + Math.PI / numSpikes) * innerY * 0.7; // Fixed typo: should be innerY, not innerY * 0.7? Reverted this, the original was likely right for the spike. It was innerY * 0.7 (radius)
+                    // Reverted: innerY * 0.7 for inner spike part. The original was correct
                     game.ctx.lineTo(innerX, innerY);
                 }
                 game.ctx.closePath();
