@@ -1,8 +1,6 @@
 // player.js
 
 // Import createImpactParticles for player drawing effect
-// Assuming ctx is made globally available or passed down through chain from systemsmanager
-// For now, it implicitly relies on ctx being a global from systemsmanager.js
 import { createImpactParticles } from './attacks_skills.js'; 
 
 let player = {};
@@ -54,8 +52,8 @@ function initPlayer(world) {
             critExplosion: false
         },
         skills: {
-            lightning: { isUnlocked: false, damage: 5, chains: 1, shockDuration: 0, cooldown: 3000, lastStrike: 0, forkChance: 0 },
-            volcano: { isUnlocked: false, damage: 10, radius: 50, burnDuration: 2000, cooldown: 5000, lastEruption: 0, count: 1 },
+            lightning: { isUnlocked: false, damage: 5, chains: 1, shockDuration: 0, cooldown: 3000, lastStrike: 0, forkChance: 0 }, // Added forkChance default
+            volcano: { isUnlocked: false, damage: 10, radius: 50, burnDuration: 2000, cooldown: 5000, lastEruption: 0, count: 1 }, // Added count default
             frostNova: { isUnlocked: false, damage: 5, radius: 150, slowAmount: 0.5, slowDuration: 2000, cooldown: 6000, lastCast: 0 },
             blackHole: { isUnlocked: false, pullStrength: 0.5, radius: 200, duration: 3000, damage: 2, cooldown: 12000, lastCast: 0 },
             bulletstorm: { isUnlocked: false, damage: 10, speed: 7, fireRate: 300, lastShotTime: 0, color: '#00FFFF', size: 10 },
@@ -220,9 +218,8 @@ function gainXP(amount, showLevelUpOptionsCallback, expandWorldCallback, trigger
 }
 
 // Player drawing logic (moved from systemsmanager.js)
-// Assumes 'ctx' (the canvas rendering context) is available in the scope where drawPlayer is called.
-// In systemsmanager.js, 'game.ctx' is passed to the draw function which then calls drawPlayer.
-function drawPlayer(p, angle, gameTime, createImpactParticlesCallback) {
+// CRITICAL FIX: Explicitly accept 'ctx' as a parameter.
+function drawPlayer(p, angle, gameTime, ctx, createImpactParticlesCallback) {
     // Bobbing animation for player
     const bob = Math.sin(gameTime / 250) * 2;
     ctx.save(); 
