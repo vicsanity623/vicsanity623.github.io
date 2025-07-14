@@ -4,10 +4,7 @@
     --hud-bg: rgba(0, 0, 0, 0.4); --hud-text: #ffffff; --hp-bar: #f44336;  --xp-bar: #4caf50; --modal-bg: #2a2d42;
     --modal-border: #7b84a3; --card-bg: #3a3f5e; --card-hover-bg: #4e547b; --bones-color: rgba(90, 120, 90, 0.3);
     --cracks-color: rgba(120, 50, 180, 0.4);
-    --lightning-color: #9dffff; --volcano-color: #ff8c00; 
-    /* NEW: Safe House specific colors/shadows added here */
-    --safe-house-fill: rgba(161, 232, 232, 0.15);
-    --safe-house-stroke: rgba(209, 250, 250, 0.5);
+    --lightning-color: #9dffff; --volcano-color: #ff8c00; --safe-house-fill: rgba(161, 232, 232, 0.15); --safe-house-stroke: rgba(209, 250, 250, 0.5);
     /* NEW: Modal specific colors/shadows */
     --modal-shadow: rgba(0,0,0,0.9);
     --card-shadow: rgba(0,0,0,0.5);
