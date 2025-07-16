@@ -1,5 +1,5 @@
 // Updated cache name for versioning
-const CACHE_NAME = 'survive-it-cache-v1.7.1';
+const CACHE_NAME = 'survive-it-cache-v1.7.2';
 const urlsToCache = [
 '/',
 'index.html',
