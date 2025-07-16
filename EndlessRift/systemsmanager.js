@@ -102,7 +102,6 @@ class SafeHouse {
     }
 }
 
-// === MODIFICATION: Add new gameState properties for Level Up Timer ===
 let gameState = {
     isRunning: false,
     isAutoMode: false,
@@ -113,13 +112,12 @@ let gameState = {
     saveIntervalId: null,
     animationFrameId: null,
 
-    // NEW: Level Up Timer properties
+    // Level Up Timer properties
     levelUpTimerActive: false,
     levelUpTimerStartTime: 0,
     levelUpTimerDuration: 10000, // 10 seconds in milliseconds
     availableLevelUpOptions: [], // To store the options that were presented
 };
-// === END MODIFICATION ===
 
 let enemies = [], projectiles = [], xpOrbs = [], particles = [], damageNumbers = [], lightningBolts = [], volcanicEruptions = [], visualEffects = [], skillTotems = [];
 let world = { width: 3000, height: 2000 };
@@ -142,7 +140,6 @@ let canvas, ctx, hudElements, menuElements;
 const UPGRADE_POOL = [
     { id: "might", title: "Might", description: (level) => `Increase projectile damage by 5. (Lvl ${level + 1})`, apply: (p) => { p.weapon.damage += 5; } },
     { id: "haste", title: "Haste", description: (level) => `Attack 15% faster. (Lvl ${level + 1})`, apply: (p) => { p.weapon.cooldown *= 0.85; } },
-    // CONSOLIDATED: Multi-Shot
     { id: "multishot", title: "Multi-Shot", description: (level) => `Fire ${level + 1} more projectile(s).`, apply: (p) => { p.weapon.count += 1; } },
     { id: "impact", title: "Greater Impact", description: (level) => `Increase projectile size by 25%. (Lvl ${level + 1})`, apply: (p) => { p.weapon.size.h *= 1.25; } },
     { id: "pierce", title: "Piercing Shots", description: (level) => `Projectiles pierce ${level + 1} more enemies.`, apply: (p) => { p.weapon.pierce += 1; } },
@@ -159,7 +156,6 @@ const UPGRADE_POOL = [
     { id: "lethality", title: "Lethality", description: (level) => `+10% chance to deal double damage. (Lvl ${level + 1})`, apply: (p) => { p.weapon.critChance += 0.1; } },
     { id: "overwhelm", title: "Overwhelm", description: (level) => `Critical hits do +50% more damage. (Lvl ${level+1})`, apply: (p) => { p.weapon.critDamage += 0.5; } },
     { id: "crit_explosion", title: "Critical Mass", description: () => `Critical hits cause a small explosion.`, apply: (p) => { p.abilities.critExplosion = true; } },
-    // CORRECTED: Soul Vortex base skill - Initializes orbitingShield object
     {
         id: "soul_vortex",
         title: "Soul Vortex",
@@ -167,9 +163,9 @@ const UPGRADE_POOL = [
         apply: (p) => {
             p.abilities.orbitingShield = {
                 enabled: true,
-                damage: 10, // Base damage for the soul (adjust as desired)
-                speed: 1,   // Base speed (adjust as desired)
-                count: 1,   // Starts with one soul
+                damage: 10,
+                speed: 1,
+                count: 1,
             };
         }
     },
@@ -180,7 +176,6 @@ const UPGRADE_POOL = [
     { id: "life_steal", title: "Life Steal", description: (level) => `Heal for ${level+1} HP on kill.`, apply: (p) => { p.lifeSteal += 1; } },
     { id: "demolition", title: "Demolition", description: () => `Projectiles explode on their first hit.`, apply: (p) => { p.weapon.explodesOnImpact = true; } },
 
-    // CONSOLIDATED: Vortex Damage
     {
         id: "vortex_damage",
         title: "Vortex: Sharpen",
@@ -189,20 +184,18 @@ const UPGRADE_POOL = [
         description: (level) => `Soul Vortex deals +5 damage. (Lvl ${level + 1})`,
         apply: (p) => { p.abilities.orbitingShield.damage += 5; }
     },
-    // CONSOLIDATED: Vortex Speed
     {
         id: "vortex_speed",
         title: "Vortex: Accelerate",
-        maxLevel: 50, // Increased max level for more impactful scaling
+        maxLevel: 50,
         skill: "soul_vortex",
-        description: (level) => `Soul Vortex orbits ${Math.round((1.25**(level + 1) - 1) * 100)}% faster. (Lvl ${level + 1})`, // Dynamic percentage description
+        description: (level) => `Soul Vortex orbits ${Math.round((1.25**(level + 1) - 1) * 100)}% faster. (Lvl ${level + 1})`,
         apply: (p) => { p.abilities.orbitingShield.speed *= 1.25; }
     },
-    // CONSOLIDATED: Vortex Twin Souls
     {
         id: "vortex_twin",
         title: "Vortex: Twin Souls",
-        maxLevel: 20, // Allows for second, third, fourth, and fifth soul
+        maxLevel: 20,
         skill: "soul_vortex",
         description: (level) => {
             const currentTotalSouls = (p.abilities.orbitingShield ? p.abilities.orbitingShield.count : 1) + 1;
@@ -210,12 +203,10 @@ const UPGRADE_POOL = [
             return `Gain a ${ordinal} orbiting soul (Total: ${currentTotalSouls}).`;
         },
         apply: (p) => {
-            // Ensure count is initialized (it should be by soul_vortex now)
             p.abilities.orbitingShield.count = (p.abilities.orbitingShield.count || 1) + 1;
         }
     },
 
-    // Lightning skills (assuming their initialization is handled elsewhere if they're not in the base abilities)
     { id: "lightning_damage", title: "Lightning: High Voltage", maxLevel: 500, skill: "lightning", description: (level) => `Increase lightning damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.damage += 5; } },
     { id: "lightning_chains", title: "Lightning: Chain Lightning", maxLevel: 400, skill: "lightning", description: (level) => `Lightning chains to ${level + 2} enemies.`, apply: (p) => { p.skills.lightning.chains += 1; } },
     { id: "lightning_cooldown", title: "Lightning: Storm Caller", maxLevel: 300, skill: "lightning", description: () => `Lightning strikes more frequently.`, apply: (p) => { p.skills.lightning.cooldown *= 0.8; } },
@@ -493,9 +484,7 @@ function gameOver() {
     hudElements.gameOverScreen.classList.add('visible');
 }
 
-// === NEW FUNCTION: Auto-select a random power-up if time runs out ===
 function autoSelectRandomUpgrade() {
-    // Only proceed if timer is active and there are options
     if (!gameState.levelUpTimerActive || gameState.availableLevelUpOptions.length === 0) {
         return;
     }
@@ -504,10 +493,8 @@ function autoSelectRandomUpgrade() {
     const randomIndex = Math.floor(Math.random() * gameState.availableLevelUpOptions.length);
     const chosenUpgrade = gameState.availableLevelUpOptions[randomIndex];
 
-    // Use the existing selectUpgrade function to apply the effect and resume the game
     selectUpgrade(chosenUpgrade);
 }
-// === END NEW FUNCTION ===
 
 function getAiMovementVector() {
     const DANGER_RADIUS = 150; const XP_PRIORITY_RADIUS = 200;
@@ -548,15 +535,23 @@ function getAiMovementVector() {
         }
     }
 
-    if (closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) target = closestOrb;
-    if (closestTotem && (!player.skills[closestTotem.skill].isUnlocked || (player.abilities.orbitingShield && player.abilities.orbitingShield.enabled && closestTotem.skill === 'soul_vortex'))) target = closestTotem; // Added a check for player.abilities.orbitingShield existence
-    // Corrected target selection for Vortex related upgrades.
+    // Refined logic for totem prioritization
     if (closestTotem && !player.skills[closestTotem.skill].isUnlocked) {
-        target = closestTotem;
-    } else if (closestTotem && closestTotem.skill === 'soul_vortex' && player.abilities.orbitingShield && player.abilities.orbitingShield.enabled && player.abilities.orbitingShield.count < UPGRADE_POOL.find(u => u.id === 'vortex_twin')?.maxLevel) {
-        // If Soul Vortex is unlocked and we haven't reached max twin souls, prioritize picking up the totem again (if it increases count)
-        // This is a complex condition; simplify or ensure your totem logic explicitly supports re-picking up for upgrades.
-        // For now, I'm keeping your original logic for soul_vortex, just making sure `orbitingShield` is checked for existence.
+        target = closestTotem; // Always prioritize unlocking new skills
+    } else if (closestTotem && (closestTotem.skill === 'soul_vortex' || UPGRADE_POOL.find(u => u.id === closestTotem.skill)?.skill === 'soul_vortex')) {
+        // If it's a Soul Vortex related totem and the base is unlocked,
+        // we might still want to pick it up for upgrades (like 'vortex_twin').
+        // This assumes that re-picking up the totem increases the count.
+        // This is a more nuanced game design choice, but keeping original intent.
+        if (player.abilities.orbitingShield && player.abilities.orbitingShield.enabled && player.abilities.orbitingShield.count < (UPGRADE_POOL.find(u => u.id === 'vortex_twin')?.maxLevel || Infinity)) {
+            // If soul vortex is unlocked and not at max souls for twin, prioritize it
+            target = closestTotem;
+        } else if (!player.abilities.orbitingShield?.enabled && closestTotem.skill === 'soul_vortex') {
+            // If soul vortex is not enabled, but it is the soul vortex totem, prioritize it
+             target = closestTotem;
+        }
+    } else if (closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) {
+        target = closestOrb; // Prioritize XP orbs if close
     }
 
 
@@ -579,32 +574,31 @@ function getAiMovementVector() {
 }
 
 function gameLoop(timestamp) {
-    // === MODIFICATION: Handle timer when game is paused ===
-    if (!gameState.isRunning) {
+    // CRITICAL FIX: Always update gameTime, regardless of gameState.isRunning
+    const deltaTime = timestamp - gameState.lastTime;
+    gameState.lastTime = timestamp;
+    gameState.gameTime += deltaTime;
+
+    if (!gameState.isRunning) { // If game is paused
         if (gameState.levelUpTimerActive) {
             const elapsedTime = gameState.gameTime - gameState.levelUpTimerStartTime;
             if (elapsedTime >= gameState.levelUpTimerDuration) {
                 autoSelectRandomUpgrade();
             }
-            updateLevelUpTimerDisplay(); // Update the DOM timer here
+            // updateHUD() will be called by draw() to update the DOM timer display
         }
-        gameState.animationFrameId = requestAnimationFrame(gameLoop); // Keep looping even if paused to update timer
-        return; // Do not proceed with game updates if paused
+        draw(); // Always draw when paused to show UI elements like the timer
+        gameState.animationFrameId = requestAnimationFrame(gameLoop);
+        return; // Stop further game updates if paused
     }
-    // === END MODIFICATION ===
 
-    const deltaTime = timestamp - gameState.lastTime;
-    gameState.lastTime = timestamp;
-    gameState.gameTime += deltaTime;
+    // Only run game update logic if game is running
     update(deltaTime);
     draw();
     gameState.animationFrameId = requestAnimationFrame(gameLoop);
 }
 
 function update(deltaTime) {
-    // Removed the `if (!gameState.isRunning) return;` from the top,
-    // as it's now handled by the gameLoop function for timer updates.
-
     let dx = 0, dy = 0;
     if (gameState.isAutoMode) {
         const aiVector = getAiMovementVector();
@@ -695,8 +689,6 @@ function update(deltaTime) {
         gameState.enemySpawnTimer = 0;
         gameState.enemySpawnInterval = Math.max(100, gameState.enemySpawnInterval * 0.985);
     }
-    // Corrected gainXP callback to properly integrate with the checkLevelUp logic below
-    // This matches the signature expected by player.js's gainXP function
     const gainXPCallback = (amount) => gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), triggerNova, camera);
     updateEnemies(deltaTime, enemies, player, showLevelUpOptions, gainXPCallback);
 
@@ -744,7 +736,7 @@ function handleCollisions() {
                 }
 
                 const isCrit = Math.random() < (p.critChance || 0);
-                const damage = isCrit ? Math.round(p.damage * (p.critDamage || 2)) : p.damage; // Fixed typo here
+                const damage = isCrit ? Math.round(p.damage * (p.critDamage || 2)) : p.damage;
                 
                 e.health -= damage;
                 e.lastHitTime = gameState.gameTime;
@@ -773,14 +765,14 @@ function handleCollisions() {
     });
 
     enemies.forEach(e => {
-        if (e.isDying) return; // Don't deal damage or re-trigger death if already dying
+        if (e.isDying) return;
 
         const enemyCollisionRadius = (e.width / 2 || 20);
         const playerCollisionRadius = player.size;
 
         if (Math.hypot(e.x - player.x, e.y - player.y) < enemyCollisionRadius + playerCollisionRadius) {
             takeDamage(e.damage || 10, true);
-            e.health = -1; // Mark for immediate "death" in next update loop iteration
+            e.health = -1;
             e.isDying = true;
             e.deathTimer = 300;
             e.deathDuration = 300;
@@ -789,12 +781,11 @@ function handleCollisions() {
     });
 
     const shield = player.abilities.orbitingShield;
-    if (shield && shield.enabled) { // Added null check for shield
+    if (shield && shield.enabled) {
         const count = shield.count || 1;
         for(let i=0; i<count; i++) {
             const angle = shield.angle + (i * (Math.PI * 2 / count));
-            // Ensure shield.cooldown and shield.lastHitTime are initialized if they don't exist
-            shield.cooldown = shield.cooldown || 200; // Default cooldown for orbiting shield hits
+            shield.cooldown = shield.cooldown || 200;
             if(!shield.lastHitTime) shield.lastHitTime = {};
 
             if (gameState.gameTime - (shield.lastHitTime[i] || 0) > shield.cooldown) {
@@ -871,10 +862,7 @@ function draw() {
     if (joystick.active && !gameState.isAutoMode) drawJoystick();
     updateHUD();
 
-    // === REMOVED: Canvas-based timer drawing is no longer needed ===
-    // if (!gameState.isRunning && gameState.levelUpTimerActive) {
-    //     drawLevelUpTimer(ctx);
-    // }
+    // The canvas-based timer drawing is no longer needed as it's now a DOM element updated in updateHUD
 }
 
 function drawWorldElements() {
@@ -1017,13 +1005,11 @@ function drawParticlesAndEffects() {
         ctx.save();
         ctx.globalAlpha = p.alpha;
         ctx.fillStyle = p.color;
-        // Reduce shadowBlur on particles for performance, especially when many
-        // Only apply shadow to larger/more important particles or remove it
-        if (p.currentSize > 3 && p.type !== 'spark') { // Example: only blur larger non-spark particles
+        if (p.currentSize > 3 && p.type !== 'spark') {
            ctx.shadowColor = p.color;
-           ctx.shadowBlur = p.currentSize * 1.5; // Slightly less intense blur
+           ctx.shadowBlur = p.currentSize * 1.5;
         } else {
-           ctx.shadowBlur = 0; // No blur for small or spark particles
+           ctx.shadowBlur = 0;
         }
 
         ctx.beginPath();
@@ -1056,26 +1042,26 @@ function drawPlayer(p, angle) {
 
     // Layer 1: Strongest Outer Aura
     ctx.beginPath();
-    ctx.arc(0, 0, 30 + auraPulse * 4, -1.9, 1.9); // Larger pulse range
+    ctx.arc(0, 0, 30 + auraPulse * 4, -1.9, 1.9);
     ctx.strokeStyle = 'var(--player-aura-color)';
-    ctx.lineWidth = 8 + auraPulse * 4; // Thicker line
+    ctx.lineWidth = 8 + auraPulse * 4;
     ctx.shadowColor = 'var(--player-aura-color)';
-    ctx.shadowBlur = 35 + auraPulse * 20; // More intense glow
+    ctx.shadowBlur = 35 + auraPulse * 20;
     ctx.stroke();
 
     // Layer 2: Brighter Inner Aura
     ctx.beginPath();
     ctx.arc(0, 0, 25 + auraPulse * 2.5, -1.9, 1.9);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; // Even brighter white/cyan inner glow
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.lineWidth = 4 + auraPulse * 1.5;
     ctx.shadowColor = 'rgba(255, 255, 255, 1)';
     ctx.shadowBlur = 20 + auraPulse * 10;
     ctx.stroke();
 
-    ctx.shadowBlur = 0; // Reset shadow for body drawing
+    ctx.shadowBlur = 0;
 
     // Player Body (fill with a strong color)
-    ctx.fillStyle = '#00FFFF'; // Bright cyan for the player's body
+    ctx.fillStyle = '#00FFFF';
     ctx.beginPath();
     ctx.moveTo(0, -17);
     ctx.lineTo(8, 15);
@@ -1088,16 +1074,15 @@ function drawPlayer(p, angle) {
     ctx.fillStyle = '#000';
     ctx.fillRect(-5, -15, 10, 10);
 
-    ctx.restore(); // Restore after player rotation
+    ctx.restore();
 
-    // Constantly emit small particles from the player (less frequent for performance)
-    if (Math.random() < 0.1) { // Adjusted frequency to 10%
+    if (Math.random() < 0.1) {
         createImpactParticles(p.x + (Math.random() - 0.5) * 10,
                               p.y + (Math.random() - 0.5) * 10,
                               1, 'spark', 'var(--player-aura-color)');
     }
 
-    ctx.restore(); // Restore after player translation
+    ctx.restore();
 }
 function drawProjectile(p, ctx) {
     if (p.isPlayerProjectile) {
@@ -1342,7 +1327,7 @@ function updateHUD() {
         hyperBeamButton.style.display = 'none';
     }
 
-    // === MODIFICATION: Update the DOM element for the level-up timer ===
+    // Update the DOM element for the level-up timer
     if (hudElements.levelUpTimerDisplay && gameState.levelUpTimerActive) {
         const elapsedTime = gameState.gameTime - gameState.levelUpTimerStartTime;
         const timeLeft = Math.max(0, (gameState.levelUpTimerDuration - elapsedTime) / 1000);
@@ -1354,38 +1339,27 @@ function updateHUD() {
             hudElements.levelUpTimerDisplay.classList.remove('low-time');
         }
     } else if (hudElements.levelUpTimerDisplay) {
-        hudElements.levelUpTimerDisplay.textContent = ''; // Clear text if timer not active
-        hudElements.levelUpTimerDisplay.classList.remove('low-time'); // Ensure class is removed
+        hudElements.levelUpTimerDisplay.textContent = '';
+        hudElements.levelUpTimerDisplay.classList.remove('low-time');
     }
-    // === END MODIFICATION ===
 }
 
-// === NEW FUNCTION: Centralized function to update the DOM timer display ===
-function updateLevelUpTimerDisplay() {
-    // This function will be called from gameLoop when paused to update the visual timer.
-    // The actual update logic is now contained within updateHUD for consistency.
-    // This empty function serves as a placeholder / reminder that the update logic
-    // is being handled by the updateHUD function which runs on every draw.
-    // No need to duplicate the logic here.
-}
-// === END NEW FUNCTION ===
+// REMOVED: This helper function is no longer needed as its logic is directly in updateHUD.
+// function updateLevelUpTimerDisplay() { }
 
 
 function formatTime(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; }
 
-// === MODIFICATION: Updated showLevelUpOptions to start timer and store options ===
 function showLevelUpOptions() {
-    gameState.isRunning = false; // Pause game
+    gameState.isRunning = false;
     hudElements.xpFill.style.width = `${(player.xp / player.xpForNextLevel) * 100}%`;
     const availablePool = UPGRADE_POOL.filter(upgrade => {
         const currentLevel = player.upgradeLevels[upgrade.id] || 0;
         const maxLevel = upgrade.maxLevel || Infinity;
         if (currentLevel >= maxLevel) return false;
-        // Check if the base skill is unlocked for dependent upgrades
         if (upgrade.skill && !player.skills[upgrade.skill]?.isUnlocked && upgrade.id !== upgrade.skill) {
             return false;
         }
-        // Special condition for soul_vortex related upgrades: make sure orbitingShield is defined and enabled
         if ((upgrade.skill === "soul_vortex" || upgrade.id.startsWith("vortex_")) && (!player.abilities.orbitingShield || !player.abilities.orbitingShield.enabled) && upgrade.id !== "soul_vortex") {
             return false;
         }
@@ -1394,7 +1368,6 @@ function showLevelUpOptions() {
     const choices = availablePool.sort(() => 0.5 - Math.random()).slice(0, 6);
     hudElements.upgradeOptions.innerHTML = '';
 
-    // Store choices for auto-selection
     gameState.availableLevelUpOptions = choices;
 
     choices.forEach(upgrade => {
@@ -1402,41 +1375,32 @@ function showLevelUpOptions() {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
         card.innerHTML = `<h3>${upgrade.title}</h3><p>${upgrade.description(currentLevel)}</p>`;
-        // When a player clicks, call selectUpgrade and cancel the timer
         card.onclick = () => selectUpgrade(upgrade);
         hudElements.upgradeOptions.appendChild(card);
     });
     hudElements.levelUpWindow.classList.add('visible');
 
-    // Start the countdown timer
     gameState.levelUpTimerStartTime = gameState.gameTime;
     gameState.levelUpTimerActive = true;
     updateHUD(); // Call updateHUD to immediately show the timer and its initial value
 }
-// === END MODIFICATION ===
 
 window.showLevelUpOptions = showLevelUpOptions;
 
-// === MODIFICATION: Updated selectUpgrade to cancel the timer ===
 function selectUpgrade(upgrade) {
     const currentLevel = player.upgradeLevels[upgrade.id] || 0;
     player.upgradeLevels[upgrade.id] = currentLevel + 1;
     upgrade.apply(player);
     hudElements.levelUpWindow.classList.remove('visible');
     gameState.isRunning = true;
-    gameState.lastTime = performance.now(); // Reset lastTime to avoid large deltaTime after pause
+    gameState.lastTime = performance.now();
     
-    // Stop and reset the timer
     gameState.levelUpTimerActive = false;
-    gameState.availableLevelUpOptions = []; // Clear stored options
+    gameState.availableLevelUpOptions = [];
     updateHUD(); // Call updateHUD to clear the timer display immediately
-    // No need to requestAnimationFrame(gameLoop) here, it's continuously requested in gameLoop itself.
 }
-// === END MODIFICATION ===
 
-// === REMOVED: The canvas-based drawLevelUpTimer is no longer needed ===
-// function drawLevelUpTimer(ctx) { ... }
-// === END REMOVED ===
+// REMOVED: The canvas-based drawLevelUpTimer is no longer needed.
 
 export {
     gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles,
