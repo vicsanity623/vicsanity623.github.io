@@ -104,6 +104,33 @@ canvas { background: transparent; image-rendering: auto; width: 100%; height: 10
     text-shadow: 4px 4px #000; /* Stronger text shadow */
 }
 
+/* NEW: Style for the level-up timer display */
+#level-up-timer-display {
+    font-family: 'Press Start 2P', cursive; /* Match modal title font */
+    font-size: 40px; /* Large and prominent */
+    color: var(--player-aura-color); /* Matches title color, stands out */
+    text-shadow: 4px 4px #000; /* Strong shadow for readability */
+    margin-bottom: 20px; /* Space between timer and upgrade cards */
+    display: block; /* Ensure it takes full width and centers text */
+    width: 100%;
+    text-align: center;
+    /* Optional: Add a subtle pulse animation */
+    animation: pulseTimer 1s infinite alternate;
+}
+
+/* Animation for the timer pulse */
+@keyframes pulseTimer {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(1.05); opacity: 0.9; }
+}
+
+/* Style for when the timer is low (e.g., last 3 seconds) */
+#level-up-timer-display.low-time {
+    color: yellow; /* Change to yellow for urgency */
+    animation: none; /* Stop the pulse or change it to a faster, more urgent pulse if desired */
+}
+
+
 #upgrade-options {
     display: flex;
     flex-direction: column; /* Default for small screens */
@@ -174,6 +201,9 @@ canvas { background: transparent; image-rendering: auto; width: 100%; height: 10
     }
     .modal h2 {
         font-size: 24px;
+    }
+    #level-up-timer-display { /* Adjust timer size for smaller screens */
+        font-size: 32px;
     }
     .upgrade-card {
         flex: 1 1 100%; /* Make cards take full width on small screens */
