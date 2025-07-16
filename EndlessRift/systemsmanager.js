@@ -112,11 +112,10 @@ let gameState = {
     saveIntervalId: null,
     animationFrameId: null,
 
-    // Level Up Timer properties
     levelUpTimerActive: false,
     levelUpTimerStartTime: 0,
-    levelUpTimerDuration: 10000, // 10 seconds in milliseconds
-    availableLevelUpOptions: [], // To store the options that were presented
+    levelUpTimerDuration: 10000,
+    availableLevelUpOptions: [],
 };
 
 let enemies = [], projectiles = [], xpOrbs = [], particles = [], damageNumbers = [], lightningBolts = [], volcanicEruptions = [], visualEffects = [], skillTotems = [];
@@ -259,7 +258,6 @@ export function initializeApp() {
         level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'),
         hyperBeamButton: document.getElementById('hyperBeamButton'),
         upgradeStatsList: document.getElementById('upgrade-stats-list'),
-        // NEW: Link to the DOM element for the level-up timer display
         levelUpTimerDisplay: document.getElementById('level-up-timer-display'),
     };
 
@@ -496,82 +494,116 @@ function autoSelectRandomUpgrade() {
     selectUpgrade(chosenUpgrade);
 }
 
+// === MODIFIED: getAiMovementVector for smarter AI ===
 function getAiMovementVector() {
-    const DANGER_RADIUS = 150; const XP_PRIORITY_RADIUS = 200;
-    const REPULSION_WEIGHT = 1.5; const ATTRACTION_WEIGHT = 1.0; const TOTEM_WEIGHT = 2.0;
-    let repulsion = { x: 0, y: 0 }; let attraction = { x: 0, y: 0 };
+    const DANGER_RADIUS = 150;
+    const XP_PRIORITY_RADIUS = 200;
+    const REPULSION_WEIGHT = 1.5;
+    const ATTRACT_ENEMY_WEIGHT = 1.0;
+    const ATTRACT_SKILL_TOTEM_WEIGHT = 2.0;
+    const ATTRACT_XP_WEIGHT = 1.0;
+    const ATTRACT_SAFE_ZONE_HIGH = 5.0; // Very strong pull towards safe zone
+    const ATTRACT_SAFE_ZONE_CENTER = 3.0; // Strong pull to center when already inside
+
+    let repulsion = { x: 0, y: 0 };
+    let attraction = { x: 0, y: 0 };
+    let hasPrimaryTarget = false; // Flag to indicate if a high-priority target is set
+
+    // Calculate repulsion from nearby enemies (always active)
     enemies.forEach(enemy => {
         const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
         if (dist < DANGER_RADIUS && dist > 0) {
-            const force = 1 / (dist * dist);
+            const force = 1 / (dist * dist); // Stronger repulsion for closer enemies
             repulsion.x -= (enemy.x - player.x) / dist * force;
             repulsion.y -= (enemy.y - player.y) / dist * force;
         }
     });
+
+    // 1. Safe House Priority (Highest)
+    if (safeHouseInstance && safeHouseInstance.active) {
+        // If player is outside the safe zone, primary goal is to enter
+        if (!safeHouseInstance.isInside(player)) {
+            const distToSH = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
+            if (distToSH > 0) {
+                attraction.x += (safeHouseInstance.x - player.x) / distToSH * ATTRACT_SAFE_ZONE_HIGH;
+                attraction.y += (safeHouseInstance.y - player.y) / distToSH * ATTRACT_SAFE_ZONE_HIGH;
+                hasPrimaryTarget = true;
+            }
+        } else {
+            // If player is inside, prioritize staying near the center to avoid edges
+            const distToSHCenter = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
+            // Only pull if not already very close to the center, to allow some internal movement
+            if (distToSHCenter > safeHouseInstance.radius * 0.1) { // Pull if further than 10% of radius from center
+                attraction.x += (safeHouseInstance.x - player.x) / distToSHCenter * ATTRACT_SAFE_ZONE_CENTER;
+                attraction.y += (safeHouseInstance.y - player.y) / distToSHCenter * ATTRACT_SAFE_ZONE_CENTER;
+                hasPrimaryTarget = true;
+            }
+            // If inside safe zone, AI can still collect XP or target enemies, but the safe zone center pull will always apply.
+        }
+    } else if (safeHouseInstance && !safeHouseInstance.active && safeHouseInstance.respawnTimer > 0) {
+        // Safe house is inactive and respawning. No attraction to it right now.
+        // AI will focus on other objectives.
+    }
+
+
+    // 2. Skill Totem Priority (High, if no overriding Safe Zone need)
+    // Find closest unacquired skill totem or vortex totem that can still be upgraded
+    let closestTotem = null, closestTotemDist = Infinity;
+    skillTotems.forEach(totem => {
+        const dist = Math.hypot(totem.x - player.x, totem.y - player.y);
+        if (dist < closestTotemDist) { closestTotemDist = dist; closestTotem = totem; }
+    });
+
+    if (!hasPrimaryTarget && closestTotem) {
+        const isSkillUnlocked = player.skills[closestTotem.skill]?.isUnlocked;
+        const isVortexSkill = (closestTotem.skill === 'soul_vortex' || UPGRADE_POOL.find(u => u.id === closestTotem.skill)?.skill === 'soul_vortex');
+
+        if (!isSkillUnlocked || (isVortexSkill && player.abilities.orbitingShield && player.abilities.orbitingShield.enabled && player.abilities.orbitingShield.count < (UPGRADE_POOL.find(u => u.id === 'vortex_twin')?.maxLevel || Infinity))) {
+            const distToTotem = Math.hypot(closestTotem.x - player.x, closestTotem.y - player.y);
+            if (distToTotem > 0) {
+                attraction.x += (closestTotem.x - player.x) / distToTotem * ATTRACT_SKILL_TOTEM_WEIGHT;
+                attraction.y += (closestTotem.y - player.y) / distToTotem * ATTRACT_SKILL_TOTEM_WEIGHT;
+                hasPrimaryTarget = true;
+            }
+        }
+    }
+
+    // 3. XP Orb Priority (Medium, if no higher priority target)
     let closestOrb = null, closestOrbDist = Infinity;
     xpOrbs.forEach(orb => {
         const dist = Math.hypot(orb.x - player.x, orb.y - player.y);
         if (dist < closestOrbDist) { closestOrbDist = dist; closestOrb = orb; }
     });
+
+    if (!hasPrimaryTarget && closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) {
+        const distToOrb = Math.hypot(closestOrb.x - player.x, closestOrb.y - player.y);
+        if (distToOrb > 0) {
+            attraction.x += (closestOrb.x - player.x) / distToOrb * ATTRACT_XP_WEIGHT;
+            attraction.y += (closestOrb.y - player.y) / distToOrb * ATTRACT_XP_WEIGHT;
+            hasPrimaryTarget = true;
+        }
+    }
+
+    // 4. Closest Enemy (Default, if no higher priority target)
     let closestEnemy = null, closestEnemyDist = Infinity;
     enemies.forEach(enemy => {
         const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
         if (dist < closestEnemyDist) { closestEnemyDist = dist; closestEnemy = enemy; }
     });
-    let closestTotem = null, closestTotemDist = Infinity;
-    skillTotems.forEach(totem => {
-        const dist = Math.hypot(totem.x - player.x, totem.y - player.y);
-        if(dist < closestTotemDist) { closestTotemDist = dist; closestTotem = totem; }
-    });
 
-    let target = closestEnemy;
-    let targetDist = closestEnemyDist;
-
-    if (safeHouseInstance && !safeHouseInstance.active && safeHouseInstance.respawnTimer > 1) {
-    } else if (safeHouseInstance && safeHouseInstance.active) {
-        if (!safeHouseInstance.isInside(player)) {
-            target = safeHouseInstance;
-            targetDist = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
+    if (!hasPrimaryTarget && closestEnemy) {
+        const distToEnemy = Math.hypot(closestEnemy.x - player.x, closestEnemy.y - player.y);
+         if (distToEnemy > 0) {
+            attraction.x += (closestEnemy.x - player.x) / distToEnemy * ATTRACT_ENEMY_WEIGHT;
+            attraction.y += (closestEnemy.y - player.y) / distToEnemy * ATTRACT_ENEMY_WEIGHT;
         }
     }
 
-    // Refined logic for totem prioritization
-    if (closestTotem && !player.skills[closestTotem.skill].isUnlocked) {
-        target = closestTotem; // Always prioritize unlocking new skills
-    } else if (closestTotem && (closestTotem.skill === 'soul_vortex' || UPGRADE_POOL.find(u => u.id === closestTotem.skill)?.skill === 'soul_vortex')) {
-        // If it's a Soul Vortex related totem and the base is unlocked,
-        // we might still want to pick it up for upgrades (like 'vortex_twin').
-        // This assumes that re-picking up the totem increases the count.
-        // This is a more nuanced game design choice, but keeping original intent.
-        if (player.abilities.orbitingShield && player.abilities.orbitingShield.enabled && player.abilities.orbitingShield.count < (UPGRADE_POOL.find(u => u.id === 'vortex_twin')?.maxLevel || Infinity)) {
-            // If soul vortex is unlocked and not at max souls for twin, prioritize it
-            target = closestTotem;
-        } else if (!player.abilities.orbitingShield?.enabled && closestTotem.skill === 'soul_vortex') {
-            // If soul vortex is not enabled, but it is the soul vortex totem, prioritize it
-             target = closestTotem;
-        }
-    } else if (closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) {
-        target = closestOrb; // Prioritize XP orbs if close
-    }
-
-
-    if (target && target !== closestEnemy) {
-        const dist = Math.hypot(target.x - player.x, target.y - player.y);
-        if (dist > 0) {
-            const weight = (target === closestTotem || target === safeHouseInstance) ? TOTEM_WEIGHT * 2 : ATTRACTION_WEIGHT;
-            attraction.x = (target.x - player.x) / dist * weight;
-            attraction.y = (target.y - player.y) / dist * weight;
-        }
-    } else if (closestEnemy) {
-        const dist = Math.hypot(closestEnemy.x - player.x, closestEnemy.y - player.y);
-         if (dist > 0) {
-            attraction.x = (closestEnemy.x - player.x) / dist * ATTRACTION_WEIGHT;
-            attraction.y = (closestEnemy.y - player.y) / dist * ATTRACTION_WEIGHT;
-        }
-    }
-
+    // Combine all forces: repulsion always applies, attraction depends on priority
     return { x: attraction.x + (repulsion.x * REPULSION_WEIGHT), y: attraction.y + (repulsion.y * REPULSION_WEIGHT) };
 }
+// === END MODIFIED: getAiMovementVector ===
+
 
 function gameLoop(timestamp) {
     // CRITICAL FIX: Always update gameTime, regardless of gameState.isRunning
@@ -585,7 +617,6 @@ function gameLoop(timestamp) {
             if (elapsedTime >= gameState.levelUpTimerDuration) {
                 autoSelectRandomUpgrade();
             }
-            // updateHUD() will be called by draw() to update the DOM timer display
         }
         draw(); // Always draw when paused to show UI elements like the timer
         gameState.animationFrameId = requestAnimationFrame(gameLoop);
@@ -826,7 +857,6 @@ function handleCollisions() {
     });
 }
 function draw() {
-    // Only return if game is not running AND neither game over nor level up window is visible
     if (!gameState.isRunning && !hudElements.gameOverScreen.classList.contains('visible') && !hudElements.levelUpWindow.classList.contains('visible')) {
         return;
     }
@@ -861,8 +891,6 @@ function draw() {
     
     if (joystick.active && !gameState.isAutoMode) drawJoystick();
     updateHUD();
-
-    // The canvas-based timer drawing is no longer needed as it's now a DOM element updated in updateHUD
 }
 
 function drawWorldElements() {
@@ -1327,7 +1355,6 @@ function updateHUD() {
         hyperBeamButton.style.display = 'none';
     }
 
-    // Update the DOM element for the level-up timer
     if (hudElements.levelUpTimerDisplay && gameState.levelUpTimerActive) {
         const elapsedTime = gameState.gameTime - gameState.levelUpTimerStartTime;
         const timeLeft = Math.max(0, (gameState.levelUpTimerDuration - elapsedTime) / 1000);
@@ -1343,10 +1370,6 @@ function updateHUD() {
         hudElements.levelUpTimerDisplay.classList.remove('low-time');
     }
 }
-
-// REMOVED: This helper function is no longer needed as its logic is directly in updateHUD.
-// function updateLevelUpTimerDisplay() { }
-
 
 function formatTime(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; }
 
@@ -1382,7 +1405,7 @@ function showLevelUpOptions() {
 
     gameState.levelUpTimerStartTime = gameState.gameTime;
     gameState.levelUpTimerActive = true;
-    updateHUD(); // Call updateHUD to immediately show the timer and its initial value
+    updateHUD();
 }
 
 window.showLevelUpOptions = showLevelUpOptions;
@@ -1397,10 +1420,8 @@ function selectUpgrade(upgrade) {
     
     gameState.levelUpTimerActive = false;
     gameState.availableLevelUpOptions = [];
-    updateHUD(); // Call updateHUD to clear the timer display immediately
+    updateHUD();
 }
-
-// REMOVED: The canvas-based drawLevelUpTimer is no longer needed.
 
 export {
     gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles,
