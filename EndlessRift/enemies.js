@@ -1,5 +1,3 @@
-// enemies.js (Updated)
-
 import { camera, gameState, safeHouse, triggerScreenShake } from './systemsmanager.js';
 import { createXpOrb, fireEnemyProjectile, createImpactParticles } from './attacks_skills.js';
 import { player } from './player.js'; // Player object is available here
@@ -127,7 +125,7 @@ function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback
         return e.x + e.width / 2 > camera.x - cullBuffer &&
                e.x - e.width / 2 < camera.x + camera.width + cullBuffer &&
                e.y + e.width / 2 > camera.y - cullBuffer &&
-               e.y - e.width / 2 > camera.y + camera.height + cullBuffer; // Corrected: e.y - e.width / 2 should be < camera.y + camera.height + cullBuffer
+               e.y - e.width / 2 < camera.y + camera.height + cullBuffer; // <-- CHANGED THIS LINE (from '>' to '<')
     });
 
     activeEnemies.forEach((e) => {
