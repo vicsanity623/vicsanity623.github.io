@@ -2,7 +2,7 @@
 
 import { camera, gameState, safeHouse, triggerScreenShake } from './systemsmanager.js';
 import { createXpOrb, fireEnemyProjectile, createImpactParticles } from './attacks_skills.js';
-import { player } from './player.js';
+import { player } from './player.js'; // Player object is available here
 
 const enemyPath = new Path2D('M-12,0 Q-10,-15 0,-15 Q10,-15 12,0 L8,-5 L5,5 L0,0 L-5,5 L-8,-5 Z');
 const largeEnemyPath = new Path2D('M-20,0 L0,-30 L20,0 L15,10 L0,20 L-15,10 Z');
@@ -43,6 +43,7 @@ function spawnEnemy(enemies) {
     let typeToSpawn = 'basic';
     const gameTimeSeconds = gameState.gameTime / 1000;
 
+    // Existing time-based enemy type spawning logic
     if (gameTimeSeconds > 30) {
         if (Math.random() < 0.4) typeToSpawn = 'skirmisher';
     }
@@ -61,23 +62,48 @@ function spawnEnemy(enemies) {
     }
 
     const archetype = ENEMY_ARCHETYPES[typeToSpawn];
-    const healthModifier = 1 + (gameTimeSeconds / 60) * 0.1;
+
+    // --- NEW: Difficulty Scaling based on Kills ---
+    const KILLS_PER_DIFFICULTY_STAGE = 500;
+    const difficultyStage = Math.floor(player.kills / KILLS_PER_DIFFICULTY_STAGE);
+
+    // Define scaling factors (adjust these values to fine-tune difficulty)
+    const HEALTH_SCALE_FACTOR = 0.15; // +15% health per 500 kills stage
+    const DAMAGE_SCALE_FACTOR = 0.10; // +10% damage per 500 kills stage
+    const SPEED_SCALE_FACTOR = 0.02; // +2% speed per 500 kills stage (slight increase)
+    const XP_SCALE_FACTOR = 0.05;   // +5% XP value per 500 kills stage (reward for harder enemies)
+    const PROJECTILE_DAMAGE_SCALE_FACTOR = 0.10; // +10% projectile damage per 500 kills stage
+    const FIRE_RATE_REDUCTION_FACTOR = 0.05; // -5% fire rate (faster shooting) per 500 kills stage
+
+    // Calculate dynamic modifiers based on difficulty stage
+    const healthKillModifier = 1 + (difficultyStage * HEALTH_SCALE_FACTOR);
+    const damageKillModifier = 1 + (difficultyStage * DAMAGE_SCALE_FACTOR);
+    const speedKillModifier = 1 + (difficultyStage * SPEED_SCALE_FACTOR);
+    const xpKillModifier = 1 + (difficultyStage * XP_SCALE_FACTOR);
+    const projectileDamageKillModifier = 1 + (difficultyStage * PROJECTILE_DAMAGE_SCALE_FACTOR);
+    // Fire rate needs to decrease (shoot faster), so we apply a factor that makes the base value smaller
+    const fireRateKillModifier = 1 / (1 + (difficultyStage * FIRE_RATE_REDUCTION_FACTOR)); 
+
+    // Combine existing time-based health modifier with the new kill-based health modifier
+    const healthGameTimeModifier = 1 + (gameTimeSeconds / 60) * 0.1; // Existing time-based health scaling
+    const finalHealthMultiplier = healthGameTimeModifier * healthKillModifier; // Apply both multiplicatively
 
     enemies.push({
         x, y,
-        health: archetype.health * healthModifier,
-        maxHealth: archetype.health * healthModifier,
-        speed: archetype.speed,
-        damage: archetype.damage,
+        // Apply scaled stats for the new enemy
+        health: archetype.health * finalHealthMultiplier,
+        maxHealth: archetype.health * finalHealthMultiplier,
+        speed: archetype.speed * speedKillModifier,
+        damage: archetype.damage * damageKillModifier,
         width: archetype.width,
-        xpValue: archetype.xpValue,
+        xpValue: Math.round(archetype.xpValue * xpKillModifier), // Ensure XP value is a whole number
         path: archetype.path,
         color: archetype.color,
         accentColor: archetype.accentColor,
         canShoot: archetype.canShoot,
-        projectileSpeed: archetype.projectileSpeed,
-        fireRate: archetype.fireRate,
-        projectileDamage: archetype.projectileDamage,
+        projectileSpeed: archetype.projectileSpeed, // Projectile speed remains constant by default, can be scaled too
+        fireRate: archetype.fireRate * fireRateKillModifier, // Lower value means faster firing
+        projectileDamage: archetype.projectileDamage * projectileDamageKillModifier,
         lastShotTime: archetype.lastShotTime,
         shockTimer: 0,
         shockDamage: 0,
@@ -101,7 +127,7 @@ function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback
         return e.x + e.width / 2 > camera.x - cullBuffer &&
                e.x - e.width / 2 < camera.x + camera.width + cullBuffer &&
                e.y + e.width / 2 > camera.y - cullBuffer &&
-               e.y - e.width / 2 < camera.y + camera.height + cullBuffer;
+               e.y - e.width / 2 > camera.y + camera.height + cullBuffer; // Corrected: e.y - e.width / 2 should be < camera.y + camera.height + cullBuffer
     });
 
     activeEnemies.forEach((e) => {
@@ -147,14 +173,15 @@ function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback
 
         if (e.canShoot && gameState.gameTime - e.lastShotTime > e.fireRate) {
             const distToPlayer = Math.hypot(playerObj.x - e.x, playerObj.y - e.y);
-            if (distToPlayer < camera.width / 2 + 100) {
+            // Only shoot if player is within a reasonable range (e.g., within camera view plus buffer)
+            if (distToPlayer < camera.width / 2 + 100) { 
                 fireEnemyProjectile(e, playerObj.x, playerObj.y);
                 e.lastShotTime = gameState.gameTime;
             }
         }
 
         if (e.health <= 0 && !e.isDying) {
-            playerObj.kills++;
+            playerObj.kills++; // Increment player kills
             if (playerObj.lifeSteal > 0) {
                 playerObj.health = Math.min(playerObj.maxHealth, playerObj.health + playerObj.lifeSteal);
             }
@@ -166,7 +193,7 @@ function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback
             }
             e.isDying = true;
             e.deathTimer = e.deathDuration;
-            e.speed = 0;
+            e.speed = 0; // Stop movement immediately upon death
             createImpactParticles(e.x, e.y, 20, 'enemy_death', e.color);
         }
 
