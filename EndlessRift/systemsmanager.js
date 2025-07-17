@@ -1,7 +1,8 @@
 // systemsmanager.js
 
 import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js';
-import { enemyPath, spawnEnemy, updateEnemies, drawEnemy } from './enemies.js'; // spawnEnemy will need to accept new parameters
+// Correctly import all necessary functions from enemies.js
+import { enemyPath, spawnEnemy, updateEnemies, drawEnemy } from './enemies.js'; 
 import { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole, fireHyperBeam, drawSoulVortex } from './attacks_skills.js';
 import { initRift, expandWorld, getBackgroundCanvas } from './rift.js';
 
@@ -248,7 +249,7 @@ const UPGRADE_POOL = [
     { id: "hyperBeam_damage", title: "Hyper Beam: Overcharge", maxLevel: 500, skill: "hyperBeam", description: (level) => `Increase Hyper Beam damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.hyperBeam.damage += 50; } },
     { id: "hyperBeam_width", title: "Hyper Beam: Wide Arc", maxLevel: 300, skill: "hyperBeam", description: (level) => `Increase Hyper Beam width. (Lvl ${level + 1})`, apply: (p) => { p.skills.hyperBeam.width += 20; } },
     { id: "hyperBeam_cooldown", title: "HyperBeam: Quick Charge", maxLevel: 300, skill: "hyperBeam", description: () => `Hyper Beam recharges faster.`, apply: (p) => { p.skills.hyperBeam.cooldown *= 0.8; } },
-    { id: "hyperBeam_duration", title: "HyperBeam: Sustained Blast", maxLevel: 200, skill: "hyperBeam", description: () => `Hyper Beam lasts longer.`, apply: (p) => { p.skills.hyperBeam.duration += 200; } },
+    { id: "hyperBeam_duration", title: "Hyper Beam: Sustained Blast", maxLevel: 200, skill: "hyperBeam", description: () => `Hyper Beam lasts longer.`, apply: (p) => { p.skills.hyperBeam.duration += 200; } },
     { id: "hyperBeam_charge", title: "Hyper Beam: Instant Cast", maxLevel: 100, description: () => `Reduces Hyper Beam charging time.`, apply: (p) => { p.skills.hyperBeam.chargingTime = 0; }, once: true },
 ];
 
@@ -486,7 +487,6 @@ function takeDamage(amount, isDirectHit = false) {
         gameOver();
     }
 }
-
 async function startGame(forceNew, loadSource = 'cloud') {
     menuElements.mainMenu.classList.remove('visible'); // Hide main menu
     hudElements.gameContainer.style.visibility = 'visible'; // Show game container
@@ -806,16 +806,16 @@ function update(deltaTime) {
     } else {
         dx = (keys.d ? 1 : 0) - (keys.a ? 1 : 0); dy = (keys.s ? 1 : 0) - (keys.w ? 1 : 0);
     }
-    // Debug for player angle:
-    // if (dx !== 0 || dy !== 0) {
-    //     console.log(`Input: dx=${dx}, dy=${dy}, Calculated Angle: ${player.angle * 180 / Math.PI} deg`);
-    // }
 
     const { closestEnemy, closestDist } = updatePlayer(deltaTime, world, enemies, { dx, dy });
     if (closestEnemy && gameState.gameTime - (player.lastFireTime || 0) > player.weapon.cooldown) {
         fireProjectile(player);
         player.lastFireTime = gameState.gameTime;
     }
+
+    // *** FIX 1: CALL THE updateEnemies FUNCTION ***
+    // This was missing. It ensures all enemies update their position and state each frame.
+    updateEnemies(enemies, player, world, xpOrbs, deltaTime, gameState, spawnDamageNumber, player.lifeSteal, gainXP);
 
     if (screenShake.timer > 0) {
         screenShake.timer -= deltaTime;
@@ -878,8 +878,7 @@ function update(deltaTime) {
             }
         }
     }
-
-    if (player.skills.hyperBeam.isUnlocked) {
+        if (player.skills.hyperBeam.isUnlocked) {
         const skill = player.skills.hyperBeam;
         const isOnCooldown = gameState.gameTime - skill.lastCast < skill.cooldown;
         let shouldFire = false;
@@ -975,7 +974,6 @@ function handleCollisions() {
                 }
 
                 const isCrit = Math.random() < (p.critChance || 0);
-                // FIX: Ensure this line uses p.critDamage, not p.critCritDamage
                 const damage = isCrit ? Math.round(p.damage * (p.critDamage || 2)) : p.damage; 
 
                 e.health -= damage;
@@ -1014,7 +1012,6 @@ function handleCollisions() {
             takeDamage(e.damage || 10, true);
             // If it's a boss, don't instantly kill it on collision, just deal damage
             if (!e.isBoss) { // Check if it's NOT a boss
-                // FIX: Set health to 0 instead of -1 to prevent excessive negative values
                 e.health = 0; // Mark for immediate "death" in next update loop iteration
                 e.isDying = true;
                 e.deathTimer = 300;
@@ -1022,7 +1019,6 @@ function handleCollisions() {
                 e.speed = 0;
             } else {
                 // Bosses take damage but are not instantly removed
-                // The health -= damage from takeDamage will apply.
             }
         }
     });
@@ -1087,15 +1083,17 @@ function draw() {
         safeHouseInstance.draw(ctx, camera);
     }
 
-    drawWorldElements(); // Keep this call
+    drawWorldElements();
 
-    enemies.forEach(e => drawEnemy(e, ctx, player));
+    // *** FIX 2: PASS THE 'camera' OBJECT TO drawEnemy ***
+    // This allows drawEnemy to correctly calculate health bar positions relative to the screen.
+    enemies.forEach(e => drawEnemy(e, ctx, player, camera));
     projectiles.forEach(p => drawProjectile(p, ctx));
 
     const playerBlink = (gameState.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
     if (!playerBlink) drawPlayer(player, player.angle);
 
-    drawParticlesAndEffects(); // Keep this call
+    drawParticlesAndEffects();
 
     ctx.restore();
 
@@ -1105,16 +1103,13 @@ function draw() {
     if (joystick.active && !gameState.isAutoMode) drawJoystick();
     updateHUD();
 }
-
-function drawWorldElements() { // This is the CORRECT first definition.
+function drawWorldElements() {
     skillTotems.forEach(totem => drawSkillTotem(totem));
     lightningBolts.forEach(bolt => drawLightningBolt(bolt));
     volcanicEruptions.forEach(v => drawVolcano(v));
     xpOrbs.forEach(orb => drawXpOrb(orb));
 }
-// The SECOND definition of drawWorldElements was here. It has been removed.
-
-function drawParticlesAndEffects() { // This is the CORRECT first definition.
+function drawParticlesAndEffects() {
     visualEffects.forEach(effect => {
         ctx.save();
         ctx.beginPath();
@@ -1263,7 +1258,6 @@ function drawParticlesAndEffects() { // This is the CORRECT first definition.
     });
     damageNumbers.forEach(dn => drawDamageNumber(dn));
 }
-// The SECOND definition of drawParticlesAndEffects was here. It has been removed.
 
 function drawPlayer(p, angle) {
     const bob = Math.sin(gameState.gameTime / 250) * 2;
@@ -1364,19 +1358,6 @@ function drawProjectile(p, ctx) {
             ctx.restore();
         }
     }
-    //Enemy Projectiles are drawn with their own function (drawEnemyProjectile from attacks_skills.js)
-    //which is called in the updateEntityArray
-    //This ensures there is a difference between player projectile and enemy projectile.
-    // else {
-    //     ctx.save();
-    //     ctx.fillStyle = p.color || 'rgba(255, 0, 0, 1)';
-    //     ctx.shadowColor = p.color || 'rgba(255, 0, 0, 1)';
-    //     ctx.shadowBlur = 10;
-    //     ctx.translate(p.x, p.y);
-    //     ctx.rotate(p.angle);
-    //     ctx.fill(p.path);
-    //     ctx.restore();
-    // }
 }
 
 function drawXpOrb(o) {
@@ -1464,7 +1445,23 @@ function drawVolcano(v) {
     }
     ctx.restore();
 }
-function drawSkillTotem(totem) { ctx.save(); ctx.translate(totem.x, totem.y); ctx.globalAlpha = 0.8 + Math.sin(gameState.gameTime / 200) * 0.2; ctx.beginPath(); ctx.arc(0, 0, totem.radius, 0, Math.PI * 2); ctx.fillStyle = totem.color; ctx.shadowColor = totem.color; ctx.shadowBlur = 20; ctx.fill(); ctx.font = '24px sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(totem.icon, 0, 0); ctx.restore(); }
+function drawSkillTotem(totem) { 
+    ctx.save(); 
+    ctx.translate(totem.x, totem.y); 
+    ctx.globalAlpha = 0.8 + Math.sin(gameState.gameTime / 200) * 0.2; 
+    ctx.beginPath(); 
+    ctx.arc(0, 0, totem.radius, 0, Math.PI * 2); 
+    ctx.fillStyle = totem.color; 
+    ctx.shadowColor = totem.color; 
+    ctx.shadowBlur = 20; 
+    ctx.fill(); 
+    ctx.font = '24px sans-serif'; 
+    ctx.fillStyle = '#fff'; 
+    ctx.textAlign = 'center'; 
+    ctx.textBaseline = 'middle'; 
+    ctx.fillText(totem.icon, 0, 0); 
+    ctx.restore();
+}
 function updateHUD() {
     hudElements.level.textContent = `LV ${player.level}`;
     hudElements.hp.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
