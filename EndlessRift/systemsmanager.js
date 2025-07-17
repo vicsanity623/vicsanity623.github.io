@@ -248,7 +248,7 @@ const UPGRADE_POOL = [
     { id: "hyperBeam_damage", title: "Hyper Beam: Overcharge", maxLevel: 500, skill: "hyperBeam", description: (level) => `Increase Hyper Beam damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.hyperBeam.damage += 50; } },
     { id: "hyperBeam_width", title: "Hyper Beam: Wide Arc", maxLevel: 300, skill: "hyperBeam", description: (level) => `Increase Hyper Beam width. (Lvl ${level + 1})`, apply: (p) => { p.skills.hyperBeam.width += 20; } },
     { id: "hyperBeam_cooldown", title: "HyperBeam: Quick Charge", maxLevel: 300, skill: "hyperBeam", description: () => `Hyper Beam recharges faster.`, apply: (p) => { p.skills.hyperBeam.cooldown *= 0.8; } },
-    { id: "hyperBeam_duration", title: "Hyper Beam: Sustained Blast", maxLevel: 200, skill: "hyperBeam", description: () => `Hyper Beam lasts longer.`, apply: (p) => { p.skills.hyperBeam.duration += 200; } },
+    { id: "hyperBeam_duration", title: "HyperBeam: Sustained Blast", maxLevel: 200, skill: "hyperBeam", description: () => `Hyper Beam lasts longer.`, apply: (p) => { p.skills.hyperBeam.duration += 200; } },
     { id: "hyperBeam_charge", title: "Hyper Beam: Instant Cast", maxLevel: 100, description: () => `Reduces Hyper Beam charging time.`, apply: (p) => { p.skills.hyperBeam.chargingTime = 0; }, once: true },
 ];
 
@@ -1087,7 +1087,7 @@ function draw() {
         safeHouseInstance.draw(ctx, camera);
     }
 
-    drawWorldElements();
+    drawWorldElements(); // Keep this call
 
     enemies.forEach(e => drawEnemy(e, ctx, player));
     projectiles.forEach(p => drawProjectile(p, ctx));
@@ -1095,7 +1095,7 @@ function draw() {
     const playerBlink = (gameState.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
     if (!playerBlink) drawPlayer(player, player.angle);
 
-    drawParticlesAndEffects();
+    drawParticlesAndEffects(); // Keep this call
 
     ctx.restore();
 
@@ -1106,13 +1106,15 @@ function draw() {
     updateHUD();
 }
 
-function drawWorldElements() {
+function drawWorldElements() { // This is the CORRECT first definition.
     skillTotems.forEach(totem => drawSkillTotem(totem));
     lightningBolts.forEach(bolt => drawLightningBolt(bolt));
     volcanicEruptions.forEach(v => drawVolcano(v));
     xpOrbs.forEach(orb => drawXpOrb(orb));
 }
-function drawParticlesAndEffects() {
+// The SECOND definition of drawWorldElements was here. It has been removed.
+
+function drawParticlesAndEffects() { // This is the CORRECT first definition.
     visualEffects.forEach(effect => {
         ctx.save();
         ctx.beginPath();
@@ -1261,155 +1263,8 @@ function drawParticlesAndEffects() {
     });
     damageNumbers.forEach(dn => drawDamageNumber(dn));
 }
-function drawParticlesAndEffects() {
-    visualEffects.forEach(effect => {
-        ctx.save();
-        ctx.beginPath();
-        if (effect.type === 'shockwave' || effect.type === 'frostwave') {
-            const lifePercent = effect.life / effect.maxLife;
-            ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
-            ctx.strokeStyle = effect.type === 'frostwave' ? `rgba(135, 206, 250, ${lifePercent * 0.8})` : `rgba(255, 255, 255, ${lifePercent * 0.8})`;
-            ctx.lineWidth = 15 * lifePercent;
-            ctx.stroke();
+// The SECOND definition of drawParticlesAndEffects was here. It has been removed.
 
-            if (effect.type === 'frostwave') {
-                ctx.beginPath();
-                const innerRadius = effect.radius * 0.8;
-                const numSpikes = 8;
-                for (let i = 0; i < numSpikes; i++) {
-                    const angle = (i / numSpikes) * Math.PI * 2;
-                    const outerX = effect.x + Math.cos(angle) * innerRadius;
-                    const outerY = effect.y + Math.sin(angle) * innerRadius;
-                    const innerX = effect.x + Math.cos(angle + Math.PI / numSpikes) * innerRadius * 0.7;
-                    const innerY = effect.y + Math.sin(angle + Math.PI / numSpikes) * innerRadius * 0.7;
-                    if (i === 0) ctx.moveTo(outerX, outerY);
-                    else ctx.lineTo(outerX, outerY);
-                    ctx.lineTo(innerX, innerY);
-                }
-                ctx.closePath();
-                ctx.fillStyle = `rgba(180, 220, 255, ${lifePercent * 0.3})`;
-                ctx.fill();
-                ctx.strokeStyle = `rgba(135, 206, 250, ${lifePercent * 0.5})`;
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                if (lifePercent > 0.1 && Math.random() < 0.4) {
-                    createImpactParticles(effect.x + (Math.random() - 0.5) * effect.radius * 0.8,
-                                          effect.y + (Math.random() - 0.5) * effect.radius * 0.8,
-                                          1, 'ice');
-                }
-            }
-        } else if (effect.type === 'world_expansion') {
-            const lifePercent = effect.life / effect.maxLife;
-            ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(150, 255, 150, ${lifePercent * 0.9})`;
-            ctx.lineWidth = 20 * lifePercent;
-            ctx.stroke();
-        } else if (effect.type === 'blackHole') {
-            const lifePercent = effect.life / effect.maxLife;
-            ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
-            const gradient = ctx.createRadialGradient(effect.x, effect.y, 10, effect.x, effect.y, effect.radius);
-            gradient.addColorStop(0, 'rgba(0,0,0,0)');
-            gradient.addColorStop(0.7, `rgba(25, 0, 50, ${lifePercent * 0.7})`);
-            gradient.addColorStop(1, `rgba(0, 0, 0, ${lifePercent * 0.9})`);
-            ctx.fillStyle = gradient;
-            ctx.fill();
-
-            ctx.beginPath();
-            const coreRadius = effect.radius * 0.2 * (Math.sin(gameState.gameTime / 100) * 0.1 + 0.9);
-            ctx.arc(effect.x, effect.y, coreRadius, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(100, 0, 200, ${lifePercent * 0.5})`;
-            ctx.shadowColor = `rgba(150, 50, 255, ${lifePercent * 0.8})`;
-            ctx.shadowBlur = coreRadius * 2;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            if (lifePercent > 0.1 && Math.random() < 0.8) {
-                const pAngle = Math.random() * Math.PI * 2;
-                const pDist = Math.random() * effect.radius;
-                const particleX = effect.x + Math.cos(pAngle) * pDist;
-                const particleY = effect.y + Math.sin(pAngle) * pDist;
-                createImpactParticles(particleX, particleY, 1, 'energy', 'rgba(200, 150, 255, 0.7)', (effect.x - particleX) / 100 * effect.pullStrength, (effect.y - particleY) / 100 * effect.pullStrength);
-            }
-        }
-        ctx.restore();
-
-        if (effect.type === 'hyperBeamCharge') {
-            ctx.save();
-            ctx.translate(effect.x, effect.y);
-            ctx.rotate(effect.angle);
-            const chargeProgress = 1 - effect.life / effect.maxLife;
-            const chargeSize = 5 + chargeProgress * 50;
-            const chargeAlpha = chargeProgress * 0.8;
-            ctx.fillStyle = `rgba(255, 255, 255, ${chargeAlpha})`;
-            ctx.shadowColor = `rgba(255, 255, 255, ${chargeAlpha})`;
-            ctx.shadowBlur = chargeSize * 0.8;
-            ctx.beginPath();
-            ctx.arc(0, 0, chargeSize, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        } else if (effect.type === 'hyperBeam') {
-            ctx.save();
-            ctx.translate(effect.x, effect.y);
-            ctx.rotate(effect.angle);
-
-            const currentAlpha = effect.life / effect.maxLife;
-            const beamStartOffset = 20;
-            const glowStrength = currentAlpha * 120;
-
-            const beamColor = effect.color;
-
-            ctx.fillStyle = `rgba(${beamColor.r}, ${beamColor.g}, ${beamColor.b}, ${currentAlpha * 0.4})`;
-            ctx.shadowColor = `rgba(${beamColor.r}, ${beamColor.g}, ${beamColor.b}, ${currentAlpha * 0.8})`;
-            ctx.shadowBlur = glowStrength;
-            ctx.fillRect(beamStartOffset, -effect.beamWidth / 2, effect.length, effect.beamWidth);
-
-            ctx.fillStyle = `rgba(255, 255, 255, ${currentAlpha * 0.8})`;
-            ctx.shadowBlur = glowStrength * 0.5;
-            ctx.fillRect(beamStartOffset, -effect.beamWidth * 0.2, effect.length, effect.beamWidth * 0.4);
-
-            const rippleFactor = Math.sin(gameState.gameTime / 50) * 0.05 + 1;
-            ctx.fillStyle = `rgba(${beamColor.r}, ${beamColor.g}, ${beamColor.b}, ${currentAlpha * 0.1})`;
-            ctx.shadowBlur = 0;
-            ctx.fillRect(beamStartOffset, -effect.beamWidth / 2 * rippleFactor, effect.length, effect.beamWidth * rippleFactor);
-
-            ctx.restore();
-
-            if (currentAlpha > 0.1 && Math.random() < 0.3) {
-                const particleX = beamStartOffset + Math.random() * effect.length;
-                const particleY = (Math.random() - 0.5) * effect.beamWidth;
-                const angleOffset = effect.angle;
-                const speed = Math.random() * 2 + 0.5;
-                
-                const rotatedParticleX = effect.x + Math.cos(angleOffset) * particleX - Math.sin(angleOffset) * particleY;
-                const rotatedParticleY = effect.y + Math.sin(angleOffset) * particleX + Math.cos(angleOffset) * particleY;
-
-                createImpactParticles(rotatedParticleX, rotatedParticleY, 1, 'spark', `rgba(255, 255, 255, ${currentAlpha})`, Math.cos(angleOffset + (Math.random() - 0.5) * 0.5) * speed, Math.sin(angleOffset + (Math.random() - 0.5) * 0.5) * speed);
-            }
-        }
-    });
-    drawSoulVortex(player, ctx);
-
-    // Drawing of individual particles:
-    particles.forEach(p => {
-        ctx.save();
-        ctx.globalAlpha = p.alpha;
-        ctx.fillStyle = p.color;
-        if (p.currentSize > 3 && p.type !== 'spark') {
-           ctx.shadowColor = p.color;
-           ctx.shadowBlur = p.currentSize * 1.5;
-        } else {
-           ctx.shadowBlur = 0;
-        }
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.currentSize, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
-    });
-    damageNumbers.forEach(dn => drawDamageNumber(dn));
-}
 function drawPlayer(p, angle) {
     const bob = Math.sin(gameState.gameTime / 250) * 2;
     ctx.save();
