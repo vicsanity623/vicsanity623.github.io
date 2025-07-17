@@ -11,27 +11,27 @@ const fastEnemyPath = new Path2D('M-8,0 L0,-15 L8,0 L0,15 Z');
 const shooterEnemyPath = new Path2D('M-10,-10 L10,-10 L10,10 L-10,10 Z M0,-15 A5 5 0 1 0 0 -5');
 const bossEnemyPath = new Path2D('M-30,-20 L0,-60 L30,-20 L25,20 L0,40 L-25,20 Z M-10,-40 C-10,-50 10,-50 10,-40 C10,-30 -10,-30 -10,-40 Z'); // A more complex shape for a boss
 
-// Base Archetypes for Enemies
+// Base Archetypes for Enemies (Speed values adjusted to be pixels per second)
 const ENEMY_ARCHETYPES = {
     basic: {
-        health: 20, speed: 1.0, damage: 10, width: 40, xpValue: 5, path: enemyPath,
+        health: 20, speed: 100, damage: 10, width: 40, xpValue: 5, path: enemyPath, // Speed 100px/sec
         color: 'var(--enemy-color)', accentColor: 'var(--enemy-accent-color)', canShoot: false, isBoss: false,
     },
     tank: {
-        health: 100, speed: 0.6, damage: 20, width: 60, xpValue: 15, path: largeEnemyPath,
+        health: 100, speed: 60, damage: 20, width: 60, xpValue: 15, path: largeEnemyPath, // Speed 60px/sec
         color: 'rgba(100, 50, 50, 1)', accentColor: 'rgba(200, 100, 100, 1)', canShoot: false, isBoss: false,
     },
     skirmisher: {
-        health: 10, speed: 2.5, damage: 5, width: 30, xpValue: 3, path: fastEnemyPath,
+        health: 10, speed: 250, damage: 5, width: 30, xpValue: 3, path: fastEnemyPath, // Speed 250px/sec
         color: 'rgba(50, 100, 50, 1)', accentColor: 'rgba(100, 200, 100, 1)', canShoot: false, isBoss: false,
     },
     shooter: {
-        health: 40, speed: 0.8, damage: 8, width: 50, xpValue: 10, path: shooterEnemyPath,
+        health: 40, speed: 80, damage: 8, width: 50, xpValue: 10, path: shooterEnemyPath, // Speed 80px/sec
         color: 'rgba(50, 50, 100, 1)', accentColor: 'rgba(100, 100, 200, 1)', canShoot: true,
         projectileSpeed: 5, fireRate: 2000, projectileDamage: 15, lastShotTime: 0, isBoss: false,
     },
     boss: { // NEW Boss Archetype
-        health: 500, speed: 0.5, damage: 30, width: 100, xpValue: 100, path: bossEnemyPath,
+        health: 500, speed: 50, damage: 30, width: 100, xpValue: 100, path: bossEnemyPath, // Speed 50px/sec
         color: 'rgba(150, 0, 150, 1)', accentColor: 'rgba(255, 100, 255, 1)', canShoot: true,
         projectileSpeed: 7, fireRate: 1500, projectileDamage: 25, lastShotTime: 0, isBoss: true,
     }
@@ -168,20 +168,29 @@ function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback
     });
 
     activeEnemies.forEach((e) => {
+        // Apply shock damage and slow effect first
+        if (e.shockTimer > 0) {
+            e.health -= e.shockDamage * (deltaTime / 1000);
+            e.shockTimer -= deltaTime;
+        }
+        
+        // Check if enemy is dying before processing movement/shooting
         if (e.isDying) {
             e.deathTimer -= deltaTime;
             if (e.deathTimer <= 0) {
                 e.markedForDeletion = true;
             }
-            return;
+            // Stop further updates (movement, shooting) for dying enemies
+            return; 
         }
 
         const angleToPlayer = Math.atan2(playerObj.y - e.y, playerObj.x - e.x);
-        let currentSpeed = e.speed * e.speedMultiplier;
+        // FIX: Scale enemy speed by deltaTime to be consistent with player speed (pixels per second)
+        let currentSpeed = e.speed * e.speedMultiplier * (deltaTime / 1000); 
 
         if (e.slowTimer > 0) {
             currentSpeed *= (1 - player.skills.frostNova.slowAmount);
-            e.slowTimer -= deltaTime;
+            e.slowTimer -= deltaTime; // Slow timer still decrements
         }
 
         let nextX = e.x + Math.cos(angleToPlayer) * currentSpeed;
@@ -200,7 +209,7 @@ function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback
                 } else {
                     const angleFromSafeHouseCenter = Math.atan2(dy_safeHouse, dx_safeHouse);
                     nextX = safeHouse.x + Math.cos(angleFromSafeHouseCenter) * safeZoneOuterBoundary;
-                    // FIX: This line was missing safeHouse.y + (re-confirmed correct now)
+                    // Re-confirmed: this line was missing safeHouse.y + in a very old version. It's here now.
                     nextY = safeHouse.y + Math.sin(angleFromSafeHouseCenter) * safeZoneOuterBoundary; 
                 }
             }
@@ -238,11 +247,6 @@ function updateEnemies(deltaTime, enemies, playerObj, showLevelUpOptionsCallback
             e.deathTimer = e.deathDuration;
             e.speed = 0; // Stop movement immediately upon death
             createImpactParticles(e.x, e.y, 20, 'enemy_death', e.color);
-        }
-
-        if (e.shockTimer > 0) {
-            e.health -= e.shockDamage * (deltaTime / 1000);
-            e.shockTimer -= deltaTime;
         }
     });
 }
@@ -294,7 +298,8 @@ function drawEnemy(e, ctx, playerObj) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.fillRect(-barWidth / 2, barYOffset, barWidth, barHeight);
 
-        const currentHealthWidth = (e.health / e.maxHealth) * barWidth;
+        // FIX: Clamp health to 0 for drawing to prevent negative bar width
+        const currentHealthWidth = (Math.max(0, e.health) / e.maxHealth) * barWidth; 
         ctx.fillStyle = e.isBoss ? 'red' : 'lime'; // Boss health is red
         ctx.fillRect(-barWidth / 2, barYOffset, currentHealthWidth, barHeight);
     }
