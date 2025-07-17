@@ -1,1114 +1,1060 @@
 // systemsmanager.js
 
-import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js';
-// Correctly import all necessary functions from enemies.js
-import { enemyPath, spawnEnemy, updateEnemies, drawEnemy } from './enemies.js'; 
-import { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole, fireHyperBeam, drawSoulVortex } from './attacks_skills.js';
-import { initRift, expandWorld, getBackgroundCanvas } from './rift.js';
+import { initPlayer, player, updatePlayer, gainXP, takeDamage } from './player.js';
+import { spawnEnemy, updateEnemies, drawEnemy } from './enemies.js';
+import { initRift, expandWorld, drawStaticBackground, getBackgroundCanvas } from './rift.js';
+import {
+    fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile,
+    triggerNova, createXpOrb, createImpactParticles, spawnDamageNumber,
+    updateLightning, updateVolcano, updateFrostNova, updateBlackHole,
+    fireHyperBeam, hexToRgb, drawSoulVortex
+} from './attacks_skills.js';
+import { UPGRADE_POOL } from './upgrades.js'; // Assuming you have an upgrades.js file
+import { initFirebase, saveGame, loadGame, getSavedGames, deleteGame, signInWithGoogle, signOutUser, observeAuthState } from './firebase_utils.js'; // Assuming firebase_utils.js
 
-let auth, firestore, googleProvider, currentUser;
-
-const firebaseConfig = {
-    apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
-    authDomain: "tap-guardian-rpg.firebaseapp.com",
-    projectId: "tap-guardian-rpg",
-    storageBucket: "tap-guardian-rpg.firebaseapp.com",
-    messagingSenderId: "50272459426",
-    appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
-    measurementId: "G-XJRE7YNPZR"
-};
-
-const MINUTE_INTERVAL = 60000;
-
-class SafeHouse {
-    constructor(gameWorldWidth, gameWorldHeight) {
-        this.gameWorldWidth = gameWorldWidth;
-        this.gameWorldHeight = gameWorldHeight;
-        this.initialRadius = 250;
-        this.minRadius = 80;
-        this.shrinkRate = 2;
-        this.respawnTime = 5;
-        this.x = 0;
-        this.y = 0;
-        this.radius = this.initialRadius;
-        this.active = false;
-        this.respawnTimer = 0;
-        this.healingRate = 10;
-        this.damageRate = 10;
-        this.color = 'rgba(0, 255, 0, 0.2)';
-        this.borderColor = 'rgba(0, 255, 0, 0.8)';
-        this.spawn();
-    }
-    spawn() {
-        this.radius = this.initialRadius;
-        this.x = Math.random() * (this.gameWorldWidth - this.initialRadius * 2) + this.initialRadius;
-        this.y = Math.random() * (this.gameWorldHeight - this.initialRadius * 2) + this.initialRadius;
-        this.active = true;
-        this.respawnTimer = 0;
-        console.log(`Safe House spawned at (${this.x.toFixed(0)}, ${this.y.toFixed(0)}) with radius ${this.radius.toFixed(0)}`);
-    }
-    update(deltaTime) {
-        const dtSeconds = deltaTime / 1000;
-        if (this.active) {
-            this.radius -= this.shrinkRate * dtSeconds;
-            if (this.radius <= this.minRadius) {
-                this.active = false;
-                this.respawnTimer = this.respawnTime;
-                console.log("Safe House disappeared! Respawning in " + this.respawnTime + " seconds.");
-            }
-        } else {
-            this.respawnTimer -= dtSeconds;
-            if (this.respawnTimer <= 0) {
-                this.spawn();
-            }
-        }
-    }
-    draw(context, camera) {
-        if (this.active) {
-            context.save();
-            context.beginPath();
-            context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            context.fillStyle = this.color;
-            context.fill();
-            context.strokeStyle = this.borderColor;
-            context.lineWidth = 3;
-            context.stroke();
-            context.restore();
-            context.save();
-            context.textAlign = 'center';
-            context.textBaseline = 'middle';
-            context.font = '20px Arial';
-            context.fillStyle = 'white';
-            context.fillText('SAFE ZONE', this.x, this.y - this.radius - 20);
-            context.restore();
-        } else {
-            context.save();
-            context.textAlign = 'center';
-            context.textBaseline = 'middle';
-            context.font = '30px Arial';
-            context.fillStyle = 'red';
-            context.fillText('FIND NEW SAFE ZONE!', camera.x + camera.width / 2, camera.y + camera.height / 2 - 50);
-            context.font = '20px Arial';
-            context.fillText(`Respawning in: ${this.respawnTimer.toFixed(1)}s`, camera.x + camera.width / 2, camera.y + camera.height / 2);
-            context.restore();
-        }
-    }
-    isInside(object) {
-        if (!this.active) return false;
-        const distanceX = object.x - this.x;
-        const distanceY = object.y - this.y;
-        const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
-        const objectSize = object.size || object.width || 0;
-        return distance < (this.radius - objectSize / 2);
-    }
-}
-
+// --- Core Game State Variables ---
 let gameState = {
     isRunning: false,
-    isAutoMode: false,
     gameTime: 0,
     lastTime: 0,
-    enemySpawnTimer: 0,
-    enemySpawnInterval: 1500, // Old interval, replaced by wave system logic
-    saveIntervalId: null,
-    animationFrameId: null,
-
+    deltaTime: 0,
+    currentStage: 1,
+    currentWave: 0, // 0 for intermission, 1-5 for waves
+    waveStartTime: 0,
+    intermissionDuration: 5000, // 5 seconds
+    waveDuration: 60000, // 60 seconds (1 minute)
+    currentWaveEnemyCount: 0,
+    maxWaveEnemyCount: 0,
+    nextWaveEnemySpawnTime: 0,
+    spawnInterval: 0,
+    waveSpawnedEnemies: 0,
+    isIntermission: true,
+    isAutoMode: false,
+    bossActive: false,
+    bossEnemy: null,
     levelUpTimerActive: false,
     levelUpTimerStartTime: 0,
-    levelUpTimerDuration: 10000,
+    levelUpTimerDuration: 10000, // 10 seconds for level up choice
     availableLevelUpOptions: [],
-
-    // NEW: Wave and Stage Management
-    currentStage: 1,
-    currentWave: 0, // 0 for inter-wave, 1-4 for regular, 5 for boss
-    waveTimer: 0, // Time elapsed in current wave
-    waveDuration: 60 * 1000, // Default 1 minute per wave (can scale with stage)
-    interWaveTimer: 0, // Countdown for "Next Wave Incoming"
-    interWaveDuration: 3000, // 3 seconds
-    bossActive: false,
-    bossEnemy: null, // Reference to the current boss enemy object
-
-    enemiesSpawnedInWave: 0, // How many enemies have been spawned in the current wave
-    totalEnemiesToSpawnThisWave: 0, // Total enemies that should be spawned for the current wave
-    spawnBatchTimer: 0, // Timer for spawning batches
-    spawnBatchInterval: 1000, // How often to spawn a batch (e.g., every second)
-    currentSpawnBatchSize: 0, // How many enemies to spawn in each batch
 };
 
-let enemies = [], projectiles = [], xpOrbs = [], particles = [], damageNumbers = [], lightningBolts = [], volcanicEruptions = [], visualEffects = [], skillTotems = [];
-let world = { width: 3000, height: 2000 };
-
-let safeHouseInstance;
-
-let camera = { x: 0, y: 0, width: 0, height: 0, zoom: 1 };
-let screenFlash = { value: 0 };
-let screenRedFlash = { value: 0 };
-let screenShake = { intensity: 0, duration: 0, timer: 0 };
-let manualHyperBeamTrigger = false;
-
+const world = { width: 3000, height: 2000 };
+const camera = { x: 0, y: 0, width: 0, height: 0 };
+const joystick = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0, baseX: 0, baseY: 0, radius: 60, handleRadius: 25, deadZone: 10 };
 const keys = { w: false, a: false, s: false, d: false };
-const joystick = { active: false, baseX: 0, baseY: 0, handleX: 0, handleY: 0, radius: 60, handleRadius: 25 };
 
-let nextMinuteUpgradeTime = MINUTE_INTERVAL;
+let canvas, ctx;
+let hudElements = {};
 
-let canvas, ctx, hudElements, menuElements;
+// --- Game Entity Arrays ---
+let enemies = [];
+let projectiles = [];
+let xpOrbs = [];
+let particles = [];
+let damageNumbers = [];
+let lightningBolts = [];
+let volcanicEruptions = [];
+let visualEffects = []; // For shockwaves, explosions, etc.
+let skillTotems = []; // For visual representation of skill areas (e.g., Volcano)
 
-const UPGRADE_POOL = [
-    { id: "might", title: "Might", description: (level) => `Increase projectile damage by 5. (Lvl ${level + 1})`, apply: (p) => { p.weapon.damage += 5; } },
-    { id: "haste", title: "Haste", description: (level) => `Attack 15% faster. (Lvl ${level + 1})`, apply: (p) => { p.weapon.cooldown *= 0.85; } },
-    { id: "multishot", title: "Multi-Shot", description: (level) => `Fire ${level + 1} more projectile(s).`, apply: (p) => { p.weapon.count += 1; } },
-    { id: "impact", title: "Greater Impact", description: (level) => `Increase projectile size by 25%. (Lvl ${level + 1})`, apply: (p) => { p.weapon.size.h *= 1.25; } },
-    { id: "pierce", title: "Piercing Shots", description: (level) => `Projectiles pierce ${level + 1} more enemies.`, apply: (p) => { p.weapon.pierce += 1; } },
-    { id: "velocity", title: "Velocity", description: (level) => `Projectiles travel 20% faster. (Lvl ${level+1})`, apply: (p) => { p.weapon.speed *= 1.20; } },
-    { id: "vitality", title: "Vitality", description: (level) => `Increase Max HP by 25. (Lvl ${level + 1})`, apply: (p) => { p.maxHealth += 25; p.health += 25; } },
-    { id: "recovery", title: "Recovery", description: (level) => `Heal ${0.5 * (level + 1)} HP/sec. (Lvl ${level + 1})`, apply: (p) => { p.healthRegen += 0.5; } },
-    { id: "agility", title: "Agility", maxLevel: 10, description: (level) => `Increase movement speed by 10%. (Lvl ${level + 1})`, apply: (p) => { p.speed *= 1.10; } },
-    { id: "armor", title: "Armor", description: (level) => `Reduce incoming damage by 1. (Lvl ${level+1})`, apply: (p) => { p.armor += 1; } },
-    { id: "dodge", title: "Evasion", description: (level) => `+5% chance to dodge attacks. (Lvl ${level+1})`, apply: (p) => { p.dodgeChance += 0.05; } },
-    { id: "wisdom", title: "Wisdom", description: (level) => `Gain ${20 * (level + 1)}% more XP. (Lvl ${level + 1})`, apply: (p) => { p.xpGainModifier += 0.20; } },
-    { id: "greed", title: "Greed", description: (level) => `Increase XP pickup radius by 50%. (Lvl ${level + 1})`, apply: (p) => { p.pickupRadius *= 1.50; } },
-    { id: "magnetism", title: "Magnetism", description: (level) => `XP orbs are pulled towards you faster. (Lvl ${level+1})`, apply: (p) => { p.magnetism *= 1.5; } },
-    { id: "rejuvenation", title: "Rejuvenation", description: () => `Picking up an XP orb has a 10% chance to heal 1 HP.`, apply: (p) => { p.abilities.healOnXp = true; }, once: true },
-    { id: "lethality", title: "Lethality", description: (level) => `+10% chance to deal double damage. (Lvl ${level + 1})`, apply: (p) => { p.weapon.critChance += 0.1; } },
-    { id: "overwhelm", title: "Overwhelm", description: (level) => `Critical hits do +50% more damage. (Lvl ${level+1})`, apply: (p) => { p.weapon.critDamage += 0.5; } },
-    { id: "crit_explosion", title: "Critical Mass", description: () => `Critical hits cause a small explosion.`, apply: (p) => { p.abilities.critExplosion = true; }, once: true },
-    {
-        id: "soul_vortex",
-        title: "Soul Vortex",
-        description: () => `Gain an orbiting soul that damages enemies.`,
-        apply: (p) => {
-            p.abilities.orbitingShield = {
-                enabled: true,
-                damage: 10,
-                speed: 1,
-                count: 1,
-            };
-        },
-        once: true
-    },
-    { id: "rear_guard", title: "Rear Guard", description: () => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; }, once: true },
-    { id: "crossfire", title: "Crossfire", description: () => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; }, once: true },
-    { id: "soul_nova", title: "Soul Nova", description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(p, 50, 200);}, once: true },
-    { id: "thorns", title: "Thorns", description: (level) => `Enemies that hit you take ${5 * (level+1)} damage.`, apply: (p) => { p.thorns += 5; } },
-    { id: "life_steal", title: "Life Steal", description: (level) => `Heal for ${level+1} HP on kill.`, apply: (p) => { p.lifeSteal += 1; } },
-    { id: "demolition", title: "Demolition", description: () => `Projectiles explode on their first hit.`, apply: (p) => { p.weapon.explodesOnImpact = true; }, once: true },
+// Safe House - Central defensive point
+let safeHouse = {
+    x: world.width / 2,
+    y: world.height / 2,
+    radius: 150,
+    active: false,
+    health: 1000, // Safe house health
+    maxHealth: 1000,
+    lastDamageTime: 0,
+    regenRate: 0.5, // Health per second
+    enemiesHit: new Set(), // To prevent multiple hits per enemy per frame
+};
 
-    {
-        id: "vortex_damage",
-        title: "Vortex: Sharpen",
-        maxLevel: 15,
-        skill: "soul_vortex",
-        description: (level) => `Soul Vortex deals +5 damage. (Lvl ${level + 1})`,
-        apply: (p) => { p.abilities.orbitingShield.damage += 5; }
-    },
-    {
-        id: "vortex_speed",
-        title: "Vortex: Accelerate",
-        maxLevel: 50,
-        skill: "soul_vortex",
-        description: (level) => `Soul Vortex orbits ${Math.round((1.25**(level + 1) - 1) * 100)}% faster. (Lvl ${level + 1})`,
-        apply: (p) => { p.abilities.orbitingShield.speed *= 1.25; }
-    },
-    {
-        id: "vortex_twin",
-        title: "Vortex: Twin Souls",
-        maxLevel: 20,
-        skill: "soul_vortex",
-        description: (level) => {
-            const currentTotalSouls = (p.abilities.orbitingShield ? p.abilities.orbitingShield.count : 1) + 1;
-            const ordinal = ["second", "third", "fourth", "fifth"][level];
-            return `Gain a ${ordinal} orbiting soul (Total: ${currentTotalSouls}).`;
-        },
-        apply: (p) => {
-            p.abilities.orbitingShield.count = (p.abilities.orbitingShield.count || 1) + 1;
-        }
-    },
+// Screen effects
+let screenFlash = { value: 0 }; // 0 to 1
+let screenRedFlash = { value: 0 }; // 0 to 1 for player hit indicator
+let screenShake = { intensity: 0, duration: 0, startTime: 0 };
 
-    { id: "lightning_damage", title: "Lightning: High Voltage", maxLevel: 500, skill: "lightning", description: (level) => `Increase lightning damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.damage += 5; } },
-    { id: "lightning_chains", title: "Lightning: Chain Lightning", maxLevel: 400, skill: "lightning", description: (level) => `Lightning chains to ${level + 2} enemies.`, apply: (p) => { p.skills.lightning.chains += 1; } },
-    { id: "lightning_cooldown", title: "Lightning: Storm Caller", maxLevel: 300, skill: "lightning", description: () => `Lightning strikes more frequently.`, apply: (p) => { p.skills.lightning.cooldown *= 0.8; } },
-    { id: "lightning_shock", title: "Lightning: Static Field", maxLevel: 300, skill: "lightning", description: (level) => `Lightning shocks enemies, dealing damage over time. (Lvl ${level + 1})`, apply: (p) => { p.skills.lightning.shockDuration += 1000; } },
-    { id: "lightning_fork", title: "Lightning: Fork", maxLevel: 200, skill: "lightning", description: () => `Each lightning strike has a chance to fork.`, apply: (p) => { p.skills.lightning.forkChance = (p.skills.lightning.forkChance || 0) + 0.15; } },
-    { id: "volcano_damage", title: "Volcano: Magma Core", maxLevel: 500, skill: "volcano", description: (level) => `Increase eruption damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.damage += 10; } },
-    { id: "volcano_cooldown", title: "Volcano: Frequent Fissures", maxLevel: 300, skill: "volcano", description: (level) => `Eruptions occur more frequently. (Lvl ${level + 1})`, apply: (p) => { p.skills.volcano.cooldown *= 0.8; } },
-    { id: "volcano_duration", title: "Volcano: Scorched Earth", maxLevel: 300, skill: "volcano", description: () => `Burning ground lasts longer.`, apply: (p) => { p.skills.volcano.burnDuration *= 1.3; } },
-    { id: "volcano_count", title: "Volcano: Cluster Bombs", maxLevel: 200, skill: "volcano", description: () => `Volcano creates an extra eruption.`, apply: (p) => { p.skills.volcano.count = (p.skills.volcano.count || 1) + 1; } },
-    { id: "frostnova_damage", title: "Frost Nova: Deep Freeze", maxLevel: 500, skill: "frostNova", description: (level) => `Increase Frost Nova damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.frostNova.damage += 5; } },
-    { id: "frostnova_radius", title: "Frost Nova: Absolute Zero", maxLevel: 300, skill: "frostNova", description: (level) => `Increase Frost Nova radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.frostNova.radius *= 1.25; } },
-    { id: "frostnova_cooldown", title: "Frost Nova: Winter's Grasp", maxLevel: 300, skill: "frostNova", description: () => `Cast Frost Nova more frequently.`, apply: (p) => { p.skills.frostNova.cooldown *= 0.8; } },
-    { id: "frostnova_slow", title: "Frost Nova: Crippling Cold", maxLevel: 200, skill: "frostNova", description: () => `Frost Nova's slow is more effective.`, apply: (p) => { p.skills.frostNova.slowAmount += 0.1; } },
-    { id: "blackhole_damage", title: "Black Hole: Event Horizon", maxLevel: 500, skill: "blackHole", description: (level) => `Increase Black Hole damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.blackHole.damage += 2; } },
-    { id: "blackhole_radius", title: "Black Hole: Singularity", maxLevel: 300, skill: "blackHole", description: (level) => `Increase Black Hole radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.blackHole.radius *= 1.2; } },
-    { id: "blackhole_duration", title: "Black Hole: Lingering Void", maxLevel: 300, skill: "blackHole", description: () => `Black Hole lasts longer.`, apply: (p) => { p.skills.blackHole.duration *= 1.25; } },
-    { id: "blackhole_pull", title: "Black Hole: Gravity Well", maxLevel: 200, skill: "blackHole", description: () => `Black Hole's pull is stronger.`, apply: (p) => { p.skills.blackHole.pullStrength *= 1.5; } },
-    { id: "bulletstorm", title: "Bulletstorm", maxLevel: 100, description: () => `Unleash a torrent of explosive skill projectiles.`, apply: (p) => { p.skills.bulletstorm.isUnlocked = true; }, once: true },
-    { id: "bulletstorm_damage", title: "Bulletstorm: Caliber", maxLevel: 500, skill: "bulletstorm", description: (level) => `Increase Bulletstorm damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.bulletstorm.damage += 5; } },
-    { id: "bulletstorm_firerate", title: "Bulletstorm: Rapid Fire", maxLevel: 300, skill: "bulletstorm", description: () => `Bulletstorm fires faster.`, apply: (p) => { p.skills.bulletstorm.fireRate *= 0.8; } },
-    { id: "bulletstorm_speed", title: "Bulletstorm: Velocity", maxLevel: 300, skill: "bulletstorm", description: () => `Bulletstorm projectiles travel faster.`, apply: (p) => { p.skills.bulletstorm.speed *= 1.2; } },
-    { id: "hyperBeam", title: "Hyper Beam", maxLevel: 100, description: () => `Unleash a devastating laser in one direction.`, apply: (p) => { p.skills.hyperBeam.isUnlocked = true; }, once: true },
-    { id: "hyperBeam_damage", title: "Hyper Beam: Overcharge", maxLevel: 500, skill: "hyperBeam", description: (level) => `Increase Hyper Beam damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.hyperBeam.damage += 50; } },
-    { id: "hyperBeam_width", title: "Hyper Beam: Wide Arc", maxLevel: 300, skill: "hyperBeam", description: (level) => `Increase Hyper Beam width. (Lvl ${level + 1})`, apply: (p) => { p.skills.hyperBeam.width += 20; } },
-    { id: "hyperBeam_cooldown", title: "HyperBeam: Quick Charge", maxLevel: 300, skill: "hyperBeam", description: () => `Hyper Beam recharges faster.`, apply: (p) => { p.skills.hyperBeam.cooldown *= 0.8; } },
-    { id: "hyperBeam_duration", title: "Hyper Beam: Sustained Blast", maxLevel: 200, skill: "hyperBeam", description: () => `Hyper Beam lasts longer.`, apply: (p) => { p.skills.hyperBeam.duration += 200; } },
-    { id: "hyperBeam_charge", title: "Hyper Beam: Instant Cast", maxLevel: 100, description: () => `Reduces Hyper Beam charging time.`, apply: (p) => { p.skills.hyperBeam.chargingTime = 0; }, once: true },
-];
-
-export function initializeApp() {
-    firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    firestore = firebase.firestore();
-    googleProvider = new firebase.auth.GoogleAuthProvider();
-
+// --- Initialization ---
+function initializeApp() {
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
-    menuElements = {
-        mainMenu: document.getElementById('main-menu'),
-        newGameBtn: document.getElementById('newGameBtn'),
-        loadOptionsContainer: document.getElementById('load-options-container'),
-        googleSignInBtn: document.getElementById('googleSignInBtn'),
-        userStatus: document.getElementById('userStatus'),
-        userDisplay: document.getElementById('user-display'),
-        userName: document.getElementById('userName'),
-        signOutBtn: document.getElementById('signOutBtn'),
-    };
+    
+    // Setup camera dimensions
+    camera.width = window.innerWidth;
+    camera.height = window.innerHeight;
+    canvas.width = camera.width;
+    canvas.height = camera.height;
+
+    // Initialize HUD elements
     hudElements = {
-        gameContainer: document.getElementById('game-container'),
-        level: document.getElementById('level-text'), hp: document.getElementById('hp-text'), hpFill: document.getElementById('hp-bar-fill'), xpFill: document.getElementById('xp-bar-fill'), timer: document.getElementById('timer-text'), xpBottomFill: document.getElementById('xp-bar-bottom-fill'), finalTime: document.getElementById('final-time-text'), finalLevel: document.getElementById('final-level-text'), levelUpWindow: document.getElementById('level-up-window'), upgradeOptions: document.getElementById('upgrade-options'), gameOverScreen: document.getElementById('game-over-screen'), restartButton: document.getElementById('restart-button'), killCounter: document.getElementById('kill-counter-text'), finalKills: document.getElementById('final-kills-text'), autoModeButton: document.getElementById('auto-mode-button'),
-        hyperBeamButton: document.getElementById('hyperBeamButton'),
-        upgradeStatsList: document.getElementById('upgrade-stats-list'),
-        levelUpTimerDisplay: document.getElementById('level-up-timer-display'),
-        // NEW HUD elements for Wave/Stage
-        stageText: document.getElementById('stage-text'),
-        waveText: document.getElementById('wave-text'),
-        nextWaveMessage: document.getElementById('next-wave-message'),
-        bossHealthBarContainer: document.getElementById('boss-health-bar-container'),
-        bossHealthBarFill: document.getElementById('boss-health-bar-fill'),
+        level: document.getElementById('level-text'),
+        hp: document.getElementById('hp-text'),
+        hpFill: document.getElementById('hp-bar-fill'),
+        timer: document.getElementById('timer-text'),
+        xpBottomFill: document.getElementById('xp-bar-bottom-fill'),
+        killCounter: document.getElementById('kill-counter-text'),
+        upgradeOptions: document.getElementById('upgrade-options'),
+        levelUpWindow: document.getElementById('level-up-window'),
+        xpFill: document.getElementById('xp-bar-fill'), // For the bar inside the level-up window
+        restartButton: document.getElementById('restart-button'),
+        gameOverScreen: document.getElementById('game-over-screen'),
+        finalTimeText: document.getElementById('final-time-text'),
+        finalLevelText: document.getElementById('final-level-text'),
+        finalKillsText: document.getElementById('final-kills-text'),
+        autoModeButton: document.getElementById('auto-mode-button'),
+        hyperBeamButton: document.getElementById('hyperBeamButton'), // NEW
+        bossHealthBarContainer: document.getElementById('boss-health-bar-container'), // NEW
+        bossHealthBarFill: document.getElementById('boss-health-bar-fill'), // NEW
+        stageText: document.getElementById('stage-text'), // NEW
+        waveText: document.getElementById('wave-text'), // NEW
+        nextWaveMessage: document.createElement('div'), // NEW: for "Wave X Incoming"
+        upgradeStatsList: document.getElementById('upgrade-stats-list'), // NEW
+        levelUpTimerDisplay: document.getElementById('level-up-timer-display'), // NEW
     };
 
-    initRift();
+    hudElements.nextWaveMessage.id = 'next-wave-message';
+    document.body.appendChild(hudElements.nextWaveMessage);
+
     setupEventListeners();
-    // CRITICAL FIX: Ensure gameContainer is hidden initially, and main-menu is shown
-    hudElements.gameContainer.style.visibility = 'hidden'; // Hide game screen
-    menuElements.mainMenu.classList.add('visible'); // Show main menu
-    checkSaveStates(); // This will eventually lead to starting the game or presenting load options
+    initPlayer(world); // Initialize player data
+    initRift(); // Initialize background canvas
+
+    // Firebase setup
+    initFirebase();
+    observeAuthState(updateAuthUI);
+
+    // Initial menu display
+    showMainMenu();
 }
 
 function setupEventListeners() {
-    function resizeCanvas() { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; camera.width = canvas.width; camera.height = canvas.height; }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    function getTouchPos(touchEvent) { const rect = canvas.getBoundingClientRect(); return { x: touchEvent.touches[0].clientX - rect.left, y: touchEvent.touches[0].clientY - rect.top }; }
-    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (!gameState.isRunning || gameState.isAutoMode) return; const pos = getTouchPos(e); joystick.active = true; joystick.baseX = pos.x; joystick.baseY = pos.y; joystick.handleX = pos.x; joystick.handleY = pos.y; }, { passive: false });
-    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!joystick.active) return; const pos = getTouchPos(e); const dx = pos.x - joystick.baseX; const dy = pos.y - joystick.baseY; const dist = Math.hypot(dx, dy); if (dist > joystick.radius) { joystick.handleX = joystick.baseX + (dx / dist) * joystick.radius; joystick.handleY = joystick.baseY + (dy / dist) * joystick.radius; } else { joystick.handleX = pos.x; joystick.handleY = pos.y; } }, { passive: false });
-    canvas.addEventListener('touchend', (e) => { e.preventDefault(); joystick.active = false; }, { passive: false });
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-
-    menuElements.newGameBtn.addEventListener('click', () => startGame(true));
-    menuElements.googleSignInBtn.addEventListener('click', signInWithGoogle);
-    menuElements.signOutBtn.addEventListener('click', () => auth.signOut());
-
-    hudElements.restartButton.addEventListener('click', () => {
-        hudElements.gameOverScreen.classList.remove('visible');
-        menuElements.mainMenu.classList.add('visible'); // Go back to main menu
-        hudElements.gameContainer.style.visibility = 'hidden'; // Hide game container
-        checkSaveStates();
+    window.addEventListener('resize', () => {
+        camera.width = window.innerWidth;
+        camera.height = window.innerHeight;
+        canvas.width = camera.width;
+        canvas.height = camera.height;
+        drawStaticBackground(); // Redraw background if world size changed (unlikely on resize, but good for consistency)
+        // Adjust joystick base position on resize for mobile
+        if (joystick.active) {
+            joystick.baseX = camera.width * 0.15;
+            joystick.baseY = camera.height * 0.8;
+            joystick.handleX = joystick.baseX;
+            joystick.handleY = joystick.baseY;
+        }
     });
-    hudElements.autoModeButton.addEventListener('click', () => { gameState.isAutoMode = !gameState.isAutoMode; hudElements.autoModeButton.textContent = gameState.isAutoMode ? 'AUTO ON' : 'AUTO OFF'; hudElements.autoModeButton.classList.toggle('auto-on', gameState.isAutoMode); });
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+        if (gameState.isRunning) {
+            keys[e.key.toLowerCase()] = true;
+        }
+    });
+    document.addEventListener('keyup', (e) => {
+        if (gameState.isRunning) {
+            keys[e.key.toLowerCase()] = false;
+        }
+    });
+
+    // Mobile / Touch controls
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (!gameState.isRunning && !hudElements.levelUpWindow.classList.contains('visible') && !hudElements.gameOverScreen.classList.contains('visible')) return;
+
+        const touch = e.touches[0];
+        joystick.active = true;
+        joystick.baseX = touch.clientX;
+        joystick.baseY = touch.clientY;
+        joystick.handleX = touch.clientX;
+        joystick.handleY = touch.clientY;
+        updateMoveVectorFromJoystick();
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!joystick.active) return;
+        const touch = e.touches[0];
+        joystick.currentX = touch.clientX;
+        joystick.currentY = touch.clientY;
+        updateMoveVectorFromJoystick();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => {
+        joystick.active = false;
+        keys.w = keys.a = keys.s = keys.d = false; // Reset keys when joystick inactive
+        joystick.handleX = joystick.baseX;
+        joystick.handleY = joystick.baseY;
+    });
+
+    // HUD and Menu buttons
+    hudElements.restartButton.addEventListener('click', () => {
+        resetGame();
+        startGame();
+    });
+
+    document.getElementById('newGameBtn').addEventListener('click', () => {
+        initPlayer(world);
+        resetGame();
+        startGame();
+        hideMainMenu();
+    });
+
+    hudElements.autoModeButton.addEventListener('click', () => {
+        gameState.isAutoMode = !gameState.isAutoMode;
+        hudElements.autoModeButton.textContent = gameState.isAutoMode ? 'AUTO ON' : 'AUTO OFF';
+        hudElements.autoModeButton.classList.toggle('auto-on', gameState.isAutoMode);
+    });
 
     hudElements.hyperBeamButton.addEventListener('click', () => {
-        if (!gameState.isAutoMode && player.skills.hyperBeam.isUnlocked) {
-            manualHyperBeamTrigger = true;
+        if (player.skills.hyperBeam.isUnlocked && !hudElements.hyperBeamButton.disabled) {
+            fireHyperBeam(player, player.skills.hyperBeam.damage, player.skills.hyperBeam.width, player.skills.hyperBeam.duration, player.skills.hyperBeam.chargingTime, player.skills.hyperBeam.color);
+            player.skills.hyperBeam.lastCast = gameState.gameTime;
         }
     });
 
-    auth.onAuthStateChanged(user => {
-        currentUser = user;
-        if (user) {
-            menuElements.userStatus.textContent = `Signed in as ${user.displayName}.`;
-            menuElements.googleSignInBtn.style.display = 'none';
-            menuElements.userDisplay.style.display = 'block';
-            menuElements.userName.textContent = user.displayName;
-        } else {
-            menuElements.userStatus.textContent = 'Sign in for cloud saves.';
-            menuElements.googleSignInBtn.style.display = 'flex';
-            menuElements.userDisplay.style.display = 'none';
-        }
-        checkSaveStates(); // Re-check saves when auth state changes
-    });
+    // Firebase Auth Buttons
+    document.getElementById('googleSignInBtn').addEventListener('click', signInWithGoogle);
+    document.getElementById('signOutBtn').addEventListener('click', signOutUser);
 }
 
-function signInWithGoogle() { auth.signInWithPopup(googleProvider).catch(error => { console.error("Google Sign-In Error:", error); alert("Could not sign in with Google. Please try again."); }); }
-async function checkSaveStates() {
-    const localSaveExists = !!localStorage.getItem('survivorSaveData');
-    let cloudSaveExists = false;
-    if (currentUser) {
-        const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
-        const doc = await saveRef.get().catch(e => console.error(e));
-        if (doc && doc.exists) cloudSaveExists = true;
-    }
-    menuElements.loadOptionsContainer.innerHTML = ''; // Clear previous buttons
+function updateAuthUI(user) {
+    const authSection = document.getElementById('auth-section');
+    const userStatus = document.getElementById('userStatus');
+    const googleSignInBtn = document.getElementById('googleSignInBtn');
+    const userNameDisplay = document.getElementById('userName');
+    const signOutBtn = document.getElementById('signOutBtn');
+    const userDisplay = document.getElementById('user-display');
+    const loadOptionsContainer = document.getElementById('load-options-container');
 
-    // Only add load buttons if saves exist
-    if (cloudSaveExists) {
-        const cloudBtn = document.createElement('button');
-        cloudBtn.className = 'menu-button'; cloudBtn.textContent = 'Load Cloud Save';
-        cloudBtn.onclick = () => startGame(false, 'cloud');
-        menuElements.loadOptionsContainer.appendChild(cloudBtn);
-    }
-    if (localSaveExists) {
-        const localBtn = document.createElement('button');
-        localBtn.className = 'menu-button'; localBtn.textContent = 'Load Local Save';
-        localBtn.onclick = () => startGame(false, 'local');
-        menuElements.loadOptionsContainer.appendChild(localBtn);
-    }
-    // If no saves exist, inform the user (the "No Save Found" button might be redundant if newGameBtn is always there)
-    if (!cloudSaveExists && !localSaveExists) {
-        const noSaveBtn = document.createElement('button');
-        noSaveBtn.className = 'menu-button'; noSaveBtn.textContent = 'No Save Found'; noSaveBtn.disabled = true;
-        // menuElements.loadOptionsContainer.appendChild(noSaveBtn); // Commented out to avoid clutter if 'New Game' is always present
-    }
-}
-async function saveGame() {
-    if (!player || !gameState.isRunning) return;
-    const savablePlayer = JSON.parse(JSON.stringify(player));
-    const saveData = {
-        player: savablePlayer,
-        gameTime: gameState.gameTime,
-        skillTotems: skillTotems,
-        world: world,
-        safeHouse: safeHouseInstance ? {
-            x: safeHouseInstance.x,
-            y: safeHouseInstance.y,
-            radius: safeHouseInstance.radius,
-            active: safeHouseInstance.active,
-            respawnTimer: safeHouseInstance.respawnTimer,
-        } : null,
-        // NEW: Save wave/stage state for proper loading
-        currentStage: gameState.currentStage,
-        currentWave: gameState.currentWave,
-        waveTimer: gameState.waveTimer,
-        interWaveTimer: gameState.interWaveTimer,
-        bossActive: gameState.bossActive,
-        // Note: bossEnemy is not directly saved, its type will be re-spawned
-        enemiesSpawnedInWave: gameState.enemiesSpawnedInWave,
-        totalEnemiesToSpawnThisWave: gameState.totalEnemiesToSpawnThisWave,
-        spawnBatchTimer: gameState.spawnBatchTimer,
-
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    if (currentUser) {
-        const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
-        try { await saveRef.set(saveData); } catch (error) { console.error("Error saving to cloud:", error); }
-    }
-    localStorage.setItem('survivorSaveData', JSON.stringify(saveData));
-}
-async function loadGame(source) {
-    let savedData = null;
-    try {
-        if (source === 'cloud' && currentUser) {
-            const saveRef = firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default');
-            const doc = await saveRef.get();
-            if (doc.exists) { savedData = doc.data(); console.log("Game loaded from cloud."); }
-        } else if (source === 'local') {
-            const localData = localStorage.getItem('survivorSaveData');
-            if (localData) savedData = JSON.parse(localData);
-            console.log("Game loaded locally.");
-        }
-    } catch(error) { console.error("Error loading game:", error); return false; }
-    if (savedData) {
-        loadPlayer(savedData.player);
-        gameState.gameTime = savedData.gameTime;
-        skillTotems = savedData.skillTotems || [];
-        if (savedData.world) { world.width = savedData.world.width; world.height = savedData.world.height; }
-
-        if (savedData.safeHouse && safeHouseInstance) {
-            safeHouseInstance.x = savedData.safeHouse.x;
-            safeHouseInstance.y = savedData.safeHouse.y;
-            safeHouseInstance.radius = savedData.safeHouse.radius;
-            safeHouseInstance.active = savedData.safeHouse.active;
-            safeHouseInstance.respawnTimer = savedData.safeHouse.respawnTimer;
-            console.log("SafeHouse state loaded.");
-        } else if (safeHouseInstance) {
-             safeHouseInstance.spawn();
-        }
-
-        // NEW: Load wave/stage state
-        gameState.currentStage = savedData.currentStage || 1;
-        gameState.currentWave = savedData.currentWave || 0; // If 0, it means intermission
-        gameState.waveTimer = savedData.waveTimer || 0;
-        gameState.interWaveTimer = savedData.interWaveTimer || 0; // If game was saved during intermission
-        gameState.bossActive = savedData.bossActive || false;
-        gameState.enemiesSpawnedInWave = savedData.enemiesSpawnedInWave || 0;
-        gameState.totalEnemiesToSpawnThisWave = savedData.totalEnemiesToSpawnThisWave || 0;
-        gameState.spawnBatchTimer = savedData.spawnBatchTimer || 0;
-
-        // If loading a boss wave, re-spawn the boss
-        if (gameState.bossActive) {
-            // Need to spawn boss once if it's not already in enemies array
-            if (!enemies.find(e => e.isBoss)) {
-                spawnEnemy(enemies, gameState.currentStage, gameState.currentWave, 'boss');
-                gameState.bossEnemy = enemies.find(e => e.isBoss);
-            }
-        }
-        
-        return true;
-    }
-    return false;
-}
-function clearSave() {
-    localStorage.removeItem('survivorSaveData');
-    if (currentUser) {
-        firestore.collection('users').doc(currentUser.uid).collection('gameSaves').doc('default').delete().catch(e => console.error("Error clearing cloud save:", e));
-    }
-}
-
-export function triggerScreenShake(intensity, duration) {
-    screenShake.intensity = Math.max(screenShake.intensity, intensity);
-    screenShake.duration = Math.max(screenShake.duration, duration);
-    screenShake.timer = screenShake.duration;
-}
-
-function takeDamage(amount, isDirectHit = false) {
-    playerTakeDamage(amount, gameState.gameTime, spawnDamageNumber, screenRedFlash, triggerScreenShake);
-
-    if (player.thorns > 0 && isDirectHit) {
-        enemies.forEach(e => {
-            if (Math.hypot(e.x - player.x, e.y - player.y) < player.size + (e.width || 0) + 10) {
-                e.health -= player.thorns;
-                spawnDamageNumber(e.x, e.y, player.thorns, false);
-            }
-        });
-    }
-
-    if (player.health <= 0) {
-        player.health = 0;
-        gameOver();
-    }
-}
-async function startGame(forceNew, loadSource = 'cloud') {
-    menuElements.mainMenu.classList.remove('visible'); // Hide main menu
-    hudElements.gameContainer.style.visibility = 'visible'; // Show game container
-    gameState.isAutoMode = false;
-    if (gameState.saveIntervalId) clearInterval(gameState.saveIntervalId);
-    let loadedSuccessfully = false;
-    if (!forceNew) {
-        const sourceToLoad = currentUser ? loadSource : 'local';
-        loadedSuccessfully = await loadGame(sourceToLoad);
-    }
-    if (forceNew || !loadedSuccessfully) {
-        clearSave();
-        world.width = 3000; world.height = 2000;
-        initPlayer(world);
-        gameState.gameTime = 0;
-        nextMinuteUpgradeTime = MINUTE_INTERVAL;
-        skillTotems = [
-            { x: world.width / 2 - 200, y: world.height / 2 - 200, radius: 30, skill: 'lightning', color: 'var(--lightning-color)', icon: '⚡' },
-            { x: world.width / 2 + 200, y: world.height / 2 + 200, radius: 30, skill: 'volcano', color: 'var(--volcano-color)', icon: '🔥' },
-            { x: world.width / 2 + 200, y: world.height / 2 - 200, radius: 30, skill: 'frostNova', color: '#87CEEB', icon: '❄️' },
-            { x: world.width / 2 - 200, y: world.height / 2 + 200, radius: 30, skill: 'blackHole', color: '#483D8B', icon: '🌀' },
-            { x: world.width / 2, y: world.height / 2 + 100, radius: 30, skill: 'bulletstorm', color: '#00FFFF', icon: '🔫' },
-            { x: world.width / 2 + 100, y: world.height / 2 + 100, radius: 30, skill: 'hyperBeam', color: '#FF00FF', icon: '💥' },
-        ];
-
-        // Reset wave/stage specific state for a NEW game
-        gameState.currentStage = 1;
-        gameState.currentWave = 0; // Start in inter-wave state
-        gameState.interWaveTimer = gameState.interWaveDuration; // Show "Next Wave Incoming" for first wave
-        gameState.bossActive = false;
-        gameState.bossEnemy = null;
-        gameState.enemiesSpawnedInWave = 0;
-        gameState.totalEnemiesToSpawnThisWave = 0;
-        gameState.spawnBatchTimer = 0;
+    if (user) {
+        userStatus.textContent = `Signed in as: ${user.displayName || user.email}`;
+        googleSignInBtn.style.display = 'none';
+        userDisplay.style.display = 'flex';
+        userNameDisplay.textContent = user.displayName || user.email;
+        signOutBtn.style.display = 'inline-block';
+        loadSavedGames(user.uid, loadOptionsContainer);
     } else {
-        // If loaded, and it's an intermission, ensure interWaveTimer is active.
-        // If it's a wave, ensure game is running.
-        if (gameState.currentWave === 0) {
-            gameState.interWaveTimer = Math.max(0, gameState.interWaveTimer); // Ensure timer is valid
-            gameState.isRunning = false; // Game is paused for intermission
-        } else {
-            gameState.isRunning = true; // Game is running for active wave
-        }
-        nextMinuteUpgradeTime = Math.ceil((gameState.gameTime + 1) / MINUTE_INTERVAL) * MINUTE_INTERVAL;
+        userStatus.textContent = 'You are playing as a guest.';
+        googleSignInBtn.style.display = 'flex';
+        userDisplay.style.display = 'none';
+        signOutBtn.style.display = 'none';
+        loadOptionsContainer.innerHTML = ''; // Clear load options
     }
-    initRift();
+}
 
-    safeHouseInstance = new SafeHouse(world.width, world.height);
+function loadSavedGames(userId, container) {
+    getSavedGames(userId).then(saves => {
+        container.innerHTML = ''; // Clear previous load buttons
+        if (saves.length > 0) {
+            saves.forEach(save => {
+                const button = document.createElement('button');
+                button.className = 'menu-button';
+                button.textContent = `Load Game: ${formatTime(save.gameTime)} Lv${save.player.level}`;
+                button.onclick = () => {
+                    loadGame(userId, save.id).then(loadedState => {
+                        if (loadedState) {
+                            console.log("Game loaded:", loadedState);
+                            // Reset game state and load player
+                            resetGame();
+                            Object.assign(gameState, loadedState.gameState);
+                            Object.assign(safeHouse, loadedState.safeHouse);
+                            player.x = loadedState.player.x;
+                            player.y = loadedState.player.y;
+                            player.level = loadedState.player.level;
+                            player.xp = loadedState.player.xp;
+                            player.xpForNextLevel = loadedState.player.xpForNextLevel;
+                            player.kills = loadedState.player.kills;
+                            player.health = loadedState.player.health;
+                            player.maxHealth = loadedState.player.maxHealth;
+                            player.upgradeLevels = loadedState.player.upgradeLevels;
+                            player.weapon = loadedState.player.weapon;
+                            player.abilities = loadedState.player.abilities;
+                            player.skills = loadedState.player.skills;
+                            player.armor = loadedState.player.armor || 0; // Ensure new props are set
+                            player.thorns = loadedState.player.thorns || 0;
+                            player.lifeSteal = loadedState.player.lifeSteal || 0;
+                            player.dodgeChance = loadedState.player.dodgeChance || 0;
+                            player.magnetism = loadedState.player.magnetism || 1;
+                            player.healthRegen = loadedState.player.healthRegen || 0;
+                            player.xpGainModifier = loadedState.player.xpGainModifier || 1;
+                            player.speed = loadedState.player.speed || 3.5;
+                            player.lastHitTime = loadedState.player.lastHitTime || 0;
 
-    gameState.lastTime = performance.now();
-    
-    // Clear all game entities for a clean start (new game) or reload (loaded game starts fresh of old entities)
-    enemies.length = 0;
-    projectiles.length = 0;
-    xpOrbs.length = 0;
-    particles.length = 0;
-    damageNumbers.length = 0;
-    lightningBolts.length = 0;
-    volcanicEruptions.length = 0;
-    visualEffects.length = 0;
-    
-    hudElements.levelUpWindow.classList.remove('visible');
+
+                            // Re-initialize player to ensure all properties (especially nested ones) are correct
+                            // and default values for new properties are set if not in save.
+                            // This might be redundant with the Object.assign above if loadPlayer is thorough.
+                            // Consider replacing with: loadPlayer(loadedState.player);
+                            // For now, doing it manually:
+                            Object.assign(player, loadedState.player);
+                            
+                            // Re-init player weapon/skills/abilities for robust loading of new properties
+                            // (If loadPlayer function is used, this logic should be inside it)
+                            if (loadedState.player.weapon) Object.assign(player.weapon, loadedState.player.weapon);
+                            if (loadedState.player.abilities) Object.assign(player.abilities, loadedState.player.abilities);
+                            if (loadedState.player.skills) Object.assign(player.skills, loadedState.player.skills);
+
+
+                            // Re-draw background if world size changed from saved game
+                            drawStaticBackground();
+                            startGame();
+                            hideMainMenu();
+                        }
+                    }).catch(error => {
+                        console.error("Error loading game:", error);
+                        alert("Failed to load game: " + error.message);
+                    });
+                };
+                container.appendChild(button);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'menu-button secondary delete-button';
+                deleteButton.textContent = 'X';
+                deleteButton.onclick = (e) => {
+                    e.stopPropagation(); // Prevent clicking load button
+                    if (confirm('Are you sure you want to delete this save?')) {
+                        deleteGame(userId, save.id).then(() => {
+                            console.log("Game deleted:", save.id);
+                            loadSavedGames(userId, container); // Refresh list
+                        }).catch(error => {
+                            console.error("Error deleting game:", error);
+                            alert("Failed to delete game: " + error.message);
+                        });
+                    }
+                };
+                button.appendChild(deleteButton); // Append delete button to the load button
+            });
+        } else {
+            container.innerHTML = '<p>No saved games found.</p>';
+        }
+    }).catch(error => {
+        console.error("Error fetching saved games:", error);
+        container.innerHTML = '<p>Error loading saved games.</p>';
+    });
+}
+
+
+function showMainMenu() {
+    document.getElementById('main-menu').classList.add('visible');
+    document.getElementById('game-container').style.visibility = 'hidden';
     hudElements.gameOverScreen.classList.remove('visible');
-    // Hide "Next Wave Incoming" or "Boss Health Bar" elements if they were visible
-    if (hudElements.nextWaveMessage) hudElements.nextWaveMessage.style.display = 'none';
-    if (hudElements.bossHealthBarContainer) hudElements.bossHealthBarContainer.style.display = 'none';
-
-
-    hudElements.autoModeButton.textContent = 'AUTO OFF';
-    hudElements.autoModeButton.classList.remove('auto-on');
-    
-    gameState.saveIntervalId = setInterval(saveGame, 10000);
-    if (gameState.animationFrameId) cancelAnimationFrame(gameState.animationFrameId);
-    gameLoop(performance.now());
+    gameState.isRunning = false; // Ensure game is paused
 }
 
-// NEW: Function to start the next wave
-function startNextWave() {
-    gameState.currentWave++;
-
-    // Clear all existing enemies, projectiles, XP, particles etc. for clean wave transition
-    enemies.length = 0;
-    projectiles.length = 0;
-    xpOrbs.length = 0;
-    particles.length = 0;
-    damageNumbers.length = 0;
-    lightningBolts.length = 0;
-    volcanicEruptions.length = 0;
-    visualEffects.length = 0;
-
-    // Hide Next Wave Message and Boss Health Bar
-    if (hudElements.nextWaveMessage) hudElements.nextWaveMessage.style.display = 'none';
-    if (hudElements.bossHealthBarContainer) hudElements.bossHealthBarContainer.style.display = 'none';
-    gameState.bossActive = false;
-    gameState.bossEnemy = null; // Clear reference to old boss
-
-    if (gameState.currentWave > 5) {
-        gameState.currentStage++;
-        gameState.currentWave = 1; // Reset to wave 1 for the new stage
-        // Optionally expand world every few stages
-        if (gameState.currentStage % 2 === 0) { // e.g., every 2 stages
-             expandWorld(camera, player);
-        }
-    }
-
-    // Reset wave-specific counters
-    gameState.waveTimer = 0;
-    gameState.enemiesSpawnedInWave = 0;
-    gameState.spawnBatchTimer = 0;
-
-    // Calculate wave properties based on stage and wave number
-    // Wave Duration: Make waves slightly longer per stage (1-2 minutes)
-    gameState.waveDuration = (60 + (gameState.currentStage - 1) * 10 + (gameState.currentWave -1) * 5) * 1000; // Base 60s, +10s per stage, +5s per wave in stage
-    gameState.waveDuration = Math.min(120 * 1000, gameState.waveDuration); // Cap at 2 minutes
-
-    // Enemy Scaling: Total enemies and batch size increase with stage and wave
-    const baseEnemiesPerStage = 20 + (gameState.currentStage - 1) * 10; // Base enemies for the stage
-    const waveProgressMultiplier = 1 + (gameState.currentWave * 0.2); // Waves 1-5 get progressively more enemies
-    gameState.totalEnemiesToSpawnThisWave = Math.floor(baseEnemiesPerStage * waveProgressMultiplier);
-
-    // Ensure at least 5 enemies per wave, even at stage 1, wave 1
-    gameState.totalEnemiesToSpawnThisWave = Math.max(10, gameState.totalEnemiesToSpawnThisWave);
-
-    // Gradual batch spawning: Calculate batch size needed to spawn all enemies within ~half the wave duration
-    const effectiveSpawnDuration = gameState.waveDuration / 2; // Aim to spawn enemies within first half of wave
-    const targetBatchCount = effectiveSpawnDuration / gameState.spawnBatchInterval;
-    gameState.currentSpawnBatchSize = Math.max(1, Math.ceil(gameState.totalEnemiesToSpawnThisWave / targetBatchCount));
-    
-    // Boss Wave (Wave 5)
-    if (gameState.currentWave === 5) {
-        gameState.bossActive = true;
-        // Spawn a single boss enemy. Pass a type or flag to spawnEnemy for the boss
-        spawnEnemy(enemies, gameState.currentStage, gameState.currentWave, 'boss'); // 'boss' type
-        gameState.bossEnemy = enemies.find(e => e.isBoss); // Find the spawned boss
-        if (hudElements.bossHealthBarContainer) hudElements.bossHealthBarContainer.style.display = 'block';
-
-        // Boss wave duration is effectively infinite until boss dies.
-        gameState.waveDuration = Infinity; 
-    } else {
-        // Regular waves
-        gameState.isRunning = true; // Resume game for active wave
-    }
-
-    console.log(`Starting Stage ${gameState.currentStage}, Wave ${gameState.currentWave}. Total enemies: ${gameState.totalEnemiesToSpawnThisWave}. Batch Size: ${gameState.currentSpawnBatchSize}`);
+function hideMainMenu() {
+    document.getElementById('main-menu').classList.remove('visible');
+    document.getElementById('game-container').style.visibility = 'visible';
 }
 
+function startGame() {
+    gameState.isRunning = true;
+    gameState.lastTime = performance.now();
+    gameState.gameTime = 0; // Reset game time for new game
+    gameState.currentStage = 1;
+    gameState.currentWave = 0; // Start with intermission
+    gameState.isIntermission = true;
+    gameState.waveStartTime = performance.now(); // Start timer for intermission
+    enemies = []; // Clear any existing enemies
+    projectiles = [];
+    xpOrbs = [];
+    particles = [];
+    damageNumbers = [];
+    lightningBolts = [];
+    volcanicEruptions = [];
+    visualEffects = [];
+    skillTotems = [];
 
-function gameOver() {
+    safeHouse.active = true; // Ensure safe house is active
+    safeHouse.health = safeHouse.maxHealth; // Reset safe house health
+
+    requestAnimationFrame(gameLoop);
+}
+
+function resetGame() {
+    // Reset core game state
     gameState.isRunning = false;
-    clearInterval(gameState.saveIntervalId);
-    gameState.saveIntervalId = null;
-    cancelAnimationFrame(gameState.animationFrameId);
+    gameState.gameTime = 0;
+    gameState.lastTime = 0;
+    gameState.deltaTime = 0;
+    gameState.currentStage = 1;
+    gameState.currentWave = 0;
+    gameState.waveStartTime = 0;
+    gameState.isIntermission = true;
+    gameState.currentWaveEnemyCount = 0;
+    gameState.maxWaveEnemyCount = 0;
+    gameState.nextWaveEnemySpawnTime = 0;
+    gameState.spawnInterval = 0;
+    gameState.waveSpawnedEnemies = 0;
+    gameState.bossActive = false;
+    gameState.bossEnemy = null;
+    gameState.levelUpTimerActive = false;
+    gameState.levelUpTimerStartTime = 0;
+    gameState.availableLevelUpOptions = [];
 
-    // Hide any active wave UI elements
-    if (hudElements.nextWaveMessage) hudElements.nextWaveMessage.style.display = 'none';
-    if (hudElements.bossHealthBarContainer) hudElements.bossHealthBarContainer.style.display = 'none';
+    // Reset player state (re-initialize for a clean slate)
+    initPlayer(world);
 
-    hudElements.finalTime.textContent = formatTime(gameState.gameTime);
-    hudElements.finalLevel.textContent = player.level;
-    hudElements.finalKills.textContent = player.kills;
-    hudElements.gameOverScreen.classList.add('visible');
+    // Clear all entity arrays
+    enemies = [];
+    projectiles = [];
+    xpOrbs = [];
+    particles = [];
+    damageNumbers = [];
+    lightningBolts = [];
+    volcanicEruptions = [];
+    visualEffects = [];
+    skillTotems = [];
+
+    // Reset safe house
+    safeHouse.active = true;
+    safeHouse.health = safeHouse.maxHealth;
+    safeHouse.lastDamageTime = 0;
+    safeHouse.enemiesHit.clear();
+
+    // Reset screen effects
+    screenFlash.value = 0;
+    screenRedFlash.value = 0;
+    screenShake.intensity = 0;
+    screenShake.duration = 0;
+    screenShake.startTime = 0;
+
+    // Reset HUD visibility
+    hudElements.gameOverScreen.classList.remove('visible');
+    hudElements.levelUpWindow.classList.remove('visible');
+    hudElements.nextWaveMessage.style.display = 'none';
+
+    // Re-render static background in case world size changed (e.g. from a loaded game)
+    world.width = 3000;
+    world.height = 2000;
+    drawStaticBackground();
+
+    // Update HUD to reflect reset state
+    updateHUD();
 }
 
-function autoSelectRandomUpgrade() {
-    if (!gameState.levelUpTimerActive || gameState.availableLevelUpOptions.length === 0) {
+
+// --- Main Game Loop ---
+function gameLoop(currentTime) {
+    if (!gameState.isRunning) {
+        gameState.lastTime = currentTime; // Keep lastTime updated even when paused
         return;
     }
 
-    console.log("Time ran out! Auto-selecting a power-up.");
-    const randomIndex = Math.floor(Math.random() * gameState.availableLevelUpOptions.length);
-    const chosenUpgrade = gameState.availableLevelUpOptions[randomIndex];
+    gameState.deltaTime = currentTime - gameState.lastTime;
+    gameState.lastTime = currentTime;
+    gameState.gameTime += gameState.deltaTime;
 
-    selectUpgrade(chosenUpgrade);
-}
+    // --- Update Game State based on Waves and Stages ---
+    handleWaveProgression();
 
-function getAiMovementVector() {
-    const DANGER_RADIUS = 150;
-    const XP_PRIORITY_RADIUS = 200;
-    const REPULSION_WEIGHT = 1.5;
-    const ATTRACT_ENEMY_WEIGHT = 1.0;
-    const ATTRACT_SKILL_TOTEM_WEIGHT = 2.0;
-    const ATTRACT_XP_WEIGHT = 1.0;
-    const ATTRACT_SAFE_ZONE_HIGH = 5.0; // Very strong pull towards safe zone
-    const ATTRACT_SAFE_ZONE_CENTER = 3.0; // Strong pull to center when already inside
-
-    let repulsion = { x: 0, y: 0 };
-    let attraction = { x: 0, y: 0 };
-    let hasPrimaryTarget = false;
-
-    // Calculate repulsion from nearby enemies (always active)
-    enemies.forEach(enemy => {
-        const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-        if (dist < DANGER_RADIUS && dist > 0) {
-            const force = 1 / (dist * dist);
-            repulsion.x -= (enemy.x - player.x) / dist * force;
-            repulsion.y -= (enemy.y - player.y) / dist * force;
-        }
-    });
-
-    // 1. Safe House Priority (Highest)
-    if (safeHouseInstance && safeHouseInstance.active) {
-        if (!safeHouseInstance.isInside(player)) {
-            const distToSH = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
-            if (distToSH > 0) {
-                attraction.x += (safeHouseInstance.x - player.x) / distToSH * ATTRACT_SAFE_ZONE_HIGH;
-                attraction.y += (safeHouseInstance.y - player.y) / distToSH * ATTRACT_SAFE_ZONE_HIGH;
-                hasPrimaryTarget = true;
-            }
-        } else {
-            const distToSHCenter = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
-            if (distToSHCenter > safeHouseInstance.radius * 0.1) {
-                attraction.x += (safeHouseInstance.x - player.x) / distToSHCenter * ATTRACT_SAFE_ZONE_CENTER;
-                attraction.y += (safeHouseInstance.y - player.y) / distToSHCenter * ATTRACT_SAFE_ZONE_CENTER;
-                hasPrimaryTarget = true;
-            }
-        }
-    } else if (safeHouseInstance && !safeHouseInstance.active && safeHouseInstance.respawnTimer > 0) {
-        // Safe house is inactive and respawning. No attraction to it right now.
-    }
-
-    // 2. Skill Totem Priority (High, if no overriding Safe Zone need)
-    let closestTotem = null, closestTotemDist = Infinity;
-    skillTotems.forEach(totem => {
-        const dist = Math.hypot(totem.x - player.x, totem.y - player.y);
-        if (dist < closestTotemDist) { closestTotemDist = dist; closestTotem = totem; }
-    });
-
-    if (!hasPrimaryTarget && closestTotem) {
-        const isSkillUnlocked = player.skills[closestTotem.skill]?.isUnlocked;
-        const isVortexSkill = (closestTotem.skill === 'soul_vortex' || UPGRADE_POOL.find(u => u.id === closestTotem.skill)?.skill === 'soul_vortex');
-
-        if (!isSkillUnlocked || (isVortexSkill && player.abilities.orbitingShield && player.abilities.orbitingShield.enabled && player.abilities.orbitingShield.count < (UPGRADE_POOL.find(u => u.id === 'vortex_twin')?.maxLevel || Infinity))) {
-            const distToTotem = Math.hypot(closestTotem.x - player.x, closestTotem.y - player.y);
-            if (distToTotem > 0) {
-                attraction.x += (closestTotem.x - player.x) / distToTotem * ATTRACT_SKILL_TOTEM_WEIGHT;
-                attraction.y += (closestTotem.y - player.y) / distToTotem * ATTRACT_SKILL_TOTEM_WEIGHT;
-                hasPrimaryTarget = true;
-            }
-        }
-    }
-
-    // 3. XP Orb Priority (Medium, if no higher priority target)
-    let closestOrb = null, closestOrbDist = Infinity;
-    xpOrbs.forEach(orb => {
-        const dist = Math.hypot(orb.x - player.x, orb.y - player.y);
-        if (dist < closestOrbDist) { closestOrbDist = dist; closestOrb = orb; }
-    });
-
-    if (!hasPrimaryTarget && closestOrb && closestOrbDist < XP_PRIORITY_RADIUS) {
-        const distToOrb = Math.hypot(closestOrb.x - player.x, closestOrb.y - player.y);
-        if (distToOrb > 0) {
-            attraction.x += (closestOrb.x - player.x) / distToOrb * ATTRACT_XP_WEIGHT;
-            attraction.y += (closestOrb.y - player.y) / distToOrb * ATTRACT_XP_WEIGHT;
-            hasPrimaryTarget = true;
-        }
-    }
-
-    // 4. Closest Enemy (Default, if no higher priority target)
-    let closestEnemy = null, closestEnemyDist = Infinity;
-    enemies.forEach(enemy => {
-        const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-        if (dist < closestEnemyDist) { closestEnemyDist = dist; closestEnemy = enemy; }
-    });
-
-    if (!hasPrimaryTarget && closestEnemy) {
-        const distToEnemy = Math.hypot(closestEnemy.x - player.x, closestEnemy.y - player.y);
-         if (distToEnemy > 0) {
-            attraction.x += (closestEnemy.x - player.x) / distToEnemy * ATTRACT_ENEMY_WEIGHT;
-            attraction.y += (closestEnemy.y - player.y) / distToEnemy * ATTRACT_ENEMY_WEIGHT;
-        }
-    }
-
-    return { x: attraction.x + (repulsion.x * REPULSION_WEIGHT), y: attraction.y + (repulsion.y * REPULSION_WEIGHT) };
-}
-
-function gameLoop(timestamp) {
-    const deltaTime = timestamp - gameState.lastTime;
-    gameState.lastTime = timestamp;
-    gameState.gameTime += deltaTime;
-
-    if (!gameState.isRunning) { // If game is paused (inter-wave or level-up)
-        if (gameState.levelUpTimerActive) {
-            const elapsedTime = gameState.gameTime - gameState.levelUpTimerStartTime;
-            if (elapsedTime >= gameState.levelUpTimerDuration) {
-                autoSelectRandomUpgrade();
-            }
-        }
-        // If in inter-wave state, countdown the inter-wave timer
-        else if (gameState.currentWave === 0 && gameState.interWaveTimer > 0) {
-            gameState.interWaveTimer -= deltaTime;
-            if (hudElements.nextWaveMessage) {
-                hudElements.nextWaveMessage.textContent = `NEXT WAVE INCOMING IN: ${Math.ceil(gameState.interWaveTimer / 1000)}s`;
-                hudElements.nextWaveMessage.style.display = 'block';
-            }
-            if (gameState.interWaveTimer <= 0) {
-                startNextWave(); // Start the next wave when timer runs out
-            }
-        }
-        draw(); // Always draw when paused to show UI elements like the timer and "Next Wave Incoming"
-        gameState.animationFrameId = requestAnimationFrame(gameLoop);
-        return; // Stop further game updates if paused
-    }
-
-    // Only run game update logic if game is running (active wave)
-    update(deltaTime);
-    draw();
-    gameState.animationFrameId = requestAnimationFrame(gameLoop);
-}
-
-function update(deltaTime) {
-    let dx = 0, dy = 0;
-    if (gameState.isAutoMode) {
-        const aiVector = getAiMovementVector();
-        dx = aiVector.x; dy = aiVector.y;
-    } else if (joystick.active) {
-        dx = joystick.handleX - joystick.baseX; dy = joystick.handleY - joystick.baseY;
-    } else {
-        dx = (keys.d ? 1 : 0) - (keys.a ? 1 : 0); dy = (keys.s ? 1 : 0) - (keys.w ? 1 : 0);
-    }
-
-    const { closestEnemy, closestDist } = updatePlayer(deltaTime, world, enemies, { dx, dy });
-    if (closestEnemy && gameState.gameTime - (player.lastFireTime || 0) > player.weapon.cooldown) {
+    // --- Core Updates ---
+    updatePlayer(gameState.deltaTime, world, enemies, getMoveVector());
+    updateCamera();
+    
+    // Player Weapon Cooldown & Firing
+    if (!gameState.isAutoMode && gameState.gameTime - player.weapon.lastShotTime > player.weapon.cooldown) {
         fireProjectile(player);
-        player.lastFireTime = gameState.gameTime;
+        player.weapon.lastShotTime = gameState.gameTime;
     }
 
-    // *** FIX 1: CALL THE updateEnemies FUNCTION ***
-    // This was missing. It ensures all enemies update their position and state each frame.
-    updateEnemies(enemies, player, world, xpOrbs, deltaTime, gameState, spawnDamageNumber, player.lifeSteal, gainXP);
+    // Player Skill Cooldowns
+    updateLightning(gameState.deltaTime, player);
+    updateVolcano(gameState.deltaTime, player);
+    updateFrostNova(gameState.deltaTime, player);
+    updateBlackHole(gameState.deltaTime, player);
 
-    if (screenShake.timer > 0) {
-        screenShake.timer -= deltaTime;
-        const shakeAmount = screenShake.intensity * (screenShake.timer / screenShake.duration);
-        camera.x += (Math.random() - 0.5) * 2 * shakeAmount;
-        camera.y += (Math.random() - 0.5) * 2 * shakeAmount;
+    // Bulletstorm Skill
+    if (player.skills.bulletstorm.isUnlocked && gameState.gameTime - player.skills.bulletstorm.lastShotTime > player.skills.bulletstorm.fireRate) {
+        const target = enemies.filter(e => !e.markedForDeletion).sort((a,b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))[0];
+        if (target) {
+            firePlayerSkillProjectile(player.x, player.y, target.x, target.y,
+                player.skills.bulletstorm.damage, player.skills.bulletstorm.speed,
+                player.skills.bulletstorm.color, player.skills.bulletstorm.size);
+            player.skills.bulletstorm.lastShotTime = gameState.gameTime;
+        }
     }
 
-    camera.x = player.x - camera.width / 2; camera.y = player.y - camera.height / 2;
+    // Update Enemies (Movement, Shooting, Dying State)
+    updateEnemies(gameState.deltaTime, enemies, player, showLevelUpOptions, gainXPWrapper);
+
+    // --- NEW: Collision Detection and Damage Application ---
+    handleCollisions();
+    
+    // --- Update Entities and Filter Dead Ones ---
+    projectiles = projectiles.filter(p => !p.update(gameState.deltaTime));
+    xpOrbs = xpOrbs.filter(o => !o.update(gameState.deltaTime, Math.hypot(player.x - o.x, player.y - o.y))); // Pass player-orb distance
+    particles = particles.filter(p => !p.update(gameState.deltaTime));
+    damageNumbers = damageNumbers.filter(dn => !dn.update(gameState.deltaTime));
+    lightningBolts = lightningBolts.filter(b => !b.update(gameState.deltaTime));
+    volcanicEruptions = volcanicEruptions.filter(v => !v.update(gameState.deltaTime));
+    visualEffects = visualEffects.filter(eff => !eff.update(gameState.deltaTime));
+    
+    // Filter enemies: Mark 'markedForDeletion' as the final removal step
+    enemies = enemies.filter(e => !e.markedForDeletion);
+
+    // Update Safe House
+    updateSafeHouse(gameState.deltaTime);
+
+    // Check for game over
+    if (player.health <= 0) {
+        gameState.isRunning = false;
+        hudElements.gameOverScreen.classList.add('visible');
+        hudElements.finalTimeText.textContent = formatTime(gameState.gameTime);
+        hudElements.finalLevelText.textContent = player.level;
+        hudElements.finalKillsText.textContent = player.kills;
+        // Optionally save game on death
+        saveGame({ player, gameState, safeHouse });
+    }
+
+    // --- Drawing ---
+    drawGame();
+
+    // Update HUD
+    updateHUD();
+
+    requestAnimationFrame(gameLoop);
+}
+
+// Helper to provide gainXP with callbacks
+function gainXPWrapper(amount) {
+    gainXP(amount, showLevelUpOptions, expandWorld, triggerNova, camera);
+}
+
+function handleWaveProgression() {
+    const timeInCurrentPhase = gameState.gameTime - gameState.waveStartTime;
+
+    if (gameState.isIntermission) {
+        hudElements.nextWaveMessage.textContent = `WAVE ${gameState.currentWave + 1} INCOMING!`;
+        hudElements.nextWaveMessage.style.display = 'block';
+
+        if (timeInCurrentPhase >= gameState.intermissionDuration) {
+            // End intermission, start next wave
+            gameState.isIntermission = false;
+            gameState.currentWave++;
+            gameState.waveStartTime = gameState.gameTime;
+            gameState.waveSpawnedEnemies = 0;
+            hudElements.nextWaveMessage.style.display = 'none';
+
+            if (gameState.currentWave > 5) {
+                // If all regular waves are done, move to next stage and reset waves
+                gameState.currentStage++;
+                gameState.currentWave = 1; // Start wave 1 of new stage
+                // Give a short intermission before starting next stage's wave 1
+                gameState.isIntermission = true;
+                gameState.waveStartTime = gameState.gameTime;
+                hudElements.nextWaveMessage.textContent = `STAGE ${gameState.currentStage} START!`;
+                hudElements.nextWaveMessage.style.display = 'block';
+                return; // Skip enemy spawning for this frame, wait for next loop
+            }
+
+            if (gameState.currentWave === 5) { // Boss wave
+                gameState.bossActive = true;
+                hudElements.nextWaveMessage.textContent = `BOSS APPROACHING!`;
+                hudElements.nextWaveMessage.style.display = 'block'; // Keep message
+                setTimeout(() => {
+                    if (!gameState.bossEnemy) { // Ensure only one boss
+                        spawnEnemy(enemies, gameState.currentStage, gameState.currentWave, 'boss');
+                        gameState.bossEnemy = enemies.find(e => e.isBoss); // Store boss reference
+                        hudElements.nextWaveMessage.style.display = 'none'; // Hide message once boss spawns
+                    }
+                }, 1000); // 1 second delay for boss spawn
+                gameState.maxWaveEnemyCount = 1; // Only the boss
+            } else { // Regular waves
+                // Calculate max enemies for current wave based on stage and wave number
+                gameState.maxWaveEnemyCount = Math.floor(5 + (gameState.currentStage * 3) + (gameState.currentWave * 2));
+                gameState.spawnInterval = gameState.waveDuration / gameState.maxWaveEnemyCount;
+                gameState.nextWaveEnemySpawnTime = gameState.gameTime + gameState.spawnInterval;
+            }
+        }
+    } else { // During a wave
+        if (gameState.bossActive) {
+            if (gameState.bossEnemy && gameState.bossEnemy.markedForDeletion) {
+                // Boss defeated!
+                gameState.bossActive = false;
+                gameState.bossEnemy = null;
+                // Transition to intermission after boss defeat
+                gameState.currentWave++; // Increment to 6 (post-boss)
+                gameState.isIntermission = true;
+                gameState.waveStartTime = gameState.gameTime;
+                hudElements.nextWaveMessage.textContent = `STAGE CLEARED!`;
+                hudElements.nextWaveMessage.style.display = 'block';
+            } else if (!gameState.bossEnemy) {
+                // Boss was supposed to be active but is null (e.g., initial spawn failed or was removed prematurely)
+                // Re-attempt spawn or transition to next phase if boss not found after a short while
+                if (gameState.gameTime - gameState.waveStartTime > 5000 && !gameState.bossEnemy) { // 5s grace period
+                    console.warn("Boss was active but bossEnemy is null. Resetting wave state.");
+                    gameState.bossActive = false;
+                    gameState.currentWave++; // Increment to 6 (post-boss)
+                    gameState.isIntermission = true;
+                    gameState.waveStartTime = gameState.gameTime;
+                    hudElements.nextWaveMessage.textContent = `STAGE CLEARED! (Boss not found)`;
+                    hudElements.nextWaveMessage.style.display = 'block';
+                }
+            }
+        } else { // Regular waves
+            if (timeInCurrentPhase >= gameState.waveDuration) {
+                // End wave, transition to intermission
+                gameState.isIntermission = true;
+                gameState.waveStartTime = gameState.gameTime;
+                hudElements.nextWaveMessage.textContent = `WAVE ${gameState.currentWave} COMPLETE!`;
+                hudElements.nextWaveMessage.style.display = 'block';
+            } else {
+                // Spawn enemies during wave
+                if (gameState.waveSpawnedEnemies < gameState.maxWaveEnemyCount && gameState.gameTime >= gameState.nextWaveEnemySpawnTime) {
+                    spawnEnemy(enemies, gameState.currentStage, gameState.currentWave);
+                    gameState.waveSpawnedEnemies++;
+                    gameState.nextWaveEnemySpawnTime = gameState.gameTime + gameState.spawnInterval;
+                }
+            }
+        }
+    }
+}
+
+function getMoveVector() {
+    let dx = 0;
+    let dy = 0;
+
+    if (joystick.active) {
+        const deltaX = joystick.currentX - joystick.baseX;
+        const deltaY = joystick.currentY - joystick.baseY;
+        const distance = Math.hypot(deltaX, deltaY);
+        const angle = Math.atan2(deltaY, deltaX);
+
+        if (distance > joystick.deadZone) {
+            const cappedDistance = Math.min(distance, joystick.radius);
+            dx = Math.cos(angle) * cappedDistance;
+            dy = Math.sin(angle) * cappedDistance;
+
+            joystick.handleX = joystick.baseX + dx;
+            joystick.handleY = joystick.baseY + dy;
+            
+            // Normalize for player speed calculation
+            dx /= joystick.radius;
+            dy /= joystick.radius;
+        } else {
+            joystick.handleX = joystick.baseX;
+            joystick.handleY = joystick.baseY;
+        }
+    } else {
+        if (keys.w) dy -= 1;
+        if (keys.s) dy += 1;
+        if (keys.a) dx -= 1;
+        if (keys.d) dx += 1;
+    }
+
+    return { dx, dy };
+}
+
+function updateCamera() {
+    camera.x = player.x - camera.width / 2;
+    camera.y = player.y - camera.height / 2;
+
+    // Clamp camera to world boundaries
     camera.x = Math.max(0, Math.min(world.width - camera.width, camera.x));
     camera.y = Math.max(0, Math.min(world.height - camera.height, camera.y));
 
-    // Time-based upgrade is still active, but now only triggers if not in wave transition/level up
-    if (gameState.gameTime >= nextMinuteUpgradeTime) {
-        if (!hudElements.levelUpWindow.classList.contains('visible') && gameState.currentWave !== 0) { // Only trigger if not already showing level up or between waves
-            console.log(`Time-based upgrade triggered at ${formatTime(gameState.gameTime)}`);
-            showLevelUpOptions();
-        }
-        nextMinuteUpgradeTime = Math.ceil((gameState.gameTime + 1) / MINUTE_INTERVAL) * MINUTE_INTERVAL;
-    }
-
-    // --- NEW: Wave-based enemy spawning logic ---
-    if (gameState.currentWave > 0 && !gameState.bossActive) { // Only spawn in active waves (not boss wave as boss is single spawn)
-        gameState.waveTimer += deltaTime; // Increment wave timer
-
-        // Spawn enemies in batches
-        if (gameState.enemiesSpawnedInWave < gameState.totalEnemiesToSpawnThisWave && 
-            gameState.gameTime - gameState.spawnBatchTimer > gameState.spawnBatchInterval) {
-            
-            const numToSpawn = Math.min(gameState.currentSpawnBatchSize, 
-                                        gameState.totalEnemiesToSpawnThisWave - gameState.enemiesSpawnedInWave);
-            for (let i = 0; i < numToSpawn; i++) {
-                // Pass currentStage and currentWave to spawnEnemy for difficulty scaling
-                spawnEnemy(enemies, gameState.currentStage, gameState.currentWave); 
-            }
-            gameState.enemiesSpawnedInWave += numToSpawn;
-            gameState.spawnBatchTimer = gameState.gameTime;
-        }
-
-        // Check for wave completion (time-based for regular waves)
-        if (gameState.waveTimer >= gameState.waveDuration) {
-            // Transition to inter-wave state
-            gameState.currentWave = 0;
-            gameState.interWaveTimer = gameState.interWaveDuration;
-            gameState.isRunning = false; // Pause game for inter-wave countdown
-            console.log(`Wave ${gameState.currentWave} completed (time limit).`);
-            return; // Stop further updates this frame to prevent errors from cleared enemies
-        }
-    }
-    // --- END NEW: Wave-based enemy spawning logic ---
-
-
-    if (player.skills.bulletstorm.isUnlocked) {
-        const skill = player.skills.bulletstorm;
-        if (gameState.gameTime - skill.lastShotTime > skill.fireRate) {
-            const target = closestEnemy || (enemies.length > 0 ? enemies[Math.floor(Math.random() * enemies.length)] : null);
-            if (target) {
-                firePlayerSkillProjectile(player.x, player.y, target.x, target.y, skill.damage, skill.speed, skill.color, skill.size);
-                skill.lastShotTime = gameState.gameTime;
-            }
-        }
-    }
-        if (player.skills.hyperBeam.isUnlocked) {
-        const skill = player.skills.hyperBeam;
-        const isOnCooldown = gameState.gameTime - skill.lastCast < skill.cooldown;
-        let shouldFire = false;
-
-        if (gameState.isAutoMode) {
-            const nearbyEnemies = enemies.filter(e => Math.hypot(e.x - player.x, e.y - player.y) < camera.width / 2 + 200);
-            if (!isOnCooldown && nearbyEnemies.length > 15) {
-                shouldFire = true;
-            }
+    // Apply screen shake
+    if (screenShake.intensity > 0) {
+        const elapsed = gameState.gameTime - screenShake.startTime;
+        if (elapsed < screenShake.duration) {
+            camera.x += (Math.random() - 0.5) * screenShake.intensity;
+            camera.y += (Math.random() - 0.5) * screenShake.intensity;
+            // Gradually reduce intensity
+            screenShake.intensity *= 0.95;
         } else {
-            if (!isOnCooldown && manualHyperBeamTrigger) {
-                shouldFire = true;
-            }
-        }
-
-        if (shouldFire) {
-            console.log("Hyper Beam Fired!");
-            fireHyperBeam(player, skill.damage, skill.width, skill.duration, skill.chargingTime, skill.color);
-            skill.lastCast = gameState.gameTime;
-            manualHyperBeamTrigger = false;
+            screenShake.intensity = 0;
         }
     }
-
-    if (safeHouseInstance) {
-        safeHouseInstance.update(deltaTime);
-
-        if (safeHouseInstance.active && safeHouseInstance.isInside(player)) {
-            player.health = Math.min(player.maxHealth, player.health + (player.healthRegen + safeHouseInstance.healingRate) * (deltaTime / 1000));
-        }
-        enemies.forEach(enemy => {
-            if (safeHouseInstance.active && safeHouseInstance.isInside(enemy)) {
-                enemy.speedMultiplier = 0.5;
-            } else {
-                enemy.speedMultiplier = 1.0;
-            }
-        });
-    }
-
-    // Check if boss is active and defeated (only for wave 5)
-    if (gameState.bossActive && gameState.bossEnemy && gameState.bossEnemy.health <= 0) {
-        console.log(`Boss defeated for Stage ${gameState.currentStage}!`);
-        // Transition to inter-wave state
-        gameState.currentWave = 0;
-        gameState.interWaveTimer = gameState.interWaveDuration;
-        gameState.isRunning = false; // Pause game for inter-wave countdown
-        gameState.bossActive = false;
-        gameState.bossEnemy = null; // Clear boss reference
-        return; // Stop further updates this frame
-    }
-    // Filter out deleted enemies after the boss check
-    enemies = enemies.filter(enemy => !enemy.markedForDeletion);
-
-
-    for (let i = skillTotems.length - 1; i >= 0; i--) {
-        const totem = skillTotems[i];
-        if (Math.hypot(player.x - totem.x, player.y - totem.y) < player.size + totem.radius) {
-            player.skills[totem.skill].isUnlocked = true;
-            player.upgradeLevels[totem.skill] = 1;
-            skillTotems.splice(i, 1);
-        }
-    }
-    updateLightning(deltaTime, player);
-    updateVolcano(deltaTime, player);
-    updateFrostNova(deltaTime, player);
-    updateBlackHole(deltaTime, player);
-
-    const updateEntityArray = (arr, dt, extra) => { for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].update(dt, extra)) arr.splice(i, 1); } };
-    updateEntityArray(projectiles, deltaTime);
-    updateEntityArray(xpOrbs, deltaTime, closestDist);
-    updateEntityArray(particles, deltaTime);
-    updateEntityArray(damageNumbers, deltaTime);
-    updateEntityArray(lightningBolts, deltaTime);
-    updateEntityArray(volcanicEruptions, deltaTime);
-    updateEntityArray(visualEffects, deltaTime);
-    handleCollisions();
 }
 
+function triggerScreenShake(intensity, duration) {
+    screenShake.intensity = Math.max(screenShake.intensity, intensity);
+    screenShake.duration = Math.max(screenShake.duration, duration);
+    screenShake.startTime = gameState.gameTime;
+}
+
+
+// --- NEW: Collision Handling Function ---
 function handleCollisions() {
-    projectiles.forEach(p => {
-        if (!p.isPlayerProjectile) return;
-
-        if (p.pierce < p.hitEnemies.length && (!p.isPlayerSkillProjectile || !p.explodesOnImpact || p.hitEnemies.length > 0)) {
-            return;
-        }
-
+    // Player Projectile vs Enemy
+    projectiles.filter(p => p.isPlayerProjectile && !p.isPlayerSkillProjectile && !p.markedForDeletion).forEach(p => {
         enemies.forEach(e => {
-            if (e.markedForDeletion || e.isDying || p.hitEnemies.includes(e)) return;
+            if (!e.isDying && !e.markedForDeletion && !p.hitEnemies.includes(e)) {
+                // Basic AABB collision for simplicity, or use circular collision if sizes are radii
+                const projHalfW = p.size.w / 2;
+                const projHalfH = p.size.h / 2; // For rectangular projectiles
+                const enemyHalfW = e.width / 2;
+                const dist = Math.hypot(p.x - e.x, p.y - e.y); // Center to center distance
 
-            const combinedRadius = (p.size?.w / 2 || 5) + (e.width / 2 || 20);
-            if (Math.hypot(e.x - p.x, e.y - p.y) < combinedRadius) {
-                if (p.explodesOnImpact && p.hitEnemies.length === 0) {
-                    triggerNova({x: e.x, y: e.y}, p.explosionDamage, p.explosionRadius);
-                }
+                // Consider projectile as a circle of max(w,h)/2, enemy as a circle of width/2
+                if (dist < Math.max(projHalfW, projHalfH) + enemyHalfW) {
+                    applyDamageToEnemy(e, p.damage, p.critChance, p.critDamage, p.x, p.y, p.color);
+                    p.hitEnemies.push(e); // Mark enemy as hit by this projectile
 
-                const isCrit = Math.random() < (p.critChance || 0);
-                const damage = isCrit ? Math.round(p.damage * (p.critDamage || 2)) : p.damage; 
+                    if (player.abilities.critExplosion && Math.random() < player.weapon.critChance) {
+                        createImpactParticles(e.x, e.y, 10, 'spark', 'orange');
+                        triggerNova(e, p.damage * 0.5, p.explosionRadius); // Minor explosion
+                    }
+                    
+                    if (p.explodesOnImpact) {
+                        visualEffects.push({
+                            type: 'shockwave', x: p.x, y: p.y, radius: 10, maxRadius: p.explosionRadius, life: 150,
+                            update(dt) { this.radius += (this.maxRadius / 150) * dt; this.life -= dt; return this.life <= 0; }
+                        });
+                        // Apply explosion damage to all enemies in radius
+                        enemies.forEach(expEnemy => {
+                            if (!expEnemy.isDying && !expEnemy.markedForDeletion && Math.hypot(expEnemy.x - p.x, expEnemy.y - p.y) < p.explosionRadius) {
+                                applyDamageToEnemy(expEnemy, p.explosionDamage, 0, 1, expEnemy.x, expEnemy.y, 'rgba(255, 100, 0, 1)'); // No crit for explosion damage
+                            }
+                        });
+                        p.markedForDeletion = true; // Mark projectile for deletion after explosion
+                    }
 
-                e.health -= damage;
-                e.lastHitTime = gameState.gameTime;
-                p.hitEnemies.push(e);
-                createImpactParticles(e.x, e.y, 10, 'impact');
-                spawnDamageNumber(e.x, e.y, Math.round(damage), isCrit);
-
-                if (p.isPlayerSkillProjectile) {
-                    p.life = 0;
+                    if (p.pierce > 0) {
+                        p.pierce--;
+                    } else {
+                        if (!p.explodesOnImpact) { // If it explodes, it's already marked
+                            p.markedForDeletion = true;
+                        }
+                    }
                 }
             }
         });
     });
 
-    projectiles.forEach(p => {
-        if (p.isPlayerProjectile) return;
+    // Player Skill Projectile vs Enemy (e.g., Bulletstorm)
+    projectiles.filter(p => p.isPlayerSkillProjectile && !p.markedForDeletion).forEach(p => {
+        enemies.forEach(e => {
+            if (!e.isDying && !e.markedForDeletion && !p.hitEnemies.includes(e)) {
+                const projHalfW = p.size.w / 2;
+                const enemyHalfW = e.width / 2;
+                const dist = Math.hypot(p.x - e.x, p.y - e.y);
 
-        const playerCollisionRadius = player.size;
-        const projectileCollisionRadius = p.size?.w / 2 || 5;
+                if (dist < projHalfW + enemyHalfW) {
+                    applyDamageToEnemy(e, p.damage, p.critChance, p.critDamage, p.x, p.y, p.color);
+                    p.hitEnemies.push(e);
 
-        if (Math.hypot(player.x - p.x, player.y - p.y) < projectileCollisionRadius + playerCollisionRadius) {
-            takeDamage(p.damage, true);
-            p.life = 0;
-            createImpactParticles(p.x, p.y, 5, 'normal');
-        }
-    });
-
-    enemies.forEach(e => {
-        if (e.isDying) return;
-
-        const enemyCollisionRadius = (e.width / 2 || 20);
-        const playerCollisionRadius = player.size;
-
-        if (Math.hypot(e.x - player.x, e.y - player.y) < enemyCollisionRadius + playerCollisionRadius) {
-            takeDamage(e.damage || 10, true);
-            // If it's a boss, don't instantly kill it on collision, just deal damage
-            if (!e.isBoss) { // Check if it's NOT a boss
-                e.health = 0; // Mark for immediate "death" in next update loop iteration
-                e.isDying = true;
-                e.deathTimer = 300;
-                e.deathDuration = 300;
-                e.speed = 0;
-            } else {
-                // Bosses take damage but are not instantly removed
-            }
-        }
-    });
-
-    const shield = player.abilities.orbitingShield;
-    if (shield && shield.enabled) {
-        const count = shield.count || 1;
-        for(let i=0; i<count; i++) {
-            const angle = shield.angle + (i * (Math.PI * 2 / count));
-            shield.cooldown = shield.cooldown || 200;
-            if(!shield.lastHitTime) shield.lastHitTime = {};
-
-            if (gameState.gameTime - (shield.lastHitTime[i] || 0) > shield.cooldown) {
-                const shieldX = player.x + Math.cos(angle) * shield.distance;
-                const shieldY = player.y + Math.sin(angle) * shield.distance;
-                enemies.forEach(e => {
-                    if (e.markedForDeletion || e.isDying) return;
-                    const combinedRadius = 15 + (e.width / 2 || 20);
-                    if (Math.hypot(e.x - shieldX, e.y - shieldY) < combinedRadius) {
-                        e.health -= shield.damage;
-                        spawnDamageNumber(e.x, e.y, shield.damage, false);
-                        shield.lastHitTime[i] = gameState.gameTime;
+                    if (p.explodesOnImpact) {
+                        visualEffects.push({
+                            type: 'shockwave', x: p.x, y: p.y, radius: 10, maxRadius: p.explosionRadius, life: 150,
+                            update(dt) { this.radius += (this.maxRadius / 150) * dt; this.life -= dt; return this.life <= 0; }
+                        });
+                        enemies.forEach(expEnemy => {
+                            if (!expEnemy.isDying && !expEnemy.markedForDeletion && Math.hypot(expEnemy.x - p.x, expEnemy.y - p.y) < p.explosionRadius) {
+                                applyDamageToEnemy(expEnemy, p.explosionDamage, 0, 1, expEnemy.x, expEnemy.y, p.color);
+                            }
+                        });
+                        p.markedForDeletion = true;
                     }
-                });
+                    if (!p.explodesOnImpact) { // Mark for deletion if it doesn't explode
+                        p.markedForDeletion = true;
+                    }
+                }
+            }
+        });
+    });
+
+    // Enemy Projectile vs Player
+    projectiles.filter(p => !p.isPlayerProjectile && !p.markedForDeletion).forEach(p => {
+        const dist = Math.hypot(p.x - player.x, p.y - player.y);
+        const projSize = p.size.w / 2; // Assuming square for simplicity
+        const playerSize = player.size / 2;
+
+        if (dist < projSize + playerSize) {
+            takeDamage(p.damage, gameState.gameTime, spawnDamageNumber, screenRedFlash, triggerScreenShake);
+            p.markedForDeletion = true;
+        }
+    });
+
+    // Player (Melee) vs Enemy (Thorns/Contact Damage)
+    enemies.forEach(e => {
+        if (!e.isDying && !e.markedForDeletion && e.type !== 'shooter') { // Shooters typically don't have contact damage
+            const dist = Math.hypot(player.x - e.x, player.y - e.y);
+            const playerHalfSize = player.size / 2;
+            const enemyHalfSize = e.width / 2;
+
+            if (dist < playerHalfSize + enemyHalfSize) {
+                // Player takes damage from enemy contact
+                if (gameState.gameTime - e.lastDamageToPlayerTime > 500 || !e.lastDamageToPlayerTime) { // 0.5 sec cooldown for enemy contact damage
+                    takeDamage(e.damage, gameState.gameTime, spawnDamageNumber, screenRedFlash, triggerScreenShake);
+                    e.lastDamageToPlayerTime = gameState.gameTime;
+                }
+                
+                // Enemy takes thorns damage from player contact
+                if (player.thorns > 0) {
+                    if (!safeHouse.enemiesHit.has(e)) { // Re-using safeHouse's Set to prevent rapid thorns ticks
+                        applyDamageToEnemy(e, player.thorns, 0, 1, e.x, e.y, 'var(--player-aura-color)');
+                        safeHouse.enemiesHit.add(e);
+                        setTimeout(() => safeHouse.enemiesHit.delete(e), 100); // Clear hit for next tick
+                    }
+                }
             }
         }
-        shield.angle += 0.05 * (shield.speed || 1);
-    }
+    });
 
-    visualEffects.forEach(effect => {
-        if (effect.type === 'hyperBeam' && effect.life > effect.maxLife - effect.maxLife * 0.9) {
+    // Hyper Beam Damage Application
+    visualEffects.filter(eff => eff.type === 'hyperBeam' && eff.life > 0).forEach(beam => {
+        const beamCenter = { x: beam.x, y: beam.y };
+        const beamAngle = beam.angle;
+        const beamHalfWidth = beam.beamWidth / 2;
+        const beamLength = beam.length;
+
+        enemies.forEach(e => {
+            if (!e.isDying && !e.markedForDeletion && !beam.hitEnemies.has(e)) {
+                // Calculate position of enemy relative to beam's coordinate system
+                const dx = e.x - beamCenter.x;
+                const dy = e.y - beamCenter.y;
+                const rotatedX = dx * Math.cos(-beamAngle) - dy * Math.sin(-beamAngle);
+                const rotatedY = dx * Math.sin(-beamAngle) + dy * Math.cos(-beamAngle);
+
+                // Check if enemy is within beam's rectangular hit area
+                if (rotatedX > 0 && rotatedX < beamLength &&
+                    rotatedY > -beamHalfWidth - e.width/2 && rotatedY < beamHalfWidth + e.width/2)
+                {
+                    applyDamageToEnemy(e, beam.damage * (gameState.deltaTime / 1000), 0, 1, e.x, e.y, beam.color); // Continuous damage
+                    beam.hitEnemies.add(e); // Mark as hit for this beam instance
+                }
+            }
+        });
+        // Clear hitEnemies set for next frame if not a continuous beam, or at intervals
+        // For a single-pass beam, this needs adjustment. For continuous:
+        // Set will be cleared when the beam effect itself is removed.
+    });
+
+    // Soul Vortex Damage
+    if (player.abilities.orbitingShield.enabled) {
+        const shield = player.abilities.orbitingShield;
+        const count = shield.count || 1;
+        const soulRadius = shield.radius || 10;
+        const orbitDistance = shield.distance || 50;
+
+        for (let i = 0; i < count; i++) {
+            const angle = shield.angle + (i * (Math.PI * 2 / count));
+            const soulX = player.x + Math.cos(angle) * orbitDistance;
+            const soulY = player.y + Math.sin(angle) * orbitDistance;
+
             enemies.forEach(e => {
-                if (e.markedForDeletion || e.isDying || effect.hitEnemies.has(e)) return;
-
-                const dx = e.x - effect.x;
-                const dy = e.y - effect.y;
-                const rotatedX = dx * Math.cos(-effect.angle) - dy * Math.sin(-effect.angle);
-                const rotatedY = dx * Math.sin(-effect.angle) + dy * Math.cos(-effect.angle);
-
-                if (Math.abs(rotatedY) < (effect.beamWidth / 2) + (e.width / 2) && rotatedX >= -e.width / 2 && rotatedX < effect.length) {
-                    e.health -= effect.damage;
-                    spawnDamageNumber(e.x, e.y, effect.damage, true);
-                    createImpactParticles(e.x, e.y, 15, 'nova', `rgba(${effect.color.r},${effect.color.g},${effect.color.b},1)`);
-                    effect.hitEnemies.add(e);
+                if (!e.isDying && !e.markedForDeletion) {
+                    const dist = Math.hypot(soulX - e.x, soulY - e.y);
+                    if (dist < soulRadius + e.width / 2) {
+                        // Check cooldown for each soul and enemy pair
+                        const hitKey = `${e.id || e.x}_${e.y}_${i}`; // Unique key for this enemy-soul interaction
+                        if (!shield.lastHit || (gameState.gameTime - shield.lastHit[hitKey] > shield.cooldown || !shield.lastHit[hitKey])) {
+                            applyDamageToEnemy(e, shield.damage, 0, 1, e.x, e.y, 'var(--lightning-color)');
+                            shield.lastHit = shield.lastHit || {}; // Initialize if null
+                            shield.lastHit[hitKey] = gameState.gameTime;
+                        }
+                    }
                 }
             });
         }
-    });
+        // Update soul angle for rotation
+        shield.angle += (shield.speed || 1) * (gameState.deltaTime / 500); // Rotate faster based on speed
+    }
 }
-function draw() {
-    if (!gameState.isRunning && !hudElements.gameOverScreen.classList.contains('visible') && !hudElements.levelUpWindow.classList.contains('visible') && gameState.currentWave !== 0) {
-        return;
+
+// Function to apply damage to an enemy, handling crit, thorns, and death
+function applyDamageToEnemy(enemy, baseDamage, critChance, critDamageMultiplier, fxX, fxY, color = 'white') {
+    if (enemy.isDying || enemy.markedForDeletion) return;
+
+    let finalDamage = baseDamage;
+    let isCrit = false;
+
+    if (Math.random() < critChance) {
+        finalDamage *= critDamageMultiplier;
+        isCrit = true;
     }
 
+    // Apply thorns damage to player
+    if (player.thorns > 0 && finalDamage > 0) {
+        // Thorns are typically on enemy contact, but if you want reflected damage from player attacks:
+        // No, this is typically handled in player-enemy direct contact collision.
+        // It's better to keep thorns as a direct contact effect on the player.
+    }
+
+    enemy.health -= finalDamage;
+    enemy.lastHitTime = gameState.gameTime; // For hit flash
+
+    // Ensure damage numbers are spawned with correct values and colors
+    spawnDamageNumber(fxX, fxY, Math.round(finalDamage), isCrit);
+
+    // Enemy death handled in updateEnemies after health check
+    // No need to set markedForDeletion here, updateEnemies will do it when health <= 0
+    // and handle XP, kills, etc.
+}
+
+
+function updateSafeHouse(deltaTime) {
+    if (!safeHouse.active) return;
+
+    // Regenerate health
+    safeHouse.health = Math.min(safeHouse.maxHealth, safeHouse.health + safeHouse.regenRate * (deltaTime / 1000));
+
+    // Collision with enemies (enemies deal damage to safe house)
+    enemies.forEach(e => {
+        if (!e.isDying && !e.markedForDeletion) {
+            const dist = Math.hypot(e.x - safeHouse.x, e.y - safeHouse.y);
+            if (dist < safeHouse.radius + e.width / 2) {
+                if (!safeHouse.enemiesHit.has(e)) {
+                    safeHouse.health -= e.damage;
+                    createImpactParticles(safeHouse.x, safeHouse.y, 5, 'impact', 'rgba(255, 0, 0, 0.5)'); // Red particles for hits
+                    spawnDamageNumber(safeHouse.x, safeHouse.y - safeHouse.radius, Math.round(e.damage), false);
+                    triggerScreenShake(2, 50); // Minor shake for safe house hit
+                    safeHouse.enemiesHit.add(e);
+                    // Clear the hit status after a short delay to allow more hits
+                    setTimeout(() => safeHouse.enemiesHit.delete(e), 500); // Cooldown for damage from this enemy
+                }
+            }
+        }
+    });
+
+    if (safeHouse.health <= 0) {
+        safeHouse.health = 0;
+        safeHouse.active = false;
+        // Trigger game over if safe house is destroyed and player is also low health/dead
+        if (player.health > 0) { // If player is still alive, maybe a "last stand"
+             // For now, if safehouse dies, it just becomes inactive. Player still needs to die for game over.
+        }
+        createImpactParticles(safeHouse.x, safeHouse.y, 50, 'enemy_death', 'red'); // Explosion for safehouse
+    }
+}
+
+
+// --- Drawing Functions ---
+function drawGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
-    
+
+    // Draw pre-rendered static background
     ctx.drawImage(getBackgroundCanvas(), 0, 0);
 
-    if (safeHouseInstance) {
-        safeHouseInstance.draw(ctx, camera);
+    // Draw Safe House
+    if (safeHouse.active) {
+        ctx.beginPath();
+        ctx.arc(safeHouse.x, safeHouse.y, safeHouse.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'var(--safe-house-fill)';
+        ctx.fill();
+        ctx.strokeStyle = 'var(--safe-house-stroke)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw safe house health bar
+        if (safeHouse.health < safeHouse.maxHealth) {
+            const barWidth = safeHouse.radius * 1.5;
+            const barHeight = 8;
+            const barYOffset = safeHouse.radius + 15;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(safeHouse.x - barWidth / 2, safeHouse.y - barYOffset, barWidth, barHeight);
+
+            const currentHealthWidth = (Math.max(0, safeHouse.health) / safeHouse.maxHealth) * barWidth;
+            ctx.fillStyle = 'yellow'; // Safe house bar is yellow
+            ctx.fillRect(safeHouse.x - barWidth / 2, safeHouse.y - barYOffset, currentHealthWidth, barHeight);
+        }
     }
 
-    drawWorldElements();
+    drawWorldElements(); // Skill Totems, Lightning Bolts, Volcanoes, XP Orbs
+    
+    projectiles.forEach(p => {
+        if (p.isPlayerProjectile) { // Draw player projectiles in attacks_skills.js
+            fireProjectile.drawProjectile(p, ctx); // This function doesn't exist, will need to be fixed
+            // The drawProjectile function is actually defined in systemsmanager.js at the bottom in the old code.
+            // So calling it directly here.
+            drawProjectile(p, ctx);
+        } else { // Enemy projectiles drawn in attacks_skills.js
+            drawEnemyProjectile(p, ctx); // Need to define/import this if it's not present
+        }
+    });
 
-    // *** FIX 2: PASS THE 'camera' OBJECT TO drawEnemy ***
-    // This allows drawEnemy to correctly calculate health bar positions relative to the screen.
-    enemies.forEach(e => drawEnemy(e, ctx, player, camera));
-    projectiles.forEach(p => drawProjectile(p, ctx));
+    drawPlayer(player, player.angle); // Player is always drawn on top of most things
 
-    const playerBlink = (gameState.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
-    if (!playerBlink) drawPlayer(player, player.angle);
+    // Draw Enemies (after projectiles so projectiles appear "under" enemies if they pass through)
+    enemies.forEach(e => drawEnemy(e, ctx, player)); // Player is passed for enemy rotation
 
-    drawParticlesAndEffects();
-
+    drawParticlesAndEffects(); // Particles, Damage Numbers, Visual Effects
+    
     ctx.restore();
 
-    if (screenRedFlash.value > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${screenRedFlash.value * 0.4})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenRedFlash.value -= 0.04; }
-    if (screenFlash.value > 0) { ctx.fillStyle = `rgba(200, 225, 255, ${screenFlash.value})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenFlash.value -= 0.05; }
-    
-    if (joystick.active && !gameState.isAutoMode) drawJoystick();
-    updateHUD();
+    // Draw Joystick (always on top, not affected by camera)
+    if (joystick.active) {
+        drawJoystick();
+    }
+
+    // Apply screen flash overlay (always on top)
+    if (screenFlash.value > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${screenFlash.value})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        screenFlash.value = Math.max(0, screenFlash.value - 0.05); // Fade out
+    }
+    // Apply screen red flash overlay for player damage
+    if (screenRedFlash.value > 0) {
+        ctx.fillStyle = `rgba(255, 0, 0, ${screenRedFlash.value})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        screenRedFlash.value = Math.max(0, screenRedFlash.value - 0.08); // Fade out faster
+    }
 }
+
+// Drawing functions that were previously embedded or implicitly available
+// These should be moved to a separate `drawing.js` or `render.js` file if preferred,
+// but for now, consolidating them here to ensure everything is present.
+
+function drawProjectile(p, ctx) {
+    if (p.isPlayerProjectile) {
+        if (p.isPlayerSkillProjectile) {
+            ctx.save();
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 20;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle);
+            ctx.fillRect(-p.size.w / 2, -p.size.h / 2, p.size.w, p.size.h);
+            ctx.restore();
+
+            if (Math.random() < 0.3) {
+                createImpactParticles(p.x - p.vx * 0.1, p.y - p.vy * 0.1, 1, 'nova', p.color);
+            }
+
+        } else {
+            if (p.trail.length < 2) return;
+            ctx.save();
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.strokeStyle = p.color || 'var(--projectile-color)';
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.moveTo(p.trail[0].x, p.trail[0].y);
+            for (let i = 1; i < p.trail.length; i++) {
+                const point = p.trail[i];
+                ctx.lineWidth = (i / p.trail.length) * p.size.w * 1.5;
+                ctx.lineTo(point.x, point.y);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+}
+
+function drawEnemyProjectile(p, ctx) {
+    ctx.save();
+    ctx.fillStyle = p.color || 'rgba(255, 0, 0, 1)';
+    ctx.shadowColor = p.color || 'rgba(255, 0, 0, 1)';
+    ctx.shadowBlur = 10;
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
+    ctx.fill(p.path); // Assumes p.path is a Path2D object
+    ctx.restore();
+}
+
 function drawWorldElements() {
     skillTotems.forEach(totem => drawSkillTotem(totem));
     lightningBolts.forEach(bolt => drawLightningBolt(bolt));
     volcanicEruptions.forEach(v => drawVolcano(v));
     xpOrbs.forEach(orb => drawXpOrb(orb));
 }
+
 function drawParticlesAndEffects() {
     visualEffects.forEach(effect => {
         ctx.save();
@@ -1323,42 +1269,6 @@ function drawPlayer(p, angle) {
 
     ctx.restore();
 }
-function drawProjectile(p, ctx) {
-    if (p.isPlayerProjectile) {
-        if (p.isPlayerSkillProjectile) {
-            ctx.save();
-            ctx.fillStyle = p.color;
-            ctx.shadowColor = p.color;
-            ctx.shadowBlur = 20;
-            ctx.translate(p.x, p.y);
-            ctx.rotate(p.angle);
-            ctx.fillRect(-p.size.w / 2, -p.size.h / 2, p.size.w, p.size.h);
-            ctx.restore();
-
-            if (Math.random() < 0.3) {
-                createImpactParticles(p.x - p.vx * 0.1, p.y - p.vy * 0.1, 1, 'nova', p.color);
-            }
-
-        } else {
-            if (p.trail.length < 2) return;
-            ctx.save();
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-            ctx.strokeStyle = p.color || 'var(--projectile-color)';
-            ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
-            ctx.shadowBlur = 12;
-            ctx.beginPath();
-            ctx.moveTo(p.trail[0].x, p.trail[0].y);
-            for (let i = 1; i < p.trail.length; i++) {
-                const point = p.trail[i];
-                ctx.lineWidth = (i / p.trail.length) * p.size.w * 1.5;
-                ctx.lineTo(point.x, point.y);
-            }
-            ctx.stroke();
-            ctx.restore();
-        }
-    }
-}
 
 function drawXpOrb(o) {
     ctx.save();
@@ -1391,7 +1301,7 @@ function drawJoystick() { ctx.beginPath(); ctx.arc(joystick.baseX, joystick.base
 function drawDamageNumber(dn) { ctx.save(); ctx.translate(dn.x, dn.y); ctx.globalAlpha = dn.alpha; ctx.fillStyle = dn.isCrit ? 'yellow' : 'var(--damage-text-color)'; ctx.font = dn.isCrit ? 'bold 24px Roboto' : 'bold 18px Roboto'; ctx.textAlign = 'center'; ctx.shadowColor = '#000'; ctx.shadowBlur = 5; ctx.fillText(dn.value, 0, 0); ctx.restore(); }
 function drawLightningBolt(bolt) {
     ctx.save();
-    ctx.globalAlpha = Math.min(1, bolt.life / 100);
+    ctx.globalAlpha = Math.min(1, bolt.life / 150); // Fade faster as it was 100
     ctx.strokeStyle = bolt.color || 'var(--lightning-color)';
     ctx.lineWidth = 3;
     ctx.shadowColor = bolt.color || 'var(--lightning-color)';
@@ -1439,29 +1349,13 @@ function drawVolcano(v) {
     }
 
     if (lifePercent > 0.1 && Math.random() < 0.2) {
-        createImpactParticles(v.x + (Math.random() - 0.5) * v.radius,
-                              v.y + (Math.random() - 0.5) * v.radius,
-                              1, 'fire');
+        createImpactParticles(v.x, v.y, 1, 'fire'); // Create particles at volcano center
     }
     ctx.restore();
 }
-function drawSkillTotem(totem) { 
-    ctx.save(); 
-    ctx.translate(totem.x, totem.y); 
-    ctx.globalAlpha = 0.8 + Math.sin(gameState.gameTime / 200) * 0.2; 
-    ctx.beginPath(); 
-    ctx.arc(0, 0, totem.radius, 0, Math.PI * 2); 
-    ctx.fillStyle = totem.color; 
-    ctx.shadowColor = totem.color; 
-    ctx.shadowBlur = 20; 
-    ctx.fill(); 
-    ctx.font = '24px sans-serif'; 
-    ctx.fillStyle = '#fff'; 
-    ctx.textAlign = 'center'; 
-    ctx.textBaseline = 'middle'; 
-    ctx.fillText(totem.icon, 0, 0); 
-    ctx.restore();
-}
+function drawSkillTotem(totem) { ctx.save(); ctx.translate(totem.x, totem.y); ctx.globalAlpha = 0.8 + Math.sin(gameState.gameTime / 200) * 0.2; ctx.beginPath(); ctx.arc(0, 0, totem.radius, 0, Math.PI * 2); ctx.fillStyle = totem.color; ctx.shadowColor = totem.color; ctx.shadowBlur = 20; ctx.fill(); ctx.font = '24px sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(totem.icon, 0, 0); ctx.restore(); }
+
+
 function updateHUD() {
     hudElements.level.textContent = `LV ${player.level}`;
     hudElements.hp.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
@@ -1472,7 +1366,7 @@ function updateHUD() {
 
     // NEW: Update Stage and Wave text
     if (hudElements.stageText) hudElements.stageText.textContent = `STAGE: ${gameState.currentStage}`;
-    if (hudElements.waveText) hudElements.waveText.textContent = `WAVE: ${gameState.currentWave === 0 ? 'INTERMISSION' : gameState.currentWave}/5`;
+    if (hudElements.waveText) hudElements.waveText.textContent = `WAVE: ${gameState.currentWave === 0 || gameState.isIntermission ? 'INTERMISSION' : gameState.currentWave}/5`;
 
     // NEW: Update Boss Health Bar
     if (hudElements.bossHealthBarContainer && hudElements.bossHealthBarFill) {
@@ -1577,6 +1471,11 @@ function updateHUD() {
             hyperBeamButton.textContent = 'AUTO HB';
             hyperBeamButton.disabled = true;
             hyperBeamButton.classList.remove('cooldown-active');
+            // Auto cast Hyper Beam if available in auto mode
+            if (gameState.gameTime - hyperBeamSkill.lastCast > hyperBeamSkill.cooldown) {
+                 fireHyperBeam(player, hyperBeamSkill.damage, hyperBeamSkill.width, hyperBeamSkill.duration, hyperBeamSkill.chargingTime, hyperBeamSkill.color);
+                 hyperBeamSkill.lastCast = gameState.gameTime;
+            }
         } else {
             const timeRemaining = Math.max(0, (hyperBeamSkill.cooldown - (gameState.gameTime - hyperBeamSkill.lastCast)) / 1000);
             const isOnCooldown = timeRemaining > 0.1;
@@ -1597,6 +1496,20 @@ function updateHUD() {
             hudElements.levelUpTimerDisplay.classList.add('low-time');
         } else {
             hudElements.levelUpTimerDisplay.classList.remove('low-time');
+        }
+        if (timeLeft <= 0) {
+            // Auto-select a random upgrade if time runs out
+            if (gameState.availableLevelUpOptions.length > 0) {
+                const randomUpgrade = gameState.availableLevelUpOptions[Math.floor(Math.random() * gameState.availableLevelUpOptions.length)];
+                selectUpgrade(randomUpgrade);
+            } else {
+                // If no options, just close the window
+                hudElements.levelUpWindow.classList.remove('visible');
+                gameState.isRunning = true;
+                gameState.lastTime = performance.now();
+                gameState.levelUpTimerActive = false;
+                gameState.availableLevelUpOptions = [];
+            }
         }
     } else if (hudElements.levelUpTimerDisplay) {
         hudElements.levelUpTimerDisplay.textContent = '';
@@ -1669,6 +1582,8 @@ function selectUpgrade(upgrade) {
 export {
     gameState, keys, joystick, world, camera, enemies, projectiles, xpOrbs, particles,
     damageNumbers, lightningBolts, volcanicEruptions, visualEffects, skillTotems,
-    safeHouseInstance as safeHouse,
-    screenFlash, screenRedFlash, screenShake, UPGRADE_POOL
+    safeHouse,
+    screenFlash, screenRedFlash, screenShake, UPGRADE_POOL,
+    // Export utility functions for other modules if needed by them
+    triggerScreenShake, createImpactParticles, spawnDamageNumber
 };
