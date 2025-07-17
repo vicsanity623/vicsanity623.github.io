@@ -1,7 +1,7 @@
 // systemsmanager.js
 
 import { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage as playerTakeDamage } from './player.js';
-import { enemyPath, spawnEnemy, updateEnemies, drawEnemy } from './enemies.js';
+import { enemyPath, spawnEnemy, updateEnemies, drawEnemy } from './enemies.js'; // spawnEnemy will need to accept new parameters
 import { fireProjectile, fireEnemyProjectile, firePlayerSkillProjectile, triggerNova, updateLightning, updateVolcano, createImpactParticles, spawnDamageNumber, updateFrostNova, updateBlackHole, fireHyperBeam, drawSoulVortex } from './attacks_skills.js';
 import { initRift, expandWorld, getBackgroundCanvas } from './rift.js';
 
@@ -277,16 +277,19 @@ export function initializeApp() {
         upgradeStatsList: document.getElementById('upgrade-stats-list'),
         levelUpTimerDisplay: document.getElementById('level-up-timer-display'),
         // NEW HUD elements for Wave/Stage
-        stageText: document.getElementById('stage-text'), // You'll need to add this to index.html
-        waveText: document.getElementById('wave-text'),   // You'll need to add this to index.html
-        nextWaveMessage: document.getElementById('next-wave-message'), // And this
-        bossHealthBarContainer: document.getElementById('boss-health-bar-container'), // And this
-        bossHealthBarFill: document.getElementById('boss-health-bar-fill'), // And this
+        stageText: document.getElementById('stage-text'),
+        waveText: document.getElementById('wave-text'),
+        nextWaveMessage: document.getElementById('next-wave-message'),
+        bossHealthBarContainer: document.getElementById('boss-health-bar-container'),
+        bossHealthBarFill: document.getElementById('boss-health-bar-fill'),
     };
 
     initRift();
     setupEventListeners();
-    checkSaveStates();
+    // CRITICAL FIX: Ensure gameContainer is hidden initially, and main-menu is shown
+    hudElements.gameContainer.style.visibility = 'hidden'; // Hide game screen
+    menuElements.mainMenu.classList.add('visible'); // Show main menu
+    checkSaveStates(); // This will eventually lead to starting the game or presenting load options
 }
 
 function setupEventListeners() {
@@ -307,8 +310,8 @@ function setupEventListeners() {
 
     hudElements.restartButton.addEventListener('click', () => {
         hudElements.gameOverScreen.classList.remove('visible');
-        menuElements.mainMenu.classList.add('visible');
-        hudElements.gameContainer.style.visibility = 'hidden';
+        menuElements.mainMenu.classList.add('visible'); // Go back to main menu
+        hudElements.gameContainer.style.visibility = 'hidden'; // Hide game container
         checkSaveStates();
     });
     hudElements.autoModeButton.addEventListener('click', () => { gameState.isAutoMode = !gameState.isAutoMode; hudElements.autoModeButton.textContent = gameState.isAutoMode ? 'AUTO ON' : 'AUTO OFF'; hudElements.autoModeButton.classList.toggle('auto-on', gameState.isAutoMode); });
@@ -331,7 +334,7 @@ function setupEventListeners() {
             menuElements.googleSignInBtn.style.display = 'flex';
             menuElements.userDisplay.style.display = 'none';
         }
-        checkSaveStates();
+        checkSaveStates(); // Re-check saves when auth state changes
     });
 }
 
@@ -344,7 +347,9 @@ async function checkSaveStates() {
         const doc = await saveRef.get().catch(e => console.error(e));
         if (doc && doc.exists) cloudSaveExists = true;
     }
-    menuElements.loadOptionsContainer.innerHTML = '';
+    menuElements.loadOptionsContainer.innerHTML = ''; // Clear previous buttons
+
+    // Only add load buttons if saves exist
     if (cloudSaveExists) {
         const cloudBtn = document.createElement('button');
         cloudBtn.className = 'menu-button'; cloudBtn.textContent = 'Load Cloud Save';
@@ -357,10 +362,11 @@ async function checkSaveStates() {
         localBtn.onclick = () => startGame(false, 'local');
         menuElements.loadOptionsContainer.appendChild(localBtn);
     }
+    // If no saves exist, inform the user (the "No Save Found" button might be redundant if newGameBtn is always there)
     if (!cloudSaveExists && !localSaveExists) {
         const noSaveBtn = document.createElement('button');
         noSaveBtn.className = 'menu-button'; noSaveBtn.textContent = 'No Save Found'; noSaveBtn.disabled = true;
-        menuElements.loadOptionsContainer.appendChild(noSaveBtn);
+        // menuElements.loadOptionsContainer.appendChild(noSaveBtn); // Commented out to avoid clutter if 'New Game' is always present
     }
 }
 async function saveGame() {
@@ -378,6 +384,17 @@ async function saveGame() {
             active: safeHouseInstance.active,
             respawnTimer: safeHouseInstance.respawnTimer,
         } : null,
+        // NEW: Save wave/stage state for proper loading
+        currentStage: gameState.currentStage,
+        currentWave: gameState.currentWave,
+        waveTimer: gameState.waveTimer,
+        interWaveTimer: gameState.interWaveTimer,
+        bossActive: gameState.bossActive,
+        // Note: bossEnemy is not directly saved, its type will be re-spawned
+        enemiesSpawnedInWave: gameState.enemiesSpawnedInWave,
+        totalEnemiesToSpawnThisWave: gameState.totalEnemiesToSpawnThisWave,
+        spawnBatchTimer: gameState.spawnBatchTimer,
+
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (currentUser) {
@@ -415,6 +432,26 @@ async function loadGame(source) {
         } else if (safeHouseInstance) {
              safeHouseInstance.spawn();
         }
+
+        // NEW: Load wave/stage state
+        gameState.currentStage = savedData.currentStage || 1;
+        gameState.currentWave = savedData.currentWave || 0; // If 0, it means intermission
+        gameState.waveTimer = savedData.waveTimer || 0;
+        gameState.interWaveTimer = savedData.interWaveTimer || 0; // If game was saved during intermission
+        gameState.bossActive = savedData.bossActive || false;
+        gameState.enemiesSpawnedInWave = savedData.enemiesSpawnedInWave || 0;
+        gameState.totalEnemiesToSpawnThisWave = savedData.totalEnemiesToSpawnThisWave || 0;
+        gameState.spawnBatchTimer = savedData.spawnBatchTimer || 0;
+
+        // If loading a boss wave, re-spawn the boss
+        if (gameState.bossActive) {
+            // Need to spawn boss once if it's not already in enemies array
+            if (!enemies.find(e => e.isBoss)) {
+                spawnEnemy(enemies, gameState.currentStage, gameState.currentWave, 'boss');
+                gameState.bossEnemy = enemies.find(e => e.isBoss);
+            }
+        }
+        
         return true;
     }
     return false;
@@ -451,8 +488,8 @@ function takeDamage(amount, isDirectHit = false) {
 }
 
 async function startGame(forceNew, loadSource = 'cloud') {
-    menuElements.mainMenu.classList.remove('visible');
-    hudElements.gameContainer.style.visibility = 'visible';
+    menuElements.mainMenu.classList.remove('visible'); // Hide main menu
+    hudElements.gameContainer.style.visibility = 'visible'; // Show game container
     gameState.isAutoMode = false;
     if (gameState.saveIntervalId) clearInterval(gameState.saveIntervalId);
     let loadedSuccessfully = false;
@@ -474,7 +511,25 @@ async function startGame(forceNew, loadSource = 'cloud') {
             { x: world.width / 2, y: world.height / 2 + 100, radius: 30, skill: 'bulletstorm', color: '#00FFFF', icon: '🔫' },
             { x: world.width / 2 + 100, y: world.height / 2 + 100, radius: 30, skill: 'hyperBeam', color: '#FF00FF', icon: '💥' },
         ];
+
+        // Reset wave/stage specific state for a NEW game
+        gameState.currentStage = 1;
+        gameState.currentWave = 0; // Start in inter-wave state
+        gameState.interWaveTimer = gameState.interWaveDuration; // Show "Next Wave Incoming" for first wave
+        gameState.bossActive = false;
+        gameState.bossEnemy = null;
+        gameState.enemiesSpawnedInWave = 0;
+        gameState.totalEnemiesToSpawnThisWave = 0;
+        gameState.spawnBatchTimer = 0;
     } else {
+        // If loaded, and it's an intermission, ensure interWaveTimer is active.
+        // If it's a wave, ensure game is running.
+        if (gameState.currentWave === 0) {
+            gameState.interWaveTimer = Math.max(0, gameState.interWaveTimer); // Ensure timer is valid
+            gameState.isRunning = false; // Game is paused for intermission
+        } else {
+            gameState.isRunning = true; // Game is running for active wave
+        }
         nextMinuteUpgradeTime = Math.ceil((gameState.gameTime + 1) / MINUTE_INTERVAL) * MINUTE_INTERVAL;
     }
     initRift();
@@ -482,18 +537,16 @@ async function startGame(forceNew, loadSource = 'cloud') {
     safeHouseInstance = new SafeHouse(world.width, world.height);
 
     gameState.lastTime = performance.now();
-    // Reset wave/stage specific state
-    gameState.currentStage = 1;
-    gameState.currentWave = 0; // Start in inter-wave state
-    gameState.interWaveTimer = gameState.interWaveDuration; // Show "Next Wave Incoming" for first wave
-    gameState.bossActive = false;
-    gameState.bossEnemy = null;
-    gameState.enemiesSpawnedInWave = 0;
-    gameState.totalEnemiesToSpawnThisWave = 0;
-    gameState.spawnBatchTimer = 0;
-
-    // Clear all game entities for new game/load
-    enemies.length = 0; projectiles.length = 0; xpOrbs.length = 0; particles.length = 0; damageNumbers.length = 0; lightningBolts.length = 0; volcanicEruptions.length = 0; visualEffects.length = 0;
+    
+    // Clear all game entities for a clean start (new game) or reload (loaded game starts fresh of old entities)
+    enemies.length = 0;
+    projectiles.length = 0;
+    xpOrbs.length = 0;
+    particles.length = 0;
+    damageNumbers.length = 0;
+    lightningBolts.length = 0;
+    volcanicEruptions.length = 0;
+    visualEffects.length = 0;
     
     hudElements.levelUpWindow.classList.remove('visible');
     hudElements.gameOverScreen.classList.remove('visible');
@@ -504,7 +557,7 @@ async function startGame(forceNew, loadSource = 'cloud') {
 
     hudElements.autoModeButton.textContent = 'AUTO OFF';
     hudElements.autoModeButton.classList.remove('auto-on');
-    gameState.isRunning = true; // Game starts running for the inter-wave timer
+    
     gameState.saveIntervalId = setInterval(saveGame, 10000);
     if (gameState.animationFrameId) cancelAnimationFrame(gameState.animationFrameId);
     gameLoop(performance.now());
@@ -545,34 +598,33 @@ function startNextWave() {
     gameState.spawnBatchTimer = 0;
 
     // Calculate wave properties based on stage and wave number
-    // Wave Duration: Make waves slightly longer per stage
-    gameState.waveDuration = (60 + (gameState.currentStage - 1) * 10) * 1000; // 60s base, +10s per stage
+    // Wave Duration: Make waves slightly longer per stage (1-2 minutes)
+    gameState.waveDuration = (60 + (gameState.currentStage - 1) * 10 + (gameState.currentWave -1) * 5) * 1000; // Base 60s, +10s per stage, +5s per wave in stage
+    gameState.waveDuration = Math.min(120 * 1000, gameState.waveDuration); // Cap at 2 minutes
 
     // Enemy Scaling: Total enemies and batch size increase with stage and wave
-    const baseEnemies = 20 + (gameState.currentStage - 1) * 10; // Base enemies per stage
-    const waveMultiplier = 1 + (gameState.currentWave * 0.2); // Each wave in a stage adds more enemies
-    gameState.totalEnemiesToSpawnThisWave = Math.floor(baseEnemies * waveMultiplier);
+    const baseEnemiesPerStage = 20 + (gameState.currentStage - 1) * 10; // Base enemies for the stage
+    const waveProgressMultiplier = 1 + (gameState.currentWave * 0.2); // Waves 1-5 get progressively more enemies
+    gameState.totalEnemiesToSpawnThisWave = Math.floor(baseEnemiesPerStage * waveProgressMultiplier);
 
     // Ensure at least 5 enemies per wave, even at stage 1, wave 1
     gameState.totalEnemiesToSpawnThisWave = Math.max(10, gameState.totalEnemiesToSpawnThisWave);
 
-    // Gradually increase batch size but also ensure minimum of 5 per batch
-    gameState.currentSpawnBatchSize = Math.max(5, Math.floor(gameState.totalEnemiesToSpawnThisWave / (gameState.waveDuration / gameState.spawnBatchInterval / 2))); // Spawn half the enemies in batches
+    // Gradual batch spawning: Calculate batch size needed to spawn all enemies within ~half the wave duration
+    const effectiveSpawnDuration = gameState.waveDuration / 2; // Aim to spawn enemies within first half of wave
+    const targetBatchCount = effectiveSpawnDuration / gameState.spawnBatchInterval;
+    gameState.currentSpawnBatchSize = Math.max(1, Math.ceil(gameState.totalEnemiesToSpawnThisWave / targetBatchCount));
     
     // Boss Wave (Wave 5)
     if (gameState.currentWave === 5) {
         gameState.bossActive = true;
-        // Spawn a single boss enemy
-        // The boss's stats will be scaled by currentStage in enemies.js
-        // Pass a unique type or flag to spawnEnemy for the boss
-        spawnEnemy(enemies, gameState.currentStage, gameState.currentWave, 'boss');
+        // Spawn a single boss enemy. Pass a type or flag to spawnEnemy for the boss
+        spawnEnemy(enemies, gameState.currentStage, gameState.currentWave, 'boss'); // 'boss' type
         gameState.bossEnemy = enemies.find(e => e.isBoss); // Find the spawned boss
         if (hudElements.bossHealthBarContainer) hudElements.bossHealthBarContainer.style.display = 'block';
 
-        // Boss wave duration could be infinite (until boss dies) or very long
-        // For now, let's make it only end when boss is defeated.
-        // We'll set waveDuration to a very high value or handle end condition differently.
-        gameState.waveDuration = Infinity; // Boss wave is cleared by boss death
+        // Boss wave duration is effectively infinite until boss dies.
+        gameState.waveDuration = Infinity; 
     } else {
         // Regular waves
         gameState.isRunning = true; // Resume game for active wave
@@ -715,7 +767,7 @@ function gameLoop(timestamp) {
     gameState.lastTime = timestamp;
     gameState.gameTime += deltaTime;
 
-    if (!gameState.isRunning) { // If game is paused
+    if (!gameState.isRunning) { // If game is paused (inter-wave or level-up)
         if (gameState.levelUpTimerActive) {
             const elapsedTime = gameState.gameTime - gameState.levelUpTimerStartTime;
             if (elapsedTime >= gameState.levelUpTimerDuration) {
@@ -723,7 +775,7 @@ function gameLoop(timestamp) {
             }
         }
         // If in inter-wave state, countdown the inter-wave timer
-        if (gameState.currentWave === 0 && gameState.interWaveTimer > 0) {
+        else if (gameState.currentWave === 0 && gameState.interWaveTimer > 0) {
             gameState.interWaveTimer -= deltaTime;
             if (hudElements.nextWaveMessage) {
                 hudElements.nextWaveMessage.textContent = `NEXT WAVE INCOMING IN: ${Math.ceil(gameState.interWaveTimer / 1000)}s`;
@@ -738,7 +790,7 @@ function gameLoop(timestamp) {
         return; // Stop further game updates if paused
     }
 
-    // Only run game update logic if game is running
+    // Only run game update logic if game is running (active wave)
     update(deltaTime);
     draw();
     gameState.animationFrameId = requestAnimationFrame(gameLoop);
@@ -754,6 +806,11 @@ function update(deltaTime) {
     } else {
         dx = (keys.d ? 1 : 0) - (keys.a ? 1 : 0); dy = (keys.s ? 1 : 0) - (keys.w ? 1 : 0);
     }
+    // Debug for player angle:
+    // if (dx !== 0 || dy !== 0) {
+    //     console.log(`Input: dx=${dx}, dy=${dy}, Calculated Angle: ${player.angle * 180 / Math.PI} deg`);
+    // }
+
     const { closestEnemy, closestDist } = updatePlayer(deltaTime, world, enemies, { dx, dy });
     if (closestEnemy && gameState.gameTime - (player.lastFireTime || 0) > player.weapon.cooldown) {
         fireProjectile(player);
@@ -791,7 +848,8 @@ function update(deltaTime) {
             const numToSpawn = Math.min(gameState.currentSpawnBatchSize, 
                                         gameState.totalEnemiesToSpawnThisWave - gameState.enemiesSpawnedInWave);
             for (let i = 0; i < numToSpawn; i++) {
-                spawnEnemy(enemies, gameState.currentStage, gameState.currentWave); // Pass stage and wave for scaling
+                // Pass currentStage and currentWave to spawnEnemy for difficulty scaling
+                spawnEnemy(enemies, gameState.currentStage, gameState.currentWave); 
             }
             gameState.enemiesSpawnedInWave += numToSpawn;
             gameState.spawnBatchTimer = gameState.gameTime;
@@ -917,8 +975,8 @@ function handleCollisions() {
                 }
 
                 const isCrit = Math.random() < (p.critChance || 0);
-                const damage = isCrit ? Math.round(p.damage * (p.critDamage || 2)) : p.damage;
-                
+                const damage = isCrit ? Math.round(p.damage * (p.critDamage || 2)) : p.damage; 
+
                 e.health -= damage;
                 e.lastHitTime = gameState.gameTime;
                 p.hitEnemies.push(e);
@@ -954,16 +1012,15 @@ function handleCollisions() {
         if (Math.hypot(e.x - player.x, e.y - player.y) < enemyCollisionRadius + playerCollisionRadius) {
             takeDamage(e.damage || 10, true);
             // If it's a boss, don't instantly kill it on collision, just deal damage
-            if (!e.isBoss) {
+            if (!e.isBoss) { // Check if it's NOT a boss
                 e.health = -1; // Mark for immediate "death" in next update loop iteration
                 e.isDying = true;
                 e.deathTimer = 300;
                 e.deathDuration = 300;
                 e.speed = 0;
             } else {
-                // Boss might take a small amount of "collision damage" or just register hit
-                // For now, let's just make sure it doesn't die from basic collision
-                // The current health -= logic means it *will* take the damage, which is fine.
+                // Bosses take damage but are not instantly removed
+                // The health -= damage from takeDamage will apply.
             }
         }
     });
@@ -1015,8 +1072,6 @@ function handleCollisions() {
 }
 function draw() {
     if (!gameState.isRunning && !hudElements.gameOverScreen.classList.contains('visible') && !hudElements.levelUpWindow.classList.contains('visible') && gameState.currentWave !== 0) {
-        // Only prevent drawing if game is paused AND not game over, not level up, and not in an inter-wave screen
-        // This ensures inter-wave screen draws correctly.
         return;
     }
 
@@ -1046,7 +1101,7 @@ function draw() {
     if (screenFlash.value > 0) { ctx.fillStyle = `rgba(200, 225, 255, ${screenFlash.value})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenFlash.value -= 0.05; }
     
     if (joystick.active && !gameState.isAutoMode) drawJoystick();
-    updateHUD(); // This updates all DOM-based HUD elements, including the timer and new wave info.
+    updateHUD();
 }
 
 function drawWorldElements() {
@@ -1545,7 +1600,7 @@ function updateHUD() {
 function formatTime(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; }
 
 function showLevelUpOptions() {
-    gameState.isRunning = false;
+    gameState.isRunning = false; // Pause game during level-up
     hudElements.xpFill.style.width = `${(player.xp / player.xpForNextLevel) * 100}%`;
     const availablePool = UPGRADE_POOL.filter(upgrade => {
         const currentLevel = player.upgradeLevels[upgrade.id] || 0;
@@ -1596,8 +1651,8 @@ function selectUpgrade(upgrade) {
     player.upgradeLevels[upgrade.id] = currentLevel + 1;
     upgrade.apply(player);
     hudElements.levelUpWindow.classList.remove('visible');
-    gameState.isRunning = true;
-    gameState.lastTime = performance.now();
+    gameState.isRunning = true; // Resume game after level-up
+    gameState.lastTime = performance.now(); // Reset lastTime to avoid huge deltaTime spike after pause
     
     gameState.levelUpTimerActive = false;
     gameState.availableLevelUpOptions = [];
