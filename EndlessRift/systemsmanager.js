@@ -1261,12 +1261,6 @@ function drawParticlesAndEffects() {
     });
     damageNumbers.forEach(dn => drawDamageNumber(dn));
 }
-function drawWorldElements() {
-    skillTotems.forEach(totem => drawSkillTotem(totem));
-    lightningBolts.forEach(bolt => drawLightningBolt(bolt));
-    volcanicEruptions.forEach(v => drawVolcano(v));
-    xpOrbs.forEach(orb => drawXpOrb(orb));
-}
 function drawParticlesAndEffects() {
     visualEffects.forEach(effect => {
         ctx.save();
