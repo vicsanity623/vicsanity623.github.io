@@ -62,7 +62,7 @@ function spawnEnemy(enemies) {
     const archetype = ENEMY_ARCHETYPES[typeToSpawn];
 
     // --- NEW: Difficulty Scaling based on Kills ---
-    const KILLS_PER_DIFFICULTY_STAGE = 500;
+    const KILLS_PER_DIFFICULTY_STAGE = 5500;
     const difficultyStage = Math.floor(player.kills / KILLS_PER_DIFFICULTY_STAGE);
 
     // Define scaling factors (adjust these values to fine-tune difficulty)
