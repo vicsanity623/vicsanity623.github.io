@@ -108,7 +108,7 @@ let gameState = {
     gameTime: 0,
     lastTime: 0,
     enemySpawnTimer: 0,
-    enemySpawnInterval: 1500,
+    enemySpawnInterval: 1500, // Old interval, replaced by wave system logic
     saveIntervalId: null,
     animationFrameId: null,
 
@@ -116,6 +116,22 @@ let gameState = {
     levelUpTimerStartTime: 0,
     levelUpTimerDuration: 10000,
     availableLevelUpOptions: [],
+
+    // NEW: Wave and Stage Management
+    currentStage: 1,
+    currentWave: 0, // 0 for inter-wave, 1-4 for regular, 5 for boss
+    waveTimer: 0, // Time elapsed in current wave
+    waveDuration: 60 * 1000, // Default 1 minute per wave (can scale with stage)
+    interWaveTimer: 0, // Countdown for "Next Wave Incoming"
+    interWaveDuration: 3000, // 3 seconds
+    bossActive: false,
+    bossEnemy: null, // Reference to the current boss enemy object
+
+    enemiesSpawnedInWave: 0, // How many enemies have been spawned in the current wave
+    totalEnemiesToSpawnThisWave: 0, // Total enemies that should be spawned for the current wave
+    spawnBatchTimer: 0, // Timer for spawning batches
+    spawnBatchInterval: 1000, // How often to spawn a batch (e.g., every second)
+    currentSpawnBatchSize: 0, // How many enemies to spawn in each batch
 };
 
 let enemies = [], projectiles = [], xpOrbs = [], particles = [], damageNumbers = [], lightningBolts = [], volcanicEruptions = [], visualEffects = [], skillTotems = [];
@@ -233,7 +249,7 @@ const UPGRADE_POOL = [
     { id: "hyperBeam_width", title: "Hyper Beam: Wide Arc", maxLevel: 300, skill: "hyperBeam", description: (level) => `Increase Hyper Beam width. (Lvl ${level + 1})`, apply: (p) => { p.skills.hyperBeam.width += 20; } },
     { id: "hyperBeam_cooldown", title: "HyperBeam: Quick Charge", maxLevel: 300, skill: "hyperBeam", description: () => `Hyper Beam recharges faster.`, apply: (p) => { p.skills.hyperBeam.cooldown *= 0.8; } },
     { id: "hyperBeam_duration", title: "Hyper Beam: Sustained Blast", maxLevel: 200, skill: "hyperBeam", description: () => `Hyper Beam lasts longer.`, apply: (p) => { p.skills.hyperBeam.duration += 200; } },
-    { id: "hyperBeam_charge", title: "Hyper Beam: Instant Cast", maxLevel: 100, skill: "hyperBeam", description: () => `Reduces Hyper Beam charging time.`, apply: (p) => { p.skills.hyperBeam.chargingTime = 0; }, once: true },
+    { id: "hyperBeam_charge", title: "Hyper Beam: Instant Cast", maxLevel: 100, description: () => `Reduces Hyper Beam charging time.`, apply: (p) => { p.skills.hyperBeam.chargingTime = 0; }, once: true },
 ];
 
 export function initializeApp() {
@@ -260,6 +276,12 @@ export function initializeApp() {
         hyperBeamButton: document.getElementById('hyperBeamButton'),
         upgradeStatsList: document.getElementById('upgrade-stats-list'),
         levelUpTimerDisplay: document.getElementById('level-up-timer-display'),
+        // NEW HUD elements for Wave/Stage
+        stageText: document.getElementById('stage-text'), // You'll need to add this to index.html
+        waveText: document.getElementById('wave-text'),   // You'll need to add this to index.html
+        nextWaveMessage: document.getElementById('next-wave-message'), // And this
+        bossHealthBarContainer: document.getElementById('boss-health-bar-container'), // And this
+        bossHealthBarFill: document.getElementById('boss-health-bar-fill'), // And this
     };
 
     initRift();
@@ -460,23 +482,116 @@ async function startGame(forceNew, loadSource = 'cloud') {
     safeHouseInstance = new SafeHouse(world.width, world.height);
 
     gameState.lastTime = performance.now();
-    gameState.enemySpawnTimer = 0;
-    gameState.enemySpawnInterval = Math.max(100, 1500 * Math.pow(0.985, gameState.gameTime / 1000));
+    // Reset wave/stage specific state
+    gameState.currentStage = 1;
+    gameState.currentWave = 0; // Start in inter-wave state
+    gameState.interWaveTimer = gameState.interWaveDuration; // Show "Next Wave Incoming" for first wave
+    gameState.bossActive = false;
+    gameState.bossEnemy = null;
+    gameState.enemiesSpawnedInWave = 0;
+    gameState.totalEnemiesToSpawnThisWave = 0;
+    gameState.spawnBatchTimer = 0;
+
+    // Clear all game entities for new game/load
     enemies.length = 0; projectiles.length = 0; xpOrbs.length = 0; particles.length = 0; damageNumbers.length = 0; lightningBolts.length = 0; volcanicEruptions.length = 0; visualEffects.length = 0;
+    
     hudElements.levelUpWindow.classList.remove('visible');
     hudElements.gameOverScreen.classList.remove('visible');
+    // Hide "Next Wave Incoming" or "Boss Health Bar" elements if they were visible
+    if (hudElements.nextWaveMessage) hudElements.nextWaveMessage.style.display = 'none';
+    if (hudElements.bossHealthBarContainer) hudElements.bossHealthBarContainer.style.display = 'none';
+
+
     hudElements.autoModeButton.textContent = 'AUTO OFF';
     hudElements.autoModeButton.classList.remove('auto-on');
-    gameState.isRunning = true;
+    gameState.isRunning = true; // Game starts running for the inter-wave timer
     gameState.saveIntervalId = setInterval(saveGame, 10000);
     if (gameState.animationFrameId) cancelAnimationFrame(gameState.animationFrameId);
     gameLoop(performance.now());
 }
+
+// NEW: Function to start the next wave
+function startNextWave() {
+    gameState.currentWave++;
+
+    // Clear all existing enemies, projectiles, XP, particles etc. for clean wave transition
+    enemies.length = 0;
+    projectiles.length = 0;
+    xpOrbs.length = 0;
+    particles.length = 0;
+    damageNumbers.length = 0;
+    lightningBolts.length = 0;
+    volcanicEruptions.length = 0;
+    visualEffects.length = 0;
+
+    // Hide Next Wave Message and Boss Health Bar
+    if (hudElements.nextWaveMessage) hudElements.nextWaveMessage.style.display = 'none';
+    if (hudElements.bossHealthBarContainer) hudElements.bossHealthBarContainer.style.display = 'none';
+    gameState.bossActive = false;
+    gameState.bossEnemy = null; // Clear reference to old boss
+
+    if (gameState.currentWave > 5) {
+        gameState.currentStage++;
+        gameState.currentWave = 1; // Reset to wave 1 for the new stage
+        // Optionally expand world every few stages
+        if (gameState.currentStage % 2 === 0) { // e.g., every 2 stages
+             expandWorld(camera, player);
+        }
+    }
+
+    // Reset wave-specific counters
+    gameState.waveTimer = 0;
+    gameState.enemiesSpawnedInWave = 0;
+    gameState.spawnBatchTimer = 0;
+
+    // Calculate wave properties based on stage and wave number
+    // Wave Duration: Make waves slightly longer per stage
+    gameState.waveDuration = (60 + (gameState.currentStage - 1) * 10) * 1000; // 60s base, +10s per stage
+
+    // Enemy Scaling: Total enemies and batch size increase with stage and wave
+    const baseEnemies = 20 + (gameState.currentStage - 1) * 10; // Base enemies per stage
+    const waveMultiplier = 1 + (gameState.currentWave * 0.2); // Each wave in a stage adds more enemies
+    gameState.totalEnemiesToSpawnThisWave = Math.floor(baseEnemies * waveMultiplier);
+
+    // Ensure at least 5 enemies per wave, even at stage 1, wave 1
+    gameState.totalEnemiesToSpawnThisWave = Math.max(10, gameState.totalEnemiesToSpawnThisWave);
+
+    // Gradually increase batch size but also ensure minimum of 5 per batch
+    gameState.currentSpawnBatchSize = Math.max(5, Math.floor(gameState.totalEnemiesToSpawnThisWave / (gameState.waveDuration / gameState.spawnBatchInterval / 2))); // Spawn half the enemies in batches
+    
+    // Boss Wave (Wave 5)
+    if (gameState.currentWave === 5) {
+        gameState.bossActive = true;
+        // Spawn a single boss enemy
+        // The boss's stats will be scaled by currentStage in enemies.js
+        // Pass a unique type or flag to spawnEnemy for the boss
+        spawnEnemy(enemies, gameState.currentStage, gameState.currentWave, 'boss');
+        gameState.bossEnemy = enemies.find(e => e.isBoss); // Find the spawned boss
+        if (hudElements.bossHealthBarContainer) hudElements.bossHealthBarContainer.style.display = 'block';
+
+        // Boss wave duration could be infinite (until boss dies) or very long
+        // For now, let's make it only end when boss is defeated.
+        // We'll set waveDuration to a very high value or handle end condition differently.
+        gameState.waveDuration = Infinity; // Boss wave is cleared by boss death
+    } else {
+        // Regular waves
+        gameState.isRunning = true; // Resume game for active wave
+    }
+
+    console.log(`Starting Stage ${gameState.currentStage}, Wave ${gameState.currentWave}. Total enemies: ${gameState.totalEnemiesToSpawnThisWave}. Batch Size: ${gameState.currentSpawnBatchSize}`);
+}
+
+
 function gameOver() {
     gameState.isRunning = false;
     clearInterval(gameState.saveIntervalId);
     gameState.saveIntervalId = null;
     cancelAnimationFrame(gameState.animationFrameId);
+
+    // Hide any active wave UI elements
+    if (hudElements.nextWaveMessage) hudElements.nextWaveMessage.style.display = 'none';
+    if (hudElements.bossHealthBarContainer) hudElements.bossHealthBarContainer.style.display = 'none';
+
     hudElements.finalTime.textContent = formatTime(gameState.gameTime);
     hudElements.finalLevel.textContent = player.level;
     hudElements.finalKills.textContent = player.kills;
@@ -600,18 +715,30 @@ function gameLoop(timestamp) {
     gameState.lastTime = timestamp;
     gameState.gameTime += deltaTime;
 
-    if (!gameState.isRunning) {
+    if (!gameState.isRunning) { // If game is paused
         if (gameState.levelUpTimerActive) {
             const elapsedTime = gameState.gameTime - gameState.levelUpTimerStartTime;
             if (elapsedTime >= gameState.levelUpTimerDuration) {
                 autoSelectRandomUpgrade();
             }
         }
-        draw();
+        // If in inter-wave state, countdown the inter-wave timer
+        if (gameState.currentWave === 0 && gameState.interWaveTimer > 0) {
+            gameState.interWaveTimer -= deltaTime;
+            if (hudElements.nextWaveMessage) {
+                hudElements.nextWaveMessage.textContent = `NEXT WAVE INCOMING IN: ${Math.ceil(gameState.interWaveTimer / 1000)}s`;
+                hudElements.nextWaveMessage.style.display = 'block';
+            }
+            if (gameState.interWaveTimer <= 0) {
+                startNextWave(); // Start the next wave when timer runs out
+            }
+        }
+        draw(); // Always draw when paused to show UI elements like the timer and "Next Wave Incoming"
         gameState.animationFrameId = requestAnimationFrame(gameLoop);
-        return;
+        return; // Stop further game updates if paused
     }
 
+    // Only run game update logic if game is running
     update(deltaTime);
     draw();
     gameState.animationFrameId = requestAnimationFrame(gameLoop);
@@ -644,13 +771,44 @@ function update(deltaTime) {
     camera.x = Math.max(0, Math.min(world.width - camera.width, camera.x));
     camera.y = Math.max(0, Math.min(world.height - camera.height, camera.y));
 
-    if (gameState.isRunning && gameState.gameTime >= nextMinuteUpgradeTime) {
-        if (!hudElements.levelUpWindow.classList.contains('visible')) {
+    // Time-based upgrade is still active, but now only triggers if not in wave transition/level up
+    if (gameState.gameTime >= nextMinuteUpgradeTime) {
+        if (!hudElements.levelUpWindow.classList.contains('visible') && gameState.currentWave !== 0) { // Only trigger if not already showing level up or between waves
             console.log(`Time-based upgrade triggered at ${formatTime(gameState.gameTime)}`);
             showLevelUpOptions();
         }
         nextMinuteUpgradeTime = Math.ceil((gameState.gameTime + 1) / MINUTE_INTERVAL) * MINUTE_INTERVAL;
     }
+
+    // --- NEW: Wave-based enemy spawning logic ---
+    if (gameState.currentWave > 0 && !gameState.bossActive) { // Only spawn in active waves (not boss wave as boss is single spawn)
+        gameState.waveTimer += deltaTime; // Increment wave timer
+
+        // Spawn enemies in batches
+        if (gameState.enemiesSpawnedInWave < gameState.totalEnemiesToSpawnThisWave && 
+            gameState.gameTime - gameState.spawnBatchTimer > gameState.spawnBatchInterval) {
+            
+            const numToSpawn = Math.min(gameState.currentSpawnBatchSize, 
+                                        gameState.totalEnemiesToSpawnThisWave - gameState.enemiesSpawnedInWave);
+            for (let i = 0; i < numToSpawn; i++) {
+                spawnEnemy(enemies, gameState.currentStage, gameState.currentWave); // Pass stage and wave for scaling
+            }
+            gameState.enemiesSpawnedInWave += numToSpawn;
+            gameState.spawnBatchTimer = gameState.gameTime;
+        }
+
+        // Check for wave completion (time-based for regular waves)
+        if (gameState.waveTimer >= gameState.waveDuration) {
+            // Transition to inter-wave state
+            gameState.currentWave = 0;
+            gameState.interWaveTimer = gameState.interWaveDuration;
+            gameState.isRunning = false; // Pause game for inter-wave countdown
+            console.log(`Wave ${gameState.currentWave} completed (time limit).`);
+            return; // Stop further updates this frame to prevent errors from cleared enemies
+        }
+    }
+    // --- END NEW: Wave-based enemy spawning logic ---
+
 
     if (player.skills.bulletstorm.isUnlocked) {
         const skill = player.skills.bulletstorm;
@@ -702,16 +860,20 @@ function update(deltaTime) {
         });
     }
 
-    gameState.enemySpawnTimer += deltaTime;
-    if (gameState.enemySpawnTimer > gameState.enemySpawnInterval) {
-        spawnEnemy(enemies);
-        gameState.enemySpawnTimer = 0;
-        gameState.enemySpawnInterval = Math.max(100, gameState.enemySpawnInterval * 0.985);
+    // Check if boss is active and defeated (only for wave 5)
+    if (gameState.bossActive && gameState.bossEnemy && gameState.bossEnemy.health <= 0) {
+        console.log(`Boss defeated for Stage ${gameState.currentStage}!`);
+        // Transition to inter-wave state after boss defeat
+        gameState.currentWave = 0;
+        gameState.interWaveTimer = gameState.interWaveDuration;
+        gameState.isRunning = false; // Pause game for inter-wave countdown
+        gameState.bossActive = false;
+        gameState.bossEnemy = null; // Clear boss reference
+        return; // Stop further updates this frame
     }
-    const gainXPCallback = (amount) => gainXP(amount, showLevelUpOptions, () => expandWorld(camera, player), triggerNova, camera);
-    updateEnemies(deltaTime, enemies, player, showLevelUpOptions, gainXPCallback);
-
+    // Filter out deleted enemies after the boss check
     enemies = enemies.filter(enemy => !enemy.markedForDeletion);
+
 
     for (let i = skillTotems.length - 1; i >= 0; i--) {
         const totem = skillTotems[i];
@@ -791,11 +953,18 @@ function handleCollisions() {
 
         if (Math.hypot(e.x - player.x, e.y - player.y) < enemyCollisionRadius + playerCollisionRadius) {
             takeDamage(e.damage || 10, true);
-            e.health = -1;
-            e.isDying = true;
-            e.deathTimer = 300;
-            e.deathDuration = 300;
-            e.speed = 0;
+            // If it's a boss, don't instantly kill it on collision, just deal damage
+            if (!e.isBoss) {
+                e.health = -1; // Mark for immediate "death" in next update loop iteration
+                e.isDying = true;
+                e.deathTimer = 300;
+                e.deathDuration = 300;
+                e.speed = 0;
+            } else {
+                // Boss might take a small amount of "collision damage" or just register hit
+                // For now, let's just make sure it doesn't die from basic collision
+                // The current health -= logic means it *will* take the damage, which is fine.
+            }
         }
     });
 
@@ -845,7 +1014,9 @@ function handleCollisions() {
     });
 }
 function draw() {
-    if (!gameState.isRunning && !hudElements.gameOverScreen.classList.contains('visible') && !hudElements.levelUpWindow.classList.contains('visible')) {
+    if (!gameState.isRunning && !hudElements.gameOverScreen.classList.contains('visible') && !hudElements.levelUpWindow.classList.contains('visible') && gameState.currentWave !== 0) {
+        // Only prevent drawing if game is paused AND not game over, not level up, and not in an inter-wave screen
+        // This ensures inter-wave screen draws correctly.
         return;
     }
 
@@ -853,32 +1024,29 @@ function draw() {
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
     
-    // Drawing Order (from furthest back to front)
-    ctx.drawImage(getBackgroundCanvas(), 0, 0); // Background Rift
+    ctx.drawImage(getBackgroundCanvas(), 0, 0);
 
     if (safeHouseInstance) {
-        safeHouseInstance.draw(ctx, camera); // Safe House
+        safeHouseInstance.draw(ctx, camera);
     }
 
-    drawWorldElements(); // Skill Totems, Lightning, Volcano, XP Orbs
+    drawWorldElements();
 
-    enemies.forEach(e => drawEnemy(e, ctx, player)); // Enemies
-    projectiles.forEach(p => drawProjectile(p, ctx)); // Projectiles
+    enemies.forEach(e => drawEnemy(e, ctx, player));
+    projectiles.forEach(p => drawProjectile(p, ctx));
 
-    // Player drawing (always on top of most game elements)
     const playerBlink = (gameState.gameTime - (player.lastHitTime || 0) < 1000) && Math.floor(gameState.gameTime / 100) % 2 === 0;
     if (!playerBlink) drawPlayer(player, player.angle);
 
-    drawParticlesAndEffects(); // Particles (general), HyperBeam, BlackHole (these should generally be on top of player)
+    drawParticlesAndEffects();
 
     ctx.restore();
 
-    // Screen-wide effects (always on top of everything else)
     if (screenRedFlash.value > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${screenRedFlash.value * 0.4})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenRedFlash.value -= 0.04; }
     if (screenFlash.value > 0) { ctx.fillStyle = `rgba(200, 225, 255, ${screenFlash.value})`; ctx.fillRect(0, 0, canvas.width, canvas.height); screenFlash.value -= 0.05; }
     
     if (joystick.active && !gameState.isAutoMode) drawJoystick();
-    updateHUD();
+    updateHUD(); // This updates all DOM-based HUD elements, including the timer and new wave info.
 }
 
 function drawWorldElements() {
@@ -1240,6 +1408,21 @@ function updateHUD() {
     hudElements.xpBottomFill.style.width = `${(player.xp / player.xpForNextLevel) * 100}%`;
     hudElements.killCounter.textContent = player.kills;
 
+    // NEW: Update Stage and Wave text
+    if (hudElements.stageText) hudElements.stageText.textContent = `STAGE: ${gameState.currentStage}`;
+    if (hudElements.waveText) hudElements.waveText.textContent = `WAVE: ${gameState.currentWave === 0 ? 'INTERMISSION' : gameState.currentWave}/5`;
+
+    // NEW: Update Boss Health Bar
+    if (hudElements.bossHealthBarContainer && hudElements.bossHealthBarFill) {
+        if (gameState.bossActive && gameState.bossEnemy) {
+            hudElements.bossHealthBarContainer.style.display = 'block';
+            const bossHealthPercent = Math.max(0, (gameState.bossEnemy.health / gameState.bossEnemy.maxHealth) * 100);
+            hudElements.bossHealthBarFill.style.width = `${bossHealthPercent}%`;
+        } else {
+            hudElements.bossHealthBarContainer.style.display = 'none';
+        }
+    }
+
     hudElements.upgradeStatsList.innerHTML = '';
 
     const BASE_PLAYER_SPEED = 3.5;
@@ -1368,27 +1551,23 @@ function showLevelUpOptions() {
         const currentLevel = player.upgradeLevels[upgrade.id] || 0;
         const maxLevel = upgrade.maxLevel || Infinity;
 
-        // If it's a one-time upgrade and has already been acquired, filter it out.
         if (upgrade.once && currentLevel > 0) {
             return false;
         }
 
-        // If current level reached max level for multi-level upgrades, filter out.
         if (currentLevel >= maxLevel) {
             return false;
         }
 
-        // If it's a skill-dependent upgrade and the base skill is not yet unlocked, filter it out.
         if (upgrade.skill && !player.skills[upgrade.skill]?.isUnlocked && upgrade.id !== upgrade.skill) {
             return false;
         }
         
-        // Special condition for soul_vortex related upgrades: make sure orbitingShield is defined and enabled.
         if ((upgrade.skill === "soul_vortex" || upgrade.id.startsWith("vortex_")) && (!player.abilities.orbitingShield || !player.abilities.orbitingShield.enabled) && upgrade.id !== "soul_vortex") {
             return false;
         }
 
-        return true; // Keep the upgrade if it passes all checks
+        return true;
     });
     const choices = availablePool.sort(() => 0.5 - Math.random()).slice(0, 6);
     hudElements.upgradeOptions.innerHTML = '';
