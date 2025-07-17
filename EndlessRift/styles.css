@@ -1,22 +1,84 @@
+/* styles.css */
+
 :root {
-    --bg-color-center: #4c2a4c; --bg-color-outer: #1c0f1f; --player-aura-color: #fadf7f; --enemy-color: #1a1a1a;
-    --enemy-accent-color: #ff3333; --projectile-color: #ffffff; --xp-orb-color: #87ceeb; --damage-text-color: #ffffff;
-    --hud-bg: rgba(0, 0, 0, 0.4); --hud-text: #ffffff; --hp-bar: #f44336;  --xp-bar: #4caf50; --modal-bg: #2a2d42;
-    --modal-border: #7b84a3; --card-bg: #3a3f5e; --card-hover-bg: #4e547b; --bones-color: rgba(90, 120, 90, 0.3);
+    --bg-color-center: #4c2a4c;
+    --bg-color-outer: #1c0f1f;
+    --player-aura-color: #fadf7f;
+    --enemy-color: #1a1a1a;
+    --enemy-accent-color: #ff3333;
+    --projectile-color: #ffffff;
+    --xp-orb-color: #87ceeb;
+    --damage-text-color: #ffffff;
+    --hud-bg: rgba(0, 0, 0, 0.4);
+    --hud-text: #ffffff;
+    --hp-bar: #f44336;
+    --xp-bar: #4caf50;
+    --modal-bg: #2a2d42;
+    --modal-border: #7b84a3;
+    --card-bg: #3a3f5e;
+    --card-hover-bg: #4e547b;
+    --bones-color: rgba(90, 120, 90, 0.3);
     --cracks-color: rgba(120, 50, 180, 0.4);
-    --lightning-color: #9dffff; --volcano-color: #ff8c00; --safe-house-fill: rgba(161, 232, 232, 0.15); --safe-house-stroke: rgba(209, 250, 250, 0.5);
+    --lightning-color: #9dffff;
+    --volcano-color: #ff8c00;
+    --safe-house-fill: rgba(161, 232, 232, 0.15);
+    --safe-house-stroke: rgba(209, 250, 250, 0.5);
     /* NEW: Modal specific colors/shadows */
     --modal-shadow: rgba(0,0,0,0.9);
     --card-shadow: rgba(0,0,0,0.5);
     --bulletstorm-color: #00e0ff; /* Bright neon blue for bulletstorm projectiles */
     --xp-orb-color: #87ceeb; /* Existing light blue */
     --highlight-xp-orb-color: #ffd700; /* NEW: A bright gold/yellow for emphasis */
+
+    /* NEW: Boss specific color */
+    --boss-hp-color: #ff0000; /* Red for boss health bar */
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { width: 100vw; height: 100vh; overflow: hidden; background: radial-gradient(circle, var(--bg-color-center) 0%, var(--bg-color-outer) 80%); color: var(--hud-text); font-family: 'Roboto', sans-serif; font-weight: 700; }
-#game-container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-canvas { background: transparent; image-rendering: auto; width: 100%; height: 100%; cursor: default; }
-.hud { position: absolute; display: flex; align-items: center; padding: 5px 15px; background: var(--hud-bg); border-radius: 5px; z-index: 10; }
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+html, body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: radial-gradient(circle, var(--bg-color-center) 0%, var(--bg-color-outer) 80%);
+    color: var(--hud-text);
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+}
+
+/* Ensure main-menu starts visible and game-container starts hidden by default CSS */
+#main-menu {
+    display: flex; /* Or block, based on its internal layout */
+    /* Other styles for main menu - if you have more, keep them here */
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden; /* Hidden by default, controlled by JS */
+}
+canvas {
+    background: transparent;
+    image-rendering: auto;
+    width: 100%;
+    height: 100%;
+    cursor: default;
+}
+.hud {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    padding: 5px 15px;
+    background: var(--hud-bg);
+    border-radius: 5px;
+    z-index: 10;
+}
 #hud-top-left {
     top: 20px;
     left: 20px;
@@ -25,6 +87,23 @@ canvas { background: transparent; image-rendering: auto; width: 100%; height: 10
     gap: 8px; /* Original gap between elements */
     padding: 10px 15px; /* Slightly more padding for the whole top-left HUD */
 }
+
+/* NEW: Styles for Stage and Wave text */
+#stage-wave-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px; /* Small gap between Stage and Wave lines */
+    margin-bottom: 5px; /* Space above HP bar */
+}
+
+#stage-text, #wave-text {
+    font-family: 'Press Start 2P', cursive; /* Retro font for stage/wave */
+    font-size: 16px;
+    color: var(--player-aura-color); /* Highlight color */
+    text-shadow: 2px 2px #000;
+}
+
 
 /* NEW: Styles for the upgrade stats list */
 #upgrade-stats-list {
@@ -64,17 +143,134 @@ canvas { background: transparent; image-rendering: auto; width: 100%; height: 10
 .upgrade-stat-item strong {
     color: var(--player-aura-color);
 }
-.hud-main-stats { display: flex; align-items: center; gap: 15px; }
-#hud-top-right { top: 50%; right: 20px; transform: translateY(-50%); flex-direction: column; align-items: flex-end; gap: 5px; }
-#timer-text { font-size: 22px; }
-#kill-counter { font-size: 16px; }
-#hp-bar-container { width: 200px; height: 15px; background: rgba(0,0,0,0.5); border-radius: 5px; border: 1px solid #fff; overflow: hidden; }
-#hp-bar-fill { width: 100%; height: 100%; background: var(--hp-bar); transition: width 0.2s linear; }
-#hp-text, #level-text { font-size: 16px; }
-#xp-bar-bottom-container { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 300px; max-width: 60%; height: 10px; background: rgba(0, 0, 0, 0.5); border: 1px solid #fff; border-radius: 5px; overflow: hidden; z-index: 10; }
-#xp-bar-bottom-fill { width: 0%; height: 100%; background: var(--xp-bar); transition: width 0.2s linear; }
-#auto-mode-button { background-color: #6c757d; border: 1px solid #fff; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-family: 'Roboto', sans-serif; font-weight: 700; font-size: 14px; }
-#auto-mode-button.auto-on { background-color: var(--player-aura-color); color: #000; }
+.hud-main-stats {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+#hud-top-right {
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%);
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+}
+#timer-text {
+    font-size: 22px;
+}
+#kill-counter {
+    font-size: 16px;
+}
+#hp-bar-container {
+    width: 200px;
+    height: 15px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 5px;
+    border: 1px solid #fff;
+    overflow: hidden;
+}
+#hp-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: var(--hp-bar);
+    transition: width 0.2s linear;
+}
+#hp-text, #level-text {
+    font-size: 16px;
+}
+#xp-bar-bottom-container {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    max-width: 60%;
+    height: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #fff;
+    border-radius: 5px;
+    overflow: hidden;
+    z-index: 10;
+}
+#xp-bar-bottom-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--xp-bar);
+    transition: width 0.2s linear;
+}
+
+/* Positioning for Auto Mode and Hyper Beam buttons */
+#auto-mode-button, #hyperBeamButton {
+    position: absolute;
+    bottom: 20px; /* Aligns with the bottom HUD bar */
+    background-color: #6c757d;
+    border: 1px solid #fff;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    z-index: 15; /* Above XP bar */
+}
+
+#auto-mode-button {
+    left: 20px;
+}
+
+#hyperBeamButton {
+    right: 20px;
+    /* Styles for visibility handled by JS */
+}
+
+#auto-mode-button.auto-on {
+    background-color: var(--player-aura-color);
+    color: #000;
+}
+
+/* NEW: Next Wave Incoming message */
+#next-wave-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 48px;
+    color: var(--player-aura-color);
+    text-shadow: 6px 6px 0 #000;
+    z-index: 1000; /* Ensure it's on top of everything */
+    white-space: nowrap;
+    display: none; /* Hidden by default, controlled by JS */
+}
+
+/* NEW: Boss Health Bar */
+#boss-health-bar-container {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 500px; /* Wider for boss */
+    max-width: 80%; /* Responsive width */
+    height: 25px; /* Taller */
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid var(--modal-border);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 100; /* Above regular HUD, below modals */
+    display: none; /* Hidden by default, controlled by JS */
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); /* Red glow for boss HP */
+}
+
+#boss-health-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: var(--boss-hp-color);
+    transition: width 0.2s linear;
+    border-radius: 8px; /* Slightly less rounded than container */
+}
+
 
 /* MODAL / LEVEL-UP WINDOW ENHANCEMENTS */
 .modal {
@@ -96,7 +292,11 @@ canvas { background: transparent; image-rendering: auto; width: 100%; height: 10
     max-width: 900px; /* Increased max-width for more cards */
     font-family: 'Press Start 2P', cursive;
 }
-.modal.visible { opacity: 1; pointer-events: all; transform: translate(-50%, -50%) scale(1); }
+.modal.visible {
+    opacity: 1;
+    pointer-events: all;
+    transform: translate(-50%, -50%) scale(1);
+}
 .modal h2 {
     margin-bottom: 25px;
     font-size: 32px; /* Increased title font size */
@@ -120,8 +320,14 @@ canvas { background: transparent; image-rendering: auto; width: 100%; height: 10
 
 /* Animation for the timer pulse */
 @keyframes pulseTimer {
-    from { transform: scale(1); opacity: 1; }
-    to { transform: scale(1.05); opacity: 0.9; }
+    from {
+        transform: scale(1);
+        opacity: 1;
+    }
+    to {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
 }
 
 /* Style for when the timer is low (e.g., last 3 seconds) */
@@ -188,9 +394,30 @@ canvas { background: transparent; image-rendering: auto; width: 100%; height: 10
     color: #e0e0e0; /* Slightly lighter color for descriptions */
 }
 
-.stat-bar { width: 100%; height: 10px; background: #444; border-radius: 5px; overflow: hidden; margin-top: 15px; }
-#xp-bar-fill { height: 100%; background: var(--xp-bar); }
-#restart-button { font-family: 'Press Start 2P', cursive; font-size: 18px; padding: 15px 30px; background: var(--player-aura-color); color: #000; border: none; border-radius: 10px; cursor: pointer; text-shadow: none; margin-top: 25px; /* Added space */ }
+.stat-bar {
+    width: 100%;
+    height: 10px;
+    background: #444;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 15px;
+}
+#xp-bar-fill {
+    height: 100%;
+    background: var(--xp-bar);
+}
+#restart-button {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 18px;
+    padding: 15px 30px;
+    background: var(--player-aura-color);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-shadow: none;
+    margin-top: 25px; /* Added space */
+}
 
 /* Ensure mobile styling for the modal too */
 @media (max-width: 767px) {
@@ -216,5 +443,23 @@ canvas { background: transparent; image-rendering: auto; width: 100%; height: 10
     }
     .upgrade-card p {
         font-size: 14px;
+    }
+
+    /* Adjust new HUD elements for smaller screens */
+    #next-wave-message {
+        font-size: 32px; /* Smaller font on mobile */
+    }
+    #boss-health-bar-container {
+        width: 90%; /* Take more width on mobile */
+        height: 20px; /* Slightly less tall */
+    }
+    /* Reposition buttons for mobile */
+    #auto-mode-button {
+        bottom: 10px; /* Closer to edge */
+        left: 10px;
+    }
+    #hyperBeamButton {
+        bottom: 10px;
+        right: 10px;
     }
 }
