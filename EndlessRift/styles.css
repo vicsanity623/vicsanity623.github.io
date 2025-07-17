@@ -47,6 +47,13 @@ html, body {
     font-family: 'Roboto', sans-serif;
     font-weight: 700;
 }
+
+/* Ensure main-menu starts visible and game-container starts hidden by default CSS */
+#main-menu {
+    display: flex; /* Or block, based on its internal layout */
+    /* Other styles for main menu - if you have more, keep them here */
+}
+
 #game-container {
     position: relative;
     width: 100vw;
@@ -54,6 +61,7 @@ html, body {
     display: flex;
     justify-content: center;
     align-items: center;
+    visibility: hidden; /* Hidden by default, controlled by JS */
 }
 canvas {
     background: transparent;
@@ -191,7 +199,11 @@ canvas {
     background: var(--xp-bar);
     transition: width 0.2s linear;
 }
-#auto-mode-button {
+
+/* Positioning for Auto Mode and Hyper Beam buttons */
+#auto-mode-button, #hyperBeamButton {
+    position: absolute;
+    bottom: 20px; /* Aligns with the bottom HUD bar */
     background-color: #6c757d;
     border: 1px solid #fff;
     color: white;
@@ -201,7 +213,18 @@ canvas {
     font-family: 'Roboto', sans-serif;
     font-weight: 700;
     font-size: 14px;
+    z-index: 15; /* Above XP bar */
 }
+
+#auto-mode-button {
+    left: 20px;
+}
+
+#hyperBeamButton {
+    right: 20px;
+    /* Styles for visibility handled by JS */
+}
+
 #auto-mode-button.auto-on {
     background-color: var(--player-aura-color);
     color: #000;
@@ -429,5 +452,14 @@ canvas {
     #boss-health-bar-container {
         width: 90%; /* Take more width on mobile */
         height: 20px; /* Slightly less tall */
+    }
+    /* Reposition buttons for mobile */
+    #auto-mode-button {
+        bottom: 10px; /* Closer to edge */
+        left: 10px;
+    }
+    #hyperBeamButton {
+        bottom: 10px;
+        right: 10px;
     }
 }
