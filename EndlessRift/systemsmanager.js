@@ -151,10 +151,10 @@ const UPGRADE_POOL = [
     { id: "wisdom", title: "Wisdom", description: (level) => `Gain ${20 * (level + 1)}% more XP. (Lvl ${level + 1})`, apply: (p) => { p.xpGainModifier += 0.20; } },
     { id: "greed", title: "Greed", description: (level) => `Increase XP pickup radius by 50%. (Lvl ${level + 1})`, apply: (p) => { p.pickupRadius *= 1.50; } },
     { id: "magnetism", title: "Magnetism", description: (level) => `XP orbs are pulled towards you faster. (Lvl ${level+1})`, apply: (p) => { p.magnetism *= 1.5; } },
-    { id: "rejuvenation", title: "Rejuvenation", description: () => `Picking up an XP orb has a 10% chance to heal 1 HP.`, apply: (p) => { p.abilities.healOnXp = true; } },
+    { id: "rejuvenation", title: "Rejuvenation", description: () => `Picking up an XP orb has a 10% chance to heal 1 HP.`, apply: (p) => { p.abilities.healOnXp = true; }, once: true },
     { id: "lethality", title: "Lethality", description: (level) => `+10% chance to deal double damage. (Lvl ${level + 1})`, apply: (p) => { p.weapon.critChance += 0.1; } },
     { id: "overwhelm", title: "Overwhelm", description: (level) => `Critical hits do +50% more damage. (Lvl ${level+1})`, apply: (p) => { p.weapon.critDamage += 0.5; } },
-    { id: "crit_explosion", title: "Critical Mass", description: () => `Critical hits cause a small explosion.`, apply: (p) => { p.abilities.critExplosion = true; } },
+    { id: "crit_explosion", title: "Critical Mass", description: () => `Critical hits cause a small explosion.`, apply: (p) => { p.abilities.critExplosion = true; }, once: true },
     {
         id: "soul_vortex",
         title: "Soul Vortex",
@@ -166,14 +166,15 @@ const UPGRADE_POOL = [
                 speed: 1,
                 count: 1,
             };
-        }
+        },
+        once: true
     },
-    { id: "rear_guard", title: "Rear Guard", description: () => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; } },
-    { id: "crossfire", title: "Crossfire", description: () => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; } },
-    { id: "soul_nova", title: "Soul Nova", description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(p, 50, 200);} },
+    { id: "rear_guard", title: "Rear Guard", description: () => `Fire a projectile behind you.`, apply: (p) => { p.abilities.backShot = true; }, once: true },
+    { id: "crossfire", title: "Crossfire", description: () => `Fire projectiles diagonally.`, apply: (p) => { p.abilities.diagonalShot = true; }, once: true },
+    { id: "soul_nova", title: "Soul Nova", description: () => `On level up, release a damaging nova.`, apply: (p) => { p.abilities.novaOnLevelUp = true; triggerNova(p, 50, 200);}, once: true },
     { id: "thorns", title: "Thorns", description: (level) => `Enemies that hit you take ${5 * (level+1)} damage.`, apply: (p) => { p.thorns += 5; } },
     { id: "life_steal", title: "Life Steal", description: (level) => `Heal for ${level+1} HP on kill.`, apply: (p) => { p.lifeSteal += 1; } },
-    { id: "demolition", title: "Demolition", description: () => `Projectiles explode on their first hit.`, apply: (p) => { p.weapon.explodesOnImpact = true; } },
+    { id: "demolition", title: "Demolition", description: () => `Projectiles explode on their first hit.`, apply: (p) => { p.weapon.explodesOnImpact = true; }, once: true },
 
     {
         id: "vortex_damage",
@@ -223,16 +224,16 @@ const UPGRADE_POOL = [
     { id: "blackhole_radius", title: "Black Hole: Singularity", maxLevel: 300, skill: "blackHole", description: (level) => `Increase Black Hole radius. (Lvl ${level + 1})`, apply: (p) => { p.skills.blackHole.radius *= 1.2; } },
     { id: "blackhole_duration", title: "Black Hole: Lingering Void", maxLevel: 300, skill: "blackHole", description: () => `Black Hole lasts longer.`, apply: (p) => { p.skills.blackHole.duration *= 1.25; } },
     { id: "blackhole_pull", title: "Black Hole: Gravity Well", maxLevel: 200, skill: "blackHole", description: () => `Black Hole's pull is stronger.`, apply: (p) => { p.skills.blackHole.pullStrength *= 1.5; } },
-    { id: "bulletstorm", title: "Bulletstorm", maxLevel: 100, description: () => `Unleash a torrent of explosive skill projectiles.`, apply: (p) => { p.skills.bulletstorm.isUnlocked = true; } },
+    { id: "bulletstorm", title: "Bulletstorm", maxLevel: 100, description: () => `Unleash a torrent of explosive skill projectiles.`, apply: (p) => { p.skills.bulletstorm.isUnlocked = true; }, once: true },
     { id: "bulletstorm_damage", title: "Bulletstorm: Caliber", maxLevel: 500, skill: "bulletstorm", description: (level) => `Increase Bulletstorm damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.bulletstorm.damage += 5; } },
     { id: "bulletstorm_firerate", title: "Bulletstorm: Rapid Fire", maxLevel: 300, skill: "bulletstorm", description: () => `Bulletstorm fires faster.`, apply: (p) => { p.skills.bulletstorm.fireRate *= 0.8; } },
     { id: "bulletstorm_speed", title: "Bulletstorm: Velocity", maxLevel: 300, skill: "bulletstorm", description: () => `Bulletstorm projectiles travel faster.`, apply: (p) => { p.skills.bulletstorm.speed *= 1.2; } },
-    { id: "hyperBeam", title: "Hyper Beam", maxLevel: 100, description: () => `Unleash a devastating laser in one direction.`, apply: (p) => { p.skills.hyperBeam.isUnlocked = true; } },
+    { id: "hyperBeam", title: "Hyper Beam", maxLevel: 100, description: () => `Unleash a devastating laser in one direction.`, apply: (p) => { p.skills.hyperBeam.isUnlocked = true; }, once: true },
     { id: "hyperBeam_damage", title: "Hyper Beam: Overcharge", maxLevel: 500, skill: "hyperBeam", description: (level) => `Increase Hyper Beam damage. (Lvl ${level + 1})`, apply: (p) => { p.skills.hyperBeam.damage += 50; } },
     { id: "hyperBeam_width", title: "Hyper Beam: Wide Arc", maxLevel: 300, skill: "hyperBeam", description: (level) => `Increase Hyper Beam width. (Lvl ${level + 1})`, apply: (p) => { p.skills.hyperBeam.width += 20; } },
-    { id: "hyperBeam_cooldown", title: "Hyper Beam: Quick Charge", maxLevel: 300, skill: "hyperBeam", description: () => `Hyper Beam recharges faster.`, apply: (p) => { p.skills.hyperBeam.cooldown *= 0.8; } },
+    { id: "hyperBeam_cooldown", title: "HyperBeam: Quick Charge", maxLevel: 300, skill: "hyperBeam", description: () => `Hyper Beam recharges faster.`, apply: (p) => { p.skills.hyperBeam.cooldown *= 0.8; } },
     { id: "hyperBeam_duration", title: "Hyper Beam: Sustained Blast", maxLevel: 200, skill: "hyperBeam", description: () => `Hyper Beam lasts longer.`, apply: (p) => { p.skills.hyperBeam.duration += 200; } },
-    { id: "hyperBeam_charge", title: "Hyper Beam: Instant Cast", maxLevel: 100, skill: "hyperBeam", description: () => `Reduces Hyper Beam charging time.`, apply: (p) => { p.skills.hyperBeam.chargingTime = 0; } },
+    { id: "hyperBeam_charge", title: "Hyper Beam: Instant Cast", maxLevel: 100, skill: "hyperBeam", description: () => `Reduces Hyper Beam charging time.`, apply: (p) => { p.skills.hyperBeam.chargingTime = 0; }, once: true },
 ];
 
 export function initializeApp() {
@@ -494,7 +495,6 @@ function autoSelectRandomUpgrade() {
     selectUpgrade(chosenUpgrade);
 }
 
-// === MODIFIED: getAiMovementVector for smarter AI ===
 function getAiMovementVector() {
     const DANGER_RADIUS = 150;
     const XP_PRIORITY_RADIUS = 200;
@@ -507,13 +507,13 @@ function getAiMovementVector() {
 
     let repulsion = { x: 0, y: 0 };
     let attraction = { x: 0, y: 0 };
-    let hasPrimaryTarget = false; // Flag to indicate if a high-priority target is set
+    let hasPrimaryTarget = false;
 
     // Calculate repulsion from nearby enemies (always active)
     enemies.forEach(enemy => {
         const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
         if (dist < DANGER_RADIUS && dist > 0) {
-            const force = 1 / (dist * dist); // Stronger repulsion for closer enemies
+            const force = 1 / (dist * dist);
             repulsion.x -= (enemy.x - player.x) / dist * force;
             repulsion.y -= (enemy.y - player.y) / dist * force;
         }
@@ -521,7 +521,6 @@ function getAiMovementVector() {
 
     // 1. Safe House Priority (Highest)
     if (safeHouseInstance && safeHouseInstance.active) {
-        // If player is outside the safe zone, primary goal is to enter
         if (!safeHouseInstance.isInside(player)) {
             const distToSH = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
             if (distToSH > 0) {
@@ -530,24 +529,18 @@ function getAiMovementVector() {
                 hasPrimaryTarget = true;
             }
         } else {
-            // If player is inside, prioritize staying near the center to avoid edges
             const distToSHCenter = Math.hypot(safeHouseInstance.x - player.x, safeHouseInstance.y - player.y);
-            // Only pull if not already very close to the center, to allow some internal movement
-            if (distToSHCenter > safeHouseInstance.radius * 0.1) { // Pull if further than 10% of radius from center
+            if (distToSHCenter > safeHouseInstance.radius * 0.1) {
                 attraction.x += (safeHouseInstance.x - player.x) / distToSHCenter * ATTRACT_SAFE_ZONE_CENTER;
                 attraction.y += (safeHouseInstance.y - player.y) / distToSHCenter * ATTRACT_SAFE_ZONE_CENTER;
                 hasPrimaryTarget = true;
             }
-            // If inside safe zone, AI can still collect XP or target enemies, but the safe zone center pull will always apply.
         }
     } else if (safeHouseInstance && !safeHouseInstance.active && safeHouseInstance.respawnTimer > 0) {
         // Safe house is inactive and respawning. No attraction to it right now.
-        // AI will focus on other objectives.
     }
 
-
     // 2. Skill Totem Priority (High, if no overriding Safe Zone need)
-    // Find closest unacquired skill totem or vortex totem that can still be upgraded
     let closestTotem = null, closestTotemDist = Infinity;
     skillTotems.forEach(totem => {
         const dist = Math.hypot(totem.x - player.x, totem.y - player.y);
@@ -599,31 +592,26 @@ function getAiMovementVector() {
         }
     }
 
-    // Combine all forces: repulsion always applies, attraction depends on priority
     return { x: attraction.x + (repulsion.x * REPULSION_WEIGHT), y: attraction.y + (repulsion.y * REPULSION_WEIGHT) };
 }
-// === END MODIFIED: getAiMovementVector ===
-
 
 function gameLoop(timestamp) {
-    // CRITICAL FIX: Always update gameTime, regardless of gameState.isRunning
     const deltaTime = timestamp - gameState.lastTime;
     gameState.lastTime = timestamp;
     gameState.gameTime += deltaTime;
 
-    if (!gameState.isRunning) { // If game is paused
+    if (!gameState.isRunning) {
         if (gameState.levelUpTimerActive) {
             const elapsedTime = gameState.gameTime - gameState.levelUpTimerStartTime;
             if (elapsedTime >= gameState.levelUpTimerDuration) {
                 autoSelectRandomUpgrade();
             }
         }
-        draw(); // Always draw when paused to show UI elements like the timer
+        draw();
         gameState.animationFrameId = requestAnimationFrame(gameLoop);
-        return; // Stop further game updates if paused
+        return;
     }
 
-    // Only run game update logic if game is running
     update(deltaTime);
     draw();
     gameState.animationFrameId = requestAnimationFrame(gameLoop);
@@ -1379,14 +1367,28 @@ function showLevelUpOptions() {
     const availablePool = UPGRADE_POOL.filter(upgrade => {
         const currentLevel = player.upgradeLevels[upgrade.id] || 0;
         const maxLevel = upgrade.maxLevel || Infinity;
-        if (currentLevel >= maxLevel) return false;
+
+        // If it's a one-time upgrade and has already been acquired, filter it out.
+        if (upgrade.once && currentLevel > 0) {
+            return false;
+        }
+
+        // If current level reached max level for multi-level upgrades, filter out.
+        if (currentLevel >= maxLevel) {
+            return false;
+        }
+
+        // If it's a skill-dependent upgrade and the base skill is not yet unlocked, filter it out.
         if (upgrade.skill && !player.skills[upgrade.skill]?.isUnlocked && upgrade.id !== upgrade.skill) {
             return false;
         }
+        
+        // Special condition for soul_vortex related upgrades: make sure orbitingShield is defined and enabled.
         if ((upgrade.skill === "soul_vortex" || upgrade.id.startsWith("vortex_")) && (!player.abilities.orbitingShield || !player.abilities.orbitingShield.enabled) && upgrade.id !== "soul_vortex") {
             return false;
         }
-        return true;
+
+        return true; // Keep the upgrade if it passes all checks
     });
     const choices = availablePool.sort(() => 0.5 - Math.random()).slice(0, 6);
     hudElements.upgradeOptions.innerHTML = '';
