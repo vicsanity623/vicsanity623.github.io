@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dungeon Crawler RPG</title>
+    <title>EternalImmortal RPG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#031018">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icon-192x192.PNG">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400;500;700&display=swap');
         
@@ -110,16 +114,22 @@
             display: flex; 
             justify-content: flex-end; /* Align items to the right */
             align-items: center; 
-            padding: 5px 15px;
+            padding: 5px 20px; /* MODIFIED: Increased right padding */
             background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
             box-sizing: border-box;
-            /* Remove old styles */
             transform: none; 
             background-color: transparent; 
             backdrop-filter: none;
             box-shadow: none;
             border: none;
-            gap: 15px; 
+            gap: 20px; /* MODIFIED: Added gap between resources and profile */
+        }
+
+        /* NEW: Wrapper for resource icons */
+        #main-menu-resources {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .resource-display {
@@ -168,13 +178,20 @@
             border: 2px solid #6b7385;
         }
 
+        /* NEW: Wrapper for profile text */
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
         #player-level { 
             font-weight: 500;
             font-size: 16px; 
             color: #fff;
             line-height: 1.2;
             text-align: right;
-            margin-right: 5px;
+            margin: 0;
         }
         #player-level .level-num {
             font-size: 13px;
@@ -457,10 +474,10 @@
     <div id="player-xp-container" class="hidden">
         <div id="main-menu-resources">
             <div id="player-gold-display" class="resource-display">
-                <i class="fas fa-coins"></i> <span id="player-gold-total">191000</span>
+                <i class="fas fa-coins"></i> <span id="player-gold-total">0</span>
             </div>
             <div id="player-rubies-display" class="resource-display">
-                <i class="fas fa-gem icon-ruby"></i> <span id="player-rubies-total">2610</span>
+                <i class="fas fa-gem icon-ruby"></i> <span id="player-rubies-total">0</span>
             </div>
             <div id="player-energy-display" class="resource-display">
                 <i class="fas fa-bolt"></i> <span>79/85</span>
@@ -497,8 +514,8 @@
         </div>
         <div id="main-quest-tracker">
             <h3>Main Quest</h3>
-            <p>Complete Tomb of Guardians-Depths</p>
-            <span>0/1 (In Progress)</span>
+            <p id="main-quest-name">Loading quest...</p>
+            <span id="main-quest-progress">0/1 (In Progress)</span>
         </div>
     </div>
 
@@ -562,8 +579,9 @@
     const xpBarFillUI = document.getElementById('xp-bar-fill');
     const xpTextUI = document.getElementById('xp-text');
     const playerRubiesTotalUI = document.getElementById('player-rubies-total');
-    // New UI elements for the enhanced menu
     const playerGoldTotalUI = document.getElementById('player-gold-total');
+    const mainQuestNameUI = document.getElementById('main-quest-name');
+    const mainQuestProgressUI = document.getElementById('main-quest-progress');
 
     const SAVE_KEY = 'endlessShapesSaveData';
     const DUNGEON_SAVE_KEY = 'endlessShapesDungeonProgress';
@@ -598,6 +616,7 @@
 
         if (screenName === 'main') {
             mainScreen.classList.remove('hidden');
+            updateMainQuestTracker(); // NEW: Update quest UI when showing main screen
             createMainScreenParticles();
         } else if (screenName === 'player-upgrade') {
             playerUpgradeScreen.classList.remove('hidden');
@@ -614,6 +633,25 @@
             explorationContainer.classList.remove('hidden');
             initGame(false, true);
             initExplorationMode();
+        }
+    }
+
+    // NEW: Function to update the main quest tracker UI
+    function updateMainQuestTracker() {
+        if (!player || !player.mainQuestTargetId) {
+            mainQuestNameUI.textContent = "No active quest.";
+            mainQuestProgressUI.textContent = "";
+            return;
+        }
+
+        const questDungeon = player.dungeonMap[player.mainQuestTargetId];
+        if (questDungeon) {
+            mainQuestNameUI.textContent = `Complete: ${questDungeon.name}`;
+            const isCompleted = player.completedMainQuests.includes(questDungeon.id);
+            mainQuestProgressUI.textContent = isCompleted ? "Completed!" : "0/1 (In Progress)";
+        } else {
+            mainQuestNameUI.textContent = "Journey's End (for now)...";
+            mainQuestProgressUI.textContent = "More quests to come!";
         }
     }
 
@@ -730,36 +768,23 @@
     function createStat(c){return{name:c.name,level:c.level||1,current:c.current||0,target:c.target||100,baseGain:c.baseGain||1,displaySuffix:c.displaySuffix||'',isFloat:c.isFloat||!1,color:c.color}}
     function updatePlayerXpBar() {
         if (!player) return;
-        // Update new UI elements
         playerLevelUI.innerHTML = `Player<br><span class="level-num">Level ${player.level}</span>`;
         const xpPercentage = Math.min(100, (player.xp / player.xpToNextLevel) * 100);
         xpBarFillUI.style.width = `${xpPercentage}%`;
-        
-        // This xp-text is now hidden by default, but we can keep updating it
-        if (xpTextUI) {
-            xpTextUI.textContent = `${player.xp} / ${player.xpToNextLevel} XP`;
-        }
-        
-        // Update resource displays
-        if (playerGoldTotalUI) {
-             playerGoldTotalUI.textContent = player.gold.toLocaleString(); // Format with commas
-        }
-        if (playerRubiesTotalUI) {
-             playerRubiesTotalUI.textContent = (player.rubies || 0).toLocaleString();
-        }
+        if (xpTextUI) xpTextUI.textContent = `${player.xp} / ${player.xpToNextLevel} XP`;
+        if (playerGoldTotalUI) playerGoldTotalUI.textContent = player.gold.toLocaleString();
+        if (playerRubiesTotalUI) playerRubiesTotalUI.textContent = (player.rubies || 0).toLocaleString();
     }
     function levelUp() {
         SOUNDS.levelUp();
         player.level++;
         player.xp -= player.xpToNextLevel;
         player.xpToNextLevel = Math.floor(player.xpToNextLevel * 1.5);
-        
         const profileElement = document.getElementById('main-menu-profile');
         if (profileElement) {
             profileElement.style.animation = 'xp-level-up-flash 1s ease';
             setTimeout(() => { profileElement.style.animation = ''; }, 1000);
         }
-
         if (player.xp >= player.xpToNextLevel) { levelUp(); }
     }
     function gainXP(amount) {
@@ -816,7 +841,7 @@
         if (!silent) gameState='LOADING';
         if (!player || fromScratch) {
             currentStage=1;
-            player={hp:100,rage:0,gold:0, rubies:0, level:1,xp:0,xpToNextLevel:100, dungeonCompletions: 0, dungeonMap:{}, stats:{maxHp:createStat({name:"Max Health",current:100,target:500,baseGain:20,color:'health'}),attackPower:createStat({name:"Attack Power",current:10,target:100,baseGain:2,color:'attack'}),rageGain:createStat({name:"Rage Gain",current:5,target:50,baseGain:1,color:'rage'}),healthRegen:createStat({name:"Health Regen",current:0,target:10,baseGain:.5,isFloat:!0,displaySuffix:'/s',color:'regen'})},costs:{maxHp:10,attackPower:10,rageGain:20,healthRegen:30},skills:{},x:canvas.width/2,y:canvas.height-150,size:40,color:"#61a5c2",isAttacking:!1,attackAnimTimer:0,baseY:canvas.height-150,sword:{angle:0,length:30}};
+            player={hp:100,rage:0,gold:0, rubies:0, level:1,xp:0,xpToNextLevel:100, dungeonCompletions: 0, dungeonMap:{}, mainQuestTargetId: null, completedMainQuests: [], stats:{maxHp:createStat({name:"Max Health",current:100,target:500,baseGain:20,color:'health'}),attackPower:createStat({name:"Attack Power",current:10,target:100,baseGain:2,color:'attack'}),rageGain:createStat({name:"Rage Gain",current:5,target:50,baseGain:1,color:'rage'}),healthRegen:createStat({name:"Health Regen",current:0,target:10,baseGain:.5,isFloat:!0,displaySuffix:'/s',color:'regen'})},costs:{maxHp:10,attackPower:10,rageGain:20,healthRegen:30},skills:{},x:canvas.width/2,y:canvas.height-150,size:40,color:"#61a5c2",isAttacking:!1,attackAnimTimer:0,baseY:canvas.height-150,sword:{angle:0,length:30}};
             Object.keys(SKILLS_DATA).forEach(id=>{player.skills[id]={isUnlocked:!1,cooldownTimer:0,level:1,currentXP:0,targetXP:SKILLS_DATA[id].baseTargetXP}});
             isAutoBattle=!1;
         }
@@ -846,6 +871,14 @@
                 lastDungeon = dungeon;
             }
         }
+        // NEW: Quest initialization
+        if (!player.mainQuestTargetId) {
+            player.mainQuestTargetId = 'starter-0';
+        }
+        if (!player.completedMainQuests) {
+            player.completedMainQuests = [];
+        }
+
         if (!silent) {
             endCombatTimer=0;enemies=[];particles=[];floatingTexts=[];projectiles=[];healthOrbs=[];shakeDuration=0;uiParticles=[];skillVisuals=[];
             player.hp=player.stats.maxHp.current;
@@ -885,21 +918,46 @@
     document.getElementById('upgrade-screen-regen-button').onclick = () => buyUpgrade('healthRegen', true);
     dom.proceedBtn.onclick = () => {
         if (currentDungeon) {
-            player.dungeonCompletions = (player.dungeonCompletions || 0) + 1;
-            const completedDungeon = player.dungeonMap[currentDungeon.id];
-            completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
-            if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
-                completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
+            const completedDungeonData = player.dungeonMap[currentDungeon.id];
+            
+            // NEW: Main Quest Completion Logic
+            if (currentDungeon.id === player.mainQuestTargetId && !player.completedMainQuests.includes(currentDungeon.id)) {
+                showBattleBanner('Quest Complete!', 'ultimate-banner', 3000);
+                
+                // Give massive rewards
+                const questXpReward = 200 + (player.level * 50);
+                const questGoldReward = 500 + (player.level * 100);
+                const questRubyReward = 25 + (player.level * 5);
+
+                gainXP(questXpReward);
+                player.gold += questGoldReward;
+                player.rubies += questRubyReward;
+
+                addFloatingText(`+${questXpReward} XP!`, canvas.width / 2, canvas.height / 2 - 60, '#6efcff');
+                addFloatingText(`+${questGoldReward}💰`, canvas.width / 2, canvas.height / 2 - 30, '#ffd700');
+                addFloatingText(`+${questRubyReward}💎`, canvas.width / 2, canvas.height / 2, '#f94144');
+
+                // Mark quest as done and set the next one
+                player.completedMainQuests.push(currentDungeon.id);
+                const nextQuestTargetId = completedDungeonData.unlocks.length > 0 ? completedDungeonData.unlocks[0] : null;
+                player.mainQuestTargetId = nextQuestTargetId;
+            }
+
+            // Original dungeon completion logic
+            completedDungeonData.completionCount = (completedDungeonData.completionCount || 0) + 1;
+            if (completedDungeonData.completionCount > 0 && completedDungeonData.completionCount % 3 === 0) {
+                completedDungeonData.evolutionLevel = (completedDungeonData.evolutionLevel || 0) + 1;
                 const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
-                const prefix = evolutionPrefixes[Math.min(completedDungeon.evolutionLevel - 1, evolutionPrefixes.length - 1)];
-                completedDungeon.name = `${prefix} ${completedDungeon.baseName}`;
-                completedDungeon.boss.level = Math.floor(completedDungeon.boss.level * 1.2);
-                completedDungeon.boss.maxHp = Math.floor(completedDungeon.boss.maxHp * 1.5);
-                completedDungeon.boss.attack = Math.floor(completedDungeon.boss.attack * 1.3);
+                const prefix = evolutionPrefixes[Math.min(completedDungeonData.evolutionLevel - 1, evolutionPrefixes.length - 1)];
+                completedDungeonData.name = `${prefix} ${completedDungeonData.baseName}`;
+                completedDungeonData.boss.level = Math.floor(completedDungeonData.boss.level * 1.2);
+                completedDungeonData.boss.maxHp = Math.floor(completedDungeonData.boss.maxHp * 1.5);
+                completedDungeonData.boss.attack = Math.floor(completedDungeonData.boss.attack * 1.3);
             }
             if (player.dungeonCompletions > 0 && player.dungeonCompletions % 3 === 0) {
                 addNewDungeons(currentDungeon.id);
             }
+
             saveGame(); 
             currentDungeon = null;
             showScreen('map');
@@ -1022,26 +1080,16 @@
         ctx.shadowBlur=5;
         ctx.fillStyle='white';
         ctx.textAlign='left';
-
-        // Get the full title text
         let titleText = currentDungeon ? currentDungeon.name : `Stage: ${currentStage}`;
-        
-        // Define the maximum width for the title. We leave space on the right for the gold display.
         const maxWidth = canvas.width - 140;
-
-        // Check if the text is too wide
         if (ctx.measureText(titleText).width > maxWidth) {
-            // If it is, shorten it character by character until it fits with an ellipsis
             let truncatedText = titleText;
             while (ctx.measureText(truncatedText + '...').width > maxWidth && truncatedText.length > 0) {
                 truncatedText = truncatedText.slice(0, -1);
             }
             titleText = truncatedText + '...';
         }
-        
-        // Draw the (potentially truncated) text
         ctx.fillText(titleText, 15, 35);
-        
         ctx.textAlign='right';
         ctx.fillStyle='#ffd700';
         ctx.fillText(`💰 ${player.gold}`,canvas.width-15,35);
@@ -1105,7 +1153,6 @@
     function draw(){
         if (!mainScreen.classList.contains('hidden')) {
             // The main menu background is now CSS, so no canvas drawing is needed for it.
-            // drawUiParticles can be used here if you add particle effects to the main menu.
         }
         if (!explorationContainer.classList.contains('hidden')) {
             drawExplorationMode();
@@ -1246,5 +1293,18 @@
     initMapBackground();
     gameLoop();
     </script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => {
+                    console.log('Service Worker registered successfully:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('Service Worker registration failed:', error);
+                });
+        });
+    }
+</script>
 </body>
 </html>
