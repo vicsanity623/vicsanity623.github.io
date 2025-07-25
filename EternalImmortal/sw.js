@@ -1,5 +1,5 @@
 // A unique name for our cache
-const CACHE_NAME = 'eternal-immortal-cache-v1';
+const CACHE_NAME = 'eternal-immortal-cache-v0.0.1';
 
 // The list of files we want to cache. This is the "app shell".
 const assetsToCache = [
