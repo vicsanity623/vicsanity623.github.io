@@ -3,187 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dungeon Crawler RPG</title>
+    <title>EternalImmortal RPG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400&display=swap');
-
-        body {
-            margin: 0;
-            background-color: #031018;
-            color: #e0e0e0;
-            font-family: 'Roboto', sans-serif;
+        body { margin: 0; background-color: #031018; color: #e0e0e0; font-family: 'Roboto', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; user-select: none; }
+        
+        /* --- BOOT SCREEN STYLES (Corrected) --- */
+        #boot-screen {
+            background-image: radial-gradient(ellipse at 50% 0%, #3d2c58, #031018 70%);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            user-select: none;
+            flex-direction: column;
+            transition: opacity 0.7s ease-out;
+            z-index: 999;
         }
-
-        #player-xp-container {
-            position: absolute;
-            top: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 200;
+        #boot-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .boot-content {
             display: flex;
+            justify-content: center;
             align-items: center;
-            gap: 10px;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 5px 15px;
-            border-radius: 20px;
-            border: 1px solid #5a4a78;
-            font-family: 'Roboto', sans-serif;
-            backdrop-filter: blur(3px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+            flex-direction: column;
+            gap: 35px; /* Adjusted gap */
+            width: 100%; /* Ensure proper centering */
         }
-        #player-level {
-            font-weight: bold;
-            font-size: 16px;
+        #boot-title {
+            font-family: 'Cinzel', serif;
+            font-size: 44px; /* Reduced font size */
+            font-weight: 700;
             color: #fff;
+            letter-spacing: 1px; /* Reduced letter spacing */
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.5), 
+                         0 0 15px #6efcff, 
+                         0 0 25px #6efcff, 
+                         0 0 40px #6efcff;
+            animation: boot-title-glow 2.5s ease-in-out infinite alternate;
+            text-align: center; /* Ensure text is centered */
         }
-        #xp-bar {
-            width: 200px;
-            height: 18px;
-            background-color: #333;
-            border-radius: 9px;
-            position: relative;
+        @keyframes boot-title-glow {
+            from {
+                text-shadow: 0 0 8px rgba(255, 255, 255, 0.5), 
+                             0 0 15px #6efcff, 
+                             0 0 25px #6efcff, 
+                             0 0 40px #6efcff;
+            }
+            to {
+                text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 
+                             0 0 20px #aaffff, 
+                             0 0 35px #aaffff, 
+                             0 0 55px #aaffff;
+            }
+        }
+        #boot-progress-container {
+            width: 300px;
+            height: 10px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid #5a4a78;
+            border-radius: 5px;
             overflow: hidden;
-            border: 1px solid #222;
+            box-shadow: 0 0 15px rgba(90, 74, 120, 0.5) inset;
         }
-        #xp-bar-fill {
+        #boot-progress-bar {
             width: 0%;
             height: 100%;
-            background: linear-gradient(45deg, #4b0082, #8a2be2);
-            transition: width 0.3s ease;
+            background: linear-gradient(90deg, #6efcff, #aaffff);
+            box-shadow: 0 0 10px #aaffff, 0 0 20px #aaffff;
+            border-radius: 5px;
+            transition: width 0.1s linear;
         }
-        #xp-text {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            text-align: center;
-            font-size: 12px;
-            line-height: 18px;
-            color: white;
-            text-shadow: 1px 1px 2px black;
+        #start-game-button {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s;
         }
-        @keyframes xp-level-up-flash {
-            0%, 100% { transform: translateX(-50%) scale(1); box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
-            50% { transform: translateX(-50%) scale(1.1); box-shadow: 0 0 25px rgba(255, 215, 0, 0.8); }
+        #start-game-button.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
         }
+        /* --- END BOOT SCREEN STYLES --- */
 
-        .screen-container {
-            position: relative;
-            width: 450px;
-            height: 800px;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-            overflow: hidden;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        #main-screen {
-            background-image: radial-gradient(ellipse at 50% 100%, #3d2c58, #0f0c14 60%);
-            border: 2px solid #5a4a78;
-        }
-        .world-button {
-            position: absolute;
-            cursor: pointer;
-            border-radius: 15px;
-            background-color: rgba(0,0,0,0.3);
-            border: 2px solid rgba(138, 156, 226, 0.3);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(2px);
-        }
-        .world-button:hover {
-            background-color: rgba(0,0,0,0.5);
-            border-color: rgba(138, 156, 226, 0.7);
-            transform: scale(1.05);
-        }
-        .world-button .icon {
-            font-size: 70px;
-            text-shadow: 0 0 15px;
-            margin-bottom: 10px;
-        }
-        .world-button .label {
-            font-family: 'Cinzel', serif;
-            font-size: 24px;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 1px 1px 3px #000;
-        }
-        #dungeons-button {
-            top: 18%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 180px;
-            height: 180px;
-        }
+        #player-xp-container { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; align-items: center; gap: 10px; background-color: rgba(0, 0, 0, 0.5); padding: 5px 15px; border-radius: 20px; border: 1px solid #5a4a78; font-family: 'Roboto', sans-serif; backdrop-filter: blur(3px); box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+        #player-level { font-weight: bold; font-size: 16px; color: #fff; }
+        #xp-bar { width: 200px; height: 18px; background-color: #333; border-radius: 9px; position: relative; overflow: hidden; border: 1px solid #222; }
+        #xp-bar-fill { width: 0%; height: 100%; background: linear-gradient(45deg, #4b0082, #8a2be2); transition: width 0.3s ease; }
+        #xp-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; text-align: center; font-size: 12px; line-height: 18px; color: white; text-shadow: 1px 1px 2px black; }
+        @keyframes xp-level-up-flash { 0%, 100% { transform: translateX(-50%) scale(1); box-shadow: 0 2px 10px rgba(0,0,0,0.4); } 50% { transform: translateX(-50%) scale(1.1); box-shadow: 0 0 25px rgba(255, 215, 0, 0.8); } }
+        .screen-container { position: relative; width: 450px; height: 800px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); overflow: hidden; }
+        .hidden { display: none !important; }
+        #main-screen { background-image: radial-gradient(ellipse at 50% 100%, #3d2c58, #0f0c14 60%); border: 2px solid #5a4a78; }
+        .world-button { position: absolute; cursor: pointer; border-radius: 15px; background-color: rgba(0,0,0,0.3); border: 2px solid rgba(138, 156, 226, 0.3); display: flex; flex-direction: column; justify-content: center; align-items: center; transition: all 0.3s ease; backdrop-filter: blur(2px); }
+        .world-button:hover { background-color: rgba(0,0,0,0.5); border-color: rgba(138, 156, 226, 0.7); transform: scale(1.05); }
+        .world-button .icon { font-size: 70px; text-shadow: 0 0 15px; margin-bottom: 10px; }
+        .world-button .label { font-family: 'Cinzel', serif; font-size: 24px; font-weight: bold; color: #fff; text-shadow: 1px 1px 3px #000; }
+        #dungeons-button { top: 18%; left: 50%; transform: translateX(-50%); width: 180px; height: 180px; }
         #dungeons-button .icon { color: #6efcff; }
-        #exploration-button {
-            top: 48%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 180px;
-            height: 180px;
-        }
+        #exploration-button { top: 48%; left: 50%; transform: translateX(-50%); width: 180px; height: 180px; }
         #exploration-button .icon { color: #90be6d; }
-        #station-button {
-            top: 78%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 160px;
-            height: 160px;
-        }
+        #station-button { top: 78%; left: 50%; transform: translateX(-50%); width: 160px; height: 160px; }
         #station-button .icon { color: #f9c74f; }
-        
-
-        #map-screen {
-            background-image: radial-gradient(circle at 50% 30%, #1a5c69, #0f343d 50%, #031018 85%);
-            border: 2px solid #4a6a7c;
-            /* overflow: auto;  <-- We REMOVED this from here */
-        }
-        /* NEW rule for our scroll container */
-        #map-scroll-area {
-            width: 100%;
-            height: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-        /* NEW rule for the button container */
-        #map-button-container {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            display: flex;
-            gap: 10px;
-        }
-        #map-screen::-webkit-scrollbar { display: none; }
-        #map-screen { -ms-overflow-style: none; scrollbar-width: none; }
+        #map-screen { border: 2px solid #4a6a7c; }
+        #map-background-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #map-scroll-area { position: relative; z-index: 2; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; }
+        #map-scroll-area::-webkit-scrollbar { width: 6px; }
+        #map-scroll-area::-webkit-scrollbar-track { background: transparent; }
+        #map-scroll-area::-webkit-scrollbar-thumb { background-color: rgba(110, 252, 255, 0.3); border-radius: 10px; border: 1px solid rgba(0, 0, 0, 0.2); }
+        #map-scroll-area::-webkit-scrollbar-thumb:hover { background-color: rgba(110, 252, 255, 0.5); }
+        #map-button-container { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 10px; }
         #map-content { position: relative; width: 100%; height: 100%; }
-
-        .dungeon-node {
-            position: absolute;
-            width: 80px;
-            height: 80px;
-            cursor: pointer;
-            transition: transform 0.3s ease, filter 0.3s ease;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-        }
+        .dungeon-node { position: absolute; width: 80px; height: 80px; cursor: pointer; transition: transform 0.3s ease, filter 0.3s ease; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .dungeon-node:hover { transform: scale(1.1); }
         .dungeon-node .icon { font-size: 50px; color: #c5dce8; text-shadow: 0 0 10px #6efcff; }
         .dungeon-node .name { font-family: 'Cinzel', serif; font-size: 14px; font-weight: bold; color: #fff; background-color: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; margin-top: 5px; white-space: nowrap; }
@@ -196,7 +129,6 @@
         #path-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         #path-svg path { fill: none; stroke: url(#line-gradient); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 10 10; animation: dash 1s linear infinite; }
         @keyframes dash { to { stroke-dashoffset: -20; } }
-
         .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 26, 34, 0.8); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 100; }
         .modal-overlay.visible { opacity: 1; pointer-events: all; }
         .modal-content { background: #10212a; border: 2px solid #4a6a7c; border-radius: 10px; padding: 20px; width: 90%; max-width: 380px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); position: relative; }
@@ -216,7 +148,6 @@
         .start-button { display: block; width: 100%; padding: 15px; margin-top: 25px; font-size: 20px; font-weight: bold; font-family: 'Cinzel', serif; color: #e0e0e0; background: linear-gradient(45deg, #4CAF50, #2E7D32); border: 2px solid #81C784; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s ease; }
         .start-button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4); }
         #locked-modal .modal-content { text-align: center; font-size: 18px; }
-
         #game-container { background: #0c0c14; border: 2px solid #444; }
         #exploration-container { background: #031018; border: 2px solid #4a6a7c; }
         #exploration-exit-button { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10; }
@@ -271,14 +202,24 @@
     </style>
 </head>
 <body>
-    <div id="player-xp-container">
+    <div id="boot-screen" class="screen-container">
+        <div class="boot-content">
+            <h1 id="boot-title">EternalImmortal</h1>
+            <div id="boot-progress-container">
+                <div id="boot-progress-bar"></div>
+            </div>
+            <button id="start-game-button" class="button">Start Game</button>
+        </div>
+    </div>
+
+    <div id="player-xp-container" class="hidden">
         <div id="player-level">Level 1</div>
         <div id="xp-bar">
             <div id="xp-bar-fill"></div>
             <div id="xp-text">0 / 100 XP</div>
         </div>
     </div>
-    <div id="main-screen" class="screen-container">
+    <div id="main-screen" class="screen-container hidden">
         <div id="dungeons-button" class="world-button">
             <div class="icon"><i class="fas fa-dungeon"></i></div>
             <div class="label">Dungeons</div>
@@ -303,13 +244,12 @@
          <div id="upgrade-screen-back-button" class="button small" style="margin-top: 30px;">Back to World</div>
     </div>
     <div id="map-screen" class="screen-container hidden">
-        <!-- This new div will handle the scrolling -->
+        <canvas id="map-background-canvas"></canvas>
         <div id="map-scroll-area">
             <div id="map-content">
                 <svg id="path-svg"></svg>
             </div>
         </div>
-        <!-- The buttons are now outside the scroll area and have a proper ID -->
         <div id="map-button-container">
             <button id="map-back-button" class="button small">Back to World</button>
             <button id="global-reset-button" class="button small danger">Reset</button>
@@ -337,6 +277,9 @@
     </div>
 
     <script>
+    const bootScreen = document.getElementById('boot-screen');
+    const bootProgressBar = document.getElementById('boot-progress-bar');
+    const startGameButton = document.getElementById('start-game-button');
     const mainScreen = document.getElementById('main-screen');
     const playerUpgradeScreen = document.getElementById('player-upgrade-screen');
     const mapScreen = document.getElementById('map-screen');
@@ -344,18 +287,14 @@
     const explorationContainer = document.getElementById('exploration-container');
     const detailsModal = document.getElementById('details-modal');
     const lockedModal = document.getElementById('locked-modal');
-    
     const playerXpContainer = document.getElementById('player-xp-container');
     const playerLevelUI = document.getElementById('player-level');
     const xpBarFillUI = document.getElementById('xp-bar-fill');
     const xpTextUI = document.getElementById('xp-text');
-
     const SAVE_KEY = 'endlessShapesSaveData';
     const DUNGEON_SAVE_KEY = 'endlessShapesDungeonProgress';
-
     let currentDungeon = null;
     let playerProgress = { completed: [] };
-    
     const GEN_DATA = {
         nameParts1: ["Tomb", "Crypt", "Cave", "Den", "Lair", "Dungeon", "Fortress", "Catacomb", "Hall", "Spire", "Pits"],
         nameParts2: ["of the", "of", "beneath the", "in the"],
@@ -373,7 +312,6 @@
         gameContainer.classList.add('hidden');
         explorationContainer.classList.add('hidden');
         uiParticles = [];
-
         if (screenName === 'main') {
             mainScreen.classList.remove('hidden');
             createMainScreenParticles();
@@ -400,32 +338,20 @@
         if (!dungeonsButton) return;
         const rect = dungeonsButton.getBoundingClientRect();
         const containerRect = mainScreen.getBoundingClientRect();
-        
-        uiParticles.push({
-            type: 'sparkleGenerator',
-            x: rect.left - containerRect.left,
-            y: rect.top - containerRect.top,
-            width: rect.width,
-            height: rect.height,
-            spawnRate: 0.2,
-            color: 'rgba(110, 252, 255, 0.7)'
-        });
+        uiParticles.push({ type: 'sparkleGenerator', x: rect.left - containerRect.left, y: rect.top - containerRect.top, width: rect.width, height: rect.height, spawnRate: 0.2, color: 'rgba(110, 252, 255, 0.7)' });
     }
 
     function updatePlayerUpgradeScreenUI() {
         if (!player) return;
         document.getElementById('upgrade-gold-total').textContent = `${player.gold}`;
-        
         document.getElementById('upgrade-screen-attack-power-stat').textContent = player.stats.attackPower.current;
         document.getElementById('upgrade-screen-max-health-stat').textContent = player.stats.maxHp.current;
         document.getElementById('upgrade-screen-rage-gain-stat').textContent = player.stats.rageGain.current;
         document.getElementById('upgrade-screen-health-regen-stat').textContent = player.stats.healthRegen.current.toFixed(1);
-
         document.getElementById('upgrade-screen-attack-cost').textContent = player.costs.attackPower;
         document.getElementById('upgrade-screen-health-cost').textContent = player.costs.maxHp;
         document.getElementById('upgrade-screen-rage-cost').textContent = player.costs.rageGain;
         document.getElementById('upgrade-screen-regen-cost').textContent = player.costs.healthRegen;
-
         document.getElementById('upgrade-screen-attack-button').classList.toggle('disabled', player.gold < player.costs.attackPower);
         document.getElementById('upgrade-screen-health-button').classList.toggle('disabled', player.gold < player.costs.maxHp);
         document.getElementById('upgrade-screen-rage-button').classList.toggle('disabled', player.gold < player.costs.rageGain);
@@ -449,7 +375,6 @@
         const svg = document.getElementById('path-svg');
         let pathData = '';
         const mapContent = document.getElementById('map-content');
-
         Object.values(player.dungeonMap).forEach(parentDungeon => {
             if (parentDungeon.unlocks && parentDungeon.unlocks.length > 0) {
                  const startNode = mapContent.querySelector(`#${parentDungeon.id}`);
@@ -473,9 +398,7 @@
         loadProgress();
         const mapContent = document.getElementById('map-content');
         mapContent.innerHTML = '<svg id="path-svg"></svg>';
-
         let maxTop = 0;
-
         Object.values(player.dungeonMap).forEach(data => {
             const node = document.createElement('div');
             node.className = 'dungeon-node'; node.id = data.id; 
@@ -483,29 +406,19 @@
             node.style.left = `${data.position.left}%`; 
             node.style.transform = `translateX(-50%)`;
             node.innerHTML = `<div class="icon"><i class="fas ${data.icon}"></i></div><div class="name">${data.name}</div>`;
-            
             const dungeonData = player.dungeonMap[data.id];
             const isCompleted = dungeonData && (dungeonData.completionCount || 0) > 0;
-
             const unlockedByDungeonData = player.dungeonMap[data.unlockedBy];
             const isUnlocked = data.isUnlockedByDefault || (data.unlockedBy && unlockedByDungeonData && (unlockedByDungeonData.completionCount || 0) > 0);
-
             if (isUnlocked) node.classList.add('active'); 
             else node.classList.add('locked');
-
             if (isCompleted) node.classList.add('completed');
-            
             node.addEventListener('click', () => { if (isUnlocked) showDetailsModal(data.id); else lockedModal.classList.add('visible'); });
             mapContent.appendChild(node);
-
-            if (data.position.top > maxTop) {
-                maxTop = data.position.top;
-            }
+            if (data.position.top > maxTop) { maxTop = data.position.top; }
         });
-        
         mapContent.style.height = `${Math.max(800, maxTop + 200)}px`;
         document.getElementById('path-svg').style.height = mapContent.style.height;
-
         drawPath();
     }
     const canvas = document.getElementById('game-canvas'), ctx = canvas.getContext('2d');
@@ -513,13 +426,11 @@
     const explorationCanvas = document.getElementById('exploration-canvas'), expCtx = explorationCanvas.getContext('2d');
     canvas.width = uiCanvas.width = explorationCanvas.width = 450;
     canvas.height = uiCanvas.height = explorationCanvas.height = 800;
-
     const dom = { shop:document.getElementById('shop-screen'), gameOver:document.getElementById('game-over-screen'), playerStats:document.getElementById('player-screen'), proceedBtn:document.getElementById('proceed-button'), retryBtn:document.getElementById('retry-button'), statsBtn:document.getElementById('player-stats-button'), backBtn:document.getElementById('player-screen-back-button'), battleBanner:document.getElementById('battle-event-banner'), goldDisplay:document.getElementById('gold-total'), upgradeBtns:{attack:document.getElementById('upgrade-attack-button'),health:document.getElementById('upgrade-health-button'),rage:document.getElementById('upgrade-rage-button'),regen:document.getElementById('upgrade-regen-button')}, ultBtn:document.getElementById('ult-button'), autoBtn:document.getElementById('auto-battle-button') };
     let gameState, currentStage, player, enemies, particles, floatingTexts, projectiles, healthOrbs, shakeDuration, isAutoBattle, endCombatTimer, uiParticles=[], skillVisuals=[], countdownTimer;
     let explorationEnemies = [], explorationProjectiles = [], explorationBackgroundStars = [], explorationDifficulty = 1, explorationSpawnTimer = 0;
     const SKILLS_DATA={orbitalStrike:{name:"Orbital Strike",unlockStage:10,baseCooldown:300,cooldownReductionPerLevel:2,baseDamageMultiplier:.5,damageMultiplierPerLevel:.05,baseTargetXP:10},chainLightning:{name:"Chain Lightning",unlockStage:25,baseCooldown:240,cooldownReductionPerLevel:1.5,baseDamageMultiplier:.3,damageMultiplierPerLevel:.03,baseJumps:2,jumpsPerLevel:5,baseTargetXP:15},meteorShower:{name:"Meteor Shower",unlockStage:50,baseCooldown:400,cooldownReductionPerLevel:3,baseDamageMultiplier:.8,damageMultiplierPerLevel:.1,baseCount:5,countPerLevel:10,baseTargetXP:20}};
     function createStat(c){return{name:c.name,level:c.level||1,current:c.current||0,target:c.target||100,baseGain:c.baseGain||1,displaySuffix:c.displaySuffix||'',isFloat:c.isFloat||!1,color:c.color}}
-    
     function updatePlayerXpBar() {
         if (!player) return;
         playerLevelUI.textContent = `Level ${player.level}`;
@@ -527,7 +438,6 @@
         xpBarFillUI.style.width = `${xpPercentage}%`;
         xpTextUI.textContent = `${player.xp} / ${player.xpToNextLevel} XP`;
     }
-
     function levelUp() {
         SOUNDS.levelUp();
         player.level++;
@@ -535,35 +445,40 @@
         player.xpToNextLevel = Math.floor(player.xpToNextLevel * 1.5);
         playerXpContainer.style.animation = 'xp-level-up-flash 1s ease';
         setTimeout(() => { playerXpContainer.style.animation = ''; }, 1000);
-        if (player.xp >= player.xpToNextLevel) {
-            levelUp();
-        }
+        if (player.xp >= player.xpToNextLevel) { levelUp(); }
     }
-
     function gainXP(amount) {
         if (!player) return;
         player.xp += amount;
-        while (player.xp >= player.xpToNextLevel) {
-            levelUp();
-        }
+        while (player.xp >= player.xpToNextLevel) { levelUp(); }
     }
-
     function generateDungeonName() {
         return `${GEN_DATA.nameParts1[Math.floor(Math.random() * GEN_DATA.nameParts1.length)]} ${GEN_DATA.nameParts2[Math.floor(Math.random() * GEN_DATA.nameParts2.length)]} ${GEN_DATA.nameParts3[Math.floor(Math.random() * GEN_DATA.nameParts3.length)]}`;
     }
-
     function addNewDungeons(triggeringDungeonId) {
-        let lastDungeon = player.dungeonMap[triggeringDungeonId];
-        const depth = Object.keys(player.dungeonMap).length; // A better way to calculate difficulty depth
+        // --- THE FIX ---
+        // Find the node at the absolute end of the map by looking for the one
+        // that doesn't unlock any other dungeons yet.
+        let endOfChainNode = Object.values(player.dungeonMap).find(d => d.unlocks.length === 0);
 
-        // We create two dungeons in a chain: parent -> newDungeonA -> newDungeonB
+        // A safety check in case something goes wrong and no end node is found.
+        if (!endOfChainNode) {
+            console.error("Could not find the end of the dungeon chain. Defaulting to last-created dungeon.");
+            // Fallback: find the one with the highest 'top' value.
+            endOfChainNode = Object.values(player.dungeonMap).reduce((a, b) => a.position.top > b.position.top ? a : b);
+            if (!endOfChainNode) return; // If map is somehow empty, exit.
+        }
+        
+        // Now, we use this definitive end node as the parent for the new chain.
+        let lastDungeon = endOfChainNode;
+        const depth = Object.keys(player.dungeonMap).length;
+
+        // The rest of the function remains the same, as it will now correctly
+        // build off the true end of the map.
         for (let i = 0; i < 2; i++) {
             const newDungeonId = `dungeon-${Date.now()}-${i}`;
-            const bossLevel = 10 + depth + i; // Slightly scale boss level as we go down
+            const bossLevel = 10 + depth + i;
 
-            // Determine the side for the next node based on the parent's position.
-            // If the parent is on the left (<50%), the child goes to the right (70%), and vice-versa.
-            // We add a little randomness to make the map look more organic.
             const newLeftPosition = (lastDungeon.position.left < 50) 
                 ? 70 + (Math.random() * 10 - 5) 
                 : 30 + (Math.random() * 10 - 5);
@@ -579,9 +494,8 @@
                 },
                 icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
                 
-                // This is the key change: we chain the dungeons together.
                 unlockedBy: lastDungeon.id, 
-                unlocks: [], // This new node starts with no unlocks.
+                unlocks: [],
                 
                 boss: {
                     name: `${GEN_DATA.bossNames1[Math.floor(Math.random() * GEN_DATA.bossNames1.length)]} ${GEN_DATA.bossNames2[Math.floor(Math.random() * GEN_DATA.bossNames2.length)]}`,
@@ -596,20 +510,12 @@
                     { name: 'Rubies', amount: `x${(200 + depth * 50)}`, icon: 'fa-gem icon-ruby' }
                 ]
             };
-            newDungeon.baseName = newDungeon.name; // Store the original name for evolutions
-            
-            // Add the new dungeon to our map data
+            newDungeon.baseName = newDungeon.name;
             player.dungeonMap[newDungeonId] = newDungeon;
-            
-            // Link the parent to this new dungeon
             lastDungeon.unlocks.push(newDungeonId);
-            
-            // For the next loop iteration, this new dungeon becomes the parent
             lastDungeon = newDungeon;
         }
     }
-
-
     function initGame(fromScratch=false, silent=false){
         if (!silent) gameState='LOADING';
         if (!player || fromScratch) {
@@ -619,34 +525,17 @@
             isAutoBattle=!1;
         }
         if(!fromScratch) loadGame();
-
         if (Object.keys(player.dungeonMap).length === 0) {
             let lastDungeon = null;
-            // Define a simple zig-zag pattern for the first three nodes: Center, Left, Right
             const startingLeftPositions = [50, 30, 70]; 
-
             for (let i = 0; i < 3; i++) {
                 const dungeonId = `starter-${i}`;
                 const dungeon = {
-                    id: dungeonId,
-                    name: generateDungeonName(),
-                    completionCount: 0,
-                    evolutionLevel: 0,
-                    
-                    // --- LAYOUT LOGIC ---
-                    // Only the very first dungeon is unlocked by default.
+                    id: dungeonId, name: generateDungeonName(), completionCount: 0, evolutionLevel: 0,
                     isUnlockedByDefault: (i === 0), 
-                    // Link to the previous dungeon in the chain.
                     unlockedBy: lastDungeon ? lastDungeon.id : null, 
                     unlocks: [],
-                    position: {
-                        // Each dungeon is 160px lower than the previous one.
-                        top: 100 + (i * 160), 
-                        // Use our pre-defined zig-zag pattern.
-                        left: startingLeftPositions[i] + (Math.random() * 10 - 5) 
-                    },
-                    // --- END LAYOUT LOGIC ---
-
+                    position: { top: 100 + (i * 160), left: startingLeftPositions[i] + (Math.random() * 10 - 5) },
                     icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
                     boss: { name: 'Stone Guardian', level: 5, icon: 'fa-ghost', attack: 10, maxHp: 500 },
                     mode: 'Standard',
@@ -654,17 +543,10 @@
                 };
                 dungeon.baseName = dungeon.name;
                 player.dungeonMap[dungeon.id] = dungeon;
-
-                // If this isn't the first dungeon, update the *previous* dungeon's `unlocks` array.
-                if (lastDungeon) {
-                    lastDungeon.unlocks.push(dungeon.id);
-                }
-
-                // This dungeon now becomes the "lastDungeon" for the next loop iteration.
+                if (lastDungeon) { lastDungeon.unlocks.push(dungeon.id); }
                 lastDungeon = dungeon;
             }
         }
-
         if (!silent) {
             endCombatTimer=0;enemies=[];particles=[];floatingTexts=[];projectiles=[];healthOrbs=[];shakeDuration=0;uiParticles=[];skillVisuals=[];
             player.hp=player.stats.maxHp.current;
@@ -673,7 +555,7 @@
     }
     function saveGame(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({player,currentStage,isAutoBattle}))}catch(e){console.error("Could not save game:",e)}}
     function loadGame(){try{const savedData=localStorage.getItem(SAVE_KEY);if(!savedData)return;const loaded=JSON.parse(savedData);if(!loaded.player||typeof loaded.player.stats.maxHp==="number"||!loaded.player.skills.orbitalStrike.level){console.log("Old or invalid save detected, resetting player data.");return}else{player=loaded.player}if(player.level===undefined){player.level=1;player.xp=0;player.xpToNextLevel=100}if(!player.dungeonMap){player.dungeonMap={};player.dungeonCompletions=0;}Object.values(player.dungeonMap).forEach(d => { if(d.completionCount === undefined) d.completionCount = 0; if(d.evolutionLevel === undefined) d.evolutionLevel = 0; if(!d.baseName) d.baseName = d.name; });currentStage=loaded.currentStage;isAutoBattle=loaded.isAutoBattle}catch(e){console.error("Could not load save data, starting fresh.",e)}}
-    function resetGame(){if(confirm("Are you sure you want to reset all progress? This cannot be undone.")){localStorage.removeItem(SAVE_KEY);localStorage.removeItem(DUNGEON_SAVE_KEY);playerProgress={completed:[]};player=null;showScreen('main');}}
+    function resetGame(){if(confirm("Are you sure you want to reset all progress? This cannot be undone.")){localStorage.removeItem(SAVE_KEY);localStorage.removeItem(DUNGEON_SAVE_KEY);playerProgress={completed:[]};player=null;location.reload();}}
     const audioCtx=new(window.AudioContext||window.webkitAudioContext);function playSound(f,t,d,v=.5){try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g),g.connect(audioCtx.destination),o.type=t,o.frequency.setValueAtTime(f,audioCtx.currentTime),g.gain.setValueAtTime(v,audioCtx.currentTime),g.gain.exponentialRampToValueAtTime(1e-4,audioCtx.currentTime+d),o.start(),o.stop(audioCtx.currentTime+d)}catch(e){}}
     const SOUNDS={click:()=>playSound(440,"sine",.1,.3),playerAttack:()=>playSound(200,"square",.1,.2),enemyAttack:()=>playSound(150,"sawtooth",.1,.2),hit:()=>playSound(880,"triangle",.15,.5),enemyDeath:()=>playSound(100,"sawtooth",.4,.4),ultimate:()=>playSound(80,"sawtooth",.8,.7),upgrade:()=>playSound(600,"triangle",.2,.4),gameOver:()=>playSound(150,"sawtooth",.8,.5),stageClear:()=>playSound(783,"sine",.5),heal:()=>playSound(523,"triangle",.2,.4),levelUp:()=>playSound(900,"sawtooth",.3,.5)};
     function createExplosion(x,y,c,co,s=3,sp=5){const colors=["#fff","#ffd700","#ff8c00",co];for(let i=0;i<c;i++)particles.push({x,y,vx:(Math.random()-.5)*sp,vy:(Math.random()-.5)*sp,life:Math.random()*30+20,color:colors[Math.floor(Math.random()*colors.length)],size:Math.random()*s+1})}
@@ -681,29 +563,8 @@
     function triggerScreenShake(d){shakeDuration=d}
     function showBattleBanner(t,ty,d){dom.battleBanner.textContent=t;dom.battleBanner.className=`battle-banner ${ty}`;setTimeout(()=>{dom.battleBanner.className='battle-banner panel-hidden'},d)}
     function changeState(newState){Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});dom.ultBtn.classList.add('panel-hidden');dom.autoBtn.classList.add('panel-hidden');uiParticles=[];gameState=newState;switch(newState){case'COUNTDOWN':if(currentDungeon){setupBossStage(currentDungeon)}else{setupNextStage()}dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');countdownTimer=180;playSound(500,"sine",0.1,0.3);break;case'COMBAT':dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');break;case'SHOP':saveGame();checkSkillUnlocks();dom.shop.classList.remove('panel-hidden');updateShopUI();setTimeout(createShopParticles,100);break;case'GAME_OVER':dom.gameOver.classList.remove('panel-hidden');updateGameOverUI();break;case'PLAYER_STATS':dom.playerStats.classList.remove('panel-hidden');updatePlayerScreenUI();setTimeout(createStatsScreenParticles,100);break;case'ENDING_COMBAT':player.isAttacking=!1;endCombatTimer=120;showBattleBanner('Victory!','stage-clear-banner',2500);SOUNDS.stageClear();break;}}
-    function createShopParticles() {
-        document.querySelectorAll('#shop-screen .button, .gold-display, #shop-screen h1').forEach(el => {
-            if (el.tagName === 'H1' || el.classList.contains('gold-display')) {
-                uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: .1 });
-            } else {
-                for (let i = 0; i < 3; i++) {
-                    uiParticles.push({ type: 'orbit', attachTo: el, angle: Math.random() * Math.PI * 2, speed: .01 + Math.random() * .02, radius: 1 + Math.random(), color: '#ffd700' });
-                }
-            }
-        });
-    }
-    function createStatsScreenParticles() {
-        document.querySelectorAll('#player-screen .progress-bar-fill').forEach(el => {
-            if (el.getBoundingClientRect().width > 0) {
-                uiParticles.push({
-                    type: 'sparkleGenerator',
-                    attachTo: el,
-                    spawnRate: el.getBoundingClientRect().width / 2000,
-                    color: el.classList.contains('health') ? '#e63946' : el.classList.contains('attack') ? '#fca311' : el.classList.contains('rage') ? '#9d4edd' : el.classList.contains('regen') ? '#52b788' : '#00b4d8'
-                });
-            }
-        });
-    }
+    function createShopParticles() { document.querySelectorAll('#shop-screen .button, .gold-display, #shop-screen h1').forEach(el => { if (el.tagName === 'H1' || el.classList.contains('gold-display')) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: .1 }); } else { for (let i = 0; i < 3; i++) { uiParticles.push({ type: 'orbit', attachTo: el, angle: Math.random() * Math.PI * 2, speed: .01 + Math.random() * .02, radius: 1 + Math.random(), color: '#ffd700' }); } } }); }
+    function createStatsScreenParticles() { document.querySelectorAll('#player-screen .progress-bar-fill').forEach(el => { if (el.getBoundingClientRect().width > 0) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: el.getBoundingClientRect().width / 2000, color: el.classList.contains('health') ? '#e63946' : el.classList.contains('attack') ? '#fca311' : el.classList.contains('rage') ? '#9d4edd' : el.classList.contains('regen') ? '#52b788' : '#00b4d8' }); } }); }
     function setupBossStage(dungeon) {enemies = [];currentStage = dungeon.boss.level;const boss = dungeon.boss;enemies.push({x: canvas.width / 2,y: 150,baseY: 150,hp: boss.maxHp,maxHp: boss.maxHp,attack: boss.attack,radius: 40,color: "#e63946",attackCooldown: 90,attackTimer: 120,isAttacking: false,chargeTimer: 0});}
     function setupNextStage(){enemies=[];const e=Math.min(2+Math.floor(currentStage/2),7),t=1+(currentStage-1)*.25,a=3+Math.floor(currentStage/3),s=Math.max(120-2*currentStage,45);for(let n=0;n<e;n++){const e=100+200*Math.random(),r=Math.floor((20+10*Math.random())*t);enemies.push({x:40+Math.random()*(canvas.width-80),y:e,baseY:e,hp:r,maxHp:r,attack:Math.floor(a+2*Math.random()),radius:20+5*Math.random(),color:"#e63946",attackCooldown:s+60*Math.random(),attackTimer:180*Math.random(),isAttacking:!1,chargeTimer:0})}}
     function updateShopUI() {if (currentDungeon) {document.getElementById('shop-title').textContent = `${currentDungeon.name} Cleared!`;document.getElementById('shop-subtitle').textContent = "You are victorious. Claim your rewards.";dom.proceedBtn.textContent = 'Return to Map';} else {document.getElementById('shop-title').textContent = `Stage ${currentStage} Cleared!`;document.getElementById('shop-subtitle').textContent = 'Spend Gold to grow stronger.';dom.proceedBtn.textContent = 'Next Stage';} dom.goldDisplay.textContent = `${player.gold}`;document.getElementById('attack-power-stat').textContent=player.stats.attackPower.current;document.getElementById('max-health-stat').textContent=player.stats.maxHp.current;document.getElementById('rage-gain-stat').textContent=player.stats.rageGain.current;document.getElementById('health-regen-stat').textContent=player.stats.healthRegen.current.toFixed(1);document.getElementById('attack-cost').textContent=player.costs.attackPower;document.getElementById('health-cost').textContent=player.costs.maxHp;document.getElementById('rage-cost').textContent=player.costs.rageGain;document.getElementById('regen-cost').textContent=player.costs.healthRegen;dom.upgradeBtns.attack.classList.toggle('disabled',player.gold<player.costs.attackPower);dom.upgradeBtns.health.classList.toggle('disabled',player.gold<player.costs.maxHp);dom.upgradeBtns.rage.classList.toggle('disabled',player.gold<player.costs.rageGain);dom.upgradeBtns.regen.classList.toggle('disabled',player.gold<player.costs.healthRegen);}
@@ -725,17 +586,9 @@
     document.getElementById('upgrade-screen-regen-button').onclick = () => buyUpgrade('healthRegen', true);
     dom.proceedBtn.onclick = () => {
         if (currentDungeon) {
-            // This is the main logic for completing a dungeon
-            
-            // Increment total dungeon completions
             player.dungeonCompletions = (player.dungeonCompletions || 0) + 1;
-
-            // Get the specific dungeon from our map data
             const completedDungeon = player.dungeonMap[currentDungeon.id];
             completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
-
-            // --- PROBLEM 2: EVOLUTION LOGIC ---
-            // This will now work because completionCount is being saved.
             if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
                 completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
                 const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
@@ -745,23 +598,13 @@
                 completedDungeon.boss.maxHp = Math.floor(completedDungeon.boss.maxHp * 1.5);
                 completedDungeon.boss.attack = Math.floor(completedDungeon.boss.attack * 1.3);
             }
-
-            // --- PROBLEM 1: NEW DUNGEON LOGIC ---
-            // This will now work because player.dungeonCompletions is being saved.
             if (player.dungeonCompletions > 0 && player.dungeonCompletions % 3 === 0) {
                 addNewDungeons(currentDungeon.id);
             }
-
-            // --- THE FIX ---
-            // Save the entire player object, which contains all the counters.
             saveGame(); 
-            
-            // (The old, redundant saveProgress() and its logic have been removed)
-
             currentDungeon = null;
             showScreen('map');
         } else {
-            // This is the logic for the endless wave mode, not dungeons
             currentStage++;
             changeState('COUNTDOWN');
         }
@@ -775,7 +618,6 @@
     function updateSkills(){if(enemies.length===0)return;Object.keys(player.skills).forEach(id=>{const skill=player.skills[id];if(!skill.isUnlocked)return;skill.cooldownTimer++;const skillData=SKILLS_DATA[id];const cooldown=Math.max(30,skillData.baseCooldown-(skill.level-1)*skillData.cooldownReductionPerLevel);if(skill.cooldownTimer>cooldown){skill.cooldownTimer=0;skill.currentXP++;if(skill.currentXP>=skill.targetXP){skill.level++;skill.currentXP-=skill.targetXP;skill.targetXP=Math.floor(skill.targetXP*1.5);SOUNDS.levelUp()}const damage=getSkillDescription(id).match(/\d+/)[0];const randomEnemy=enemies[Math.floor(Math.random()*enemies.length)];if(!randomEnemy)return;switch(id){case'orbitalStrike':skillVisuals.push({type:'orbitalStrike',x:player.x,y:player.y,target:randomEnemy,speed:3,damage,life:300});break;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);let targets=[randomEnemy];for(let i=0;i<jumps;i++){const lastTarget=targets[targets.length-1],potentialNext=enemies.filter(e=>!targets.includes(e)).sort((a,b)=>Math.hypot(a.x-lastTarget.x,a.y-lastTarget.y)-Math.hypot(b.x-lastTarget.x,b.y-lastTarget.y));if(potentialNext.length>0)targets.push(potentialNext[0])}targets.forEach(e=>e.hp-=damage);skillVisuals.push({type:'chainLightning',targets,life:30});break;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);for(let i=0;i<count;i++){const targetX=randomEnemy.x-100+200*Math.random();skillVisuals.push({type:'meteor',x:targetX,y:-50,targetY:randomEnemy.y-50+100*Math.random(),speed:8,damage,life:200})}break}}})}
     function updateCountdown() { countdownTimer--; if(countdownTimer % 60 === 0 && countdownTimer > 0) { playSound(500, "sine", 0.1, 0.3); } if (countdownTimer <= 0) { changeState('COMBAT'); playSound(800, "sine", 0.1, 0.4); } }
     function updateCombat(){if(player.isAttacking){player.attackAnimTimer--;if(player.attackAnimTimer<=0)player.isAttacking=!1}if(isAutoBattle&&!player.isAttacking&&enemies.length>0){let e=enemies.reduce((e,t)=>Math.hypot(e.x-player.x,e.y-player.y)<Math.hypot(t.x-player.x,t.y-player.y)?e:t);playerAttack(e)}updateSkills();enemies.forEach(e=>{e.attackTimer++;if(e.attackTimer>=e.attackCooldown&&!e.isAttacking){e.isAttacking=!0;e.chargeTimer=30}if(e.chargeTimer>0){e.chargeTimer--;if(e.chargeTimer<=0){e.attackTimer=0;SOUNDS.enemyAttack();projectiles.push({x:e.x,y:e.y,target:player,speed:10,isPlayer:!1,damage:e.attack})}}else if(e.isAttacking)e.isAttacking=!1;if(e.flash>0)e.flash--});projectiles.forEach((e,t)=>{const a=e.target.x-e.x,s=e.target.y-e.y,n=Math.hypot(a,s);if(n<e.speed){e.target.hp-=e.damage;e.target.flash=5;if(e.isPlayer)player.rage=Math.min(player.rage+player.stats.rageGain.current,100);SOUNDS.hit();triggerScreenShake(e.isPlayer?5:8);createExplosion(e.target.x,e.target.y,20,e.isPlayer?"#fff":"#ff4d4d");addFloatingText(e.damage,e.target.x,e.y,e.isPlayer?"#ffd700":"#ff4d4d");projectiles.splice(t,1)}else{e.x+=a/n*e.speed;e.y+=s/n*e.speed}});if(player.hp<=0)return SOUNDS.gameOver(),void changeState("GAME_OVER");const deadEnemies=enemies.filter(e=>e.hp<=0);deadEnemies.forEach(e=>{createExplosion(e.x,e.y,50,e.color,4,8);SOUNDS.enemyDeath();player.gold+=Math.floor(1.5*currentStage+5);const xpGain=Math.floor(5*currentStage+Math.random()*5);gainXP(xpGain);});enemies=enemies.filter(e=>e.hp>0);if(enemies.length===0&&gameState==="COMBAT")changeState("ENDING_COMBAT");if(Math.random()<.005&&healthOrbs.length<3)healthOrbs.push({x:40+Math.random()*(canvas.width-80),y:100+300*Math.random(),radius:12,life:600,pulse:0})}
-    
     function initExplorationMode() {
         explorationEnemies = [];
         projectiles = [];
@@ -796,12 +638,9 @@
             }
         }
     }
-    
     function updateExplorationMode() {
         if (!player) return;
-
         explorationBackgroundStars.forEach(star => { star.x -= star.speed; if (star.x < 0) { star.x = explorationCanvas.width; star.y = Math.random() * explorationCanvas.height; }});
-        
         explorationSpawnTimer--;
         if (explorationSpawnTimer <= 0) {
             const enemyHp = Math.floor(50 * explorationDifficulty);
@@ -810,7 +649,6 @@
             explorationSpawnTimer = Math.max(30, 180 - explorationDifficulty * 5);
             explorationDifficulty += 0.1;
         }
-
         if (!player.isAttacking && explorationEnemies.length > 0) {
             let closestEnemy = explorationEnemies[0];
             if (closestEnemy) {
@@ -821,37 +659,19 @@
             }
         }
         if (player.isAttacking) { player.attackAnimTimer--; if (player.attackAnimTimer <= 0) player.isAttacking = false; }
-        
         const battleLineX = player.x + 80;
-        explorationEnemies.forEach(e => {
-            if (e.x > battleLineX) {
-                e.x -= 2;
-            }
-        });
-
+        explorationEnemies.forEach(e => { if (e.x > battleLineX) { e.x -= 2; } });
         projectiles.forEach((p, i) => {
-            if (!p.target || p.target.hp <= 0) {
-                projectiles.splice(i, 1);
-                return;
-            }
+            if (!p.target || p.target.hp <= 0) { projectiles.splice(i, 1); return; }
             const dx = p.target.x - p.x, dy = p.target.y - p.y, dist = Math.hypot(dx, dy);
-            if (dist < p.speed) {
-                p.target.hp -= p.damage; 
-                SOUNDS.hit(); 
-                addFloatingText(p.damage, p.target.x, p.target.y, '#ffd700'); 
-                createExplosion(p.target.x, p.target.y, 20, '#fff');
-                projectiles.splice(i, 1);
-            } else { p.x += dx / dist * p.speed; p.y += dy / dist * p.speed; }
+            if (dist < p.speed) { p.target.hp -= p.damage; SOUNDS.hit(); addFloatingText(p.damage, p.target.x, p.target.y, '#ffd700'); createExplosion(p.target.x, p.target.y, 20, '#fff'); projectiles.splice(i, 1); } else { p.x += dx / dist * p.speed; p.y += dy / dist * p.speed; }
         });
-
         const dead = explorationEnemies.filter(e => e.hp <= 0);
         dead.forEach(e => { createExplosion(e.x, e.y, 50, e.color, 4, 8); SOUNDS.enemyDeath(); gainXP(e.xpValue); player.gold += Math.floor(e.xpValue / 2); });
         explorationEnemies = explorationEnemies.filter(e => e.hp > 0 && e.x > -50);
-        
         particles=particles.filter(e=>{e.x+=e.vx;e.y+=e.vy;e.life--;return e.life>0});
         floatingTexts=floatingTexts.filter(e=>{e.y-=1;e.life--;return e.life>0});
     }
-
     function update(){
         updatePlayerXpBar();
         updateUiParticles();
@@ -872,17 +692,11 @@
     function updateUiParticles() {
         const newParticles = [];
         const container = !gameContainer.classList.contains('hidden') ? gameContainer : null;
-        if (!container) {
-            uiParticles = [];
-            return;
-        }
+        if (!container) { uiParticles = []; return; }
         const containerRect = container.getBoundingClientRect();
-
         uiParticles.forEach(p => {
-            if (p.type === 'orbit') {
-                p.angle += p.speed;
-            } else if (p.type === 'sparkle') {
-                p.life--;
+            if (p.type === 'orbit') { p.angle += p.speed;
+            } else if (p.type === 'sparkle') { p.life--;
             } else if (p.type === 'sparkleGenerator') {
                 if (Math.random() < p.spawnRate) {
                     let spawnX, spawnY, spawnWidth, spawnHeight;
@@ -893,40 +707,59 @@
                         spawnY = elRect.top - containerRect.top;
                         spawnWidth = elRect.width;
                         spawnHeight = elRect.height;
-                    } else {
-                        spawnX = p.x; spawnY = p.y; spawnWidth = p.width; spawnHeight = p.height;
-                    }
-                    
-                    newParticles.push({
-                        type: 'sparkle',
-                        x: spawnX + Math.random() * spawnWidth,
-                        y: spawnY + Math.random() * spawnHeight,
-                        life: 60, maxLife: 60, radius: Math.random() * 2,
-                        color: p.color || `rgba(255,220,150,${.5+Math.random()*.5})`
-                    });
+                    } else { spawnX = p.x; spawnY = p.y; spawnWidth = p.width; spawnHeight = p.height; }
+                    newParticles.push({ type: 'sparkle', x: spawnX + Math.random() * spawnWidth, y: spawnY + Math.random() * spawnHeight, life: 60, maxLife: 60, radius: Math.random() * 2, color: p.color || `rgba(255,220,150,${.5+Math.random()*.5})` });
                 }
             }
         });
-
         uiParticles = uiParticles.filter(p => !(p.type === 'sparkle' && p.life <= 0));
         uiParticles.push(...newParticles);
     }
-    function drawHud(){if(gameState!=='COMBAT' && gameState !== 'COUNTDOWN')return;ctx.save();ctx.font='bold 24px Segoe UI';ctx.shadowColor='black';ctx.shadowBlur=5;ctx.fillStyle='white';ctx.textAlign='left';ctx.fillText(currentDungeon ? currentDungeon.name : `Stage: ${currentStage}`,15,35);ctx.textAlign='right';ctx.fillStyle='#ffd700';ctx.fillText(`💰 ${player.gold}`,canvas.width-15,35);ctx.restore()}
+    function drawHud(){
+        if(gameState!=='COMBAT' && gameState !== 'COUNTDOWN') return;
+        ctx.save();
+        ctx.font='bold 24px Segoe UI';
+        ctx.shadowColor='black';
+        ctx.shadowBlur=5;
+        ctx.fillStyle='white';
+        ctx.textAlign='left';
+
+        // Get the full title text
+        let titleText = currentDungeon ? currentDungeon.name : `Stage: ${currentStage}`;
+        
+        // Define the maximum width for the title. We leave space on the right for the gold display.
+        const maxWidth = canvas.width - 140;
+
+        // Check if the text is too wide
+        if (ctx.measureText(titleText).width > maxWidth) {
+            // If it is, shorten it character by character until it fits with an ellipsis
+            let truncatedText = titleText;
+            while (ctx.measureText(truncatedText + '...').width > maxWidth && truncatedText.length > 0) {
+                truncatedText = truncatedText.slice(0, -1);
+            }
+            titleText = truncatedText + '...';
+        }
+        
+        // Draw the (potentially truncated) text
+        ctx.fillText(titleText, 15, 35);
+        
+        ctx.textAlign='right';
+        ctx.fillStyle='#ffd700';
+        ctx.fillText(`💰 ${player.gold}`,canvas.width-15,35);
+        ctx.restore();
+    }
     function drawUiParticles() {
         if (gameContainer.classList.contains('hidden')) return;
         uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
         const containerRect = gameContainer.getBoundingClientRect();
-
         uiParticles.forEach(p => {
             if (p.type === 'orbit' && p.attachTo) {
                 const elRect = p.attachTo.getBoundingClientRect();
                 if (elRect.bottom < containerRect.top || elRect.top > containerRect.bottom) return;
-                
                 const currentX = elRect.left - containerRect.left;
                 const currentY = elRect.top - containerRect.top;
                 const orbitX = (currentX + elRect.width / 2) + Math.cos(p.angle) * (elRect.width / 2 + 10);
                 const orbitY = (currentY + elRect.height / 2) + Math.sin(p.angle) * (elRect.height / 2 + 10);
-                
                 uiCtx.beginPath();
                 uiCtx.arc(orbitX, orbitY, p.radius, 0, Math.PI * 2);
                 uiCtx.fillStyle = p.color;
@@ -949,7 +782,6 @@
     function drawSkillVisuals(){skillVisuals.forEach(v=>{ctx.save();ctx.globalAlpha=v.life/30;switch(v.type){case'orbitalStrike':ctx.fillStyle='#9d4edd';ctx.beginPath();ctx.arc(v.x,v.y,8,0,2*Math.PI);ctx.fill();ctx.shadowColor='#fff';ctx.shadowBlur=10;ctx.fill();break;case'chainLightning':ctx.strokeStyle='#00b4d8';ctx.lineWidth=3;ctx.shadowColor='#ade8f4';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(v.targets[0].x,v.targets[0].y);for(let i=1;i<v.targets.length;i++)ctx.lineTo(v.targets[i].x,v.targets[i].y);ctx.stroke();break;case'meteor':ctx.fillStyle='#fca311';ctx.beginPath();ctx.rect(v.x-3,v.y-15,6,30);ctx.fill();break}ctx.restore()})}
     function drawEffects(){projectiles.forEach(p=>{ctx.fillStyle=p.isPlayer?'#fff':'#ff4d4d';ctx.beginPath();ctx.arc(p.x,p.y,5,0,2*Math.PI);ctx.fill()});particles.forEach(p=>{ctx.fillStyle=p.color;ctx.globalAlpha=p.life/30;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,2*Math.PI);ctx.fill()});ctx.globalAlpha=1;floatingTexts.forEach(t=>{ctx.font='bold 28px sans-serif';ctx.fillStyle=t.color;ctx.globalAlpha=t.life/60;ctx.textAlign='center';ctx.shadowColor='black';ctx.shadowBlur=4;ctx.fillText(t.text,t.x,t.y)});ctx.shadowBlur=0;ctx.shadowColor='transparent';ctx.globalAlpha=1}
     function drawCountdown(){let text='';let scale=1+(countdownTimer%60)/30;if(countdownTimer>120){text='3'}else if(countdownTimer>60){text='2'}else if(countdownTimer>0){text='1'}if(text){ctx.save();ctx.font=`bold ${120*scale}px Cinzel`;ctx.fillStyle=`rgba(255,255,255,${1-(countdownTimer%60)/60})`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(255, 100, 100, 0.7)';ctx.shadowBlur=20;ctx.fillText(text,canvas.width/2,canvas.height/2);ctx.restore()}}
-    
     function drawExplorationMode() {
         const dCtx = expCtx;
         dCtx.fillStyle = '#031018';
@@ -959,26 +791,22 @@
         const barWidth=100, barX=player.x-barWidth/2;
         dCtx.fillStyle='#333'; dCtx.fillRect(barX,player.y+player.size/2+5,barWidth,12);
         dCtx.fillStyle='#2a9d8f'; dCtx.fillRect(barX,player.y+player.size/2+5,barWidth*Math.max(0,player.hp/player.stats.maxHp.current),12);
-        
         explorationEnemies.forEach(e => {
             dCtx.save(); dCtx.translate(e.x, e.y); dCtx.beginPath(); dCtx.arc(0, 0, e.radius, 0, Math.PI * 2); dCtx.fillStyle = e.color; dCtx.fill(); dCtx.restore();
             const eBarWidth=e.radius*2;
             dCtx.fillStyle='#333'; dCtx.fillRect(e.x-e.radius,e.y-e.radius-15,eBarWidth,5);
             dCtx.fillStyle='#c1121f'; dCtx.fillRect(e.x-e.radius,e.y-e.radius-15,eBarWidth*Math.max(0,e.hp/e.maxHp),5);
         });
-
         projectiles.forEach(p => { dCtx.fillStyle = '#fff'; dCtx.beginPath(); dCtx.arc(p.x, p.y, 5, 0, 2 * Math.PI); dCtx.fill(); });
         particles.forEach(p => { dCtx.fillStyle = p.color; dCtx.globalAlpha = p.life/30; dCtx.beginPath(); dCtx.arc(p.x, p.y, p.size, 0, 2*Math.PI); dCtx.fill(); });
         dCtx.globalAlpha=1;
         floatingTexts.forEach(t => { dCtx.font='bold 28px sans-serif'; dCtx.fillStyle=t.color; dCtx.globalAlpha=t.life/60; dCtx.textAlign='center'; dCtx.shadowColor='black'; dCtx.shadowBlur=4; dCtx.fillText(t.text,t.x,t.y); });
         dCtx.shadowBlur=0; dCtx.globalAlpha=1;
     }
-    
     function draw(){
         if (!mainScreen.classList.contains('hidden')) {
             drawUiParticles();
         }
-        
         if (!explorationContainer.classList.contains('hidden')) {
             drawExplorationMode();
         } else if (!gameContainer.classList.contains('hidden')) {
@@ -993,9 +821,131 @@
         }
     }
     function gameLoop(){update();draw();requestAnimationFrame(gameLoop)}
+
+    function initializeBootSequence() {
+        let progress = 0;
+        const loadingTime = 2500; // 2.5 seconds total
+        const intervalTime = 25; // update every 25ms
+        const progressIncrement = 100 / (loadingTime / intervalTime);
+
+        const bootInterval = setInterval(() => {
+            progress += progressIncrement;
+            bootProgressBar.style.width = Math.min(progress, 100) + '%';
+
+            if (progress >= 100) {
+                clearInterval(bootInterval);
+                setTimeout(() => {
+                    startGameButton.classList.add('visible');
+                }, 300); // Small delay after bar fills
+            }
+        }, intervalTime);
+
+        startGameButton.addEventListener('click', () => {
+            SOUNDS.click();
+            bootScreen.classList.add('fade-out');
+            bootScreen.addEventListener('transitionend', () => {
+                bootScreen.classList.add('hidden'); // final hide
+                playerXpContainer.classList.remove('hidden');
+                showScreen('main');
+            }, { once: true });
+        });
+    }
+
+    let mapBackgroundCanvas, gl, mapProgram, mapStartTime;
+    const mapVertexShaderSource = `attribute vec4 a_position; void main() { gl_Position = a_position; }`;
+    const mapFragmentShaderSource = `
+        precision mediump float;
+        uniform vec2 u_resolution;
+        uniform float u_time;
+        vec2 hash( vec2 p ) { p = vec2( dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)) ); return -1.0 + 2.0*fract(sin(p)*43758.5453123); }
+        float noise( in vec2 p ) { const float K1 = 0.366025404; const float K2 = 0.211324865; vec2 i = floor( p + (p.x+p.y)*K1 ); vec2 a = p - i + (i.x+i.y)*K2; vec2 o = (a.x>a.y) ? vec2(1.0,0.0) : vec2(0.0,1.0); vec2 b = a - o + K2; vec2 c = a - 1.0 + 2.0*K2; vec2 h = hash( i ); vec2 k = hash( i + o ); vec2 l = hash( i + 1.0 ); return 40.0 * dot( vec4(h.x, k.x, l.x, h.y), vec4(0.0,0.0,0.0,0.0) ); }
+        float fbm(vec2 p) { float total = 0.0; float amplitude = 0.5; for(int i = 0; i < 5; i++) { total += noise(p) * amplitude; p *= 2.0; amplitude *= 0.5; } return total; }
+        void main() {
+            vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / u_resolution.y;
+            vec2 p = uv * 2.0;
+            float t = u_time * 0.1;
+            float angle = atan(p.y, p.x);
+            float dist = length(p);
+            p += vec2(cos(angle + t) * 0.1, sin(angle + t) * 0.1);
+            float n1 = fbm(p + t * 0.2);
+            float n2 = fbm(p * 1.5 - t * 0.1);
+            float finalNoise = (n1 + n2) * (1.0 - smoothstep(0.5, 1.2, dist));
+            vec3 color1 = vec3(0.05, 0.0, 0.1);
+            vec3 color2 = vec3(0.1, 0.2, 0.4);
+            vec3 color3 = vec3(0.8, 0.2, 0.5);
+            vec3 color = mix(color1, color2, smoothstep(0.0, 0.6, finalNoise));
+            color = mix(color, color3, smoothstep(0.5, 0.8, finalNoise));
+            gl_FragColor = vec4(vec3(0.01, 0.05, 0.1) + color, 1.0);
+        }
+    `;
+    function initMapBackground() {
+        mapBackgroundCanvas = document.getElementById('map-background-canvas');
+        gl = mapBackgroundCanvas.getContext('webgl');
+        if (!gl) {
+            console.error("WebGL not supported, falling back to CSS background.");
+            document.getElementById('map-screen').style.backgroundImage = 'radial-gradient(circle at 50% 30%, #1a5c69, #0f343d 50%, #031018 85%)';
+            return;
+        }
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, mapVertexShaderSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, mapFragmentShaderSource);
+        mapProgram = gl.createProgram();
+        gl.attachShader(mapProgram, vertexShader);
+        gl.attachShader(mapProgram, fragmentShader);
+        gl.linkProgram(mapProgram);
+        if (!gl.getProgramParameter(mapProgram, gl.LINK_STATUS)) {
+            console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(mapProgram));
+            return;
+        }
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        const positions = [-1, -1, 1, -1, -1, 1, 1, 1];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+        mapStartTime = Date.now();
+    }
+    function renderMapBackground() {
+        if (!gl || !mapProgram) return;
+        const canvas = gl.canvas;
+        const displayWidth  = canvas.clientWidth;
+        const displayHeight = canvas.clientHeight;
+        if (canvas.width  !== displayWidth || canvas.height !== displayHeight) {
+            canvas.width  = displayWidth;
+            canvas.height = displayHeight;
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        }
+        gl.useProgram(mapProgram);
+        const positionAttributeLocation = gl.getAttribLocation(mapProgram, 'a_position');
+        gl.enableVertexAttribArray(positionAttributeLocation);
+        gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+        const resolutionUniformLocation = gl.getUniformLocation(mapProgram, 'u_resolution');
+        gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
+        const timeUniformLocation = gl.getUniformLocation(mapProgram, 'u_time');
+        const currentTime = (Date.now() - mapStartTime) * 0.001;
+        gl.uniform1f(timeUniformLocation, currentTime);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    const originalDraw = draw;
+    draw = function() {
+        if (!mapScreen.classList.contains('hidden')) {
+            renderMapBackground();
+        }
+        originalDraw();
+    }
     
-    initGame(false, true);
-    showScreen('main');
+    // --- Initialize Game ---
+    initGame(false, true); // Load saved data or create new game state in the background
+    initializeBootSequence(); // Show the boot screen animation
+    initMapBackground();
     gameLoop();
     </script>
 </body>
