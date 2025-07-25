@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EternalImmortal RPG</title>
+    <title>Dungeon Crawler RPG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400&display=swap');
@@ -299,7 +299,7 @@
     <div id="game-container" class="screen-container hidden">
         <canvas id="game-canvas"></canvas>
         <canvas id="ui-canvas"></canvas>
-        <div id="shop-screen" class="ui-panel panel-hidden"><h1 id="shop-title">Stage Cleared!</h1><p class="subtitle" id="shop-subtitle">Spend Gold to grow stronger.</p><div class="gold-display">💰 <span id="gold-total">0</span></div><div class="shop-item"><div class="shop-item-info"><h3>Attack Power</h3><p>Current: <span id="attack-power-stat">10</span></p></div><div class="button" id="upgrade-attack-button">Upgrade (<span class="cost-text" id="attack-cost">10</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Max Health</h3><p>Current: <span id="max-health-stat">100</span></p></div><div class="button" id="upgrade-health-button">Upgrade (<span class="cost-text" id="health-cost">10</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Rage Gain</h3><p>Current: <span id="rage-gain-stat">5</span></p></div><div class="button" id="upgrade-rage-button">Upgrade (<span class="cost-text" id="rage-cost">20</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Health Regen</h3><p>Current: <span id="health-regen-stat">0</span>/s</p></div><div class="button" id="upgrade-regen-button">Upgrade (<span class="cost-text" id="regen-cost">30</span>)</div></div><div style="display: flex; justify-content: center; width: 100%; margin-top: 20px;"><div id="player-stats-button" class="button small">Player Stats</div><div id="proceed-button" class="button" style="margin: 10px; background: linear-gradient(45deg, #4CAF50, #2E7D32);">Next Stage</div></div></div>
+        <div id="shop-screen" class="ui-panel scrollable-panel panel-hidden"><h1 id="shop-title">Stage Cleared!</h1><p class="subtitle" id="shop-subtitle">Spend Gold to grow stronger.</p><div class="gold-display">💰 <span id="gold-total">0</span></div><div class="shop-item"><div class="shop-item-info"><h3>Attack Power</h3><p>Current: <span id="attack-power-stat">10</span></p></div><div class="button" id="upgrade-attack-button">Upgrade (<span class="cost-text" id="attack-cost">10</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Max Health</h3><p>Current: <span id="max-health-stat">100</span></p></div><div class="button" id="upgrade-health-button">Upgrade (<span class="cost-text" id="health-cost">10</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Rage Gain</h3><p>Current: <span id="rage-gain-stat">5</span></p></div><div class="button" id="upgrade-rage-button">Upgrade (<span class="cost-text" id="rage-cost">20</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Health Regen</h3><p>Current: <span id="health-regen-stat">0</span>/s</p></div><div class="button" id="upgrade-regen-button">Upgrade (<span class="cost-text" id="regen-cost">30</span>)</div></div><div style="display: flex; justify-content: center; width: 100%; margin-top: 20px;"><div id="player-stats-button" class="button small">Player Stats</div><div id="proceed-button" class="button" style="margin: 10px; background: linear-gradient(45deg, #4CAF50, #2E7D32);">Next Stage</div></div></div>
         <div id="game-over-screen" class="ui-panel panel-hidden"><h1>Defeated!</h1><h2 id="game-over-message">You reached Stage <span id="final-stage-reached">1</span></h2><div id="retry-button" class="button">Try Again</div></div>
         <div id="player-screen" class="ui-panel scrollable-panel panel-hidden"><h1>SoulCraft</h1><div class="stats-container"></div><div class="skills-container"></div><div id="player-screen-back-button" class="button small">Back to Shop</div></div>
         <div id="battle-event-banner" class="battle-banner"></div>
@@ -505,8 +505,29 @@
     function triggerScreenShake(d){shakeDuration=d}
     function showBattleBanner(t,ty,d){dom.battleBanner.textContent=t;dom.battleBanner.className=`battle-banner ${ty}`;setTimeout(()=>{dom.battleBanner.className='battle-banner panel-hidden'},d)}
     function changeState(newState){Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});dom.ultBtn.classList.add('panel-hidden');dom.autoBtn.classList.add('panel-hidden');uiParticles=[];gameState=newState;switch(newState){case'COUNTDOWN':if(currentDungeon){setupBossStage(currentDungeon)}else{setupNextStage()}dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');countdownTimer=180;playSound(500,"sine",0.1,0.3);break;case'COMBAT':dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');break;case'SHOP':saveGame();checkSkillUnlocks();dom.shop.classList.remove('panel-hidden');updateShopUI();setTimeout(createShopParticles,100);break;case'GAME_OVER':dom.gameOver.classList.remove('panel-hidden');updateGameOverUI();break;case'PLAYER_STATS':dom.playerStats.classList.remove('panel-hidden');updatePlayerScreenUI();setTimeout(createStatsScreenParticles,100);break;case'ENDING_COMBAT':player.isAttacking=!1;endCombatTimer=120;showBattleBanner('Victory!','stage-clear-banner',2500);SOUNDS.stageClear();break;}}
-    function createShopParticles(){const gameContainerRect=document.getElementById('game-container').getBoundingClientRect();document.querySelectorAll('#shop-screen .button, .gold-display, #shop-screen h1').forEach(el=>{const rect=el.getBoundingClientRect();const x=rect.left-gameContainerRect.left,y=rect.top-gameContainerRect.top;if(el.tagName==='H1'||el.classList.contains('gold-display'))uiParticles.push({type:'sparkleGenerator',x,y,width:rect.width,height:rect.height,spawnRate:.1});else for(let i=0;i<3;i++)uiParticles.push({type:'orbit',anchorX:x+rect.width/2,anchorY:y+rect.height/2,width:rect.width,height:rect.height,angle:Math.random()*Math.PI*2,speed:.01+Math.random()*.02,radius:1+Math.random(),color:'#ffd700'})})}
-    function createStatsScreenParticles(){const gameContainerRect=document.getElementById('game-container').getBoundingClientRect();document.querySelectorAll('#player-screen .progress-bar-fill').forEach(el=>{const rect=el.getBoundingClientRect();if(rect.width<=0)return;const x=rect.left-gameContainerRect.left,y=rect.top-gameContainerRect.top,color=el.classList.contains('health')?'#e63946':el.classList.contains('attack')?'#fca311':el.classList.contains('rage')?'#9d4edd':el.classList.contains('regen')?'#52b788':'#00b4d8';uiParticles.push({type:'sparkleGenerator',x,y,width:rect.width,height:rect.height,spawnRate:rect.width/2e3,color})})}
+    function createShopParticles() {
+        document.querySelectorAll('#shop-screen .button, .gold-display, #shop-screen h1').forEach(el => {
+            if (el.tagName === 'H1' || el.classList.contains('gold-display')) {
+                uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: .1 });
+            } else {
+                for (let i = 0; i < 3; i++) {
+                    uiParticles.push({ type: 'orbit', attachTo: el, angle: Math.random() * Math.PI * 2, speed: .01 + Math.random() * .02, radius: 1 + Math.random(), color: '#ffd700' });
+                }
+            }
+        });
+    }
+    function createStatsScreenParticles() {
+        document.querySelectorAll('#player-screen .progress-bar-fill').forEach(el => {
+            if (el.getBoundingClientRect().width > 0) {
+                uiParticles.push({
+                    type: 'sparkleGenerator',
+                    attachTo: el,
+                    spawnRate: el.getBoundingClientRect().width / 2000,
+                    color: el.classList.contains('health') ? '#e63946' : el.classList.contains('attack') ? '#fca311' : el.classList.contains('rage') ? '#9d4edd' : el.classList.contains('regen') ? '#52b788' : '#00b4d8'
+                });
+            }
+        });
+    }
     function setupBossStage(dungeon) {enemies = [];currentStage = dungeon.boss.level;const boss = dungeon.boss;enemies.push({x: canvas.width / 2,y: 150,baseY: 150,hp: boss.maxHp,maxHp: boss.maxHp,attack: boss.attack,radius: 40,color: "#e63946",attackCooldown: 90,attackTimer: 120,isAttacking: false,chargeTimer: 0});}
     function setupNextStage(){enemies=[];const e=Math.min(2+Math.floor(currentStage/2),7),t=1+(currentStage-1)*.25,a=3+Math.floor(currentStage/3),s=Math.max(120-2*currentStage,45);for(let n=0;n<e;n++){const e=100+200*Math.random(),r=Math.floor((20+10*Math.random())*t);enemies.push({x:40+Math.random()*(canvas.width-80),y:e,baseY:e,hp:r,maxHp:r,attack:Math.floor(a+2*Math.random()),radius:20+5*Math.random(),color:"#e63946",attackCooldown:s+60*Math.random(),attackTimer:180*Math.random(),isAttacking:!1,chargeTimer:0})}}
     function updateShopUI() {if (currentDungeon) {document.getElementById('shop-title').textContent = `${currentDungeon.name} Cleared!`;document.getElementById('shop-subtitle').textContent = "You are victorious. Claim your rewards.";dom.proceedBtn.textContent = 'Return to Map';} else {document.getElementById('shop-title').textContent = `Stage ${currentStage} Cleared!`;document.getElementById('shop-subtitle').textContent = 'Spend Gold to grow stronger.';dom.proceedBtn.textContent = 'Next Stage';} dom.goldDisplay.textContent = `${player.gold}`;document.getElementById('attack-power-stat').textContent=player.stats.attackPower.current;document.getElementById('max-health-stat').textContent=player.stats.maxHp.current;document.getElementById('rage-gain-stat').textContent=player.stats.rageGain.current;document.getElementById('health-regen-stat').textContent=player.stats.healthRegen.current.toFixed(1);document.getElementById('attack-cost').textContent=player.costs.attackPower;document.getElementById('health-cost').textContent=player.costs.maxHp;document.getElementById('rage-cost').textContent=player.costs.rageGain;document.getElementById('regen-cost').textContent=player.costs.healthRegen;dom.upgradeBtns.attack.classList.toggle('disabled',player.gold<player.costs.attackPower);dom.upgradeBtns.health.classList.toggle('disabled',player.gold<player.costs.maxHp);dom.upgradeBtns.rage.classList.toggle('disabled',player.gold<player.costs.rageGain);dom.upgradeBtns.regen.classList.toggle('disabled',player.gold<player.costs.healthRegen);}
@@ -637,9 +658,79 @@
             floatingTexts=floatingTexts.filter(e=>{e.y-=1;e.life--;return e.life>0});
         }
     }
-    function updateUiParticles(){const newParticles=[];uiParticles.forEach(p=>{if(p.type==='orbit')p.angle+=p.speed;else if(p.type==='sparkleGenerator'){if(Math.random()<p.spawnRate)newParticles.push({type:'sparkle',x:p.x+Math.random()*p.width,y:p.y+Math.random()*p.height,life:60,maxLife:60,radius:Math.random()*2,color:typeof p.color==='string'?p.color:`rgba(255,220,150,${.5+Math.random()*.5})`});}else if(p.type==='sparkle')p.life--;});uiParticles=uiParticles.filter(p=>!(p.type==='sparkle'&&p.life<=0));uiParticles.push(...newParticles)}
+    function updateUiParticles() {
+        const newParticles = [];
+        const container = !gameContainer.classList.contains('hidden') ? gameContainer : null;
+        if (!container) {
+            uiParticles = [];
+            return;
+        }
+        const containerRect = container.getBoundingClientRect();
+
+        uiParticles.forEach(p => {
+            if (p.type === 'orbit') {
+                p.angle += p.speed;
+            } else if (p.type === 'sparkle') {
+                p.life--;
+            } else if (p.type === 'sparkleGenerator') {
+                if (Math.random() < p.spawnRate) {
+                    let spawnX, spawnY, spawnWidth, spawnHeight;
+                    if (p.attachTo) {
+                        const elRect = p.attachTo.getBoundingClientRect();
+                        if (elRect.width <= 0) return;
+                        spawnX = elRect.left - containerRect.left;
+                        spawnY = elRect.top - containerRect.top;
+                        spawnWidth = elRect.width;
+                        spawnHeight = elRect.height;
+                    } else {
+                        spawnX = p.x; spawnY = p.y; spawnWidth = p.width; spawnHeight = p.height;
+                    }
+                    
+                    newParticles.push({
+                        type: 'sparkle',
+                        x: spawnX + Math.random() * spawnWidth,
+                        y: spawnY + Math.random() * spawnHeight,
+                        life: 60, maxLife: 60, radius: Math.random() * 2,
+                        color: p.color || `rgba(255,220,150,${.5+Math.random()*.5})`
+                    });
+                }
+            }
+        });
+
+        uiParticles = uiParticles.filter(p => !(p.type === 'sparkle' && p.life <= 0));
+        uiParticles.push(...newParticles);
+    }
     function drawHud(){if(gameState!=='COMBAT' && gameState !== 'COUNTDOWN')return;ctx.save();ctx.font='bold 24px Segoe UI';ctx.shadowColor='black';ctx.shadowBlur=5;ctx.fillStyle='white';ctx.textAlign='left';ctx.fillText(currentDungeon ? currentDungeon.name : `Stage: ${currentStage}`,15,35);ctx.textAlign='right';ctx.fillStyle='#ffd700';ctx.fillText(`💰 ${player.gold}`,canvas.width-15,35);ctx.restore()}
-    function drawUiParticles(){uiCtx.clearRect(0,0,uiCanvas.width,uiCanvas.height);uiParticles.forEach(p=>{if(p.type==='orbit'){const orbitX=p.anchorX+Math.cos(p.angle)*(p.width/2+10),orbitY=p.anchorY+Math.sin(p.angle)*(p.height/2+10);uiCtx.beginPath();uiCtx.arc(orbitX,orbitY,p.radius,0,Math.PI*2);uiCtx.fillStyle=p.color;uiCtx.globalAlpha=.8;uiCtx.fill()}else if(p.type==='sparkle'){uiCtx.beginPath();uiCtx.arc(p.x,p.y,p.radius,0,Math.PI*2);uiCtx.fillStyle=p.color;uiCtx.globalAlpha=p.life/p.maxLife*.8;uiCtx.fill()}});uiCtx.globalAlpha=1}
+    function drawUiParticles() {
+        if (gameContainer.classList.contains('hidden')) return;
+        uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+        const containerRect = gameContainer.getBoundingClientRect();
+
+        uiParticles.forEach(p => {
+            if (p.type === 'orbit' && p.attachTo) {
+                const elRect = p.attachTo.getBoundingClientRect();
+                if (elRect.bottom < containerRect.top || elRect.top > containerRect.bottom) return;
+                
+                const currentX = elRect.left - containerRect.left;
+                const currentY = elRect.top - containerRect.top;
+                const orbitX = (currentX + elRect.width / 2) + Math.cos(p.angle) * (elRect.width / 2 + 10);
+                const orbitY = (currentY + elRect.height / 2) + Math.sin(p.angle) * (elRect.height / 2 + 10);
+                
+                uiCtx.beginPath();
+                uiCtx.arc(orbitX, orbitY, p.radius, 0, Math.PI * 2);
+                uiCtx.fillStyle = p.color;
+                uiCtx.globalAlpha = .8;
+                uiCtx.fill();
+            } else if (p.type === 'sparkle') {
+                uiCtx.beginPath();
+                uiCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                uiCtx.fillStyle = p.color;
+                uiCtx.globalAlpha = p.life / p.maxLife * .8;
+                uiCtx.fill();
+            }
+        });
+        uiCtx.globalAlpha = 1;
+    }
     function drawBackground(){ctx.fillStyle='#0c0c14';ctx.fillRect(0,0,canvas.width,canvas.height);if(window.stars)window.stars.forEach(s=>{ctx.beginPath();ctx.arc(s.x,s.y,s.radius,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${.5+s.speed})`;ctx.fill()})}
     function drawPlayer(){dom.ultBtn.classList.toggle('is-flashing',player.rage>=100);dom.ultBtn.style.background=player.rage>=100?'#f72585':'#5a1835';dom.autoBtn.classList.toggle('active',isAutoBattle);ctx.save();ctx.translate(player.x,player.y);ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=10;ctx.shadowOffsetY=5;ctx.fillStyle=player.color;ctx.fillRect(-player.size/2,-player.size/2,player.size,player.size);if(player.isAttacking){player.sword.angle+=.5}else{player.sword.angle+=(0-player.sword.angle)*.2}ctx.rotate(player.sword.angle);ctx.fillStyle='#ddd';ctx.fillRect(player.size/2,-3,player.sword.length,6);ctx.restore();const barWidth=100,barX=player.x-barWidth/2;ctx.fillStyle='#333';ctx.fillRect(barX,player.y+player.size/2+5,barWidth,12);ctx.fillStyle='#2a9d8f';ctx.fillRect(barX,player.y+player.size/2+5,barWidth*Math.max(0,player.hp/player.stats.maxHp.current),12);ctx.fillStyle='#554300';ctx.fillRect(barX,player.y+player.size/2+18,barWidth,8);ctx.fillStyle='#ffd700';ctx.fillRect(barX,player.y+player.size/2+18,barWidth*(player.rage/100),8)}
     function drawEnemies(){enemies.forEach(e=>{ctx.save();ctx.translate(e.x,e.y);ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=10;ctx.shadowOffsetY=5;ctx.beginPath();ctx.arc(0,0,e.radius,0,Math.PI*2);ctx.fillStyle=e.chargeTimer>0?'#ff6b6b':e.color;ctx.fill();ctx.restore();if(e.flash>0){ctx.beginPath();ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${e.flash/5})`}const barWidth=e.radius*2;ctx.fillStyle='#333';ctx.fillRect(e.x-e.radius,e.y-e.radius-15,barWidth,5);ctx.fillStyle='#c1121f';ctx.fillRect(e.x-e.radius,e.y-e.radius-15,barWidth*Math.max(0,e.hp/e.maxHp),5)})}
