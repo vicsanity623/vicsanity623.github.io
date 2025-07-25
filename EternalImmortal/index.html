@@ -954,7 +954,65 @@
     dom.upgradeBtns.attack.onclick=()=>buyUpgrade('attackPower');dom.upgradeBtns.health.onclick=()=>buyUpgrade('maxHp');dom.upgradeBtns.rage.onclick=()=>buyUpgrade('rageGain');dom.upgradeBtns.regen.onclick=()=>buyUpgrade('healthRegen');
     dom.autoBtn.onclick=()=>{isAutoBattle=!isAutoBattle;dom.autoBtn.classList.toggle('active',isAutoBattle);};dom.ultBtn.onclick=()=>{if(gameState!=='COMBAT'||player.rage<100)return;player.rage=0;SOUNDS.ultimate();showBattleBanner('RAGE BURST!','ultimate-banner',1500);triggerScreenShake(20);enemies.forEach(e=>{const t=5*player.stats.attackPower.current;e.hp-=t;createExplosion(e.x,e.y,40,'#f72585',5,10);addFloatingText(t,e.x,e.y,'#f72585');});};canvas.addEventListener('click',e=>{if(gameState!=='COMBAT')return;const t=canvas.getBoundingClientRect(),a=e.clientX-t.left,s=e.clientY-t.top;let n=null;enemies.forEach(e=>{Math.hypot(a-e.x,s-e.y)<e.radius&&(n=e)});isAutoBattle||playerAttack(n);healthOrbs.forEach((e,t)=>{if(Math.hypot(a-e.x,s-e.y)<e.radius){const a=Math.floor(.1*player.stats.maxHp.current);player.hp=Math.min(player.stats.maxHp.current,player.hp+a);addFloatingText(`+${a}`,player.x,player.y,'#4caf50');SOUNDS.heal();healthOrbs.splice(t,1);}});});
     function playerAttack(target){if(!target||player.isAttacking)return;player.isAttacking=!0;player.attackAnimTimer=20;SOUNDS.playerAttack();projectiles.push({x:player.x,y:player.y,target:target,speed:15,isPlayer:!0,damage:player.stats.attackPower.current+Math.floor(5*Math.random())})}
-    function updateSkills(){if(enemies.length===0)return;Object.keys(player.skills).forEach(id=>{const skill=player.skills[id];if(!skill.isUnlocked)return;skill.cooldownTimer++;const skillData=SKILLS_DATA[id];const cooldown=Math.max(30,skillData.baseCooldown-(skill.level-1)*skillData.cooldownReductionPerLevel);if(skill.cooldownTimer>cooldown){skill.cooldownTimer=0;skill.currentXP++;if(skill.currentXP>=skill.targetXP){skill.level++;skill.currentXP-=skill.targetXP;skill.targetXP=Math.floor(skill.targetXP*1.5);SOUNDS.levelUp()}const damage=getSkillDescription(id).match(/\d+/)[0];const randomEnemy=enemies[Math.floor(Math.random()*enemies.length)];if(!randomEnemy)return;switch(id){case'orbitalStrike':skillVisuals.push({type:'orbitalStrike',x:player.x,y:player.y,target:randomEnemy,speed:3,damage,life:300});break;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);let targets=[randomEnemy];for(let i=0;i<jumps;i++){const lastTarget=targets[targets.length-1],potentialNext=enemies.filter(e=>!targets.includes(e)).sort((a,b)=>Math.hypot(a.x-lastTarget.x,a.y-lastTarget.y)-Math.hypot(b.x-lastTarget.x,b.y-lastTarget.y));if(potentialNext.length>0)targets.push(potentialNext[0])}targets.forEach(e=>e.hp-=damage);skillVisuals.push({type:'chainLightning',targets,life:30});break;case'meteor':v.y+=v.speed;if(v.y>=v.targetY){enemies.forEach(e=>{if(Math.abs(e.x-v.x)<30)e.hp-=v.damage});createExplosion(v.x,v.y,30,'#fca311');v.life=0}break}}})}
+    function updateSkills() {
+        if (enemies.length === 0) return;
+        Object.keys(player.skills).forEach(id => {
+            const skill = player.skills[id];
+            if (!skill.isUnlocked) return;
+            skill.cooldownTimer++;
+            const skillData = SKILLS_DATA[id];
+            const cooldown = Math.max(30, skillData.baseCooldown - (skill.level - 1) * skillData.cooldownReductionPerLevel);
+            if (skill.cooldownTimer > cooldown) {
+                skill.cooldownTimer = 0;
+                skill.currentXP++;
+                if (skill.currentXP >= skill.targetXP) {
+                    skill.level++;
+                    skill.currentXP -= skill.targetXP;
+                    skill.targetXP = Math.floor(skill.targetXP * 1.5);
+                    SOUNDS.levelUp()
+                }
+                const damage = parseInt(getSkillDescription(id).match(/\d+/)[0]);
+                const randomEnemy = enemies[Math.floor(Math.random() * enemies.length)];
+                if (!randomEnemy) return;
+                switch (id) {
+                    case 'orbitalStrike':
+                        skillVisuals.push({ type: 'orbitalStrike', x: player.x, y: player.y, target: randomEnemy, speed: 3, damage: damage, life: 300 });
+                        break;
+                    case 'chainLightning':
+                        // --- CORRECTED LOGIC ---
+                        const jumps = SKILLS_DATA.chainLightning.baseJumps + Math.floor((skill.level - 1) / SKILLS_DATA.chainLightning.jumpsPerLevel);
+                        let targets = [randomEnemy];
+                        for (let i = 0; i < jumps; i++) {
+                            const lastTarget = targets[targets.length - 1];
+                            const potentialNext = enemies.filter(e => !targets.includes(e)).sort((a, b) => Math.hypot(a.x - lastTarget.x, a.y - lastTarget.y) - Math.hypot(b.x - lastTarget.x, b.y - lastTarget.y));
+                            if (potentialNext.length > 0) targets.push(potentialNext[0])
+                        }
+                        targets.forEach(e => {
+                            e.hp -= damage;
+                            addFloatingText(damage, e.x, e.y, '#6efcff'); // Add damage text
+                        });
+                        skillVisuals.push({ type: 'chainLightning', targets: targets, life: 30, damage: damage });
+                        break;
+                    case 'meteorShower':
+                        // --- CORRECTED LOGIC ---
+                        const count = SKILLS_DATA.meteorShower.baseCount + Math.floor((skill.level - 1) / SKILLS_DATA.meteorShower.countPerLevel);
+                        for (let i = 0; i < count; i++) {
+                            // Create a separate visual for each meteor
+                            skillVisuals.push({
+                                type: 'meteor',
+                                x: Math.random() * canvas.width,
+                                y: -50 - (Math.random() * 200), // Start off-screen
+                                targetY: 100 + Math.random() * (canvas.height / 2),
+                                speed: 8 + Math.random() * 4,
+                                damage: damage,
+                                life: 200
+                            });
+                        }
+                        break
+                }
+            }
+        })
+    }
     function updateCountdown() { countdownTimer--; if(countdownTimer % 60 === 0 && countdownTimer > 0) { playSound(500, "sine", 0.1, 0.3); } if (countdownTimer <= 0) { changeState('COMBAT'); playSound(800, "sine", 0.1, 0.4); } }
     function updateCombat(){
         if (player.flash > 0) player.flash--;
@@ -1028,7 +1086,12 @@
             if(gameState==='ENDING_COMBAT'){endCombatTimer--;if(endCombatTimer<=0){player.hp=Math.min(player.stats.maxHp.current,player.hp+Math.floor(.2*player.stats.maxHp.current));changeState('SHOP')}}
             if(player.hp<player.stats.maxHp.current&&player.stats.healthRegen.current>0&&(gameState==='COMBAT'||gameState==='ENDING_COMBAT'||gameState==='COUNTDOWN'))player.hp=Math.min(player.stats.maxHp.current,player.hp+player.stats.healthRegen.current/60);
             healthOrbs=healthOrbs.filter(e=>{e.life--;e.pulse+=.1;if(isAutoBattle){const t=player.x-e.x,a=player.y-e.y;if(Math.hypot(t,a)<player.size){const t=Math.floor(.1*player.stats.maxHp.current);return player.hp=Math.min(player.stats.maxHp.current,player.hp+t),addFloatingText(`+${t}`,player.x,player.y,"#4caf50"),SOUNDS.heal(),!1}e.x+=.03*t;e.y+=.03*a}return e.life>0});
-            skillVisuals.forEach((v,i)=>{v.life--;if(v.life<=0)skillVisuals.splice(i,1);switch(v.type){case'orbitalStrike':const dx=v.target.x-v.x,dy=v.target.y-v.y,dist=Math.hypot(dx,dy);if(dist<v.speed){v.target.hp-=v.damage;createExplosion(v.x,v.y,20,'#9d4edd');v.life=0}else{v.x+=dx/dist*v.speed;v.y+=dy/dist*v.speed}break;case'meteor':v.y+=v.speed;if(v.y>=v.targetY){enemies.forEach(e=>{if(Math.abs(e.x-v.x)<30)e.hp-=v.damage});createExplosion(v.x,v.y,30,'#fca311');v.life=0}break}});
+            skillVisuals = skillVisuals.filter(v => {
+                 v.life--;
+                 return v.life > 0;
+             });
+
+            
             if(window.stars)window.stars.forEach(e=>{e.y+=e.speed;if(e.y>canvas.height){e.y=0;e.x=Math.random()*canvas.width}});
             particles=particles.filter(e=>{e.x+=e.vx;e.y+=e.vy;e.life--;return e.life>0});
             floatingTexts=floatingTexts.filter(e=>{e.y-=1;e.life--;return e.life>0});
@@ -1176,7 +1239,97 @@
     
     function drawEnemies(){enemies.forEach(e=>{ctx.save();ctx.translate(e.x,e.y);ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=10;ctx.shadowOffsetY=5;ctx.beginPath();ctx.arc(0,0,e.radius,0,Math.PI*2);ctx.fillStyle=e.chargeTimer>0?'#ff6b6b':e.color;ctx.fill();ctx.restore();if(e.flash>0){ctx.beginPath();ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${e.flash/5})`}const barWidth=e.radius*2;ctx.fillStyle='#333';ctx.fillRect(e.x-e.radius,e.y-e.radius-15,barWidth,5);ctx.fillStyle='#c1121f';ctx.fillRect(e.x-e.radius,e.y-e.radius-15,barWidth*Math.max(0,e.hp/e.maxHp),5)})}
     function drawHealthOrbs(){healthOrbs.forEach(orb=>{ctx.save();ctx.globalAlpha=.5+Math.sin(orb.pulse)*.3;ctx.beginPath();ctx.arc(orb.x,orb.y,orb.radius,0,Math.PI*2);ctx.fillStyle='#4caf50';ctx.fill();ctx.shadowColor='#abffc0';ctx.shadowBlur=15;ctx.fill();ctx.restore()})}
-    function drawSkillVisuals(){skillVisuals.forEach(v=>{ctx.save();ctx.globalAlpha=v.life/30;switch(v.type){case'orbitalStrike':const dx=v.target.x-v.x,dy=v.target.y-v.y,dist=Math.hypot(dx,dy);if(dist<v.speed){v.target.hp-=v.damage;createExplosion(v.x,v.y,20,'#9d4edd');v.life=0}else{v.x+=dx/dist*v.speed;v.y+=dy/dist*v.speed}break;case'meteor':v.y+=v.speed;if(v.y>=v.targetY){enemies.forEach(e=>{if(Math.abs(e.x-v.x)<30)e.hp-=v.damage});createExplosion(v.x,v.y,30,'#fca311');v.life=0}break}ctx.restore()})}
+    function drawSkillVisuals() {
+        skillVisuals.forEach(v => {
+            ctx.save();
+            // Use a simple fade-out effect for all visuals
+            ctx.globalAlpha = Math.min(1, v.life / 30); 
+    
+            switch (v.type) {
+                case 'orbitalStrike':
+                    // This logic was in update() before, let's move it to draw() for consistency
+                    const dx = v.target.x - v.x;
+                    const dy = v.target.y - v.y;
+                    const dist = Math.hypot(dx, dy);
+    
+                    // Draw the orb
+                    ctx.beginPath();
+                    ctx.arc(v.x, v.y, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = '#9d4edd';
+                    ctx.shadowColor = '#d3a0ff';
+                    ctx.shadowBlur = 20;
+                    ctx.fill();
+                    
+                    // Move the orb
+                    if (dist < v.speed) {
+                        v.target.hp -= v.damage;
+                        addFloatingText(v.damage, v.target.x, v.target.y, '#d3a0ff');
+                        createExplosion(v.x, v.y, 20, '#9d4edd');
+                        v.life = 0; // Mark for deletion
+                    } else {
+                        v.x += dx / dist * v.speed;
+                        v.y += dy / dist * v.speed;
+                    }
+                    break;
+    
+                case 'chainLightning':
+                    if (v.targets.length > 1) {
+                        ctx.beginPath();
+                        ctx.moveTo(v.targets[0].x, v.targets[0].y);
+                        // Draw jagged lines between targets
+                        for (let i = 1; i < v.targets.length; i++) {
+                            const start = v.targets[i - 1];
+                            const end = v.targets[i];
+                            const midX = (start.x + end.x) / 2 + (Math.random() - 0.5) * 40;
+                            const midY = (start.y + end.y) / 2 + (Math.random() - 0.5) * 40;
+                            ctx.quadraticCurveTo(midX, midY, end.x, end.y);
+                        }
+                        ctx.strokeStyle = '#6efcff';
+                        ctx.lineWidth = 3;
+                        ctx.shadowColor = '#aaffff';
+                        ctx.shadowBlur = 15;
+                        ctx.stroke();
+                    }
+                    // Also draw a little burst on each target
+                    v.targets.forEach(target => {
+                        ctx.beginPath();
+                        ctx.arc(target.x, target.y, 10, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(170, 255, 255, 0.5)';
+                        ctx.fill();
+                    });
+                    break;
+    
+                case 'meteor':
+                    // Draw the meteor trail
+                    ctx.beginPath();
+                    ctx.moveTo(v.x, v.y - 20);
+                    ctx.lineTo(v.x + 3, v.y);
+                    ctx.lineTo(v.x - 3, v.y);
+                    ctx.closePath();
+                    ctx.fillStyle = '#fca311';
+                    ctx.shadowColor = '#ffd700';
+                    ctx.shadowBlur = 15;
+                    ctx.fill();
+    
+                    // Move the meteor
+                    v.y += v.speed;
+                    // Check for impact
+                    if (v.y >= v.targetY) {
+                        enemies.forEach(e => {
+                            // Check for horizontal proximity to the impact
+                            if (Math.abs(e.x - v.x) < 40 && Math.abs(e.y - v.y) < 60) {
+                                e.hp -= v.damage;
+                                addFloatingText(v.damage, e.x, e.y, '#fca311');
+                            }
+                        });
+                        createExplosion(v.x, v.y, 30, '#fca311', 4, 6);
+                        v.life = 0; // Mark for deletion
+                    }
+                    break;
+            }
+            ctx.restore();
+        });
+    }
     function drawEffects(){projectiles.forEach(p=>{ctx.fillStyle=p.isPlayer?'#fff':'#ff4d4d';ctx.beginPath();ctx.arc(p.x,p.y,5,0,2*Math.PI);ctx.fill()});particles.forEach(p=>{ctx.fillStyle=p.color;ctx.globalAlpha=p.life/30;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,2*Math.PI);ctx.fill()});ctx.globalAlpha=1;floatingTexts.forEach(t=>{ctx.font='bold 28px sans-serif';ctx.fillStyle=t.color;ctx.globalAlpha=t.life/60;ctx.textAlign='center';ctx.shadowColor='black';ctx.shadowBlur=4;ctx.fillText(t.text,t.x,t.y)});ctx.shadowBlur=0;ctx.shadowColor='transparent';ctx.globalAlpha=1}
     function drawCountdown(){let text='';let scale=1+(countdownTimer%60)/30;if(countdownTimer>120){text='3'}else if(countdownTimer>60){text='2'}else if(countdownTimer>0){text='1'}if(text){ctx.save();ctx.font=`bold ${120*scale}px Cinzel`;ctx.fillStyle;`rgba(255,255,255,${1-(countdownTimer%60)/60})`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(255, 100, 100, 0.7)';ctx.shadowBlur=20;ctx.fillText(text,canvas.width/2,canvas.height/2);ctx.restore()}}
     function drawExplorationMode() {
