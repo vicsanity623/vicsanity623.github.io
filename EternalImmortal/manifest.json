@@ -1,12 +1,11 @@
 {
   "name": "EternalImmortal",
   "short_name": "Eternal",
-  "description": "A Dungeon Crawling RPG of endless combat and exploration.",
-  "start_url": "/",
+  "description": "An endless dungeon crawler RPG.",
+  "start_url": ".",
   "display": "standalone",
-  "orientation": "portrait-primary",
   "background_color": "#031018",
-  "theme_color": "#031018",
+  "theme_color": "#1a1f2c",
   "icons": [
     {
       "src": "icon-192x192.PNG",
