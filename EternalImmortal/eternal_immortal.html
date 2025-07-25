@@ -552,6 +552,19 @@
         });
         const startButton = document.getElementById('modal-start-button');
         startButton.onclick = () => {
+            // --- NEW ENERGY CHECK ---
+            if (player.energy < 1) {
+                alert("Not enough energy to start the dungeon!");
+                return; // Stop the function here
+            }
+
+            // Deduct energy if the player has enough
+            player.energy--;
+            player.lastEnergyUpdateTime = Date.now(); // Update time on spend to prevent double-dipping on replenish
+            updatePlayerXpBar(); // Immediately update the UI
+            saveGame();
+            // --- END OF NEW ENERGY CHECK ---
+            
             hideModal();
             setTimeout(() => {
                 currentDungeon = data;
@@ -723,6 +736,7 @@
                 rubies:0,
                 energy: 85, // Added for new UI
                 maxEnergy: 85, // Added for new UI
+                lastEnergyUpdateTime: Date.now(), 
                 level:1,
                 xp:0,
                 xpToNextLevel:100,
@@ -782,9 +796,41 @@
         }
     }
     function saveGame(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({player,currentStage,isAutoBattle}))}catch(e){console.error("Could not save game:",e)}}
-    function loadGame(){try{const savedData=localStorage.getItem(SAVE_KEY);if(!savedData)return;const loaded=JSON.parse(savedData);if(!loaded.player||typeof loaded.player.stats.maxHp==="number"||!loaded.player.skills.orbitalStrike.level){console.log("Old or invalid save detected, resetting player data.");return}else{player=loaded.player}
-    if(player.flash === undefined) player.flash = 0;
-    if(player.level===undefined){player.level=1;player.xp=0;player.xpToNextLevel=100}if(player.rubies===undefined){player.rubies=0}if(player.energy===undefined){player.energy=85; player.maxEnergy=85;}if(!player.dungeonMap){player.dungeonMap={};player.dungeonCompletions=0;}Object.values(player.dungeonMap).forEach(d => { if(d.completionCount === undefined) d.completionCount = 0; if(d.evolutionLevel === undefined) d.evolutionLevel = 0; if(!d.baseName) d.baseName = d.name; });currentStage=loaded.currentStage;isAutoBattle=loaded.isAutoBattle}catch(e){console.error("Could not load save data, starting fresh.",e)}}
+    function loadGame() {
+        try {
+            const savedData = localStorage.getItem(SAVE_KEY);
+            if (!savedData) return;
+            const loaded = JSON.parse(savedData);
+            if (!loaded.player || typeof loaded.player.stats.maxHp === "number" || !loaded.player.skills.orbitalStrike.level) {
+                console.log("Old or invalid save detected, resetting player data.");
+                return
+            } else {
+                player = loaded.player
+            }
+            
+            // --- This block below checks for new properties on old save files ---
+            if (player.flash === undefined) player.flash = 0;
+            if (player.level === undefined) { player.level = 1; player.xp = 0; player.xpToNextLevel = 100 }
+            if (player.rubies === undefined) player.rubies = 0;
+            if (player.energy === undefined) { player.energy = 85; player.maxEnergy = 85; }
+            if (player.lastEnergyUpdateTime === undefined) { player.lastEnergyUpdateTime = Date.now(); } // <-- 1. ADD THIS LINE
+            if (!player.dungeonMap) { player.dungeonMap = {}; player.dungeonCompletions = 0; }
+            
+            Object.values(player.dungeonMap).forEach(d => {
+                if (d.completionCount === undefined) d.completionCount = 0;
+                if (d.evolutionLevel === undefined) d.evolutionLevel = 0;
+                if (!d.baseName) d.baseName = d.name;
+            });
+
+            currentStage = loaded.currentStage;
+            isAutoBattle = loaded.isAutoBattle;
+
+            updateEnergyReplenishment(); // <-- 2. ADD THIS LINE
+
+        } catch (e) {
+            console.error("Could not load save data, starting fresh.", e)
+        }
+    }
     function resetGame(){if(confirm("Are you sure you want to reset all progress? This cannot be undone.")){localStorage.removeItem(SAVE_KEY);localStorage.removeItem(DUNGEON_SAVE_KEY);playerProgress={completed:[]};player=null;location.reload();}}
     const audioCtx=new(window.AudioContext||window.webkitAudioContext);function playSound(f,t,d,v=.5){try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g),g.connect(audioCtx.destination),o.type=t,o.frequency.setValueAtTime(f,audioCtx.currentTime),g.gain.setValueAtTime(v,audioCtx.currentTime),g.gain.exponentialRampToValueAtTime(1e-4,audioCtx.currentTime+d),o.start(),o.stop(audioCtx.currentTime+d)}catch(e){}}
     const SOUNDS={click:()=>playSound(440,"sine",.1,.3),playerAttack:()=>playSound(200,"square",.1,.2),enemyAttack:()=>playSound(150,"sawtooth",.1,.2),hit:()=>playSound(880,"triangle",.15,.5),enemyDeath:()=>playSound(100,"sawtooth",.4,.4),ultimate:()=>playSound(80,"sawtooth",.8,.7),upgrade:()=>playSound(600,"triangle",.2,.4),gameOver:()=>playSound(150,"sawtooth",.8,.5),stageClear:()=>playSound(783,"sine",.5),heal:()=>playSound(523,"triangle",.2,.4),levelUp:()=>playSound(900,"sawtooth",.3,.5)};
@@ -801,6 +847,31 @@
     function updateGameOverUI() {if (currentDungeon) {document.getElementById('game-over-message').textContent = `Defeated by ${currentDungeon.boss.name}`;dom.retryBtn.textContent = "Return to Map";} else {document.getElementById('game-over-message').innerHTML = `You reached Stage <span id="final-stage-reached">${currentStage}</span>`;dom.retryBtn.textContent = "Try Again";}}
     function updatePlayerScreenUI(){const statsContainer=document.querySelector(".stats-container"),skillsContainer=document.querySelector(".skills-container");statsContainer.innerHTML="";skillsContainer.innerHTML='<h2>Skills</h2>';Object.values(player.stats).forEach(stat=>{const progress=stat.current/stat.target*100,block=document.createElement("div");block.className="stat-block",block.innerHTML=`<div class="stat-header"><h3 id="stat-title-${stat.color}">${stat.name}</h3><span>Level ${stat.level}</span></div><p class="stat-value">${stat.isFloat?stat.current.toFixed(1):stat.current} / ${stat.target}${stat.displaySuffix}</p><div class="progress-bar-container"><div id="progress-${stat.color}" class="progress-bar-fill ${stat.color}" style="width: ${Math.min(progress,100)}%;"></div></div>`,statsContainer.appendChild(block)});Object.keys(SKILLS_DATA).forEach(id=>{const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],block=document.createElement("div");block.className="skill-block";if(playerSkill.isUnlocked){const progress=playerSkill.currentXP/playerSkill.targetXP*100;block.innerHTML=`<div class="skill-header"><h3 id="skill-title-${id}">${skillData.name}</h3><span>Level ${playerSkill.level}</span></div><p>${getSkillDescription(id)}</p><div class="progress-bar-container"><div class="progress-bar-fill skill" style="width: ${Math.min(progress,100)}%;"></div></div>`}else{block.classList.add("locked");block.innerHTML=`<h3>${skillData.name}</h3><p>Unlock by clearing Stage ${skillData.unlockStage}</p>`}skillsContainer.appendChild(block)})}
     function getSkillDescription(id){const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],level=playerSkill.level;const damage=Math.floor(player.stats.attackPower.current*(skillData.baseDamageMultiplier+(level-1)*skillData.damageMultiplierPerLevel));switch(id){case'orbitalStrike':return`Launches an orb dealing ${damage} damage.`;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);return`Lightning hits ${jumps+1} enemies for ${damage} damage.`;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);return`Calls down ${count} meteors that deal ${damage} damage.`}}
+    // --- NEW ENERGY REPLENISHMENT FUNCTION ---
+    function updateEnergyReplenishment() {
+        if (!player || player.energy >= player.maxEnergy) {
+            return; // Exit if player doesn't exist or energy is already full
+        }
+
+        const REPLENISH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes in milliseconds
+        const now = Date.now();
+        const elapsedMs = now - player.lastEnergyUpdateTime;
+
+        if (elapsedMs >= REPLENISH_INTERVAL_MS) {
+            const energyGained = Math.floor(elapsedMs / REPLENISH_INTERVAL_MS);
+            
+            if (energyGained > 0) {
+                player.energy = Math.min(player.maxEnergy, player.energy + energyGained);
+                
+                // Important: Update the timestamp by the amount of time accounted for, not to "now".
+                // This preserves any partial progress towards the next point.
+                player.lastEnergyUpdateTime += energyGained * REPLENISH_INTERVAL_MS;
+                
+                updatePlayerXpBar();
+                saveGame();
+            }
+        }
+    }
     
     function buyUpgrade(type, fromUpgradeScreen = false){
         if(player.gold < player.costs[type]) return;
@@ -1277,6 +1348,7 @@
     initGame(false, true); // Load saved data or create new game state in the background
     initializeBootSequence(); // Show the boot screen animation
     initMapBackground();
+    setInterval(updateEnergyReplenishment, 1000);
     gameLoop();
     </script>
     <script>
