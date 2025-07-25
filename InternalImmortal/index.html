@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EternalImmortal RPG</title>
+    <title>Dungeon Crawler RPG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400&display=swap');
@@ -363,12 +363,26 @@
     function hideModal() { detailsModal.classList.remove('visible'); lockedModal.classList.remove('visible'); }
     function showDetailsModal(dungeonId) {
         const data = player.dungeonMap[dungeonId];
-        document.getElementById('modal-title').textContent = data.name; document.getElementById('modal-mode').textContent = data.mode; document.getElementById('modal-boss-name').textContent = data.boss.name; document.getElementById('modal-boss-level').textContent = data.boss.level; document.getElementById('modal-boss-icon').innerHTML = `<i class="fas ${data.boss.icon}"></i>`;
+        document.getElementById('modal-title').textContent = data.name;
+        document.getElementById('modal-mode').textContent = data.mode;
+        document.getElementById('modal-boss-name').textContent = data.boss.name;
+        document.getElementById('modal-boss-level').textContent = data.boss.level;
+        document.getElementById('modal-boss-icon').innerHTML = `<i class="fas ${data.boss.icon}"></i>`;
         const rewardsGrid = document.getElementById('modal-rewards');
         rewardsGrid.innerHTML = '';
-        data.rewards.forEach(reward => { rewardsGrid.innerHTML += `<div class="reward-item"><i class="fas ${reward.icon} reward-icon"></i><span>${reward.amount}</span></div>`; });
+        data.rewards.forEach(reward => {
+            const amountText = reward.name === 'Gold' ? `x${reward.amount}` : reward.amount;
+            rewardsGrid.innerHTML += `<div class="reward-item"><i class="fas ${reward.icon} reward-icon"></i><span>${amountText}</span></div>`;
+        });
         const startButton = document.getElementById('modal-start-button');
-        startButton.onclick = () => { hideModal(); setTimeout(() => { currentDungeon = data; showScreen('battle'); }, 300); };
+        startButton.onclick = () => {
+            hideModal();
+            setTimeout(() => {
+                currentDungeon = data;
+                delete currentDungeon.rewardGiven; // Reset flag before starting
+                showScreen('battle');
+            }, 300);
+        };
         detailsModal.classList.add('visible');
     }
     function drawPath() {
@@ -456,59 +470,35 @@
         return `${GEN_DATA.nameParts1[Math.floor(Math.random() * GEN_DATA.nameParts1.length)]} ${GEN_DATA.nameParts2[Math.floor(Math.random() * GEN_DATA.nameParts2.length)]} ${GEN_DATA.nameParts3[Math.floor(Math.random() * GEN_DATA.nameParts3.length)]}`;
     }
     function addNewDungeons(triggeringDungeonId) {
-        // --- THE FIX ---
-        // Find the node at the absolute end of the map by looking for the one
-        // that doesn't unlock any other dungeons yet.
         let endOfChainNode = Object.values(player.dungeonMap).find(d => d.unlocks.length === 0);
-
-        // A safety check in case something goes wrong and no end node is found.
         if (!endOfChainNode) {
             console.error("Could not find the end of the dungeon chain. Defaulting to last-created dungeon.");
-            // Fallback: find the one with the highest 'top' value.
             endOfChainNode = Object.values(player.dungeonMap).reduce((a, b) => a.position.top > b.position.top ? a : b);
-            if (!endOfChainNode) return; // If map is somehow empty, exit.
+            if (!endOfChainNode) return;
         }
         
-        // Now, we use this definitive end node as the parent for the new chain.
         let lastDungeon = endOfChainNode;
         const depth = Object.keys(player.dungeonMap).length;
-
-        // The rest of the function remains the same, as it will now correctly
-        // build off the true end of the map.
+        
         for (let i = 0; i < 2; i++) {
             const newDungeonId = `dungeon-${Date.now()}-${i}`;
             const bossLevel = 10 + depth + i;
-
-            const newLeftPosition = (lastDungeon.position.left < 50) 
-                ? 70 + (Math.random() * 10 - 5) 
-                : 30 + (Math.random() * 10 - 5);
+            const newLeftPosition = (lastDungeon.position.left < 50) ? 70 + (Math.random() * 10 - 5) : 30 + (Math.random() * 10 - 5);
+            const goldReward = Math.floor((bossLevel * 25) + 200 + Math.random() * 50);
 
             const newDungeon = {
-                id: newDungeonId,
-                name: generateDungeonName(),
-                completionCount: 0,
-                evolutionLevel: 0,
-                position: { 
-                    top: lastDungeon.position.top + 160 + (Math.random() * 30),
-                    left: newLeftPosition
-                },
+                id: newDungeonId, name: generateDungeonName(), completionCount: 0, evolutionLevel: 0,
+                position: { top: lastDungeon.position.top + 160 + (Math.random() * 30), left: newLeftPosition },
                 icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
-                
-                unlockedBy: lastDungeon.id, 
-                unlocks: [],
-                
+                unlockedBy: lastDungeon.id, unlocks: [],
+                goldReward: goldReward, // Store the actual gold reward
                 boss: {
                     name: `${GEN_DATA.bossNames1[Math.floor(Math.random() * GEN_DATA.bossNames1.length)]} ${GEN_DATA.bossNames2[Math.floor(Math.random() * GEN_DATA.bossNames2.length)]}`,
-                    level: bossLevel,
-                    icon: GEN_DATA.bossIcons[Math.floor(Math.random() * GEN_DATA.bossIcons.length)],
-                    attack: Math.floor(10 + bossLevel * 2.5),
-                    maxHp: Math.floor(500 + bossLevel * 80)
+                    level: bossLevel, icon: GEN_DATA.bossIcons[Math.floor(Math.random() * GEN_DATA.bossIcons.length)],
+                    attack: Math.floor(10 + bossLevel * 2.5), maxHp: Math.floor(500 + bossLevel * 80)
                 },
                 mode: 'Endless Challenge',
-                rewards: [
-                    { name: 'Gold', amount: `x${(8 + depth * 2).toFixed(0)}k`, icon: 'fa-coins icon-gold' },
-                    { name: 'Rubies', amount: `x${(200 + depth * 50)}`, icon: 'fa-gem icon-ruby' }
-                ]
+                rewards: [ { name: 'Gold', amount: goldReward, icon: 'fa-coins icon-gold' }, { name: 'Rubies', amount: `x${(200 + depth * 50)}`, icon: 'fa-gem icon-ruby' } ]
             };
             newDungeon.baseName = newDungeon.name;
             player.dungeonMap[newDungeonId] = newDungeon;
@@ -530,16 +520,19 @@
             const startingLeftPositions = [50, 30, 70]; 
             for (let i = 0; i < 3; i++) {
                 const dungeonId = `starter-${i}`;
+                const bossLevel = 5 + i * 2;
+                const goldReward = Math.floor((bossLevel * 10) + 50 + Math.random() * 25);
                 const dungeon = {
                     id: dungeonId, name: generateDungeonName(), completionCount: 0, evolutionLevel: 0,
                     isUnlockedByDefault: (i === 0), 
                     unlockedBy: lastDungeon ? lastDungeon.id : null, 
                     unlocks: [],
+                    goldReward: goldReward, // Store actual gold reward
                     position: { top: 100 + (i * 160), left: startingLeftPositions[i] + (Math.random() * 10 - 5) },
                     icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
-                    boss: { name: 'Stone Guardian', level: 5, icon: 'fa-ghost', attack: 10, maxHp: 500 },
+                    boss: { name: 'Stone Guardian', level: bossLevel, icon: 'fa-ghost', attack: 10, maxHp: 500 },
                     mode: 'Standard',
-                    rewards: [{ name: 'Gold', amount: 'x1k', icon: 'fa-coins icon-gold' }]
+                    rewards: [{ name: 'Gold', amount: goldReward, icon: 'fa-coins icon-gold' }]
                 };
                 dungeon.baseName = dungeon.name;
                 player.dungeonMap[dungeon.id] = dungeon;
@@ -562,7 +555,7 @@
     function addFloatingText(t,x,y,c){floatingTexts.push({text:t,x,y,life:60,color:c})}
     function triggerScreenShake(d){shakeDuration=d}
     function showBattleBanner(t,ty,d){dom.battleBanner.textContent=t;dom.battleBanner.className=`battle-banner ${ty}`;setTimeout(()=>{dom.battleBanner.className='battle-banner panel-hidden'},d)}
-    function changeState(newState){Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});dom.ultBtn.classList.add('panel-hidden');dom.autoBtn.classList.add('panel-hidden');uiParticles=[];gameState=newState;switch(newState){case'COUNTDOWN':if(currentDungeon){setupBossStage(currentDungeon)}else{setupNextStage()}dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');countdownTimer=180;playSound(500,"sine",0.1,0.3);break;case'COMBAT':dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');break;case'SHOP':saveGame();checkSkillUnlocks();dom.shop.classList.remove('panel-hidden');updateShopUI();setTimeout(createShopParticles,100);break;case'GAME_OVER':dom.gameOver.classList.remove('panel-hidden');updateGameOverUI();break;case'PLAYER_STATS':dom.playerStats.classList.remove('panel-hidden');updatePlayerScreenUI();setTimeout(createStatsScreenParticles,100);break;case'ENDING_COMBAT':player.isAttacking=!1;endCombatTimer=120;showBattleBanner('Victory!','stage-clear-banner',2500);SOUNDS.stageClear();break;}}
+    function changeState(newState){Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});dom.ultBtn.classList.add('panel-hidden');dom.autoBtn.classList.add('panel-hidden');uiParticles=[];gameState=newState;switch(newState){case'COUNTDOWN':if(currentDungeon){setupBossStage(currentDungeon)}else{setupNextStage()}dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');countdownTimer=180;playSound(500,"sine",0.1,0.3);break;case'COMBAT':dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');break;case'SHOP':if(currentDungeon&&!currentDungeon.rewardGiven){player.gold+=currentDungeon.goldReward;addFloatingText(`+${currentDungeon.goldReward}💰`,canvas.width/2,canvas.height/2-50,'#ffd700');currentDungeon.rewardGiven=!0}saveGame();checkSkillUnlocks();dom.shop.classList.remove('panel-hidden');updateShopUI();setTimeout(createShopParticles,100);break;case'GAME_OVER':dom.gameOver.classList.remove('panel-hidden');updateGameOverUI();break;case'PLAYER_STATS':dom.playerStats.classList.remove('panel-hidden');updatePlayerScreenUI();setTimeout(createStatsScreenParticles,100);break;case'ENDING_COMBAT':player.isAttacking=!1;endCombatTimer=120;showBattleBanner('Victory!','stage-clear-banner',2500);SOUNDS.stageClear();break;}}
     function createShopParticles() { document.querySelectorAll('#shop-screen .button, .gold-display, #shop-screen h1').forEach(el => { if (el.tagName === 'H1' || el.classList.contains('gold-display')) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: .1 }); } else { for (let i = 0; i < 3; i++) { uiParticles.push({ type: 'orbit', attachTo: el, angle: Math.random() * Math.PI * 2, speed: .01 + Math.random() * .02, radius: 1 + Math.random(), color: '#ffd700' }); } } }); }
     function createStatsScreenParticles() { document.querySelectorAll('#player-screen .progress-bar-fill').forEach(el => { if (el.getBoundingClientRect().width > 0) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: el.getBoundingClientRect().width / 2000, color: el.classList.contains('health') ? '#e63946' : el.classList.contains('attack') ? '#fca311' : el.classList.contains('rage') ? '#9d4edd' : el.classList.contains('regen') ? '#52b788' : '#00b4d8' }); } }); }
     function setupBossStage(dungeon) {enemies = [];currentStage = dungeon.boss.level;const boss = dungeon.boss;enemies.push({x: canvas.width / 2,y: 150,baseY: 150,hp: boss.maxHp,maxHp: boss.maxHp,attack: boss.attack,radius: 40,color: "#e63946",attackCooldown: 90,attackTimer: 120,isAttacking: false,chargeTimer: 0});}
@@ -617,7 +610,7 @@
     function playerAttack(target){if(!target||player.isAttacking)return;player.isAttacking=!0;player.attackAnimTimer=20;SOUNDS.playerAttack();projectiles.push({x:player.x,y:player.y,target:target,speed:15,isPlayer:!0,damage:player.stats.attackPower.current+Math.floor(5*Math.random())})}
     function updateSkills(){if(enemies.length===0)return;Object.keys(player.skills).forEach(id=>{const skill=player.skills[id];if(!skill.isUnlocked)return;skill.cooldownTimer++;const skillData=SKILLS_DATA[id];const cooldown=Math.max(30,skillData.baseCooldown-(skill.level-1)*skillData.cooldownReductionPerLevel);if(skill.cooldownTimer>cooldown){skill.cooldownTimer=0;skill.currentXP++;if(skill.currentXP>=skill.targetXP){skill.level++;skill.currentXP-=skill.targetXP;skill.targetXP=Math.floor(skill.targetXP*1.5);SOUNDS.levelUp()}const damage=getSkillDescription(id).match(/\d+/)[0];const randomEnemy=enemies[Math.floor(Math.random()*enemies.length)];if(!randomEnemy)return;switch(id){case'orbitalStrike':skillVisuals.push({type:'orbitalStrike',x:player.x,y:player.y,target:randomEnemy,speed:3,damage,life:300});break;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);let targets=[randomEnemy];for(let i=0;i<jumps;i++){const lastTarget=targets[targets.length-1],potentialNext=enemies.filter(e=>!targets.includes(e)).sort((a,b)=>Math.hypot(a.x-lastTarget.x,a.y-lastTarget.y)-Math.hypot(b.x-lastTarget.x,b.y-lastTarget.y));if(potentialNext.length>0)targets.push(potentialNext[0])}targets.forEach(e=>e.hp-=damage);skillVisuals.push({type:'chainLightning',targets,life:30});break;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);for(let i=0;i<count;i++){const targetX=randomEnemy.x-100+200*Math.random();skillVisuals.push({type:'meteor',x:targetX,y:-50,targetY:randomEnemy.y-50+100*Math.random(),speed:8,damage,life:200})}break}}})}
     function updateCountdown() { countdownTimer--; if(countdownTimer % 60 === 0 && countdownTimer > 0) { playSound(500, "sine", 0.1, 0.3); } if (countdownTimer <= 0) { changeState('COMBAT'); playSound(800, "sine", 0.1, 0.4); } }
-    function updateCombat(){if(player.isAttacking){player.attackAnimTimer--;if(player.attackAnimTimer<=0)player.isAttacking=!1}if(isAutoBattle&&!player.isAttacking&&enemies.length>0){let e=enemies.reduce((e,t)=>Math.hypot(e.x-player.x,e.y-player.y)<Math.hypot(t.x-player.x,t.y-player.y)?e:t);playerAttack(e)}updateSkills();enemies.forEach(e=>{e.attackTimer++;if(e.attackTimer>=e.attackCooldown&&!e.isAttacking){e.isAttacking=!0;e.chargeTimer=30}if(e.chargeTimer>0){e.chargeTimer--;if(e.chargeTimer<=0){e.attackTimer=0;SOUNDS.enemyAttack();projectiles.push({x:e.x,y:e.y,target:player,speed:10,isPlayer:!1,damage:e.attack})}}else if(e.isAttacking)e.isAttacking=!1;if(e.flash>0)e.flash--});projectiles.forEach((e,t)=>{const a=e.target.x-e.x,s=e.target.y-e.y,n=Math.hypot(a,s);if(n<e.speed){e.target.hp-=e.damage;e.target.flash=5;if(e.isPlayer)player.rage=Math.min(player.rage+player.stats.rageGain.current,100);SOUNDS.hit();triggerScreenShake(e.isPlayer?5:8);createExplosion(e.target.x,e.target.y,20,e.isPlayer?"#fff":"#ff4d4d");addFloatingText(e.damage,e.target.x,e.y,e.isPlayer?"#ffd700":"#ff4d4d");projectiles.splice(t,1)}else{e.x+=a/n*e.speed;e.y+=s/n*e.speed}});if(player.hp<=0)return SOUNDS.gameOver(),void changeState("GAME_OVER");const deadEnemies=enemies.filter(e=>e.hp<=0);deadEnemies.forEach(e=>{createExplosion(e.x,e.y,50,e.color,4,8);SOUNDS.enemyDeath();player.gold+=Math.floor(1.5*currentStage+5);const xpGain=Math.floor(5*currentStage+Math.random()*5);gainXP(xpGain);});enemies=enemies.filter(e=>e.hp>0);if(enemies.length===0&&gameState==="COMBAT")changeState("ENDING_COMBAT");if(Math.random()<.005&&healthOrbs.length<3)healthOrbs.push({x:40+Math.random()*(canvas.width-80),y:100+300*Math.random(),radius:12,life:600,pulse:0})}
+    function updateCombat(){if(player.isAttacking){player.attackAnimTimer--;if(player.attackAnimTimer<=0)player.isAttacking=!1}if(isAutoBattle&&!player.isAttacking&&enemies.length>0){let e=enemies.reduce((e,t)=>Math.hypot(e.x-player.x,e.y-player.y)<Math.hypot(t.x-player.x,t.y-player.y)?e:t);playerAttack(e)}updateSkills();enemies.forEach(e=>{e.attackTimer++;if(e.attackTimer>=e.attackCooldown&&!e.isAttacking){e.isAttacking=!0;e.chargeTimer=30}if(e.chargeTimer>0){e.chargeTimer--;if(e.chargeTimer<=0){e.attackTimer=0;SOUNDS.enemyAttack();projectiles.push({x:e.x,y:e.y,target:player,speed:10,isPlayer:!1,damage:e.attack})}}else if(e.isAttacking)e.isAttacking=!1;if(e.flash>0)e.flash--});projectiles.forEach((e,t)=>{const a=e.target.x-e.x,s=e.target.y-e.y,n=Math.hypot(a,s);if(n<e.speed){e.target.hp-=e.damage;e.target.flash=5;if(e.isPlayer)player.rage=Math.min(player.rage+player.stats.rageGain.current,100);SOUNDS.hit();triggerScreenShake(e.isPlayer?5:8);createExplosion(e.target.x,e.target.y,20,e.isPlayer?"#fff":"#ff4d4d");addFloatingText(e.damage,e.target.x,e.y,e.isPlayer?"#ffd700":"#ff4d4d");projectiles.splice(t,1)}else{e.x+=a/n*e.speed;e.y+=s/n*e.speed}});if(player.hp<=0)return SOUNDS.gameOver(),void changeState("GAME_OVER");const deadEnemies=enemies.filter(e=>e.hp<=0);deadEnemies.forEach(e=>{createExplosion(e.x,e.y,50,e.color,4,8);SOUNDS.enemyDeath();if(!currentDungeon){player.gold+=Math.floor(1.5*currentStage+5)}const xpGain=Math.floor(5*currentStage+Math.random()*5);gainXP(xpGain);});enemies=enemies.filter(e=>e.hp>0);if(enemies.length===0&&gameState==="COMBAT")changeState("ENDING_COMBAT");if(Math.random()<.005&&healthOrbs.length<3)healthOrbs.push({x:40+Math.random()*(canvas.width-80),y:100+300*Math.random(),radius:12,life:600,pulse:0})}
     function initExplorationMode() {
         explorationEnemies = [];
         projectiles = [];
