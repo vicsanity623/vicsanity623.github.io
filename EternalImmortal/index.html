@@ -846,7 +846,26 @@
     function changeState(newState){Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});dom.ultBtn.classList.add('panel-hidden');dom.autoBtn.classList.add('panel-hidden');uiParticles=[];gameState=newState;switch(newState){case'COUNTDOWN':if(currentDungeon){setupBossStage(currentDungeon)}else{setupNextStage()}dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');countdownTimer=180;playSound(500,"sine",0.1,0.3);break;case'COMBAT':dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');break;case'SHOP':if(currentDungeon&&!currentDungeon.rewardGiven){if(currentDungeon.goldReward){player.gold+=currentDungeon.goldReward;addFloatingText(`+${currentDungeon.goldReward}💰`,canvas.width/2,canvas.height/2-50,'#ffd700');}if(currentDungeon.rubyReward){player.rubies=(player.rubies||0)+currentDungeon.rubyReward;addFloatingText(`+${currentDungeon.rubyReward}💎`,canvas.width/2,canvas.height/2-20,'#f94144');}currentDungeon.rewardGiven=!0}saveGame();checkSkillUnlocks();dom.shop.classList.remove('panel-hidden');updateShopUI();setTimeout(createShopParticles,100);break;case'GAME_OVER':dom.gameOver.classList.remove('panel-hidden');updateGameOverUI();break;case'PLAYER_STATS':dom.playerStats.classList.remove('panel-hidden');updatePlayerScreenUI();setTimeout(createStatsScreenParticles,100);break;case'ENDING_COMBAT':player.isAttacking=!1;endCombatTimer=120;showBattleBanner('Victory!','stage-clear-banner',2500);SOUNDS.stageClear();break;}}
     function createShopParticles() { document.querySelectorAll('#shop-screen .button, .gold-display, #shop-screen h1').forEach(el => { if (el.tagName === 'H1' || el.classList.contains('gold-display')) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: .1 }); } else { for (let i = 0; i < 3; i++) { uiParticles.push({ type: 'orbit', attachTo: el, angle: Math.random() * Math.PI * 2, speed: .01 + Math.random() * .02, radius: 1 + Math.random(), color: '#ffd700' }); } } }); }
     function createStatsScreenParticles() { document.querySelectorAll('#player-screen .progress-bar-fill').forEach(el => { if (el.getBoundingClientRect().width > 0) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: el.getBoundingClientRect().width / 2000, color: el.classList.contains('health') ? '#e63946' : el.classList.contains('attack') ? '#fca311' : el.classList.contains('rage') ? '#9d4edd' : el.classList.contains('regen') ? '#52b788' : '#00b4d8' }); } }); }
-    function setupBossStage(dungeon) {enemies = [];currentStage = dungeon.boss.level;const boss = dungeon.boss;enemies.push({x: canvas.width / 2,y: 150,baseY: 150,hp: boss.maxHp,maxHp: boss.maxHp,attack: boss.attack,radius: 40,color: "#e63946",attackCooldown: 90,attackTimer: 120,isAttacking: false,chargeTimer: 0});}
+    function setupBossStage(dungeon) {
+        enemies = [];
+        currentStage = dungeon.boss.level;
+        const boss = dungeon.boss;
+        enemies.push({
+            x: canvas.width / 2,
+            y: 150,
+            baseY: 150,
+            hp: boss.maxHp,
+            maxHp: boss.maxHp,
+            attack: boss.attack,
+            radius: 50, // Increase radius for a larger boss presence
+            color: "#e63946",
+            attackCooldown: 90,
+            attackTimer: 120,
+            isAttacking: false,
+            chargeTimer: 0,
+            icon: boss.icon // <-- THE IMPORTANT ADDITION
+        });
+    }
     function setupNextStage(){enemies=[];const e=Math.min(2+Math.floor(currentStage/2),7),t=1+(currentStage-1)*.25,a=3+Math.floor(currentStage/3),s=Math.max(120-2*currentStage,45);for(let n=0;n<e;n++){const e=100+200*Math.random(),r=Math.floor((20+10*Math.random())*t);enemies.push({x:40+Math.random()*(canvas.width-80),y:e,baseY:e,hp:r,maxHp:r,attack:Math.floor(a+2*Math.random()),radius:20+5*Math.random(),color:"#e63946",attackCooldown:s+60*Math.random(),attackTimer:180*Math.random(),isAttacking:!1,chargeTimer:0})}}
     function updateShopUI() {if (currentDungeon) {document.getElementById('shop-title').textContent = `${currentDungeon.name} Cleared!`;document.getElementById('shop-subtitle').textContent = "You are victorious. Claim your rewards.";dom.proceedBtn.textContent = 'Return to Map';} else {document.getElementById('shop-title').textContent = `Stage ${currentStage} Cleared!`;document.getElementById('shop-subtitle').textContent = 'Spend Gold to grow stronger.';dom.proceedBtn.textContent = 'Next Stage';} dom.goldDisplay.textContent = `${player.gold}`;document.getElementById('attack-power-stat').textContent=player.stats.attackPower.current;document.getElementById('max-health-stat').textContent=player.stats.maxHp.current;document.getElementById('rage-gain-stat').textContent=player.stats.rageGain.current;document.getElementById('health-regen-stat').textContent=player.stats.healthRegen.current.toFixed(1);document.getElementById('attack-cost').textContent=player.costs.attackPower;document.getElementById('health-cost').textContent=player.costs.maxHp;document.getElementById('rage-cost').textContent=player.costs.rageGain;document.getElementById('regen-cost').textContent=player.costs.healthRegen;dom.upgradeBtns.attack.classList.toggle('disabled',player.gold<player.costs.attackPower);dom.upgradeBtns.health.classList.toggle('disabled',player.gold<player.costs.maxHp);dom.upgradeBtns.rage.classList.toggle('disabled',player.gold<player.costs.rageGain);dom.upgradeBtns.regen.classList.toggle('disabled',player.gold<player.costs.healthRegen);}
     function updateGameOverUI() {if (currentDungeon) {document.getElementById('game-over-message').textContent = `Defeated by ${currentDungeon.boss.name}`;dom.retryBtn.textContent = "Return to Map";} else {document.getElementById('game-over-message').innerHTML = `You reached Stage <span id="final-stage-reached">${currentStage}</span>`;dom.retryBtn.textContent = "Try Again";}}
@@ -976,10 +995,9 @@
                 if (!randomEnemy) return;
                 switch (id) {
                     case 'orbitalStrike':
-                        skillVisuals.push({ type: 'orbitalStrike', x: player.x, y: player.y, target: randomEnemy, speed: 3, damage: damage, life: 300 });
+                        skillVisuals.push({ type: 'orbitalStrike', x: player.x, y: player.y, target: randomEnemy, speed: 3, damage: damage, life: 300, maxLife: 300 }); // <-- FIX: Added maxLife
                         break;
                     case 'chainLightning':
-                        // --- CORRECTED LOGIC ---
                         const jumps = SKILLS_DATA.chainLightning.baseJumps + Math.floor((skill.level - 1) / SKILLS_DATA.chainLightning.jumpsPerLevel);
                         let targets = [randomEnemy];
                         for (let i = 0; i < jumps; i++) {
@@ -989,23 +1007,22 @@
                         }
                         targets.forEach(e => {
                             e.hp -= damage;
-                            addFloatingText(damage, e.x, e.y, '#6efcff'); // Add damage text
+                            addFloatingText(damage, e.x, e.y, '#6efcff');
                         });
-                        skillVisuals.push({ type: 'chainLightning', targets: targets, life: 30, damage: damage });
+                        skillVisuals.push({ type: 'chainLightning', targets: targets, life: 60, maxLife: 60, damage: damage }); // <-- FIX: Increased life and added maxLife
                         break;
                     case 'meteorShower':
-                        // --- CORRECTED LOGIC ---
                         const count = SKILLS_DATA.meteorShower.baseCount + Math.floor((skill.level - 1) / SKILLS_DATA.meteorShower.countPerLevel);
                         for (let i = 0; i < count; i++) {
-                            // Create a separate visual for each meteor
                             skillVisuals.push({
                                 type: 'meteor',
                                 x: Math.random() * canvas.width,
-                                y: -50 - (Math.random() * 200), // Start off-screen
+                                y: -50 - (Math.random() * 200),
                                 targetY: 100 + Math.random() * (canvas.height / 2),
                                 speed: 8 + Math.random() * 4,
                                 damage: damage,
-                                life: 200
+                                life: 200,
+                                maxLife: 200 // <-- FIX: Added maxLife
                             });
                         }
                         break
@@ -1043,6 +1060,15 @@
     }
     function updateExplorationMode() {
         if (!player) return;
+
+        // --- FIX STARTS HERE ---
+        // Temporarily assign the exploration enemies to the global 'enemies' array
+        // so the updateSkills function knows who to target.
+        enemies = explorationEnemies; 
+        updateSkills();
+        explorationEnemies = enemies; // Assign it back to the correct variable after skills are updated.
+        // --- FIX ENDS HERE ---
+
         explorationBackgroundStars.forEach(star => { star.x -= star.speed; if (star.x < 0) { star.x = explorationCanvas.width; star.y = Math.random() * explorationCanvas.height; }});
         explorationSpawnTimer--;
         if (explorationSpawnTimer <= 0) {
@@ -1123,6 +1149,91 @@
         uiParticles = uiParticles.filter(p => !(p.type === 'sparkle' && p.life <= 0));
         uiParticles.push(...newParticles);
     }
+
+    function drawBossHealthBar() {
+        if (enemies.length === 0) return;
+
+        // Calculate total health of all enemies on screen
+        const totalCurrentHp = enemies.reduce((sum, enemy) => sum + Math.max(0, enemy.hp), 0);
+        const totalMaxHp = enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0);
+
+        if (totalMaxHp === 0) return; // Avoid division by zero
+
+        const barWidth = canvas.width;
+        const barHeight = 25;
+        const barY = 50; // Position it below the top UI
+
+        // Draw the background of the bar
+        ctx.fillStyle = 'rgba(50, 50, 50, 0.7)';
+        ctx.fillRect(0, barY, barWidth, barHeight);
+
+        // Draw the health fill
+        const healthPercentage = totalCurrentHp / totalMaxHp;
+        ctx.fillStyle = '#c1121f'; // Red color for health
+        ctx.fillRect(0, barY, barWidth * healthPercentage, barHeight);
+
+        // Draw a border for clarity
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, barY, barWidth, barHeight);
+
+        // Draw the health text on top
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Cinzel';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 4;
+        ctx.fillText(`${Math.ceil(totalCurrentHp)} / ${totalMaxHp}`, barWidth / 2, barY + barHeight / 2);
+        ctx.shadowBlur = 0; // Reset shadow
+    }
+
+    function drawPlayerHudBars() {
+        if (!player || dom.ultBtn.classList.contains('panel-hidden')) return;
+
+        const barWidth = canvas.width;
+        const barHeight = 18;
+        const bottomPadding = 5; // A small gap between the bars and buttons
+
+        // Get the position of the RAGE button relative to the canvas
+        const ultButtonRect = dom.ultBtn.getBoundingClientRect();
+        const containerRect = gameContainer.getBoundingClientRect();
+        
+        // Calculate the top of the button within the canvas coordinate system
+        const buttonTopInCanvas = ultButtonRect.top - containerRect.top;
+
+        // Calculate the Y positions for the bars based on the button's position
+        // The Rage bar sits on top of the button
+        const rageBarY = buttonTopInCanvas - barHeight - bottomPadding;
+        // The HP bar sits on top of the Rage bar
+        const hpBarY = rageBarY - barHeight;
+
+        // --- Draw Health Bar (The drawing logic itself remains the same) ---
+        ctx.fillStyle = '#333'; // Background
+        ctx.fillRect(0, hpBarY, barWidth, barHeight);
+        const hpPercent = Math.max(0, player.hp / player.stats.maxHp.current);
+        ctx.fillStyle = '#2a9d8f'; // Teal color for health
+        ctx.fillRect(0, hpBarY, barWidth * hpPercent, barHeight);
+
+        // --- Draw Rage Bar ---
+        ctx.fillStyle = '#554300'; // Background
+        ctx.fillRect(0, rageBarY, barWidth, barHeight);
+        const ragePercent = player.rage / 100;
+        ctx.fillStyle = '#ffd700'; // Gold color for rage
+        ctx.fillRect(0, rageBarY, barWidth * ragePercent, barHeight);
+        
+        // --- Draw Text Labels ---
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px Roboto';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 3;
+        ctx.fillText(`HP: ${Math.ceil(player.hp)} / ${player.stats.maxHp.current}`, 10, hpBarY + barHeight / 2);
+        ctx.fillText(`RAGE: ${player.rage} / 100`, 10, rageBarY + barHeight / 2);
+        ctx.shadowBlur = 0; // Reset shadow
+    }
+
     function drawHud(){
         if(gameState!=='COMBAT' && gameState !== 'COUNTDOWN') return;
         ctx.save();
@@ -1175,12 +1286,36 @@
     }
     function drawBackground(){ctx.fillStyle='#0c0c14';ctx.fillRect(0,0,canvas.width,canvas.height);if(window.stars)window.stars.forEach(s=>{ctx.beginPath();ctx.arc(s.x,s.y,s.radius,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${.5+s.speed})`;ctx.fill()})}
     
-    function drawPlayer(){
-        dom.ultBtn.classList.toggle('is-flashing',player.rage>=100);
-        dom.ultBtn.style.background=player.rage>=100?'#f72585':'#5a1835';
-        dom.autoBtn.classList.toggle('active',isAutoBattle);
+    function drawPlayer() {
+        // --- START OF NEW DYNAMIC POSITIONING LOGIC ---
+        // Only run this logic in Dungeon Mode where the big HUD bars are visible
+        if (!gameContainer.classList.contains('hidden') && !dom.ultBtn.classList.contains('panel-hidden')) {
+            const barHeight = 18;
+            const bottomPadding = 5;
+
+            // Get the position of the RAGE button to calculate the HUD's top edge
+            const ultButtonRect = dom.ultBtn.getBoundingClientRect();
+            const containerRect = gameContainer.getBoundingClientRect();
+            const buttonTopInCanvas = ultButtonRect.top - containerRect.top;
+
+            // Calculate the Y position for the top-most bar (the HP bar)
+            const rageBarY = buttonTopInCanvas - barHeight - bottomPadding;
+            const hpBarY = rageBarY - barHeight;
+
+            // Set the player's Y position to be just above the HP bar
+            // We subtract half the player's size to align the bottom of the sprite with the bar
+            const newPlayerY = hpBarY - (player.size / 2);
+            player.y = newPlayerY;
+            player.baseY = newPlayerY; // Update baseY as well for consistency
+        }
+        // --- END OF NEW DYNAMIC POSITIONING LOGIC ---
+
+
+        dom.ultBtn.classList.toggle('is-flashing', player.rage >= 100);
+        dom.ultBtn.style.background = player.rage >= 100 ? '#f72585' : '#5a1835';
+        dom.autoBtn.classList.toggle('active', isAutoBattle);
         ctx.save();
-        ctx.translate(player.x,player.y);
+        ctx.translate(player.x, player.y);
         const drawSize = player.size;
         const halfDrawSize = drawSize / 2;
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
@@ -1217,7 +1352,7 @@
         }
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 5;
-        if(player.isAttacking){
+        if (player.isAttacking) {
             player.sword.angle += .6;
         } else {
             player.sword.angle += (0 - player.sword.angle) * .2;
@@ -1226,25 +1361,86 @@
         ctx.fillStyle = '#ddd';
         ctx.fillRect(halfDrawSize * 0.7, -3, player.sword.length, 6);
         ctx.restore();
-        const barWidth=100, barX=player.x-barWidth/2;
-        ctx.fillStyle='#333';
-        ctx.fillRect(barX,player.y+halfDrawSize+5,barWidth,12);
-        ctx.fillStyle='#2a9d8f';
-        ctx.fillRect(barX,player.y+halfDrawSize+5,barWidth*Math.max(0,player.hp/player.stats.maxHp.current),12);
-        ctx.fillStyle='#554300';
-        ctx.fillRect(barX,player.y+halfDrawSize+18,barWidth,8);
-        ctx.fillStyle='#ffd700';
-        ctx.fillRect(barX,player.y+halfDrawSize+18,barWidth*(player.rage/100),8);
+
+        // The small player bars are only drawn in exploration mode now
+        if (!explorationContainer.classList.contains('hidden')) {
+            const barWidth = 100,
+                barX = player.x - barWidth / 2;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(barX, player.y + halfDrawSize + 5, barWidth, 12);
+            ctx.fillStyle = '#2a9d8f';
+            ctx.fillRect(barX, player.y + halfDrawSize + 5, barWidth * Math.max(0, player.hp / player.stats.maxHp.current), 12);
+            ctx.fillStyle = '#554300';
+            ctx.fillRect(barX, player.y + halfDrawSize + 18, barWidth, 8);
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(barX, player.y + halfDrawSize + 18, barWidth * (player.rage / 100), 8);
+        }
     }
     
-    function drawEnemies(){enemies.forEach(e=>{ctx.save();ctx.translate(e.x,e.y);ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=10;ctx.shadowOffsetY=5;ctx.beginPath();ctx.arc(0,0,e.radius,0,Math.PI*2);ctx.fillStyle=e.chargeTimer>0?'#ff6b6b':e.color;ctx.fill();ctx.restore();if(e.flash>0){ctx.beginPath();ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${e.flash/5})`}const barWidth=e.radius*2;ctx.fillStyle='#333';ctx.fillRect(e.x-e.radius,e.y-e.radius-15,barWidth,5);ctx.fillStyle='#c1121f';ctx.fillRect(e.x-e.radius,e.y-e.radius-15,barWidth*Math.max(0,e.hp/e.maxHp),5)})}
+    function drawEnemies() {
+        enemies.forEach(e => {
+            // --- START OF NEW ICON DRAWING LOGIC ---
+            if (e.icon) { // Check if the enemy is a boss with a special icon
+                ctx.save();
+                ctx.font = `900 ${e.radius * 2}px "Font Awesome 6 Free"`; // Font Awesome, large size
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = e.chargeTimer > 0 ? '#ff6b6b' : e.color; // Use enemy color
+                
+                // Add a white flash effect when hit
+                if (e.flash > 0) {
+                    ctx.shadowColor = 'white';
+                    ctx.shadowBlur = 20;
+                } else {
+                    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowOffsetY = 8;
+                }
+
+                // Convert Font Awesome class ('fa-ghost') to the correct unicode character
+                let iconChar = '';
+                const iconMap = { 'fa-ghost': '\uf6e2', 'fa-skull-crossbones': '\uf714', 'fa-robot': '\uf544', 'fa-hat-wizard': '\uf6e8', 'fa-pastafarianism': '\uf67b', 'fa-user-secret': '\uf21b', 'fa-user-ninja': '\uf504' };
+                iconChar = iconMap[e.icon] || '?'; // Default to '?' if icon not found
+
+                ctx.fillText(iconChar, e.x, e.y);
+                ctx.restore();
+
+            } else { // --- IF NOT A BOSS, DRAW THE NORMAL CIRCLE ---
+                ctx.save();
+                ctx.translate(e.x, e.y);
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetY = 5;
+                ctx.beginPath();
+                ctx.arc(0, 0, e.radius, 0, Math.PI * 2);
+                ctx.fillStyle = e.chargeTimer > 0 ? '#ff6b6b' : e.color;
+                ctx.fill();
+                ctx.restore();
+                if (e.flash > 0) {
+                    ctx.beginPath();
+                    ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255,255,255,${e.flash/5})`
+                }
+            }
+            // --- END OF NEW LOGIC ---
+
+            // Health bar logic (remains the same)
+            if (!explorationContainer.classList.contains('hidden')) {
+                const barWidth = e.radius * 2;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(e.x - e.radius, e.y - e.radius - 15, barWidth, 5);
+                ctx.fillStyle = '#c1121f';
+                ctx.fillRect(e.x - e.radius, e.y - e.radius - 15, barWidth * Math.max(0, e.hp / e.maxHp), 5);
+            }
+        })
+    }
     function drawHealthOrbs(){healthOrbs.forEach(orb=>{ctx.save();ctx.globalAlpha=.5+Math.sin(orb.pulse)*.3;ctx.beginPath();ctx.arc(orb.x,orb.y,orb.radius,0,Math.PI*2);ctx.fillStyle='#4caf50';ctx.fill();ctx.shadowColor='#abffc0';ctx.shadowBlur=15;ctx.fill();ctx.restore()})}
     function drawSkillVisuals() {
         skillVisuals.forEach(v => {
             ctx.save();
-            // Use a simple fade-out effect for all visuals
-            ctx.globalAlpha = Math.min(1, v.life / 30); 
-    
+            // Use maxLife for a correct fade-out, regardless of the effect's duration
+            ctx.globalAlpha = Math.min(1, v.life / v.maxLife);  // <-- FIX: Changed from 30 to v.maxLife
+
             switch (v.type) {
                 case 'orbitalStrike':
                     // This logic was in update() before, let's move it to draw() for consistency
@@ -1365,7 +1561,7 @@
         floatingTexts.forEach(t => { dCtx.font='bold 28px sans-serif'; dCtx.fillStyle=t.color; dCtx.globalAlpha=t.life/60; dCtx.textAlign='center'; dCtx.shadowColor='black'; dCtx.shadowBlur=4; dCtx.fillText(t.text,t.x,t.y); });
         dCtx.shadowBlur=0; dCtx.globalAlpha=1;
     }
-    function draw(){
+    function draw() {
         if (!mainScreen.classList.contains('hidden')) {
             drawUiParticles();
         }
@@ -1374,11 +1570,26 @@
         } else if (!gameContainer.classList.contains('hidden')) {
             drawBackground();
             ctx.save();
-            if(shakeDuration>0){ctx.translate(Math.random()*6-3,Math.random()*6-3);shakeDuration--}
-            if(gameState==='COMBAT'||gameState==='ENDING_COMBAT'||gameState==='COUNTDOWN'){drawPlayer();drawEnemies();drawHealthOrbs();drawEffects();drawSkillVisuals()}
-            if(gameState==='COUNTDOWN'){drawCountdown()}
+            if (shakeDuration > 0) { ctx.translate(Math.random() * 6 - 3, Math.random() * 6 - 3); shakeDuration-- }
+            
+            if (gameState === 'COMBAT' || gameState === 'ENDING_COMBAT' || gameState === 'COUNTDOWN') {
+                drawPlayer();
+                drawEnemies();
+                drawHealthOrbs();
+                drawEffects();
+                drawSkillVisuals();
+            }
+            
+            if (gameState === 'COUNTDOWN') { drawCountdown() }
+            
             ctx.restore();
-            drawHud();
+            
+            // --- NEW HUD DRAWING CALLS ---
+            drawHud(); // Draws the stage name and gold
+            if (gameState === 'COMBAT' || gameState === 'ENDING_COMBAT' || gameState === 'COUNTDOWN') {
+                drawBossHealthBar();
+                drawPlayerHudBars();
+            }
             drawUiParticles();
         }
     }
