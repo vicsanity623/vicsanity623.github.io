@@ -676,8 +676,21 @@
         player.xp += amount;
         while (player.xp >= player.xpToNextLevel) { levelUp(); }
     }
-    function generateDungeonName() {
-        return `${GEN_DATA.nameParts1[Math.floor(Math.random() * GEN_DATA.nameParts1.length)]} ${GEN_DATA.nameParts2[Math.floor(Math.random() * GEN_DATA.nameParts2.length)]} ${GEN_DATA.nameParts3[Math.floor(Math.random() * GEN_DATA.nameParts3.length)]}`;
+    function generateDungeonName(usedNames = []) {
+        // Filter out the used boss names to create a list of available options
+        const availableNameParts3 = GEN_DATA.nameParts3.filter(name => !usedNames.includes(name));
+
+        // If we've somehow used all names, just reset the pool to avoid errors
+        const finalNameParts3 = availableNameParts3.length > 0 ? availableNameParts3 : GEN_DATA.nameParts3;
+
+        const part1 = GEN_DATA.nameParts1[Math.floor(Math.random() * GEN_DATA.nameParts1.length)];
+        const part2 = GEN_DATA.nameParts2[Math.floor(Math.random() * GEN_DATA.nameParts2.length)];
+        const part3 = finalNameParts3[Math.floor(Math.random() * finalNameParts3.length)];
+
+        return {
+            name: `${part1} ${part2} ${part3}`,
+            bossNamePart: part3 // Return the unique part so we can track it
+        };
     }
     function addNewDungeons(triggeringDungeonId) {
         let endOfChainNode = Object.values(player.dungeonMap).find(d => d.unlocks.length === 0);
@@ -686,10 +699,22 @@
             endOfChainNode = Object.values(player.dungeonMap).reduce((a, b) => a.position.top > b.position.top ? a : b);
             if (!endOfChainNode) return;
         }
-        
+
         let lastDungeon = endOfChainNode;
         const depth = Object.keys(player.dungeonMap).length;
-        
+
+        // Get a list of all currently used boss names from the existing map
+        let usedBossNames = Object.values(player.dungeonMap).map(d => {
+            // Extract the unique part from the full name
+            for (const part of GEN_DATA.nameParts3) {
+                if (d.name.includes(part)) {
+                    return part;
+                }
+            }
+            return null;
+        }).filter(name => name !== null);
+
+
         for (let i = 0; i < 2; i++) {
             const newDungeonId = `dungeon-${Date.now()}-${i}`;
             const bossLevel = 10 + depth + i;
@@ -697,22 +722,31 @@
             const goldReward = Math.floor((bossLevel * 25) + 200 + Math.random() * 50);
             const rubyReward = Math.floor((bossLevel * 5) + 50 + Math.random() * 25);
 
+            const generatedName = generateDungeonName(usedBossNames); // Pass the tracker
+            usedBossNames.push(generatedName.bossNamePart); // Add the new name to the tracker
+
             const newDungeon = {
-                id: newDungeonId, name: generateDungeonName(), completionCount: 0, evolutionLevel: 0,
+                id: newDungeonId,
+                name: generatedName.name, // Use the generated name
+                completionCount: 0,
+                evolutionLevel: 0,
                 position: { top: lastDungeon.position.top + 160 + (Math.random() * 30), left: newLeftPosition },
                 icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
-                unlockedBy: lastDungeon.id, unlocks: [],
+                unlockedBy: lastDungeon.id,
+                unlocks: [],
                 goldReward: goldReward,
                 rubyReward: rubyReward,
                 boss: {
                     name: `${GEN_DATA.bossNames1[Math.floor(Math.random() * GEN_DATA.bossNames1.length)]} ${GEN_DATA.bossNames2[Math.floor(Math.random() * GEN_DATA.bossNames2.length)]}`,
-                    level: bossLevel, icon: GEN_DATA.bossIcons[Math.floor(Math.random() * GEN_DATA.bossIcons.length)],
-                    attack: Math.floor(10 + bossLevel * 2.5), maxHp: Math.floor(500 + bossLevel * 80)
+                    level: bossLevel,
+                    icon: GEN_DATA.bossIcons[Math.floor(Math.random() * GEN_DATA.bossIcons.length)],
+                    attack: Math.floor(10 + bossLevel * 2.5),
+                    maxHp: Math.floor(500 + bossLevel * 80)
                 },
                 mode: 'Endless Challenge',
-                rewards: [ 
-                    { name: 'Gold', amount: goldReward, icon: 'fa-coins icon-gold' }, 
-                    { name: 'Rubies', amount: rubyReward, icon: 'fa-gem icon-ruby' } 
+                rewards: [
+                    { name: 'Gold', amount: goldReward, icon: 'fa-coins icon-gold' },
+                    { name: 'Rubies', amount: rubyReward, icon: 'fa-gem icon-ruby' }
                 ]
             };
             newDungeon.baseName = newDungeon.name;
@@ -771,15 +805,23 @@
         if(!fromScratch) loadGame();
         if (Object.keys(player.dungeonMap).length === 0) {
             let lastDungeon = null;
-            const startingLeftPositions = [50, 30, 70]; 
+            const startingLeftPositions = [50, 30, 70];
+            let usedBossNames = []; // --- TRACKER ---
+
             for (let i = 0; i < 3; i++) {
                 const dungeonId = `starter-${i}`;
                 const bossLevel = 5 + i * 2;
                 const goldReward = Math.floor((bossLevel * 10) + 50 + Math.random() * 25);
+                
+                const generatedName = generateDungeonName(usedBossNames); // Pass the tracker
+                usedBossNames.push(generatedName.bossNamePart); // Add the new name to the tracker
+
                 const dungeon = {
-                    id: dungeonId, name: generateDungeonName(), completionCount: 0, evolutionLevel: 0,
-                    isUnlockedByDefault: (i === 0), 
-                    unlockedBy: lastDungeon ? lastDungeon.id : null, 
+                    id: dungeonId,
+                    name: generatedName.name, // Use the generated name
+                    completionCount: 0, evolutionLevel: 0,
+                    isUnlockedByDefault: (i === 0),
+                    unlockedBy: lastDungeon ? lastDungeon.id : null,
                     unlocks: [],
                     goldReward: goldReward,
                     position: { top: 100 + (i * 160), left: startingLeftPositions[i] + (Math.random() * 10 - 5) },
