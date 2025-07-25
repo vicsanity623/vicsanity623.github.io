@@ -1,68 +1,66 @@
-// A unique name for our cache
-const CACHE_NAME = 'eternal-immortal-cache-v0.0.1';
+// A unique name for your cache
+const CACHE_NAME = 'eternal-immortal-cache-v0.0.3';
 
-// The list of files we want to cache. This is the "app shell".
-const assetsToCache = [
-  '/', // This caches the root URL, which serves index.html
-  'index.html',
+// The list of files to cache on install
+// This should include all your core assets.
+const URLS_TO_CACHE = [
+  '/', // The root of your site (index.html)
+  'index.html', // Explicitly cache index.html
   'manifest.json',
   'icon-192x192.PNG',
   'icon-512x512.PNG',
-  // External resources also need to be cached
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css',
-  'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400;500;700&display=swap'
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css' // The external stylesheet
+  // Note: The service worker will also cache the font files (.woff2) that the above CSS requests during the first online visit.
 ];
 
-// 1. Install Event: Cache the app shell
-self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
-  // waitUntil() ensures the service worker doesn't install until the code inside has successfully completed.
+// Install event: Caches the core assets
+self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Service Worker: Caching app shell');
-        return cache.addAll(assetsToCache);
+      .then(cache => {
+        console.log('Opened cache and caching core assets');
+        return cache.addAll(URLS_TO_CACHE);
       })
-      .then(() => {
-        console.log('Service Worker: Installation complete');
-        self.skipWaiting(); // Force the waiting service worker to become the active service worker.
+  );
+  self.skipWaiting();
+});
+
+// Fetch event: Serves cached content when offline
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    // 1. Try to find the request in the cache
+    caches.match(event.request)
+      .then(cachedResponse => {
+        // 2. If it's in the cache, return it.
+        //    Otherwise, fetch it from the network.
+        return cachedResponse || fetch(event.request).then(networkResponse => {
+          // Optional: Cache the newly fetched resource for future offline use
+          // This is useful for assets not in the initial cache list (like fonts)
+          return caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          });
+        });
+      })
+      .catch(() => {
+        // If both cache and network fail (e.g., offline and not cached)
+        // you could return a fallback page here if you had one.
       })
   );
 });
 
-// 2. Activate Event: Clean up old caches
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
+// Activate event: Cleans up old caches
+self.addEventListener('activate', event => {
+  const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          // If a cache's name is not our current one, delete it.
-          if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Deleting old cache:', cacheName);
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
             return caches.delete(cacheName);
           }
         })
       );
     })
-  );
-  return self.clients.claim(); // Become the controller for all clients within its scope.
-});
-
-// 3. Fetch Event: Serve cached content when offline
-self.addEventListener('fetch', (event) => {
-  // We use a "Cache First" strategy
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // If the request is in the cache, return the cached version.
-        if (response) {
-          // console.log('Service Worker: Found in cache', event.request.url);
-          return response;
-        }
-        // If the request is not in the cache, fetch it from the network.
-        // console.log('Service Worker: Not in cache, fetching', event.request.url);
-        return fetch(event.request);
-      })
   );
 });
