@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dungeon Crawler RPG</title>
+    <title>EternalImmortal RPG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400&display=swap');
@@ -93,6 +93,8 @@
         #xp-bar { width: 200px; height: 18px; background-color: #333; border-radius: 9px; position: relative; overflow: hidden; border: 1px solid #222; }
         #xp-bar-fill { width: 0%; height: 100%; background: linear-gradient(45deg, #4b0082, #8a2be2); transition: width 0.3s ease; }
         #xp-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; text-align: center; font-size: 12px; line-height: 18px; color: white; text-shadow: 1px 1px 2px black; }
+        #player-rubies-display { display: flex; align-items: center; gap: 5px; font-weight: bold; font-size: 16px; color: #fff; padding-left: 10px; border-left: 1px solid #5a4a78; }
+        #player-rubies-display .icon-ruby { font-size: 14px; }
         @keyframes xp-level-up-flash { 0%, 100% { transform: translateX(-50%) scale(1); box-shadow: 0 2px 10px rgba(0,0,0,0.4); } 50% { transform: translateX(-50%) scale(1.1); box-shadow: 0 0 25px rgba(255, 215, 0, 0.8); } }
         .screen-container { position: relative; width: 450px; height: 800px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); overflow: hidden; }
         .hidden { display: none !important; }
@@ -218,6 +220,9 @@
             <div id="xp-bar-fill"></div>
             <div id="xp-text">0 / 100 XP</div>
         </div>
+        <div id="player-rubies-display">
+            <i class="fas fa-gem icon-ruby"></i> <span id="player-rubies-total">0</span>
+        </div>
     </div>
     <div id="main-screen" class="screen-container hidden">
         <div id="dungeons-button" class="world-button">
@@ -291,6 +296,7 @@
     const playerLevelUI = document.getElementById('player-level');
     const xpBarFillUI = document.getElementById('xp-bar-fill');
     const xpTextUI = document.getElementById('xp-text');
+    const playerRubiesTotalUI = document.getElementById('player-rubies-total');
     const SAVE_KEY = 'endlessShapesSaveData';
     const DUNGEON_SAVE_KEY = 'endlessShapesDungeonProgress';
     let currentDungeon = null;
@@ -311,7 +317,17 @@
         mapScreen.classList.add('hidden');
         gameContainer.classList.add('hidden');
         explorationContainer.classList.add('hidden');
+        playerXpContainer.classList.add('hidden'); // Hide by default
         uiParticles = [];
+
+        if (screenName === 'boot') {
+            bootScreen.classList.remove('hidden');
+        } else {
+            // Show the main UI for all other screens
+            playerXpContainer.classList.remove('hidden');
+            bootScreen.classList.add('hidden');
+        }
+
         if (screenName === 'main') {
             mainScreen.classList.remove('hidden');
             createMainScreenParticles();
@@ -371,7 +387,10 @@
         const rewardsGrid = document.getElementById('modal-rewards');
         rewardsGrid.innerHTML = '';
         data.rewards.forEach(reward => {
-            const amountText = reward.name === 'Gold' ? `x${reward.amount}` : reward.amount;
+            let amountText = reward.amount;
+            if(reward.name === 'Gold' || reward.name === 'Rubies') {
+                 amountText = (reward.amount > 999) ? `x${(reward.amount/1000).toFixed(1)}k` : `x${reward.amount}`;
+            }
             rewardsGrid.innerHTML += `<div class="reward-item"><i class="fas ${reward.icon} reward-icon"></i><span>${amountText}</span></div>`;
         });
         const startButton = document.getElementById('modal-start-button');
@@ -451,6 +470,7 @@
         const xpPercentage = Math.min(100, (player.xp / player.xpToNextLevel) * 100);
         xpBarFillUI.style.width = `${xpPercentage}%`;
         xpTextUI.textContent = `${player.xp} / ${player.xpToNextLevel} XP`;
+        playerRubiesTotalUI.textContent = player.rubies || 0;
     }
     function levelUp() {
         SOUNDS.levelUp();
@@ -485,20 +505,25 @@
             const bossLevel = 10 + depth + i;
             const newLeftPosition = (lastDungeon.position.left < 50) ? 70 + (Math.random() * 10 - 5) : 30 + (Math.random() * 10 - 5);
             const goldReward = Math.floor((bossLevel * 25) + 200 + Math.random() * 50);
+            const rubyReward = Math.floor((bossLevel * 5) + 50 + Math.random() * 25);
 
             const newDungeon = {
                 id: newDungeonId, name: generateDungeonName(), completionCount: 0, evolutionLevel: 0,
                 position: { top: lastDungeon.position.top + 160 + (Math.random() * 30), left: newLeftPosition },
                 icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
                 unlockedBy: lastDungeon.id, unlocks: [],
-                goldReward: goldReward, // Store the actual gold reward
+                goldReward: goldReward,
+                rubyReward: rubyReward,
                 boss: {
                     name: `${GEN_DATA.bossNames1[Math.floor(Math.random() * GEN_DATA.bossNames1.length)]} ${GEN_DATA.bossNames2[Math.floor(Math.random() * GEN_DATA.bossNames2.length)]}`,
                     level: bossLevel, icon: GEN_DATA.bossIcons[Math.floor(Math.random() * GEN_DATA.bossIcons.length)],
                     attack: Math.floor(10 + bossLevel * 2.5), maxHp: Math.floor(500 + bossLevel * 80)
                 },
                 mode: 'Endless Challenge',
-                rewards: [ { name: 'Gold', amount: goldReward, icon: 'fa-coins icon-gold' }, { name: 'Rubies', amount: `x${(200 + depth * 50)}`, icon: 'fa-gem icon-ruby' } ]
+                rewards: [ 
+                    { name: 'Gold', amount: goldReward, icon: 'fa-coins icon-gold' }, 
+                    { name: 'Rubies', amount: rubyReward, icon: 'fa-gem icon-ruby' } 
+                ]
             };
             newDungeon.baseName = newDungeon.name;
             player.dungeonMap[newDungeonId] = newDungeon;
@@ -510,7 +535,7 @@
         if (!silent) gameState='LOADING';
         if (!player || fromScratch) {
             currentStage=1;
-            player={hp:100,rage:0,gold:0,level:1,xp:0,xpToNextLevel:100, dungeonCompletions: 0, dungeonMap:{}, stats:{maxHp:createStat({name:"Max Health",current:100,target:500,baseGain:20,color:'health'}),attackPower:createStat({name:"Attack Power",current:10,target:100,baseGain:2,color:'attack'}),rageGain:createStat({name:"Rage Gain",current:5,target:50,baseGain:1,color:'rage'}),healthRegen:createStat({name:"Health Regen",current:0,target:10,baseGain:.5,isFloat:!0,displaySuffix:'/s',color:'regen'})},costs:{maxHp:10,attackPower:10,rageGain:20,healthRegen:30},skills:{},x:canvas.width/2,y:canvas.height-150,size:40,color:"#61a5c2",isAttacking:!1,attackAnimTimer:0,baseY:canvas.height-150,sword:{angle:0,length:30}};
+            player={hp:100,rage:0,gold:0, rubies:0, level:1,xp:0,xpToNextLevel:100, dungeonCompletions: 0, dungeonMap:{}, stats:{maxHp:createStat({name:"Max Health",current:100,target:500,baseGain:20,color:'health'}),attackPower:createStat({name:"Attack Power",current:10,target:100,baseGain:2,color:'attack'}),rageGain:createStat({name:"Rage Gain",current:5,target:50,baseGain:1,color:'rage'}),healthRegen:createStat({name:"Health Regen",current:0,target:10,baseGain:.5,isFloat:!0,displaySuffix:'/s',color:'regen'})},costs:{maxHp:10,attackPower:10,rageGain:20,healthRegen:30},skills:{},x:canvas.width/2,y:canvas.height-150,size:40,color:"#61a5c2",isAttacking:!1,attackAnimTimer:0,baseY:canvas.height-150,sword:{angle:0,length:30}};
             Object.keys(SKILLS_DATA).forEach(id=>{player.skills[id]={isUnlocked:!1,cooldownTimer:0,level:1,currentXP:0,targetXP:SKILLS_DATA[id].baseTargetXP}});
             isAutoBattle=!1;
         }
@@ -547,7 +572,7 @@
         }
     }
     function saveGame(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({player,currentStage,isAutoBattle}))}catch(e){console.error("Could not save game:",e)}}
-    function loadGame(){try{const savedData=localStorage.getItem(SAVE_KEY);if(!savedData)return;const loaded=JSON.parse(savedData);if(!loaded.player||typeof loaded.player.stats.maxHp==="number"||!loaded.player.skills.orbitalStrike.level){console.log("Old or invalid save detected, resetting player data.");return}else{player=loaded.player}if(player.level===undefined){player.level=1;player.xp=0;player.xpToNextLevel=100}if(!player.dungeonMap){player.dungeonMap={};player.dungeonCompletions=0;}Object.values(player.dungeonMap).forEach(d => { if(d.completionCount === undefined) d.completionCount = 0; if(d.evolutionLevel === undefined) d.evolutionLevel = 0; if(!d.baseName) d.baseName = d.name; });currentStage=loaded.currentStage;isAutoBattle=loaded.isAutoBattle}catch(e){console.error("Could not load save data, starting fresh.",e)}}
+    function loadGame(){try{const savedData=localStorage.getItem(SAVE_KEY);if(!savedData)return;const loaded=JSON.parse(savedData);if(!loaded.player||typeof loaded.player.stats.maxHp==="number"||!loaded.player.skills.orbitalStrike.level){console.log("Old or invalid save detected, resetting player data.");return}else{player=loaded.player}if(player.level===undefined){player.level=1;player.xp=0;player.xpToNextLevel=100}if(player.rubies===undefined){player.rubies=0}if(!player.dungeonMap){player.dungeonMap={};player.dungeonCompletions=0;}Object.values(player.dungeonMap).forEach(d => { if(d.completionCount === undefined) d.completionCount = 0; if(d.evolutionLevel === undefined) d.evolutionLevel = 0; if(!d.baseName) d.baseName = d.name; });currentStage=loaded.currentStage;isAutoBattle=loaded.isAutoBattle}catch(e){console.error("Could not load save data, starting fresh.",e)}}
     function resetGame(){if(confirm("Are you sure you want to reset all progress? This cannot be undone.")){localStorage.removeItem(SAVE_KEY);localStorage.removeItem(DUNGEON_SAVE_KEY);playerProgress={completed:[]};player=null;location.reload();}}
     const audioCtx=new(window.AudioContext||window.webkitAudioContext);function playSound(f,t,d,v=.5){try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g),g.connect(audioCtx.destination),o.type=t,o.frequency.setValueAtTime(f,audioCtx.currentTime),g.gain.setValueAtTime(v,audioCtx.currentTime),g.gain.exponentialRampToValueAtTime(1e-4,audioCtx.currentTime+d),o.start(),o.stop(audioCtx.currentTime+d)}catch(e){}}
     const SOUNDS={click:()=>playSound(440,"sine",.1,.3),playerAttack:()=>playSound(200,"square",.1,.2),enemyAttack:()=>playSound(150,"sawtooth",.1,.2),hit:()=>playSound(880,"triangle",.15,.5),enemyDeath:()=>playSound(100,"sawtooth",.4,.4),ultimate:()=>playSound(80,"sawtooth",.8,.7),upgrade:()=>playSound(600,"triangle",.2,.4),gameOver:()=>playSound(150,"sawtooth",.8,.5),stageClear:()=>playSound(783,"sine",.5),heal:()=>playSound(523,"triangle",.2,.4),levelUp:()=>playSound(900,"sawtooth",.3,.5)};
@@ -555,7 +580,7 @@
     function addFloatingText(t,x,y,c){floatingTexts.push({text:t,x,y,life:60,color:c})}
     function triggerScreenShake(d){shakeDuration=d}
     function showBattleBanner(t,ty,d){dom.battleBanner.textContent=t;dom.battleBanner.className=`battle-banner ${ty}`;setTimeout(()=>{dom.battleBanner.className='battle-banner panel-hidden'},d)}
-    function changeState(newState){Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});dom.ultBtn.classList.add('panel-hidden');dom.autoBtn.classList.add('panel-hidden');uiParticles=[];gameState=newState;switch(newState){case'COUNTDOWN':if(currentDungeon){setupBossStage(currentDungeon)}else{setupNextStage()}dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');countdownTimer=180;playSound(500,"sine",0.1,0.3);break;case'COMBAT':dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');break;case'SHOP':if(currentDungeon&&!currentDungeon.rewardGiven){player.gold+=currentDungeon.goldReward;addFloatingText(`+${currentDungeon.goldReward}💰`,canvas.width/2,canvas.height/2-50,'#ffd700');currentDungeon.rewardGiven=!0}saveGame();checkSkillUnlocks();dom.shop.classList.remove('panel-hidden');updateShopUI();setTimeout(createShopParticles,100);break;case'GAME_OVER':dom.gameOver.classList.remove('panel-hidden');updateGameOverUI();break;case'PLAYER_STATS':dom.playerStats.classList.remove('panel-hidden');updatePlayerScreenUI();setTimeout(createStatsScreenParticles,100);break;case'ENDING_COMBAT':player.isAttacking=!1;endCombatTimer=120;showBattleBanner('Victory!','stage-clear-banner',2500);SOUNDS.stageClear();break;}}
+    function changeState(newState){Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});dom.ultBtn.classList.add('panel-hidden');dom.autoBtn.classList.add('panel-hidden');uiParticles=[];gameState=newState;switch(newState){case'COUNTDOWN':if(currentDungeon){setupBossStage(currentDungeon)}else{setupNextStage()}dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');countdownTimer=180;playSound(500,"sine",0.1,0.3);break;case'COMBAT':dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');break;case'SHOP':if(currentDungeon&&!currentDungeon.rewardGiven){if(currentDungeon.goldReward){player.gold+=currentDungeon.goldReward;addFloatingText(`+${currentDungeon.goldReward}💰`,canvas.width/2,canvas.height/2-50,'#ffd700');}if(currentDungeon.rubyReward){player.rubies=(player.rubies||0)+currentDungeon.rubyReward;addFloatingText(`+${currentDungeon.rubyReward}💎`,canvas.width/2,canvas.height/2-20,'#f94144');}currentDungeon.rewardGiven=!0}saveGame();checkSkillUnlocks();dom.shop.classList.remove('panel-hidden');updateShopUI();setTimeout(createShopParticles,100);break;case'GAME_OVER':dom.gameOver.classList.remove('panel-hidden');updateGameOverUI();break;case'PLAYER_STATS':dom.playerStats.classList.remove('panel-hidden');updatePlayerScreenUI();setTimeout(createStatsScreenParticles,100);break;case'ENDING_COMBAT':player.isAttacking=!1;endCombatTimer=120;showBattleBanner('Victory!','stage-clear-banner',2500);SOUNDS.stageClear();break;}}
     function createShopParticles() { document.querySelectorAll('#shop-screen .button, .gold-display, #shop-screen h1').forEach(el => { if (el.tagName === 'H1' || el.classList.contains('gold-display')) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: .1 }); } else { for (let i = 0; i < 3; i++) { uiParticles.push({ type: 'orbit', attachTo: el, angle: Math.random() * Math.PI * 2, speed: .01 + Math.random() * .02, radius: 1 + Math.random(), color: '#ffd700' }); } } }); }
     function createStatsScreenParticles() { document.querySelectorAll('#player-screen .progress-bar-fill').forEach(el => { if (el.getBoundingClientRect().width > 0) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: el.getBoundingClientRect().width / 2000, color: el.classList.contains('health') ? '#e63946' : el.classList.contains('attack') ? '#fca311' : el.classList.contains('rage') ? '#9d4edd' : el.classList.contains('regen') ? '#52b788' : '#00b4d8' }); } }); }
     function setupBossStage(dungeon) {enemies = [];currentStage = dungeon.boss.level;const boss = dungeon.boss;enemies.push({x: canvas.width / 2,y: 150,baseY: 150,hp: boss.maxHp,maxHp: boss.maxHp,attack: boss.attack,radius: 40,color: "#e63946",attackCooldown: 90,attackTimer: 120,isAttacking: false,chargeTimer: 0});}
@@ -837,8 +862,6 @@
             SOUNDS.click();
             bootScreen.classList.add('fade-out');
             bootScreen.addEventListener('transitionend', () => {
-                bootScreen.classList.add('hidden'); // final hide
-                playerXpContainer.classList.remove('hidden');
                 showScreen('main');
             }, { once: true });
         });
