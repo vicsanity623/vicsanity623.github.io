@@ -12,7 +12,7 @@ const CACHE_NAME = 'eternal-immortal-cache-v0.0.3';
 // This should include all your core assets.
 const URLS_TO_CACHE = [
   '/', // The root of your site (index.html)
-  'dungeon_map.html', // Explicitly cache index.html
+  'index.html', // Explicitly cache index.html
   'manifest.json',
   'icon-192x192.PNG',
   'icon-512x512.PNG',
