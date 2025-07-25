@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dungeon Crawler RPG</title>
+    <title>EternalImmortal</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
@@ -331,6 +331,11 @@
     </style>
 </head>
 <body>
+    <audio id="bg-music" loop>
+    <source src="music.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
     <div id="boot-screen" class="screen-container">
         <div class="boot-content">
             <h1 id="boot-title">EternalImmortal</h1>
@@ -1246,6 +1251,15 @@
 
         startGameButton.addEventListener('click', () => {
             SOUNDS.click();
+
+            // --- START THE MUSIC ---
+            const backgroundMusic = document.getElementById('bg-music');
+            if (backgroundMusic) {
+                backgroundMusic.volume = 0.3; // Set a reasonable volume (0.0 to 1.0)
+                backgroundMusic.play().catch(error => console.log("Music play failed:", error));
+            }
+            // --- END MUSIC START ---
+
             bootScreen.classList.add('fade-out');
             bootScreen.addEventListener('transitionend', () => {
                 showScreen('main');
