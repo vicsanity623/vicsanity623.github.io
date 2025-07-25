@@ -150,7 +150,29 @@
         #map-screen {
             background-image: radial-gradient(circle at 50% 30%, #1a5c69, #0f343d 50%, #031018 85%);
             border: 2px solid #4a6a7c;
+            /* overflow: auto;  <-- We REMOVED this from here */
         }
+        /* NEW rule for our scroll container */
+        #map-scroll-area {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        /* NEW rule for the button container */
+        #map-button-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            gap: 10px;
+        }
+        #map-screen::-webkit-scrollbar { display: none; }
+        #map-screen { -ms-overflow-style: none; scrollbar-width: none; }
+        #map-content { position: relative; width: 100%; height: 100%; }
+
         .dungeon-node {
             position: absolute;
             width: 80px;
@@ -168,7 +190,7 @@
         .dungeon-node.locked { filter: grayscale(1) brightness(0.6); cursor: not-allowed; }
         .dungeon-node.locked .icon { color: #6a7f8c; text-shadow: none; }
         .dungeon-node.locked::after { content: "\f023"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; font-size: 40px; color: rgba(255, 255, 255, 0.8); text-shadow: 0 0 5px black; }
-        .dungeon-node.completed .icon { color: #7b8f9c; text-shadow: 0 0 5px #3a4850; }
+        .dungeon-node.completed .icon { color: #a0b8c8; text-shadow: 0 0 5px #3a4850; }
         .dungeon-node.active .icon { animation: pulse 2s infinite; }
         @keyframes pulse { 0% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } 50% { transform: scale(1.1); text-shadow: 0 0 20px #aaffff; } 100% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } }
         #path-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -281,11 +303,14 @@
          <div id="upgrade-screen-back-button" class="button small" style="margin-top: 30px;">Back to World</div>
     </div>
     <div id="map-screen" class="screen-container hidden">
-        <svg id="path-svg">
-            <defs><linearGradient id="line-gradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#6efcff;stop-opacity:0" /><stop offset="50%" style="stop-color:#6efcff;stop-opacity:1" /><stop offset="100%" style="stop-color:#6efcff;stop-opacity:0" /></linearGradient></defs>
-            <path id="player-path" d="" />
-        </svg>
-        <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 10px;">
+        <!-- This new div will handle the scrolling -->
+        <div id="map-scroll-area">
+            <div id="map-content">
+                <svg id="path-svg"></svg>
+            </div>
+        </div>
+        <!-- The buttons are now outside the scroll area and have a proper ID -->
+        <div id="map-button-container">
             <button id="map-back-button" class="button small">Back to World</button>
             <button id="global-reset-button" class="button small danger">Reset</button>
         </div>
@@ -331,6 +356,16 @@
     let currentDungeon = null;
     let playerProgress = { completed: [] };
     
+    const GEN_DATA = {
+        nameParts1: ["Tomb", "Crypt", "Cave", "Den", "Lair", "Dungeon", "Fortress", "Catacomb", "Hall", "Spire", "Pits"],
+        nameParts2: ["of the", "of", "beneath the", "in the"],
+        nameParts3: ["Sorrow", "Lost King", "Fallen", "Dread", "Screaming", "Whispering", "Ancient", "Forgotten", "Gloom", "Abyss"],
+        icons: ['fa-chess-rook', 'fa-cross', 'fa-fort-awesome', 'fa-skull', 'fa-spider', 'fa-dragon', 'fa-mountain', 'fa-tree', 'fa-ankh'],
+        bossIcons: ['fa-ghost', 'fa-skull-crossbones', 'fa-robot', 'fa-hat-wizard', 'fa-pastafarianism', 'fa-user-secret', 'fa-user-ninja'],
+        bossNames1: ["Grave Lord", "Dread Knight", "Soul Eater", "Chaos Bringer", "Abyssal", "Mad", "Ironclad"],
+        bossNames2: ["Zarthus", "Malakor", "Shana", "Harven", "Grolnok", "Vexia", "Mortis"]
+    };
+
     function showScreen(screenName) {
         mainScreen.classList.add('hidden');
         playerUpgradeScreen.classList.add('hidden');
@@ -397,17 +432,11 @@
         document.getElementById('upgrade-screen-regen-button').classList.toggle('disabled', player.gold < player.costs.healthRegen);
     }
     
-    const dungeonsData = {
-        'tomb-of-guardians': {id: 'tomb-of-guardians',name: 'Tomb of Guardians',position: { top: '20%', left: '50%' },icon: 'fa-chess-rook',isUnlockedByDefault: true,unlocks: 'fallen-cemetery',boss: {name: 'Dreadshade Shana',level: 10,icon: 'fa-ghost',attack: 15,maxHp: 800},mode: 'Adventure Mode',rewards: [{ name: 'Rubies', amount: 'x250', icon: 'fa-gem icon-ruby' },{ name: 'Epic Shards', amount: 'x20', icon: 'fa-puzzle-piece icon-shard' },{ name: 'Energy Potion', amount: 'x1', icon: 'fa-flask icon-potion' },{ name: 'Gold', amount: 'x5.4k', icon: 'fa-coins icon-gold' }]},
-        'fallen-cemetery': {id: 'fallen-cemetery',name: 'Fallen Cemetery',position: { top: '50%', left: '65%' },icon: 'fa-cross',unlocks: 'dread-fortress',boss: {name: 'Harven, Battle Butcher',level: 12,icon: 'fa-skull-crossbones',attack: 20,maxHp: 1200},mode: 'Challenge Mode',rewards: [{ name: 'Material Chest', amount: 'x1', icon: 'fa-box icon-chest' },{ name: 'Ferulia Shards', amount: 'x5', icon: 'fa-puzzle-piece icon-shard' },{ name: 'Energy Potion', amount: 'x1', icon: 'fa-flask icon-potion' },{ name: 'Gold', amount: 'x8.1k', icon: 'fa-coins icon-gold' }]},
-        'dread-fortress': {id: 'dread-fortress',name: 'Dread Fortress',position: { top: '45%', left: '35%' },icon: 'fa-fort-awesome',unlocks: null,boss: {name: 'Ironclad Golem',level: 15,icon: 'fa-robot',attack: 25,maxHp: 2000},mode: 'Elite Challenge',rewards: [{ name: 'Legendary Chest', amount: 'x1', icon: 'fa-box-open icon-chest' },{ name: 'Rubies', amount: 'x500', icon: 'fa-gem icon-ruby' },{ name: 'Gold', amount: 'x15k', icon: 'fa-coins icon-gold' }]}
-    };
-
     function loadProgress() { const saved = localStorage.getItem(DUNGEON_SAVE_KEY); if (saved) playerProgress = JSON.parse(saved); }
     function saveProgress() { localStorage.setItem(DUNGEON_SAVE_KEY, JSON.stringify(playerProgress)); }
     function hideModal() { detailsModal.classList.remove('visible'); lockedModal.classList.remove('visible'); }
     function showDetailsModal(dungeonId) {
-        const data = dungeonsData[dungeonId];
+        const data = player.dungeonMap[dungeonId];
         document.getElementById('modal-title').textContent = data.name; document.getElementById('modal-mode').textContent = data.mode; document.getElementById('modal-boss-name').textContent = data.boss.name; document.getElementById('modal-boss-level').textContent = data.boss.level; document.getElementById('modal-boss-icon').innerHTML = `<i class="fas ${data.boss.icon}"></i>`;
         const rewardsGrid = document.getElementById('modal-rewards');
         rewardsGrid.innerHTML = '';
@@ -417,27 +446,66 @@
         detailsModal.classList.add('visible');
     }
     function drawPath() {
-        const playerPath = document.getElementById('player-path');
-        const activeDungeon = Object.values(dungeonsData).find(d => (d.isUnlockedByDefault || Object.values(dungeonsData).some(parent => parent.unlocks === d.id && playerProgress.completed.includes(parent.id))) && !playerProgress.completed.includes(d.id));
-        const lastCompletedDungeon = playerProgress.completed.length > 0 ? dungeonsData[playerProgress.completed[playerProgress.completed.length - 1]] : null;
-        if (!activeDungeon || !lastCompletedDungeon) { playerPath.setAttribute('d', ''); return; }
-        const startNode = mapScreen.querySelector(`#${lastCompletedDungeon.id}`), endNode = mapScreen.querySelector(`#${activeDungeon.id}`);
-        if (startNode && endNode) { const startX = startNode.offsetLeft + startNode.offsetWidth / 2, startY = startNode.offsetTop + startNode.offsetHeight / 2, endX = endNode.offsetLeft + endNode.offsetWidth / 2, endY = endNode.offsetTop + endNode.offsetHeight / 2; playerPath.setAttribute('d', `M${startX},${startY} Q${(startX + endX)/2},${(startY + endY)/2 - 50} ${endX},${endY}`); }
+        const svg = document.getElementById('path-svg');
+        let pathData = '';
+        const mapContent = document.getElementById('map-content');
+
+        Object.values(player.dungeonMap).forEach(parentDungeon => {
+            if (parentDungeon.unlocks && parentDungeon.unlocks.length > 0) {
+                 const startNode = mapContent.querySelector(`#${parentDungeon.id}`);
+                 if (startNode) {
+                    parentDungeon.unlocks.forEach(childId => {
+                        const endNode = mapContent.querySelector(`#${childId}`);
+                        if (endNode) {
+                            const startX = startNode.offsetLeft + startNode.offsetWidth / 2;
+                            const startY = startNode.offsetTop + startNode.offsetHeight / 2;
+                            const endX = endNode.offsetLeft + endNode.offsetWidth / 2;
+                            const endY = endNode.offsetTop + endNode.offsetHeight / 2;
+                            pathData += `M${startX},${startY} L${endX},${endY} `;
+                        }
+                    });
+                }
+            }
+        });
+        svg.innerHTML = `<defs><linearGradient id="line-gradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#6efcff;stop-opacity:0" /><stop offset="50%" style="stop-color:#6efcff;stop-opacity:1" /><stop offset="100%" style="stop-color:#6efcff;stop-opacity:0" /></linearGradient></defs><path d="${pathData}" />`;
     }
     function initializeMap() {
         loadProgress();
-        const existingNodes = mapScreen.querySelectorAll('.dungeon-node');
-        existingNodes.forEach(node => node.remove());
-        Object.values(dungeonsData).forEach(data => {
+        const mapContent = document.getElementById('map-content');
+        mapContent.innerHTML = '<svg id="path-svg"></svg>';
+
+        let maxTop = 0;
+
+        Object.values(player.dungeonMap).forEach(data => {
             const node = document.createElement('div');
-            node.className = 'dungeon-node'; node.id = data.id; node.style.top = data.position.top; node.style.left = data.position.left; node.style.transform = `translate(-50%, -50%)`;
+            node.className = 'dungeon-node'; node.id = data.id; 
+            node.style.top = `${data.position.top}px`; 
+            node.style.left = `${data.position.left}%`; 
+            node.style.transform = `translateX(-50%)`;
             node.innerHTML = `<div class="icon"><i class="fas ${data.icon}"></i></div><div class="name">${data.name}</div>`;
-            const isUnlocked = data.isUnlockedByDefault || Object.values(dungeonsData).some(parent => parent.unlocks === data.id && playerProgress.completed.includes(parent.id));
-            const isCompleted = playerProgress.completed.includes(data.id);
-            if (isCompleted) node.classList.add('completed'); else if (isUnlocked) node.classList.add('active'); else node.classList.add('locked');
+            
+            const dungeonData = player.dungeonMap[data.id];
+            const isCompleted = dungeonData && (dungeonData.completionCount || 0) > 0;
+
+            const unlockedByDungeonData = player.dungeonMap[data.unlockedBy];
+            const isUnlocked = data.isUnlockedByDefault || (data.unlockedBy && unlockedByDungeonData && (unlockedByDungeonData.completionCount || 0) > 0);
+
+            if (isUnlocked) node.classList.add('active'); 
+            else node.classList.add('locked');
+
+            if (isCompleted) node.classList.add('completed');
+            
             node.addEventListener('click', () => { if (isUnlocked) showDetailsModal(data.id); else lockedModal.classList.add('visible'); });
-            mapScreen.appendChild(node);
+            mapContent.appendChild(node);
+
+            if (data.position.top > maxTop) {
+                maxTop = data.position.top;
+            }
         });
+        
+        mapContent.style.height = `${Math.max(800, maxTop + 200)}px`;
+        document.getElementById('path-svg').style.height = mapContent.style.height;
+
         drawPath();
     }
     const canvas = document.getElementById('game-canvas'), ctx = canvas.getContext('2d');
@@ -480,15 +548,123 @@
         }
     }
 
+    function generateDungeonName() {
+        return `${GEN_DATA.nameParts1[Math.floor(Math.random() * GEN_DATA.nameParts1.length)]} ${GEN_DATA.nameParts2[Math.floor(Math.random() * GEN_DATA.nameParts2.length)]} ${GEN_DATA.nameParts3[Math.floor(Math.random() * GEN_DATA.nameParts3.length)]}`;
+    }
+
+    function addNewDungeons(triggeringDungeonId) {
+        let lastDungeon = player.dungeonMap[triggeringDungeonId];
+        const depth = Object.keys(player.dungeonMap).length; // A better way to calculate difficulty depth
+
+        // We create two dungeons in a chain: parent -> newDungeonA -> newDungeonB
+        for (let i = 0; i < 2; i++) {
+            const newDungeonId = `dungeon-${Date.now()}-${i}`;
+            const bossLevel = 10 + depth + i; // Slightly scale boss level as we go down
+
+            // Determine the side for the next node based on the parent's position.
+            // If the parent is on the left (<50%), the child goes to the right (70%), and vice-versa.
+            // We add a little randomness to make the map look more organic.
+            const newLeftPosition = (lastDungeon.position.left < 50) 
+                ? 70 + (Math.random() * 10 - 5) 
+                : 30 + (Math.random() * 10 - 5);
+
+            const newDungeon = {
+                id: newDungeonId,
+                name: generateDungeonName(),
+                completionCount: 0,
+                evolutionLevel: 0,
+                position: { 
+                    top: lastDungeon.position.top + 160 + (Math.random() * 30),
+                    left: newLeftPosition
+                },
+                icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
+                
+                // This is the key change: we chain the dungeons together.
+                unlockedBy: lastDungeon.id, 
+                unlocks: [], // This new node starts with no unlocks.
+                
+                boss: {
+                    name: `${GEN_DATA.bossNames1[Math.floor(Math.random() * GEN_DATA.bossNames1.length)]} ${GEN_DATA.bossNames2[Math.floor(Math.random() * GEN_DATA.bossNames2.length)]}`,
+                    level: bossLevel,
+                    icon: GEN_DATA.bossIcons[Math.floor(Math.random() * GEN_DATA.bossIcons.length)],
+                    attack: Math.floor(10 + bossLevel * 2.5),
+                    maxHp: Math.floor(500 + bossLevel * 80)
+                },
+                mode: 'Endless Challenge',
+                rewards: [
+                    { name: 'Gold', amount: `x${(8 + depth * 2).toFixed(0)}k`, icon: 'fa-coins icon-gold' },
+                    { name: 'Rubies', amount: `x${(200 + depth * 50)}`, icon: 'fa-gem icon-ruby' }
+                ]
+            };
+            newDungeon.baseName = newDungeon.name; // Store the original name for evolutions
+            
+            // Add the new dungeon to our map data
+            player.dungeonMap[newDungeonId] = newDungeon;
+            
+            // Link the parent to this new dungeon
+            lastDungeon.unlocks.push(newDungeonId);
+            
+            // For the next loop iteration, this new dungeon becomes the parent
+            lastDungeon = newDungeon;
+        }
+    }
+
+
     function initGame(fromScratch=false, silent=false){
         if (!silent) gameState='LOADING';
         if (!player || fromScratch) {
             currentStage=1;
-            player={hp:100,rage:0,gold:0,level:1,xp:0,xpToNextLevel:100,stats:{maxHp:createStat({name:"Max Health",current:100,target:500,baseGain:20,color:'health'}),attackPower:createStat({name:"Attack Power",current:10,target:100,baseGain:2,color:'attack'}),rageGain:createStat({name:"Rage Gain",current:5,target:50,baseGain:1,color:'rage'}),healthRegen:createStat({name:"Health Regen",current:0,target:10,baseGain:.5,isFloat:!0,displaySuffix:'/s',color:'regen'})},costs:{maxHp:10,attackPower:10,rageGain:20,healthRegen:30},skills:{},x:canvas.width/2,y:canvas.height-150,size:40,color:"#61a5c2",isAttacking:!1,attackAnimTimer:0,baseY:canvas.height-150,sword:{angle:0,length:30}};
+            player={hp:100,rage:0,gold:0,level:1,xp:0,xpToNextLevel:100, dungeonCompletions: 0, dungeonMap:{}, stats:{maxHp:createStat({name:"Max Health",current:100,target:500,baseGain:20,color:'health'}),attackPower:createStat({name:"Attack Power",current:10,target:100,baseGain:2,color:'attack'}),rageGain:createStat({name:"Rage Gain",current:5,target:50,baseGain:1,color:'rage'}),healthRegen:createStat({name:"Health Regen",current:0,target:10,baseGain:.5,isFloat:!0,displaySuffix:'/s',color:'regen'})},costs:{maxHp:10,attackPower:10,rageGain:20,healthRegen:30},skills:{},x:canvas.width/2,y:canvas.height-150,size:40,color:"#61a5c2",isAttacking:!1,attackAnimTimer:0,baseY:canvas.height-150,sword:{angle:0,length:30}};
             Object.keys(SKILLS_DATA).forEach(id=>{player.skills[id]={isUnlocked:!1,cooldownTimer:0,level:1,currentXP:0,targetXP:SKILLS_DATA[id].baseTargetXP}});
             isAutoBattle=!1;
         }
         if(!fromScratch) loadGame();
+
+        if (Object.keys(player.dungeonMap).length === 0) {
+            let lastDungeon = null;
+            // Define a simple zig-zag pattern for the first three nodes: Center, Left, Right
+            const startingLeftPositions = [50, 30, 70]; 
+
+            for (let i = 0; i < 3; i++) {
+                const dungeonId = `starter-${i}`;
+                const dungeon = {
+                    id: dungeonId,
+                    name: generateDungeonName(),
+                    completionCount: 0,
+                    evolutionLevel: 0,
+                    
+                    // --- LAYOUT LOGIC ---
+                    // Only the very first dungeon is unlocked by default.
+                    isUnlockedByDefault: (i === 0), 
+                    // Link to the previous dungeon in the chain.
+                    unlockedBy: lastDungeon ? lastDungeon.id : null, 
+                    unlocks: [],
+                    position: {
+                        // Each dungeon is 160px lower than the previous one.
+                        top: 100 + (i * 160), 
+                        // Use our pre-defined zig-zag pattern.
+                        left: startingLeftPositions[i] + (Math.random() * 10 - 5) 
+                    },
+                    // --- END LAYOUT LOGIC ---
+
+                    icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
+                    boss: { name: 'Stone Guardian', level: 5, icon: 'fa-ghost', attack: 10, maxHp: 500 },
+                    mode: 'Standard',
+                    rewards: [{ name: 'Gold', amount: 'x1k', icon: 'fa-coins icon-gold' }]
+                };
+                dungeon.baseName = dungeon.name;
+                player.dungeonMap[dungeon.id] = dungeon;
+
+                // If this isn't the first dungeon, update the *previous* dungeon's `unlocks` array.
+                if (lastDungeon) {
+                    lastDungeon.unlocks.push(dungeon.id);
+                }
+
+                // This dungeon now becomes the "lastDungeon" for the next loop iteration.
+                lastDungeon = dungeon;
+            }
+        }
+
         if (!silent) {
             endCombatTimer=0;enemies=[];particles=[];floatingTexts=[];projectiles=[];healthOrbs=[];shakeDuration=0;uiParticles=[];skillVisuals=[];
             player.hp=player.stats.maxHp.current;
@@ -496,7 +672,7 @@
         }
     }
     function saveGame(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({player,currentStage,isAutoBattle}))}catch(e){console.error("Could not save game:",e)}}
-    function loadGame(){try{const savedData=localStorage.getItem(SAVE_KEY);if(!savedData)return;const loaded=JSON.parse(savedData);if(!loaded.player||typeof loaded.player.stats.maxHp==="number"||!loaded.player.skills.orbitalStrike.level){console.log("Old or invalid save detected, resetting player data.");return}else{player=loaded.player}if(player.level===undefined){player.level=1;player.xp=0;player.xpToNextLevel=100}currentStage=loaded.currentStage;isAutoBattle=loaded.isAutoBattle}catch(e){console.error("Could not load save data, starting fresh.",e)}}
+    function loadGame(){try{const savedData=localStorage.getItem(SAVE_KEY);if(!savedData)return;const loaded=JSON.parse(savedData);if(!loaded.player||typeof loaded.player.stats.maxHp==="number"||!loaded.player.skills.orbitalStrike.level){console.log("Old or invalid save detected, resetting player data.");return}else{player=loaded.player}if(player.level===undefined){player.level=1;player.xp=0;player.xpToNextLevel=100}if(!player.dungeonMap){player.dungeonMap={};player.dungeonCompletions=0;}Object.values(player.dungeonMap).forEach(d => { if(d.completionCount === undefined) d.completionCount = 0; if(d.evolutionLevel === undefined) d.evolutionLevel = 0; if(!d.baseName) d.baseName = d.name; });currentStage=loaded.currentStage;isAutoBattle=loaded.isAutoBattle}catch(e){console.error("Could not load save data, starting fresh.",e)}}
     function resetGame(){if(confirm("Are you sure you want to reset all progress? This cannot be undone.")){localStorage.removeItem(SAVE_KEY);localStorage.removeItem(DUNGEON_SAVE_KEY);playerProgress={completed:[]};player=null;showScreen('main');}}
     const audioCtx=new(window.AudioContext||window.webkitAudioContext);function playSound(f,t,d,v=.5){try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g),g.connect(audioCtx.destination),o.type=t,o.frequency.setValueAtTime(f,audioCtx.currentTime),g.gain.setValueAtTime(v,audioCtx.currentTime),g.gain.exponentialRampToValueAtTime(1e-4,audioCtx.currentTime+d),o.start(),o.stop(audioCtx.currentTime+d)}catch(e){}}
     const SOUNDS={click:()=>playSound(440,"sine",.1,.3),playerAttack:()=>playSound(200,"square",.1,.2),enemyAttack:()=>playSound(150,"sawtooth",.1,.2),hit:()=>playSound(880,"triangle",.15,.5),enemyDeath:()=>playSound(100,"sawtooth",.4,.4),ultimate:()=>playSound(80,"sawtooth",.8,.7),upgrade:()=>playSound(600,"triangle",.2,.4),gameOver:()=>playSound(150,"sawtooth",.8,.5),stageClear:()=>playSound(783,"sine",.5),heal:()=>playSound(523,"triangle",.2,.4),levelUp:()=>playSound(900,"sawtooth",.3,.5)};
@@ -533,7 +709,7 @@
     function updateShopUI() {if (currentDungeon) {document.getElementById('shop-title').textContent = `${currentDungeon.name} Cleared!`;document.getElementById('shop-subtitle').textContent = "You are victorious. Claim your rewards.";dom.proceedBtn.textContent = 'Return to Map';} else {document.getElementById('shop-title').textContent = `Stage ${currentStage} Cleared!`;document.getElementById('shop-subtitle').textContent = 'Spend Gold to grow stronger.';dom.proceedBtn.textContent = 'Next Stage';} dom.goldDisplay.textContent = `${player.gold}`;document.getElementById('attack-power-stat').textContent=player.stats.attackPower.current;document.getElementById('max-health-stat').textContent=player.stats.maxHp.current;document.getElementById('rage-gain-stat').textContent=player.stats.rageGain.current;document.getElementById('health-regen-stat').textContent=player.stats.healthRegen.current.toFixed(1);document.getElementById('attack-cost').textContent=player.costs.attackPower;document.getElementById('health-cost').textContent=player.costs.maxHp;document.getElementById('rage-cost').textContent=player.costs.rageGain;document.getElementById('regen-cost').textContent=player.costs.healthRegen;dom.upgradeBtns.attack.classList.toggle('disabled',player.gold<player.costs.attackPower);dom.upgradeBtns.health.classList.toggle('disabled',player.gold<player.costs.maxHp);dom.upgradeBtns.rage.classList.toggle('disabled',player.gold<player.costs.rageGain);dom.upgradeBtns.regen.classList.toggle('disabled',player.gold<player.costs.healthRegen);}
     function updateGameOverUI() {if (currentDungeon) {document.getElementById('game-over-message').textContent = `Defeated by ${currentDungeon.boss.name}`;dom.retryBtn.textContent = "Return to Map";} else {document.getElementById('game-over-message').innerHTML = `You reached Stage <span id="final-stage-reached">${currentStage}</span>`;dom.retryBtn.textContent = "Try Again";}}
     function updatePlayerScreenUI(){const statsContainer=document.querySelector(".stats-container"),skillsContainer=document.querySelector(".skills-container");statsContainer.innerHTML="";skillsContainer.innerHTML='<h2>Skills</h2>';Object.values(player.stats).forEach(stat=>{const progress=stat.current/stat.target*100,block=document.createElement("div");block.className="stat-block",block.innerHTML=`<div class="stat-header"><h3 id="stat-title-${stat.color}">${stat.name}</h3><span>Level ${stat.level}</span></div><p class="stat-value">${stat.isFloat?stat.current.toFixed(1):stat.current} / ${stat.target}${stat.displaySuffix}</p><div class="progress-bar-container"><div id="progress-${stat.color}" class="progress-bar-fill ${stat.color}" style="width: ${Math.min(progress,100)}%;"></div></div>`,statsContainer.appendChild(block)});Object.keys(SKILLS_DATA).forEach(id=>{const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],block=document.createElement("div");block.className="skill-block";if(playerSkill.isUnlocked){const progress=playerSkill.currentXP/playerSkill.targetXP*100;block.innerHTML=`<div class="skill-header"><h3 id="skill-title-${id}">${skillData.name}</h3><span>Level ${playerSkill.level}</span></div><p>${getSkillDescription(id)}</p><div class="progress-bar-container"><div class="progress-bar-fill skill" style="width: ${Math.min(progress,100)}%;"></div></div>`}else{block.classList.add("locked");block.innerHTML=`<h3>${skillData.name}</h3><p>Unlock by clearing Stage ${skillData.unlockStage}</p>`}skillsContainer.appendChild(block)})}
-    function getSkillDescription(id){const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],level=playerSkill.level;const damage=Math.floor(player.stats.attackPower.current*(skillData.baseDamageMultiplier+(level-1)*skillData.damageMultiplierPerLevel));switch(id){case'orbitalStrike':return`Launches an orb dealing ${damage} damage.`;case'chainLightning':const jumps=skillData.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);return`Lightning hits ${jumps+1} enemies for ${damage} damage.`;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);return`Calls down ${count} meteors that deal ${damage} damage.`}}
+    function getSkillDescription(id){const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],level=playerSkill.level;const damage=Math.floor(player.stats.attackPower.current*(skillData.baseDamageMultiplier+(level-1)*skillData.damageMultiplierPerLevel));switch(id){case'orbitalStrike':return`Launches an orb dealing ${damage} damage.`;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);return`Lightning hits ${jumps+1} enemies for ${damage} damage.`;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);return`Calls down ${count} meteors that deal ${damage} damage.`}}
     function buyUpgrade(type, fromUpgradeScreen = false){if(player.gold<player.costs[type])return;SOUNDS.upgrade();player.gold-=player.costs[type];player.costs[type]=Math.floor(1.15*player.costs[type]+5);const stat=player.stats[type];stat.current+=stat.baseGain;if(stat.current>=stat.target){SOUNDS.levelUp();stat.level++;stat.current-=stat.target;stat.target=Math.floor(1.8*stat.target);stat.baseGain=stat.isFloat?1.4*stat.baseGain:Math.ceil(1.5*stat.baseGain);const titleSelector = fromUpgradeScreen ? `#upgrade-screen-${stat.color}-title` : `#stat-title-${stat.color}`; const title=document.querySelector(titleSelector); title&&(title.classList.add("level-up"),setTimeout(()=>title.classList.remove("level-up"),1e3))}saveGame();if(fromUpgradeScreen){updatePlayerUpgradeScreenUI()}else{updateShopUI();if(gameState==="PLAYER_STATS")updatePlayerScreenUI()}}
     function checkSkillUnlocks() {Object.keys(SKILLS_DATA).forEach(id => {const skillData = SKILLS_DATA[id], playerSkill = player.skills[id];if (!playerSkill.isUnlocked && currentStage > skillData.unlockStage) {playerSkill.isUnlocked = true;showBattleBanner(`${skillData.name} Unlocked!`, "ultimate-banner", 3000)}})}
     document.getElementById('dungeons-button').onclick = () => showScreen('map');
@@ -547,14 +723,56 @@
     document.getElementById('upgrade-screen-health-button').onclick = () => buyUpgrade('maxHp', true);
     document.getElementById('upgrade-screen-rage-button').onclick = () => buyUpgrade('rageGain', true);
     document.getElementById('upgrade-screen-regen-button').onclick = () => buyUpgrade('healthRegen', true);
-    dom.proceedBtn.onclick = () => {if (currentDungeon) {if (!playerProgress.completed.includes(currentDungeon.id)) {playerProgress.completed.push(currentDungeon.id);}saveProgress();currentDungeon = null; showScreen('map');} else {currentStage++;changeState('COUNTDOWN');}};
+    dom.proceedBtn.onclick = () => {
+        if (currentDungeon) {
+            // This is the main logic for completing a dungeon
+            
+            // Increment total dungeon completions
+            player.dungeonCompletions = (player.dungeonCompletions || 0) + 1;
+
+            // Get the specific dungeon from our map data
+            const completedDungeon = player.dungeonMap[currentDungeon.id];
+            completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
+
+            // --- PROBLEM 2: EVOLUTION LOGIC ---
+            // This will now work because completionCount is being saved.
+            if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
+                completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
+                const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
+                const prefix = evolutionPrefixes[Math.min(completedDungeon.evolutionLevel - 1, evolutionPrefixes.length - 1)];
+                completedDungeon.name = `${prefix} ${completedDungeon.baseName}`;
+                completedDungeon.boss.level = Math.floor(completedDungeon.boss.level * 1.2);
+                completedDungeon.boss.maxHp = Math.floor(completedDungeon.boss.maxHp * 1.5);
+                completedDungeon.boss.attack = Math.floor(completedDungeon.boss.attack * 1.3);
+            }
+
+            // --- PROBLEM 1: NEW DUNGEON LOGIC ---
+            // This will now work because player.dungeonCompletions is being saved.
+            if (player.dungeonCompletions > 0 && player.dungeonCompletions % 3 === 0) {
+                addNewDungeons(currentDungeon.id);
+            }
+
+            // --- THE FIX ---
+            // Save the entire player object, which contains all the counters.
+            saveGame(); 
+            
+            // (The old, redundant saveProgress() and its logic have been removed)
+
+            currentDungeon = null;
+            showScreen('map');
+        } else {
+            // This is the logic for the endless wave mode, not dungeons
+            currentStage++;
+            changeState('COUNTDOWN');
+        }
+    };
     dom.retryBtn.onclick = () => {if(currentDungeon) {currentDungeon = null; showScreen('map');} else {player.hp=player.stats.maxHp.current;changeState('SHOP');}};
     dom.statsBtn.onclick=()=>changeState('PLAYER_STATS');
     dom.backBtn.onclick=()=>changeState('SHOP');
     dom.upgradeBtns.attack.onclick=()=>buyUpgrade('attackPower');dom.upgradeBtns.health.onclick=()=>buyUpgrade('maxHp');dom.upgradeBtns.rage.onclick=()=>buyUpgrade('rageGain');dom.upgradeBtns.regen.onclick=()=>buyUpgrade('healthRegen');
     dom.autoBtn.onclick=()=>{isAutoBattle=!isAutoBattle;dom.autoBtn.classList.toggle('active',isAutoBattle);};dom.ultBtn.onclick=()=>{if(gameState!=='COMBAT'||player.rage<100)return;player.rage=0;SOUNDS.ultimate();showBattleBanner('RAGE BURST!','ultimate-banner',1500);triggerScreenShake(20);enemies.forEach(e=>{const t=5*player.stats.attackPower.current;e.hp-=t;createExplosion(e.x,e.y,40,'#f72585',5,10);addFloatingText(t,e.x,e.y,'#f72585');});};canvas.addEventListener('click',e=>{if(gameState!=='COMBAT')return;const t=canvas.getBoundingClientRect(),a=e.clientX-t.left,s=e.clientY-t.top;let n=null;enemies.forEach(e=>{Math.hypot(a-e.x,s-e.y)<e.radius&&(n=e)});isAutoBattle||playerAttack(n);healthOrbs.forEach((e,t)=>{if(Math.hypot(a-e.x,s-e.y)<e.radius){const a=Math.floor(.1*player.stats.maxHp.current);player.hp=Math.min(player.stats.maxHp.current,player.hp+a);addFloatingText(`+${a}`,player.x,player.y,'#4caf50');SOUNDS.heal();healthOrbs.splice(t,1);}});});
     function playerAttack(target){if(!target||player.isAttacking)return;player.isAttacking=!0;player.attackAnimTimer=20;SOUNDS.playerAttack();projectiles.push({x:player.x,y:player.y,target:target,speed:15,isPlayer:!0,damage:player.stats.attackPower.current+Math.floor(5*Math.random())})}
-    function updateSkills(){if(enemies.length===0)return;Object.keys(player.skills).forEach(id=>{const skill=player.skills[id];if(!skill.isUnlocked)return;skill.cooldownTimer++;const skillData=SKILLS_DATA[id];const cooldown=Math.max(30,skillData.baseCooldown-(skill.level-1)*skillData.cooldownReductionPerLevel);if(skill.cooldownTimer>cooldown){skill.cooldownTimer=0;skill.currentXP++;if(skill.currentXP>=skill.targetXP){skill.level++;skill.currentXP-=skill.targetXP;skill.targetXP=Math.floor(skill.targetXP*1.5);SOUNDS.levelUp()}const damage=getSkillDescription(id).match(/\d+/)[0];const randomEnemy=enemies[Math.floor(Math.random()*enemies.length)];if(!randomEnemy)return;switch(id){case'orbitalStrike':skillVisuals.push({type:'orbitalStrike',x:player.x,y:player.y,target:randomEnemy,speed:3,damage,life:300});break;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((skill.level-1)/SKILLS_DATA.chainLightning.jumpsPerLevel);let targets=[randomEnemy];for(let i=0;i<jumps;i++){const lastTarget=targets[targets.length-1],potentialNext=enemies.filter(e=>!targets.includes(e)).sort((a,b)=>Math.hypot(a.x-lastTarget.x,a.y-lastTarget.y)-Math.hypot(b.x-lastTarget.x,b.y-lastTarget.y));if(potentialNext.length>0)targets.push(potentialNext[0])}targets.forEach(e=>e.hp-=damage);skillVisuals.push({type:'chainLightning',targets,life:30});break;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);for(let i=0;i<count;i++){const targetX=randomEnemy.x-100+200*Math.random();skillVisuals.push({type:'meteor',x:targetX,y:-50,targetY:randomEnemy.y-50+100*Math.random(),speed:8,damage,life:200})}break}}})}
+    function updateSkills(){if(enemies.length===0)return;Object.keys(player.skills).forEach(id=>{const skill=player.skills[id];if(!skill.isUnlocked)return;skill.cooldownTimer++;const skillData=SKILLS_DATA[id];const cooldown=Math.max(30,skillData.baseCooldown-(skill.level-1)*skillData.cooldownReductionPerLevel);if(skill.cooldownTimer>cooldown){skill.cooldownTimer=0;skill.currentXP++;if(skill.currentXP>=skill.targetXP){skill.level++;skill.currentXP-=skill.targetXP;skill.targetXP=Math.floor(skill.targetXP*1.5);SOUNDS.levelUp()}const damage=getSkillDescription(id).match(/\d+/)[0];const randomEnemy=enemies[Math.floor(Math.random()*enemies.length)];if(!randomEnemy)return;switch(id){case'orbitalStrike':skillVisuals.push({type:'orbitalStrike',x:player.x,y:player.y,target:randomEnemy,speed:3,damage,life:300});break;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);let targets=[randomEnemy];for(let i=0;i<jumps;i++){const lastTarget=targets[targets.length-1],potentialNext=enemies.filter(e=>!targets.includes(e)).sort((a,b)=>Math.hypot(a.x-lastTarget.x,a.y-lastTarget.y)-Math.hypot(b.x-lastTarget.x,b.y-lastTarget.y));if(potentialNext.length>0)targets.push(potentialNext[0])}targets.forEach(e=>e.hp-=damage);skillVisuals.push({type:'chainLightning',targets,life:30});break;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);for(let i=0;i<count;i++){const targetX=randomEnemy.x-100+200*Math.random();skillVisuals.push({type:'meteor',x:targetX,y:-50,targetY:randomEnemy.y-50+100*Math.random(),speed:8,damage,life:200})}break}}})}
     function updateCountdown() { countdownTimer--; if(countdownTimer % 60 === 0 && countdownTimer > 0) { playSound(500, "sine", 0.1, 0.3); } if (countdownTimer <= 0) { changeState('COMBAT'); playSound(800, "sine", 0.1, 0.4); } }
     function updateCombat(){if(player.isAttacking){player.attackAnimTimer--;if(player.attackAnimTimer<=0)player.isAttacking=!1}if(isAutoBattle&&!player.isAttacking&&enemies.length>0){let e=enemies.reduce((e,t)=>Math.hypot(e.x-player.x,e.y-player.y)<Math.hypot(t.x-player.x,t.y-player.y)?e:t);playerAttack(e)}updateSkills();enemies.forEach(e=>{e.attackTimer++;if(e.attackTimer>=e.attackCooldown&&!e.isAttacking){e.isAttacking=!0;e.chargeTimer=30}if(e.chargeTimer>0){e.chargeTimer--;if(e.chargeTimer<=0){e.attackTimer=0;SOUNDS.enemyAttack();projectiles.push({x:e.x,y:e.y,target:player,speed:10,isPlayer:!1,damage:e.attack})}}else if(e.isAttacking)e.isAttacking=!1;if(e.flash>0)e.flash--});projectiles.forEach((e,t)=>{const a=e.target.x-e.x,s=e.target.y-e.y,n=Math.hypot(a,s);if(n<e.speed){e.target.hp-=e.damage;e.target.flash=5;if(e.isPlayer)player.rage=Math.min(player.rage+player.stats.rageGain.current,100);SOUNDS.hit();triggerScreenShake(e.isPlayer?5:8);createExplosion(e.target.x,e.target.y,20,e.isPlayer?"#fff":"#ff4d4d");addFloatingText(e.damage,e.target.x,e.y,e.isPlayer?"#ffd700":"#ff4d4d");projectiles.splice(t,1)}else{e.x+=a/n*e.speed;e.y+=s/n*e.speed}});if(player.hp<=0)return SOUNDS.gameOver(),void changeState("GAME_OVER");const deadEnemies=enemies.filter(e=>e.hp<=0);deadEnemies.forEach(e=>{createExplosion(e.x,e.y,50,e.color,4,8);SOUNDS.enemyDeath();player.gold+=Math.floor(1.5*currentStage+5);const xpGain=Math.floor(5*currentStage+Math.random()*5);gainXP(xpGain);});enemies=enemies.filter(e=>e.hp>0);if(enemies.length===0&&gameState==="COMBAT")changeState("ENDING_COMBAT");if(Math.random()<.005&&healthOrbs.length<3)healthOrbs.push({x:40+Math.random()*(canvas.width-80),y:100+300*Math.random(),radius:12,life:600,pulse:0})}
     
@@ -581,12 +799,6 @@
     
     function updateExplorationMode() {
         if (!player) return;
-        if (player.hp <= 0) {
-            SOUNDS.gameOver();
-            saveGame();
-            showScreen('main');
-            return;
-        }
 
         explorationBackgroundStars.forEach(star => { star.x -= star.speed; if (star.x < 0) { star.x = explorationCanvas.width; star.y = Math.random() * explorationCanvas.height; }});
         
@@ -600,7 +812,7 @@
         }
 
         if (!player.isAttacking && explorationEnemies.length > 0) {
-            let closestEnemy = explorationEnemies.reduce((a, b) => (Math.hypot(b.x - player.x, b.y - player.y) < Math.hypot(a.x - player.x, a.y - player.y) ? b : a));
+            let closestEnemy = explorationEnemies[0];
             if (closestEnemy) {
                 player.isAttacking = true;
                 player.attackAnimTimer = 20;
@@ -610,24 +822,23 @@
         }
         if (player.isAttacking) { player.attackAnimTimer--; if (player.attackAnimTimer <= 0) player.isAttacking = false; }
         
+        const battleLineX = player.x + 80;
         explorationEnemies.forEach(e => {
-            e.x -= 2;
-            if (e.x < player.x + player.size) {
-                e.attackTimer++;
-                if (e.attackTimer >= e.attackCooldown) {
-                    e.attackTimer = 0;
-                    player.hp -= e.attack;
-                    triggerScreenShake(8);
-                    addFloatingText(e.attack, player.x, player.y, '#ff4d4d');
-                    SOUNDS.hit();
-                }
+            if (e.x > battleLineX) {
+                e.x -= 2;
             }
         });
 
         projectiles.forEach((p, i) => {
+            if (!p.target || p.target.hp <= 0) {
+                projectiles.splice(i, 1);
+                return;
+            }
             const dx = p.target.x - p.x, dy = p.target.y - p.y, dist = Math.hypot(dx, dy);
-            if (dist < p.speed || p.target.hp <= 0) {
-                if(p.target.hp > 0) { p.target.hp -= p.damage; SOUNDS.hit(); addFloatingText(p.damage, p.target.x, p.target.y, '#ffd700'); }
+            if (dist < p.speed) {
+                p.target.hp -= p.damage; 
+                SOUNDS.hit(); 
+                addFloatingText(p.damage, p.target.x, p.target.y, '#ffd700'); 
                 createExplosion(p.target.x, p.target.y, 20, '#fff');
                 projectiles.splice(i, 1);
             } else { p.x += dx / dist * p.speed; p.y += dy / dist * p.speed; }
@@ -783,6 +994,7 @@
     }
     function gameLoop(){update();draw();requestAnimationFrame(gameLoop)}
     
+    initGame(false, true);
     showScreen('main');
     gameLoop();
     </script>
