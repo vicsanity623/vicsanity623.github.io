@@ -1,5 +1,5 @@
 // A unique name for your cache
-const CACHE_NAME = 'eternal-immortal-cache-v0.0.4';
+const CACHE_NAME = 'eternal-immortal-cache-v0.0.5';
 
 // The list of files to cache on install
 // This should include all your core assets.
@@ -14,6 +14,7 @@ const URLS_TO_CACHE = [
   '/', // The root of your site (index.html)
   'index.html', // Explicitly cache index.html
   'manifest.json',
+  'music.mp3',
   'icon-192x192.PNG',
   'icon-512x512.PNG',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css' // The external stylesheet
