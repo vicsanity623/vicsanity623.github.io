@@ -3,28 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EternalImmortal RPG</title>
+    <title>Dungeon Crawler RPG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#031018">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="icon-192x192.PNG">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400&display=swap');
+        body { margin: 0; background-color: #031018; color: #e0e0e0; font-family: 'Roboto', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; user-select: none; }
         
-        :root {
-            --primary-text: #e0e0e0;
-            --fantasy-gold: #ffd700;
-            --fantasy-ruby: #e63946;
-            --fantasy-energy: #6efcff;
-            --ui-bg-dark: rgba(20, 25, 35, 0.75);
-            --ui-border-light: rgba(180, 190, 210, 0.4);
-            --ui-border-dark: rgba(0, 0, 0, 0.5);
-        }
-
-        body { margin: 0; background-color: #031018; color: var(--primary-text); font-family: 'Roboto', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; user-select: none; }
-        
-        /* --- BOOT SCREEN STYLES (Unchanged) --- */
+        /* --- BOOT SCREEN STYLES (Corrected) --- */
         #boot-screen {
             background-image: radial-gradient(ellipse at 50% 0%, #3d2c58, #031018 70%);
             display: flex;
@@ -103,268 +88,154 @@
         }
         /* --- END BOOT SCREEN STYLES --- */
 
-        /* --- ENHANCED PLAYER UI BAR --- */
-        #player-xp-container { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 60px;
-            z-index: 200; 
-            display: flex; 
-            justify-content: flex-end; /* Align items to the right */
-            align-items: center; 
-            padding: 5px 20px; /* MODIFIED: Increased right padding */
-            background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
-            box-sizing: border-box;
-            transform: none; 
-            background-color: transparent; 
-            backdrop-filter: none;
-            box-shadow: none;
-            border: none;
-            gap: 20px; /* MODIFIED: Added gap between resources and profile */
-        }
-
-        /* NEW: Wrapper for resource icons */
-        #main-menu-resources {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .resource-display {
+        /* --- NEW TOP BAR UI --- */
+        #top-bar-container {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
             display: flex;
             align-items: center;
             gap: 8px;
-            font-weight: bold;
-            font-size: 16px;
-            color: #fff;
-            background-color: var(--ui-bg-dark);
-            padding: 4px 12px;
+            width: 95%;
+            max-width: 430px;
+            justify-content: flex-end; /* Align items to the right side of the main container */
+        }
+
+        #player-info-bar {
+            display: flex;
+            align-items: center;
+            background-color: #1a1f2c;
+            border: 1px solid #4a5468;
             border-radius: 20px;
-            border: 1px solid var(--ui-border-light);
-            box-shadow: 0 1px 3px var(--ui-border-dark);
-            min-width: 80px;
-            justify-content: center;
-        }
-        .resource-display i {
-            font-size: 14px;
-        }
-        #player-gold-display .fa-coins { color: var(--fantasy-gold); }
-        #player-energy-display .fa-bolt { color: var(--fantasy-energy); }
-        #player-rubies-display { display: none; /* Hide the old one */ }
-
-        #main-menu-profile {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background-color: var(--ui-bg-dark);
-            border-radius: 25px;
-            padding: 4px 15px 4px 4px;
-            border: 1px solid var(--ui-border-light);
-            box-shadow: 0 1px 3px var(--ui-border-dark);
-        }
-        
-        .profile-avatar {
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background: linear-gradient(145deg, #454955, #22252a);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            color: #9fa6b8;
-            border: 2px solid #6b7385;
-        }
-
-        /* NEW: Wrapper for profile text */
-        .profile-info {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-
-        #player-level { 
-            font-weight: 500;
-            font-size: 16px; 
-            color: #fff;
-            line-height: 1.2;
-            text-align: right;
-            margin: 0;
-        }
-        #player-level .level-num {
-            font-size: 13px;
-            font-weight: 400;
-            color: #b0c4de;
-        }
-        
-        #xp-bar { 
-            width: 100px;
-            height: 8px;
-            background-color: #1a1c22;
-            border-radius: 4px;
+            height: 40px;
             position: relative;
             overflow: hidden;
-            border: 1px solid #000;
-            margin-top: 2px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            flex-grow: 1;
+            margin-right: auto; /* Pushes itself to the left */
         }
-        #xp-bar-fill { 
-            width: 60%; /* Example fill */
+
+        #player-avatar {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            background-color: #0d1117;
+            border-right: 1px solid #4a5468;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #player-avatar .fa-user-shield {
+            font-size: 24px;
+            color: #a0b8c8;
+        }
+
+        #player-level-badge {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            background-color: #3d4a66;
+            color: #e0e0e0;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #4a5468;
+            line-height: 1;
+        }
+        
+        #xp-bar-wrapper {
+            flex-grow: 1;
             height: 100%;
-            background: linear-gradient(90deg, #5eabff, var(--fantasy-energy));
+            position: relative;
+            background-color: #333; /* Background for the empty part of the bar */
+        }
+
+        #xp-bar-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%; /* Controlled by JS */
+            background: linear-gradient(90deg, #6a3093, #a044ff);
             transition: width 0.3s ease;
         }
-        #xp-text { display: none; /* Text not needed in this style */ }
-        #player-rubies-display.resource-display { display: flex; } /* Re-enable as resource */
-        
-        @keyframes xp-level-up-flash { 0%, 100% { transform: scale(1); box-shadow: 0 1px 3px var(--ui-border-dark); } 50% { transform: scale(1.05); box-shadow: 0 0 15px var(--fantasy-gold); } }
 
-        /* --- END PLAYER UI BAR --- */
+        #xp-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 500;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+
+        #player-resources-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: #1a1f2c;
+            border: 1px solid #4a5468;
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #e0e0e0;
+            height: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            min-width: 50px; /* Ensure a minimum width */
+            justify-content: center;
+        }
+        
+        .resource-item i {
+            font-size: 16px;
+        }
+
+        @keyframes xp-level-up-flash { 
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.5); 
+            } 50% { 
+                transform: scale(1.03); 
+                box-shadow: 0 0 20px rgba(255, 215, 0, 0.7); 
+            } 
+        }
+        /* --- END NEW TOP BAR UI --- */
 
         .screen-container { position: relative; width: 450px; height: 800px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); overflow: hidden; }
         .hidden { display: none !important; }
-
-        /* --- ENHANCED MAIN SCREEN --- */
-        #main-screen { 
-            background-image: linear-gradient(to top, #c1d9e8 0%, #87b3d1 40%, #5b8aab 100%);
-            border: 2px solid #5a4a78; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        #character-showcase-platform {
-            position: absolute;
-            bottom: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 380px;
-            height: 250px;
-            background: radial-gradient(ellipse at 50% 100%, rgba(255, 230, 180, 0.4) 0%, rgba(255, 220, 150, 0) 70%);
-            pointer-events: none;
-        }
-        #character-showcase-platform::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            height: 2px;
-            background: linear-gradient(to right, transparent, rgba(255, 230, 180, 0.7), transparent);
-            filter: blur(1px);
-        }
-
-        #main-menu-sidebar {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            z-index: 10;
-        }
-        
-        .world-button { 
-            /* Base styles for all buttons, if any */
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        #main-menu-sidebar .world-button {
-            position: relative;
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(145deg, #4a4e5a, #2c2f37);
-            border: 2px solid #7a8294;
-            border-top-color: #a0a8ba;
-            border-left-color: #a0a8ba;
-            border-radius: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1);
-        }
-        #main-menu-sidebar .world-button:hover {
-            transform: scale(1.1);
-            border-color: var(--fantasy-energy);
-            box-shadow: 0 0 15px var(--fantasy-energy);
-        }
-        #main-menu-sidebar .world-button .icon {
-            font-size: 32px;
-            margin: 0;
-            color: #c8d3e8;
-            text-shadow: 0 0 8px rgba(0,0,0,0.5);
-        }
-        #main-menu-sidebar .world-button .label {
-            display: none; /* Labels are hidden in this design */
-        }
-        #main-menu-sidebar .world-button:hover .label {
-            display: block;
-            position: absolute;
-            left: 110%;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--ui-bg-dark);
-            padding: 8px 15px;
-            border-radius: 5px;
-            color: white;
-            font-family: 'Cinzel', serif;
-            font-size: 16px;
-            white-space: nowrap;
-            border: 1px solid var(--ui-border-light);
-        }
-
-        /* Old button styles override */
-        #dungeons-button, #exploration-button, #station-button {
-            position: static;
-            transform: none;
-            width: auto;
-            height: auto;
-            flex-direction: row;
-        }
-
-        #main-quest-tracker {
-            position: absolute;
-            bottom: 25px;
-            right: 20px;
-            width: 280px;
-            background-color: var(--ui-bg-dark);
-            border: 1px solid var(--ui-border-light);
-            border-radius: 8px;
-            padding: 12px 18px;
-            box-shadow: 0 2px 5px var(--ui-border-dark);
-            color: white;
-            font-family: 'Roboto', sans-serif;
-            z-index: 10;
-        }
-        #main-quest-tracker h3 {
-            font-family: 'Cinzel', serif;
-            margin: 0 0 8px 0;
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--fantasy-gold);
-            text-shadow: none;
-            text-align: left;
-        }
-        #main-quest-tracker p {
-            margin: 0;
-            font-size: 14px;
-            color: #ccc;
-            text-shadow: none;
-            text-align: left;
-        }
-        #main-quest-tracker span {
-            display: block;
-            margin-top: 5px;
-            font-size: 12px;
-            color: #999;
-            text-align: right;
-        }
-        /* --- END ENHANCED MAIN SCREEN --- */
-
+        #main-screen { background-image: radial-gradient(ellipse at 50% 100%, #3d2c58, #0f0c14 60%); border: 2px solid #5a4a78; }
+        .world-button { position: absolute; cursor: pointer; border-radius: 15px; background-color: rgba(0,0,0,0.3); border: 2px solid rgba(138, 156, 226, 0.3); display: flex; flex-direction: column; justify-content: center; align-items: center; transition: all 0.3s ease; backdrop-filter: blur(2px); }
+        .world-button:hover { background-color: rgba(0,0,0,0.5); border-color: rgba(138, 156, 226, 0.7); transform: scale(1.05); }
+        .world-button .icon { font-size: 70px; text-shadow: 0 0 15px; margin-bottom: 10px; }
+        .world-button .label { font-family: 'Cinzel', serif; font-size: 24px; font-weight: bold; color: #fff; text-shadow: 1px 1px 3px #000; }
+        #dungeons-button { top: 18%; left: 50%; transform: translateX(-50%); width: 180px; height: 180px; }
+        #dungeons-button .icon { color: #6efcff; }
+        #exploration-button { top: 48%; left: 50%; transform: translateX(-50%); width: 180px; height: 180px; }
+        #exploration-button .icon { color: #90be6d; }
+        #station-button { top: 78%; left: 50%; transform: translateX(-50%); width: 160px; height: 160px; }
+        #station-button .icon { color: #f9c74f; }
         #map-screen { border: 2px solid #4a6a7c; }
         #map-background-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         #map-scroll-area { position: relative; z-index: 2; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; }
@@ -380,7 +251,6 @@
         .dungeon-node .name { font-family: 'Cinzel', serif; font-size: 14px; font-weight: bold; color: #fff; background-color: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; margin-top: 5px; white-space: nowrap; }
         .dungeon-node.locked { filter: grayscale(1) brightness(0.6); cursor: not-allowed; }
         .dungeon-node.locked .icon { color: #6a7f8c; text-shadow: none; }
-        .dungeon-node.locked::after { content: "\f023"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; font-size: 40px; color: rgba(255, 255, 255, 0.8); text-shadow: 0 0 5px black; }
         .dungeon-node.completed .icon { color: #a0b8c8; text-shadow: 0 0 5px #3a4850; }
         .dungeon-node.active .icon { animation: pulse 2s infinite; }
         @keyframes pulse { 0% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } 50% { transform: scale(1.1); text-shadow: 0 0 20px #aaffff; } 100% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } }
@@ -402,7 +272,7 @@
         .rewards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 10px; justify-items: center; }
         .reward-item { display: flex; flex-direction: column; align-items: center; font-size: 12px; background-color: rgba(0,0,0,0.3); padding: 5px; border-radius: 5px; width: 60px; }
         .reward-icon { font-size: 30px; margin-bottom: 5px; }
-        .icon-ruby { color: var(--fantasy-ruby); } .icon-shard { color: #f3722c; } .icon-potion { color: #90be6d; } .icon-gold { color: var(--fantasy-gold); } .icon-chest { color: #577590; }
+        .icon-ruby { color: #f94144; } .icon-shard { color: #f3722c; } .icon-potion { color: #90be6d; } .icon-gold { color: #f9c74f; } .icon-chest { color: #577590; }
         .start-button { display: block; width: 100%; padding: 15px; margin-top: 25px; font-size: 20px; font-weight: bold; font-family: 'Cinzel', serif; color: #e0e0e0; background: linear-gradient(45deg, #4CAF50, #2E7D32); border: 2px solid #81C784; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s ease; }
         .start-button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4); }
         #locked-modal .modal-content { text-align: center; font-size: 18px; }
@@ -430,8 +300,8 @@
         .shop-item-info { text-align: left; }
         .shop-item-info h3 { margin: 0; font-size: 20px; }
         .shop-item-info p { margin: 5px 0 0; font-size: 14px; color: #aaa; text-align: left; }
-        .cost-text { color: var(--fantasy-gold); }
-        .gold-display { position: absolute; top: 20px; right: 20px; font-size: 24px; font-weight: bold; color: var(--fantasy-gold); background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 20px; }
+        .cost-text { color: #ffd700; }
+        .gold-display { position: absolute; top: 20px; right: 20px; font-size: 24px; font-weight: bold; color: #ffd700; background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 20px; }
         #game-over-screen h2 { color: #e63946; }
         .stats-container, .skills-container { width: 85%; }
         .skills-container h2 { font-size: 24px; margin-top: 10px; margin-bottom: 10px; }
@@ -446,7 +316,7 @@
         .skill-block p { font-size: 14px; color: #ccc; text-align: left; margin: 5px 0 0; }
         .skill-block.locked { opacity: 0.5; } .skill-block.locked h3 { color: #aaa; }
         #player-screen h3.level-up, #player-upgrade-screen h3.level-up { animation: level-up-flash 1s ease; }
-        @keyframes level-up-flash { 0%, 100% { color: #a2b0f0; transform: scale(1); } 50% { color: var(--fantasy-gold); transform: scale(1.1); } }
+        @keyframes level-up-flash { 0%, 100% { color: #a2b0f0; transform: scale(1); } 50% { color: #ffd700; transform: scale(1.1); } }
         .battle-banner { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); font-size: 48px; font-weight: bold; color: #fff; padding: 10px 30px; border-radius: 10px; z-index: 20; pointer-events: none; opacity: 0; }
         .stage-clear-banner { background: linear-gradient(90deg, #4CAF50, #2E7D32); text-shadow: 0 0 10px #fff; animation: ultimate-flash 2.5s ease-out forwards; }
         .ultimate-banner { background: linear-gradient(90deg, #f72585, #7209b7); text-shadow: 0 0 10px #fff; animation: ultimate-flash 1.5s ease-out forwards; }
@@ -455,7 +325,7 @@
         #ult-button { left: 10px; bottom: 10px; background: #5a1835; border-color: #f72585; }
         #auto-battle-button { right: 10px; bottom: 10px; background: #555; border-color: #888; }
         #auto-battle-button.active { background: linear-gradient(45deg, #4CAF50, #2E7D32); border-color: #81C784; }
-        #ult-button.is-flashing { animation: flash-effect 0.8s infinite; border: 2px solid var(--fantasy-gold); }
+        #ult-button.is-flashing { animation: flash-effect 0.8s infinite; border: 2px solid #ffd700; }
         @keyframes flash-effect { 0%, 100% { filter: brightness(1); box-shadow: 0 4px 15px rgba(247, 37, 133, 0.4); } 50% { filter: brightness(1.8); box-shadow: 0 6px 30px rgba(247, 37, 133, 0.9); } }
     </style>
 </head>
@@ -470,56 +340,52 @@
         </div>
     </div>
 
-    <!-- ENHANCED PLAYER UI BAR -->
-    <div id="player-xp-container" class="hidden">
-        <div id="main-menu-resources">
-            <div id="player-gold-display" class="resource-display">
-                <i class="fas fa-coins"></i> <span id="player-gold-total">0</span>
+    <!-- NEW TOP BAR UI STRUCTURE -->
+    <div id="top-bar-container" class="hidden">
+        <!-- Player Info (Avatar, Level, XP) -->
+        <div id="player-info-bar">
+            <div id="player-avatar">
+                <i class="fas fa-user-shield"></i>
+                <div id="player-level-badge">1</div>
             </div>
-            <div id="player-rubies-display" class="resource-display">
-                <i class="fas fa-gem icon-ruby"></i> <span id="player-rubies-total">0</span>
-            </div>
-            <div id="player-energy-display" class="resource-display">
-                <i class="fas fa-bolt"></i> <span>79/85</span>
-            </div>
-        </div>
-        <div id="main-menu-profile">
-            <div class="profile-info">
-                 <div id="player-level">Player<br><span class="level-num">Level 1</span></div>
-                 <div id="xp-bar">
-                    <div id="xp-bar-fill"></div>
-                    <div id="xp-text">0 / 100 XP</div>
-                </div>
-            </div>
-            <div class="profile-avatar"><i class="fas fa-user-shield"></i></div>
-        </div>
-    </div>
-    
-    <!-- ENHANCED MAIN SCREEN -->
-    <div id="main-screen" class="screen-container hidden">
-        <div id="character-showcase-platform"></div>
-        <div id="main-menu-sidebar">
-            <div id="dungeons-button" class="world-button">
-                <div class="icon"><i class="fas fa-dungeon"></i></div>
-                <div class="label">Dungeons</div>
-            </div>
-            <div id="exploration-button" class="world-button">
-                <div class="icon"><i class="fas fa-compass"></i></div>
-                <div class="label">Adventure</div>
-            </div>
-            <div id="station-button" class="world-button">
-                <div class="icon"><i class="fas fa-hammer"></i></div>
-                <div class="label">Station</div>
+            <div id="xp-bar-wrapper">
+                 <div id="xp-bar-fill"></div>
+                 <div id="xp-text">0 / 100 XP</div>
             </div>
         </div>
-        <div id="main-quest-tracker">
-            <h3>Main Quest</h3>
-            <p id="main-quest-name">Loading quest...</p>
-            <span id="main-quest-progress">0/1 (In Progress)</span>
-        </div>
-    </div>
 
-    <!-- Rest of your HTML is unchanged -->
+        <!-- Resources Group -->
+        <div id="player-resources-group">
+            <div class="resource-item" id="player-gold-display">
+                <i class="fas fa-coins" style="color: #f9c74f;"></i>
+                <span id="player-gold-total">0</span>
+            </div>
+            <div class="resource-item" id="player-rubies-display">
+                <i class="fas fa-gem icon-ruby"></i>
+                <span id="player-rubies-total">0</span>
+            </div>
+            <div class="resource-item" id="player-energy-display">
+                <i class="fas fa-bolt" style="color: #6efcff;"></i>
+                <span id="player-energy-total">85/85</span>
+            </div>
+        </div>
+    </div>
+    <!-- END OF NEW UI STRUCTURE -->
+
+    <div id="main-screen" class="screen-container hidden">
+        <div id="dungeons-button" class="world-button">
+            <div class="icon"><i class="fas fa-dungeon"></i></div>
+            <div class="label">Dungeons</div>
+        </div>
+        <div id="exploration-button" class="world-button">
+            <div class="icon"><i class="fas fa-compass"></i></div>
+            <div class="label">Exploration</div>
+        </div>
+        <div id="station-button" class="world-button">
+            <div class="icon"><i class="fas fa-hammer"></i></div>
+            <div class="label">Player Station</div>
+        </div>
+    </div>
     <div id="player-upgrade-screen" class="ui-panel scrollable-panel hidden">
          <h1>Player Station</h1>
          <p class="subtitle">Hone your skills and forge your power.</p>
@@ -564,6 +430,7 @@
     </div>
 
     <script>
+    // --- UPDATED SCRIPT ---
     const bootScreen = document.getElementById('boot-screen');
     const bootProgressBar = document.getElementById('boot-progress-bar');
     const startGameButton = document.getElementById('start-game-button');
@@ -574,15 +441,18 @@
     const explorationContainer = document.getElementById('exploration-container');
     const detailsModal = document.getElementById('details-modal');
     const lockedModal = document.getElementById('locked-modal');
-    const playerXpContainer = document.getElementById('player-xp-container');
-    const playerLevelUI = document.getElementById('player-level');
+    
+    // --- NEW UI ELEMENT SELECTORS ---
+    const topBarContainer = document.getElementById('top-bar-container');
+    const playerInfoBar = document.getElementById('player-info-bar'); // For animation
+    const playerLevelBadgeUI = document.getElementById('player-level-badge');
     const xpBarFillUI = document.getElementById('xp-bar-fill');
     const xpTextUI = document.getElementById('xp-text');
-    const playerRubiesTotalUI = document.getElementById('player-rubies-total');
     const playerGoldTotalUI = document.getElementById('player-gold-total');
-    const mainQuestNameUI = document.getElementById('main-quest-name');
-    const mainQuestProgressUI = document.getElementById('main-quest-progress');
-
+    const playerRubiesTotalUI = document.getElementById('player-rubies-total');
+    const playerEnergyTotalUI = document.getElementById('player-energy-total');
+    // --- END NEW UI SELECTORS ---
+    
     const SAVE_KEY = 'endlessShapesSaveData';
     const DUNGEON_SAVE_KEY = 'endlessShapesDungeonProgress';
     let currentDungeon = null;
@@ -603,20 +473,19 @@
         mapScreen.classList.add('hidden');
         gameContainer.classList.add('hidden');
         explorationContainer.classList.add('hidden');
-        playerXpContainer.classList.add('hidden'); // Hide by default
+        topBarContainer.classList.add('hidden'); // Hide by default
         uiParticles = [];
 
         if (screenName === 'boot') {
             bootScreen.classList.remove('hidden');
         } else {
             // Show the main UI for all other screens
-            playerXpContainer.classList.remove('hidden');
+            topBarContainer.classList.remove('hidden');
             bootScreen.classList.add('hidden');
         }
 
         if (screenName === 'main') {
             mainScreen.classList.remove('hidden');
-            updateMainQuestTracker(); // NEW: Update quest UI when showing main screen
             createMainScreenParticles();
         } else if (screenName === 'player-upgrade') {
             playerUpgradeScreen.classList.remove('hidden');
@@ -636,27 +505,12 @@
         }
     }
 
-    // NEW: Function to update the main quest tracker UI
-    function updateMainQuestTracker() {
-        if (!player || !player.mainQuestTargetId) {
-            mainQuestNameUI.textContent = "No active quest.";
-            mainQuestProgressUI.textContent = "";
-            return;
-        }
-
-        const questDungeon = player.dungeonMap[player.mainQuestTargetId];
-        if (questDungeon) {
-            mainQuestNameUI.textContent = `Complete: ${questDungeon.name}`;
-            const isCompleted = player.completedMainQuests.includes(questDungeon.id);
-            mainQuestProgressUI.textContent = isCompleted ? "Completed!" : "0/1 (In Progress)";
-        } else {
-            mainQuestNameUI.textContent = "Journey's End (for now)...";
-            mainQuestProgressUI.textContent = "More quests to come!";
-        }
-    }
-
     function createMainScreenParticles() {
-        // Particles can be added here for the new main screen if desired
+        const dungeonsButton = document.getElementById('dungeons-button');
+        if (!dungeonsButton) return;
+        const rect = dungeonsButton.getBoundingClientRect();
+        const containerRect = mainScreen.getBoundingClientRect();
+        uiParticles.push({ type: 'sparkleGenerator', x: rect.left - containerRect.left, y: rect.top - containerRect.top, width: rect.width, height: rect.height, spawnRate: 0.2, color: 'rgba(110, 252, 255, 0.7)' });
     }
 
     function updatePlayerUpgradeScreenUI() {
@@ -766,27 +620,38 @@
     let explorationEnemies = [], explorationProjectiles = [], explorationBackgroundStars = [], explorationDifficulty = 1, explorationSpawnTimer = 0;
     const SKILLS_DATA={orbitalStrike:{name:"Orbital Strike",unlockStage:10,baseCooldown:300,cooldownReductionPerLevel:2,baseDamageMultiplier:.5,damageMultiplierPerLevel:.05,baseTargetXP:10},chainLightning:{name:"Chain Lightning",unlockStage:25,baseCooldown:240,cooldownReductionPerLevel:1.5,baseDamageMultiplier:.3,damageMultiplierPerLevel:.03,baseJumps:2,jumpsPerLevel:5,baseTargetXP:15},meteorShower:{name:"Meteor Shower",unlockStage:50,baseCooldown:400,cooldownReductionPerLevel:3,baseDamageMultiplier:.8,damageMultiplierPerLevel:.1,baseCount:5,countPerLevel:10,baseTargetXP:20}};
     function createStat(c){return{name:c.name,level:c.level||1,current:c.current||0,target:c.target||100,baseGain:c.baseGain||1,displaySuffix:c.displaySuffix||'',isFloat:c.isFloat||!1,color:c.color}}
+    
+    // --- UPDATED updatePlayerXpBar FUNCTION ---
     function updatePlayerXpBar() {
         if (!player) return;
-        playerLevelUI.innerHTML = `Player<br><span class="level-num">Level ${player.level}</span>`;
+
+        // Mock energy data if it doesn't exist for demonstration
+        if (player.energy === undefined) player.energy = 85;
+        if (player.maxEnergy === undefined) player.maxEnergy = 85;
+
+        playerLevelBadgeUI.textContent = player.level;
         const xpPercentage = Math.min(100, (player.xp / player.xpToNextLevel) * 100);
         xpBarFillUI.style.width = `${xpPercentage}%`;
-        if (xpTextUI) xpTextUI.textContent = `${player.xp} / ${player.xpToNextLevel} XP`;
-        if (playerGoldTotalUI) playerGoldTotalUI.textContent = player.gold.toLocaleString();
-        if (playerRubiesTotalUI) playerRubiesTotalUI.textContent = (player.rubies || 0).toLocaleString();
+        xpTextUI.textContent = `${player.xp} / ${player.xpToNextLevel} XP`;
+        
+        playerGoldTotalUI.textContent = player.gold || 0;
+        playerRubiesTotalUI.textContent = player.rubies || 0;
+        playerEnergyTotalUI.textContent = `${player.energy}/${player.maxEnergy}`;
     }
+
+    // --- UPDATED levelUp FUNCTION ---
     function levelUp() {
         SOUNDS.levelUp();
         player.level++;
         player.xp -= player.xpToNextLevel;
         player.xpToNextLevel = Math.floor(player.xpToNextLevel * 1.5);
-        const profileElement = document.getElementById('main-menu-profile');
-        if (profileElement) {
-            profileElement.style.animation = 'xp-level-up-flash 1s ease';
-            setTimeout(() => { profileElement.style.animation = ''; }, 1000);
-        }
+        
+        playerInfoBar.style.animation = 'xp-level-up-flash 1s ease';
+        setTimeout(() => { playerInfoBar.style.animation = ''; }, 1000);
+
         if (player.xp >= player.xpToNextLevel) { levelUp(); }
     }
+
     function gainXP(amount) {
         if (!player) return;
         player.xp += amount;
@@ -837,11 +702,49 @@
             lastDungeon = newDungeon;
         }
     }
+
+    // --- Player Sprite & Visual Effects Setup ---
+    let playerSprite = new Image();
+    let playerSpriteLoaded = false;
+    playerSprite.onload = () => {
+        playerSpriteLoaded = true;
+    };
+    playerSprite.src = 'icon-192x192.PNG'; // Make sure this path is correct
+
     function initGame(fromScratch=false, silent=false){
         if (!silent) gameState='LOADING';
         if (!player || fromScratch) {
             currentStage=1;
-            player={hp:100,rage:0,gold:0, rubies:0, level:1,xp:0,xpToNextLevel:100, dungeonCompletions: 0, dungeonMap:{}, mainQuestTargetId: null, completedMainQuests: [], stats:{maxHp:createStat({name:"Max Health",current:100,target:500,baseGain:20,color:'health'}),attackPower:createStat({name:"Attack Power",current:10,target:100,baseGain:2,color:'attack'}),rageGain:createStat({name:"Rage Gain",current:5,target:50,baseGain:1,color:'rage'}),healthRegen:createStat({name:"Health Regen",current:0,target:10,baseGain:.5,isFloat:!0,displaySuffix:'/s',color:'regen'})},costs:{maxHp:10,attackPower:10,rageGain:20,healthRegen:30},skills:{},x:canvas.width/2,y:canvas.height-150,size:40,color:"#61a5c2",isAttacking:!1,attackAnimTimer:0,baseY:canvas.height-150,sword:{angle:0,length:30}};
+            player={
+                hp:100,
+                rage:0,
+                gold:0,
+                rubies:0,
+                energy: 85, // Added for new UI
+                maxEnergy: 85, // Added for new UI
+                level:1,
+                xp:0,
+                xpToNextLevel:100,
+                dungeonCompletions: 0,
+                dungeonMap:{},
+                stats:{
+                    maxHp:createStat({name:"Max Health",current:100,target:500,baseGain:20,color:'health'}),
+                    attackPower:createStat({name:"Attack Power",current:10,target:100,baseGain:2,color:'attack'}),
+                    rageGain:createStat({name:"Rage Gain",current:5,target:50,baseGain:1,color:'rage'}),
+                    healthRegen:createStat({name:"Health Regen",current:0,target:10,baseGain:.5,isFloat:!0,displaySuffix:'/s',color:'regen'})
+                },
+                costs:{maxHp:10,attackPower:10,rageGain:20,healthRegen:30},
+                skills:{},
+                x:canvas.width/2,
+                y:canvas.height-150,
+                size:60,
+                color:"#61a5c2",
+                isAttacking:!1,
+                attackAnimTimer:0,
+                baseY:canvas.height-150,
+                sword:{angle:0,length:40},
+                flash: 0
+            };
             Object.keys(SKILLS_DATA).forEach(id=>{player.skills[id]={isUnlocked:!1,cooldownTimer:0,level:1,currentXP:0,targetXP:SKILLS_DATA[id].baseTargetXP}});
             isAutoBattle=!1;
         }
@@ -858,7 +761,7 @@
                     isUnlockedByDefault: (i === 0), 
                     unlockedBy: lastDungeon ? lastDungeon.id : null, 
                     unlocks: [],
-                    goldReward: goldReward, // Store actual gold reward
+                    goldReward: goldReward,
                     position: { top: 100 + (i * 160), left: startingLeftPositions[i] + (Math.random() * 10 - 5) },
                     icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
                     boss: { name: 'Stone Guardian', level: bossLevel, icon: 'fa-ghost', attack: 10, maxHp: 500 },
@@ -871,14 +774,6 @@
                 lastDungeon = dungeon;
             }
         }
-        // NEW: Quest initialization
-        if (!player.mainQuestTargetId) {
-            player.mainQuestTargetId = 'starter-0';
-        }
-        if (!player.completedMainQuests) {
-            player.completedMainQuests = [];
-        }
-
         if (!silent) {
             endCombatTimer=0;enemies=[];particles=[];floatingTexts=[];projectiles=[];healthOrbs=[];shakeDuration=0;uiParticles=[];skillVisuals=[];
             player.hp=player.stats.maxHp.current;
@@ -886,7 +781,9 @@
         }
     }
     function saveGame(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({player,currentStage,isAutoBattle}))}catch(e){console.error("Could not save game:",e)}}
-    function loadGame(){try{const savedData=localStorage.getItem(SAVE_KEY);if(!savedData)return;const loaded=JSON.parse(savedData);if(!loaded.player||typeof loaded.player.stats.maxHp==="number"||!loaded.player.skills.orbitalStrike.level){console.log("Old or invalid save detected, resetting player data.");return}else{player=loaded.player}if(player.level===undefined){player.level=1;player.xp=0;player.xpToNextLevel=100}if(player.rubies===undefined){player.rubies=0}if(!player.dungeonMap){player.dungeonMap={};player.dungeonCompletions=0;}Object.values(player.dungeonMap).forEach(d => { if(d.completionCount === undefined) d.completionCount = 0; if(d.evolutionLevel === undefined) d.evolutionLevel = 0; if(!d.baseName) d.baseName = d.name; });currentStage=loaded.currentStage;isAutoBattle=loaded.isAutoBattle}catch(e){console.error("Could not load save data, starting fresh.",e)}}
+    function loadGame(){try{const savedData=localStorage.getItem(SAVE_KEY);if(!savedData)return;const loaded=JSON.parse(savedData);if(!loaded.player||typeof loaded.player.stats.maxHp==="number"||!loaded.player.skills.orbitalStrike.level){console.log("Old or invalid save detected, resetting player data.");return}else{player=loaded.player}
+    if(player.flash === undefined) player.flash = 0;
+    if(player.level===undefined){player.level=1;player.xp=0;player.xpToNextLevel=100}if(player.rubies===undefined){player.rubies=0}if(player.energy===undefined){player.energy=85; player.maxEnergy=85;}if(!player.dungeonMap){player.dungeonMap={};player.dungeonCompletions=0;}Object.values(player.dungeonMap).forEach(d => { if(d.completionCount === undefined) d.completionCount = 0; if(d.evolutionLevel === undefined) d.evolutionLevel = 0; if(!d.baseName) d.baseName = d.name; });currentStage=loaded.currentStage;isAutoBattle=loaded.isAutoBattle}catch(e){console.error("Could not load save data, starting fresh.",e)}}
     function resetGame(){if(confirm("Are you sure you want to reset all progress? This cannot be undone.")){localStorage.removeItem(SAVE_KEY);localStorage.removeItem(DUNGEON_SAVE_KEY);playerProgress={completed:[]};player=null;location.reload();}}
     const audioCtx=new(window.AudioContext||window.webkitAudioContext);function playSound(f,t,d,v=.5){try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g),g.connect(audioCtx.destination),o.type=t,o.frequency.setValueAtTime(f,audioCtx.currentTime),g.gain.setValueAtTime(v,audioCtx.currentTime),g.gain.exponentialRampToValueAtTime(1e-4,audioCtx.currentTime+d),o.start(),o.stop(audioCtx.currentTime+d)}catch(e){}}
     const SOUNDS={click:()=>playSound(440,"sine",.1,.3),playerAttack:()=>playSound(200,"square",.1,.2),enemyAttack:()=>playSound(150,"sawtooth",.1,.2),hit:()=>playSound(880,"triangle",.15,.5),enemyDeath:()=>playSound(100,"sawtooth",.4,.4),ultimate:()=>playSound(80,"sawtooth",.8,.7),upgrade:()=>playSound(600,"triangle",.2,.4),gameOver:()=>playSound(150,"sawtooth",.8,.5),stageClear:()=>playSound(783,"sine",.5),heal:()=>playSound(523,"triangle",.2,.4),levelUp:()=>playSound(900,"sawtooth",.3,.5)};
@@ -903,7 +800,40 @@
     function updateGameOverUI() {if (currentDungeon) {document.getElementById('game-over-message').textContent = `Defeated by ${currentDungeon.boss.name}`;dom.retryBtn.textContent = "Return to Map";} else {document.getElementById('game-over-message').innerHTML = `You reached Stage <span id="final-stage-reached">${currentStage}</span>`;dom.retryBtn.textContent = "Try Again";}}
     function updatePlayerScreenUI(){const statsContainer=document.querySelector(".stats-container"),skillsContainer=document.querySelector(".skills-container");statsContainer.innerHTML="";skillsContainer.innerHTML='<h2>Skills</h2>';Object.values(player.stats).forEach(stat=>{const progress=stat.current/stat.target*100,block=document.createElement("div");block.className="stat-block",block.innerHTML=`<div class="stat-header"><h3 id="stat-title-${stat.color}">${stat.name}</h3><span>Level ${stat.level}</span></div><p class="stat-value">${stat.isFloat?stat.current.toFixed(1):stat.current} / ${stat.target}${stat.displaySuffix}</p><div class="progress-bar-container"><div id="progress-${stat.color}" class="progress-bar-fill ${stat.color}" style="width: ${Math.min(progress,100)}%;"></div></div>`,statsContainer.appendChild(block)});Object.keys(SKILLS_DATA).forEach(id=>{const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],block=document.createElement("div");block.className="skill-block";if(playerSkill.isUnlocked){const progress=playerSkill.currentXP/playerSkill.targetXP*100;block.innerHTML=`<div class="skill-header"><h3 id="skill-title-${id}">${skillData.name}</h3><span>Level ${playerSkill.level}</span></div><p>${getSkillDescription(id)}</p><div class="progress-bar-container"><div class="progress-bar-fill skill" style="width: ${Math.min(progress,100)}%;"></div></div>`}else{block.classList.add("locked");block.innerHTML=`<h3>${skillData.name}</h3><p>Unlock by clearing Stage ${skillData.unlockStage}</p>`}skillsContainer.appendChild(block)})}
     function getSkillDescription(id){const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],level=playerSkill.level;const damage=Math.floor(player.stats.attackPower.current*(skillData.baseDamageMultiplier+(level-1)*skillData.damageMultiplierPerLevel));switch(id){case'orbitalStrike':return`Launches an orb dealing ${damage} damage.`;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);return`Lightning hits ${jumps+1} enemies for ${damage} damage.`;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);return`Calls down ${count} meteors that deal ${damage} damage.`}}
-    function buyUpgrade(type, fromUpgradeScreen = false){if(player.gold<player.costs[type])return;SOUNDS.upgrade();player.gold-=player.costs[type];player.costs[type]=Math.floor(1.15*player.costs[type]+5);const stat=player.stats[type];stat.current+=stat.baseGain;if(stat.current>=stat.target){SOUNDS.levelUp();stat.level++;stat.current-=stat.target;stat.target=Math.floor(1.8*stat.target);stat.baseGain=stat.isFloat?1.4*stat.baseGain:Math.ceil(1.5*stat.baseGain);const titleSelector = fromUpgradeScreen ? `#upgrade-screen-${stat.color}-title` : `#stat-title-${stat.color}`; const title=document.querySelector(titleSelector); title&&(title.classList.add("level-up"),setTimeout(()=>title.classList.remove("level-up"),1e3))}saveGame();if(fromUpgradeScreen){updatePlayerUpgradeScreenUI()}else{updateShopUI();if(gameState==="PLAYER_STATS")updatePlayerScreenUI()}}
+    
+    function buyUpgrade(type, fromUpgradeScreen = false){
+        if(player.gold < player.costs[type]) return;
+        SOUNDS.upgrade();
+        player.gold -= player.costs[type];
+        player.costs[type] = Math.floor(1.15 * player.costs[type] + 5);
+        const stat = player.stats[type];
+        const oldCurrentStatValue = stat.current;
+        stat.current += stat.baseGain;
+        if (type === 'maxHp') {
+            const hpGainedFromUpgrade = stat.current - oldCurrentStatValue;
+            player.hp = Math.min(player.hp + hpGainedFromUpgrade, player.stats.maxHp.current);
+        }
+        if(stat.current >= stat.target){
+            SOUNDS.levelUp();
+            stat.level++;
+            stat.target = Math.floor(1.8 * stat.target);
+            stat.baseGain = stat.isFloat ? 1.4 * stat.baseGain : Math.ceil(1.5 * stat.baseGain);
+            if (type === 'maxHp') {
+                player.hp = Math.min(player.hp, player.stats.maxHp.current);
+            }
+            const titleSelector = fromUpgradeScreen ? `#upgrade-screen-${stat.color}-title` : `#stat-title-${stat.color}`;
+            const title = document.querySelector(titleSelector);
+            title && (title.classList.add("level-up"),setTimeout(() => title.classList.remove("level-up"), 1e3));
+        }
+        saveGame();
+        if(fromUpgradeScreen){
+            updatePlayerUpgradeScreenUI();
+        }else{
+            updateShopUI();
+            if(gameState==="PLAYER_STATS")updatePlayerScreenUI();
+        }
+    }
+    
     function checkSkillUnlocks() {Object.keys(SKILLS_DATA).forEach(id => {const skillData = SKILLS_DATA[id], playerSkill = player.skills[id];if (!playerSkill.isUnlocked && currentStage > skillData.unlockStage) {playerSkill.isUnlocked = true;showBattleBanner(`${skillData.name} Unlocked!`, "ultimate-banner", 3000)}})}
     document.getElementById('dungeons-button').onclick = () => showScreen('map');
     document.getElementById('station-button').onclick = () => showScreen('player-upgrade');
@@ -918,46 +848,21 @@
     document.getElementById('upgrade-screen-regen-button').onclick = () => buyUpgrade('healthRegen', true);
     dom.proceedBtn.onclick = () => {
         if (currentDungeon) {
-            const completedDungeonData = player.dungeonMap[currentDungeon.id];
-            
-            // NEW: Main Quest Completion Logic
-            if (currentDungeon.id === player.mainQuestTargetId && !player.completedMainQuests.includes(currentDungeon.id)) {
-                showBattleBanner('Quest Complete!', 'ultimate-banner', 3000);
-                
-                // Give massive rewards
-                const questXpReward = 200 + (player.level * 50);
-                const questGoldReward = 500 + (player.level * 100);
-                const questRubyReward = 25 + (player.level * 5);
-
-                gainXP(questXpReward);
-                player.gold += questGoldReward;
-                player.rubies += questRubyReward;
-
-                addFloatingText(`+${questXpReward} XP!`, canvas.width / 2, canvas.height / 2 - 60, '#6efcff');
-                addFloatingText(`+${questGoldReward}💰`, canvas.width / 2, canvas.height / 2 - 30, '#ffd700');
-                addFloatingText(`+${questRubyReward}💎`, canvas.width / 2, canvas.height / 2, '#f94144');
-
-                // Mark quest as done and set the next one
-                player.completedMainQuests.push(currentDungeon.id);
-                const nextQuestTargetId = completedDungeonData.unlocks.length > 0 ? completedDungeonData.unlocks[0] : null;
-                player.mainQuestTargetId = nextQuestTargetId;
-            }
-
-            // Original dungeon completion logic
-            completedDungeonData.completionCount = (completedDungeonData.completionCount || 0) + 1;
-            if (completedDungeonData.completionCount > 0 && completedDungeonData.completionCount % 3 === 0) {
-                completedDungeonData.evolutionLevel = (completedDungeonData.evolutionLevel || 0) + 1;
+            player.dungeonCompletions = (player.dungeonCompletions || 0) + 1;
+            const completedDungeon = player.dungeonMap[currentDungeon.id];
+            completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
+            if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
+                completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
                 const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
-                const prefix = evolutionPrefixes[Math.min(completedDungeonData.evolutionLevel - 1, evolutionPrefixes.length - 1)];
-                completedDungeonData.name = `${prefix} ${completedDungeonData.baseName}`;
-                completedDungeonData.boss.level = Math.floor(completedDungeonData.boss.level * 1.2);
-                completedDungeonData.boss.maxHp = Math.floor(completedDungeonData.boss.maxHp * 1.5);
-                completedDungeonData.boss.attack = Math.floor(completedDungeonData.boss.attack * 1.3);
+                const prefix = evolutionPrefixes[Math.min(completedDungeon.evolutionLevel - 1, evolutionPrefixes.length - 1)];
+                completedDungeon.name = `${prefix} ${completedDungeon.baseName}`;
+                completedDungeon.boss.level = Math.floor(completedDungeon.boss.level * 1.2);
+                completedDungeon.boss.maxHp = Math.floor(completedDungeon.boss.maxHp * 1.5);
+                completedDungeon.boss.attack = Math.floor(completedDungeon.boss.attack * 1.3);
             }
             if (player.dungeonCompletions > 0 && player.dungeonCompletions % 3 === 0) {
                 addNewDungeons(currentDungeon.id);
             }
-
             saveGame(); 
             currentDungeon = null;
             showScreen('map');
@@ -972,9 +877,15 @@
     dom.upgradeBtns.attack.onclick=()=>buyUpgrade('attackPower');dom.upgradeBtns.health.onclick=()=>buyUpgrade('maxHp');dom.upgradeBtns.rage.onclick=()=>buyUpgrade('rageGain');dom.upgradeBtns.regen.onclick=()=>buyUpgrade('healthRegen');
     dom.autoBtn.onclick=()=>{isAutoBattle=!isAutoBattle;dom.autoBtn.classList.toggle('active',isAutoBattle);};dom.ultBtn.onclick=()=>{if(gameState!=='COMBAT'||player.rage<100)return;player.rage=0;SOUNDS.ultimate();showBattleBanner('RAGE BURST!','ultimate-banner',1500);triggerScreenShake(20);enemies.forEach(e=>{const t=5*player.stats.attackPower.current;e.hp-=t;createExplosion(e.x,e.y,40,'#f72585',5,10);addFloatingText(t,e.x,e.y,'#f72585');});};canvas.addEventListener('click',e=>{if(gameState!=='COMBAT')return;const t=canvas.getBoundingClientRect(),a=e.clientX-t.left,s=e.clientY-t.top;let n=null;enemies.forEach(e=>{Math.hypot(a-e.x,s-e.y)<e.radius&&(n=e)});isAutoBattle||playerAttack(n);healthOrbs.forEach((e,t)=>{if(Math.hypot(a-e.x,s-e.y)<e.radius){const a=Math.floor(.1*player.stats.maxHp.current);player.hp=Math.min(player.stats.maxHp.current,player.hp+a);addFloatingText(`+${a}`,player.x,player.y,'#4caf50');SOUNDS.heal();healthOrbs.splice(t,1);}});});
     function playerAttack(target){if(!target||player.isAttacking)return;player.isAttacking=!0;player.attackAnimTimer=20;SOUNDS.playerAttack();projectiles.push({x:player.x,y:player.y,target:target,speed:15,isPlayer:!0,damage:player.stats.attackPower.current+Math.floor(5*Math.random())})}
-    function updateSkills(){if(enemies.length===0)return;Object.keys(player.skills).forEach(id=>{const skill=player.skills[id];if(!skill.isUnlocked)return;skill.cooldownTimer++;const skillData=SKILLS_DATA[id];const cooldown=Math.max(30,skillData.baseCooldown-(skill.level-1)*skillData.cooldownReductionPerLevel);if(skill.cooldownTimer>cooldown){skill.cooldownTimer=0;skill.currentXP++;if(skill.currentXP>=skill.targetXP){skill.level++;skill.currentXP-=skill.targetXP;skill.targetXP=Math.floor(skill.targetXP*1.5);SOUNDS.levelUp()}const damage=getSkillDescription(id).match(/\d+/)[0];const randomEnemy=enemies[Math.floor(Math.random()*enemies.length)];if(!randomEnemy)return;switch(id){case'orbitalStrike':skillVisuals.push({type:'orbitalStrike',x:player.x,y:player.y,target:randomEnemy,speed:3,damage,life:300});break;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);let targets=[randomEnemy];for(let i=0;i<jumps;i++){const lastTarget=targets[targets.length-1],potentialNext=enemies.filter(e=>!targets.includes(e)).sort((a,b)=>Math.hypot(a.x-lastTarget.x,a.y-lastTarget.y)-Math.hypot(b.x-lastTarget.x,b.y-lastTarget.y));if(potentialNext.length>0)targets.push(potentialNext[0])}targets.forEach(e=>e.hp-=damage);skillVisuals.push({type:'chainLightning',targets,life:30});break;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);for(let i=0;i<count;i++){const targetX=randomEnemy.x-100+200*Math.random();skillVisuals.push({type:'meteor',x:targetX,y:-50,targetY:randomEnemy.y-50+100*Math.random(),speed:8,damage,life:200})}break}}})}
+    function updateSkills(){if(enemies.length===0)return;Object.keys(player.skills).forEach(id=>{const skill=player.skills[id];if(!skill.isUnlocked)return;skill.cooldownTimer++;const skillData=SKILLS_DATA[id];const cooldown=Math.max(30,skillData.baseCooldown-(skill.level-1)*skillData.cooldownReductionPerLevel);if(skill.cooldownTimer>cooldown){skill.cooldownTimer=0;skill.currentXP++;if(skill.currentXP>=skill.targetXP){skill.level++;skill.currentXP-=skill.targetXP;skill.targetXP=Math.floor(skill.targetXP*1.5);SOUNDS.levelUp()}const damage=getSkillDescription(id).match(/\d+/)[0];const randomEnemy=enemies[Math.floor(Math.random()*enemies.length)];if(!randomEnemy)return;switch(id){case'orbitalStrike':skillVisuals.push({type:'orbitalStrike',x:player.x,y:player.y,target:randomEnemy,speed:3,damage,life:300});break;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);let targets=[randomEnemy];for(let i=0;i<jumps;i++){const lastTarget=targets[targets.length-1],potentialNext=enemies.filter(e=>!targets.includes(e)).sort((a,b)=>Math.hypot(a.x-lastTarget.x,a.y-lastTarget.y)-Math.hypot(b.x-lastTarget.x,b.y-lastTarget.y));if(potentialNext.length>0)targets.push(potentialNext[0])}targets.forEach(e=>e.hp-=damage);skillVisuals.push({type:'chainLightning',targets,life:30});break;case'meteor':v.y+=v.speed;if(v.y>=v.targetY){enemies.forEach(e=>{if(Math.abs(e.x-v.x)<30)e.hp-=v.damage});createExplosion(v.x,v.y,30,'#fca311');v.life=0}break}}})}
     function updateCountdown() { countdownTimer--; if(countdownTimer % 60 === 0 && countdownTimer > 0) { playSound(500, "sine", 0.1, 0.3); } if (countdownTimer <= 0) { changeState('COMBAT'); playSound(800, "sine", 0.1, 0.4); } }
-    function updateCombat(){if(player.isAttacking){player.attackAnimTimer--;if(player.attackAnimTimer<=0)player.isAttacking=!1}if(isAutoBattle&&!player.isAttacking&&enemies.length>0){let e=enemies.reduce((e,t)=>Math.hypot(e.x-player.x,e.y-player.y)<Math.hypot(t.x-player.x,t.y-player.y)?e:t);playerAttack(e)}updateSkills();enemies.forEach(e=>{e.attackTimer++;if(e.attackTimer>=e.attackCooldown&&!e.isAttacking){e.isAttacking=!0;e.chargeTimer=30}if(e.chargeTimer>0){e.chargeTimer--;if(e.chargeTimer<=0){e.attackTimer=0;SOUNDS.enemyAttack();projectiles.push({x:e.x,y:e.y,target:player,speed:10,isPlayer:!1,damage:e.attack})}}else if(e.isAttacking)e.isAttacking=!1;if(e.flash>0)e.flash--});projectiles.forEach((e,t)=>{const a=e.target.x-e.x,s=e.target.y-e.y,n=Math.hypot(a,s);if(n<e.speed){e.target.hp-=e.damage;e.target.flash=5;if(e.isPlayer)player.rage=Math.min(player.rage+player.stats.rageGain.current,100);SOUNDS.hit();triggerScreenShake(e.isPlayer?5:8);createExplosion(e.target.x,e.target.y,20,e.isPlayer?"#fff":"#ff4d4d");addFloatingText(e.damage,e.target.x,e.y,e.isPlayer?"#ffd700":"#ff4d4d");projectiles.splice(t,1)}else{e.x+=a/n*e.speed;e.y+=s/n*e.speed}});if(player.hp<=0)return SOUNDS.gameOver(),void changeState("GAME_OVER");const deadEnemies=enemies.filter(e=>e.hp<=0);deadEnemies.forEach(e=>{createExplosion(e.x,e.y,50,e.color,4,8);SOUNDS.enemyDeath();if(!currentDungeon){player.gold+=Math.floor(1.5*currentStage+5)}const xpGain=Math.floor(5*currentStage+Math.random()*5);gainXP(xpGain);});enemies=enemies.filter(e=>e.hp>0);if(enemies.length===0&&gameState==="COMBAT")changeState("ENDING_COMBAT");if(Math.random()<.005&&healthOrbs.length<3)healthOrbs.push({x:40+Math.random()*(canvas.width-80),y:100+300*Math.random(),radius:12,life:600,pulse:0})}
+    function updateCombat(){
+        if (player.flash > 0) player.flash--;
+        if(player.isAttacking){player.attackAnimTimer--;if(player.attackAnimTimer<=0)player.isAttacking=!1}if(isAutoBattle&&!player.isAttacking&&enemies.length>0){let e=enemies.reduce((e,t)=>Math.hypot(e.x-player.x,e.y-player.y)<Math.hypot(t.x-player.x,t.y-player.y)?e:t);playerAttack(e)}updateSkills();enemies.forEach(e=>{e.attackTimer++;if(e.attackTimer>=e.attackCooldown&&!e.isAttacking){e.isAttacking=!0;e.chargeTimer=30}if(e.chargeTimer>0){e.chargeTimer--;if(e.chargeTimer<=0){e.attackTimer=0;SOUNDS.enemyAttack();projectiles.push({x:e.x,y:e.y,target:player,speed:10,isPlayer:!1,damage:e.attack})}}else if(e.isAttacking)e.isAttacking=!1;if(e.flash>0)e.flash--});projectiles.forEach((e,t)=>{const a=e.target.x-e.x,s=e.target.y-e.y,n=Math.hypot(a,s);if(n<e.speed){e.target.hp-=e.damage;e.target.flash=5;
+            if (!e.isPlayer && e.target === player) {
+                player.flash = 5;
+            }
+            if(e.isPlayer)player.rage=Math.min(player.rage+player.stats.rageGain.current,100);SOUNDS.hit();triggerScreenShake(e.isPlayer?5:8);createExplosion(e.target.x,e.target.y,20,e.isPlayer?"#fff":"#ff4d4d");addFloatingText(e.damage,e.target.x,e.y,e.isPlayer?"#ffd700":"#ff4d4d");projectiles.splice(t,1)}else{e.x+=a/n*e.speed;e.y+=s/n*e.speed}});if(player.hp<=0)return SOUNDS.gameOver(),void changeState("GAME_OVER");const deadEnemies=enemies.filter(e=>e.hp<=0);deadEnemies.forEach(e=>{createExplosion(e.x,e.y,50,e.color,4,8);SOUNDS.enemyDeath();if(!currentDungeon){player.gold+=Math.floor(1.5*currentStage+5)}const xpGain=Math.floor(5*currentStage+Math.random()*5);gainXP(xpGain);});enemies=enemies.filter(e=>e.hp>0);if(enemies.length===0&&gameState==="COMBAT")changeState("ENDING_COMBAT");if(Math.random()<.005&&healthOrbs.length<3)healthOrbs.push({x:40+Math.random()*(canvas.width-80),y:100+300*Math.random(),radius:12,life:600,pulse:0})}
     function initExplorationMode() {
         explorationEnemies = [];
         projectiles = [];
@@ -1123,21 +1034,95 @@
         uiCtx.globalAlpha = 1;
     }
     function drawBackground(){ctx.fillStyle='#0c0c14';ctx.fillRect(0,0,canvas.width,canvas.height);if(window.stars)window.stars.forEach(s=>{ctx.beginPath();ctx.arc(s.x,s.y,s.radius,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${.5+s.speed})`;ctx.fill()})}
-    function drawPlayer(){dom.ultBtn.classList.toggle('is-flashing',player.rage>=100);dom.ultBtn.style.background=player.rage>=100?'#f72585':'#5a1835';dom.autoBtn.classList.toggle('active',isAutoBattle);ctx.save();ctx.translate(player.x,player.y);ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=10;ctx.shadowOffsetY=5;ctx.fillStyle=player.color;ctx.fillRect(-player.size/2,-player.size/2,player.size,player.size);if(player.isAttacking){player.sword.angle+=.5}else{player.sword.angle+=(0-player.sword.angle)*.2}ctx.rotate(player.sword.angle);ctx.fillStyle='#ddd';ctx.fillRect(player.size/2,-3,player.sword.length,6);ctx.restore();const barWidth=100,barX=player.x-barWidth/2;ctx.fillStyle='#333';ctx.fillRect(barX,player.y+player.size/2+5,barWidth,12);ctx.fillStyle='#2a9d8f';ctx.fillRect(barX,player.y+player.size/2+5,barWidth*Math.max(0,player.hp/player.stats.maxHp.current),12);ctx.fillStyle='#554300';ctx.fillRect(barX,player.y+player.size/2+18,barWidth,8);ctx.fillStyle='#ffd700';ctx.fillRect(barX,player.y+player.size/2+18,barWidth*(player.rage/100),8)}
+    
+    function drawPlayer(){
+        dom.ultBtn.classList.toggle('is-flashing',player.rage>=100);
+        dom.ultBtn.style.background=player.rage>=100?'#f72585':'#5a1835';
+        dom.autoBtn.classList.toggle('active',isAutoBattle);
+        ctx.save();
+        ctx.translate(player.x,player.y);
+        const drawSize = player.size;
+        const halfDrawSize = drawSize / 2;
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 15;
+        ctx.shadowOffsetY = 8;
+        ctx.shadowOffsetX = 0;
+        if (player.rage >= 100) {
+            ctx.beginPath();
+            ctx.arc(0, 0, halfDrawSize * 0.9, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(247, 37, 133, ${0.4 + Math.sin(Date.now() * 0.005) * 0.2})`;
+            ctx.shadowColor = '#f72585';
+            ctx.shadowBlur = 40;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+        if (playerSpriteLoaded) {
+            let originalAlpha = ctx.globalAlpha;
+            let originalFilter = ctx.filter;
+            if (player.flash > 0) {
+                const flashAlpha = 0.8 * (player.flash / 5);
+                ctx.globalAlpha = flashAlpha;
+                ctx.filter = 'brightness(2) saturate(2) hue-rotate(0deg)';
+            } else if (player.rage >= 100) {
+                const hueShift = Math.sin(Date.now() * 0.005) * 10;
+                const brightness = 1.1 + Math.sin(Date.now() * 0.003) * 0.1;
+                ctx.filter = `brightness(${brightness}) saturate(1.2) hue-rotate(${hueShift}deg)`;
+            }
+            ctx.drawImage(playerSprite, -halfDrawSize, -halfDrawSize, drawSize, drawSize);
+            ctx.filter = originalFilter;
+            ctx.globalAlpha = originalAlpha;
+        } else {
+            ctx.fillStyle = player.color;
+            ctx.fillRect(-halfDrawSize, -halfDrawSize, drawSize, drawSize);
+        }
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 5;
+        if(player.isAttacking){
+            player.sword.angle += .6;
+        } else {
+            player.sword.angle += (0 - player.sword.angle) * .2;
+        }
+        ctx.rotate(player.sword.angle);
+        ctx.fillStyle = '#ddd';
+        ctx.fillRect(halfDrawSize * 0.7, -3, player.sword.length, 6);
+        ctx.restore();
+        const barWidth=100, barX=player.x-barWidth/2;
+        ctx.fillStyle='#333';
+        ctx.fillRect(barX,player.y+halfDrawSize+5,barWidth,12);
+        ctx.fillStyle='#2a9d8f';
+        ctx.fillRect(barX,player.y+halfDrawSize+5,barWidth*Math.max(0,player.hp/player.stats.maxHp.current),12);
+        ctx.fillStyle='#554300';
+        ctx.fillRect(barX,player.y+halfDrawSize+18,barWidth,8);
+        ctx.fillStyle='#ffd700';
+        ctx.fillRect(barX,player.y+halfDrawSize+18,barWidth*(player.rage/100),8);
+    }
+    
     function drawEnemies(){enemies.forEach(e=>{ctx.save();ctx.translate(e.x,e.y);ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=10;ctx.shadowOffsetY=5;ctx.beginPath();ctx.arc(0,0,e.radius,0,Math.PI*2);ctx.fillStyle=e.chargeTimer>0?'#ff6b6b':e.color;ctx.fill();ctx.restore();if(e.flash>0){ctx.beginPath();ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${e.flash/5})`}const barWidth=e.radius*2;ctx.fillStyle='#333';ctx.fillRect(e.x-e.radius,e.y-e.radius-15,barWidth,5);ctx.fillStyle='#c1121f';ctx.fillRect(e.x-e.radius,e.y-e.radius-15,barWidth*Math.max(0,e.hp/e.maxHp),5)})}
     function drawHealthOrbs(){healthOrbs.forEach(orb=>{ctx.save();ctx.globalAlpha=.5+Math.sin(orb.pulse)*.3;ctx.beginPath();ctx.arc(orb.x,orb.y,orb.radius,0,Math.PI*2);ctx.fillStyle='#4caf50';ctx.fill();ctx.shadowColor='#abffc0';ctx.shadowBlur=15;ctx.fill();ctx.restore()})}
-    function drawSkillVisuals(){skillVisuals.forEach(v=>{ctx.save();ctx.globalAlpha=v.life/30;switch(v.type){case'orbitalStrike':ctx.fillStyle='#9d4edd';ctx.beginPath();ctx.arc(v.x,v.y,8,0,2*Math.PI);ctx.fill();ctx.shadowColor='#fff';ctx.shadowBlur=10;ctx.fill();break;case'chainLightning':ctx.strokeStyle='#00b4d8';ctx.lineWidth=3;ctx.shadowColor='#ade8f4';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(v.targets[0].x,v.targets[0].y);for(let i=1;i<v.targets.length;i++)ctx.lineTo(v.targets[i].x,v.targets[i].y);ctx.stroke();break;case'meteor':ctx.fillStyle='#fca311';ctx.beginPath();ctx.rect(v.x-3,v.y-15,6,30);ctx.fill();break}ctx.restore()})}
+    function drawSkillVisuals(){skillVisuals.forEach(v=>{ctx.save();ctx.globalAlpha=v.life/30;switch(v.type){case'orbitalStrike':const dx=v.target.x-v.x,dy=v.target.y-v.y,dist=Math.hypot(dx,dy);if(dist<v.speed){v.target.hp-=v.damage;createExplosion(v.x,v.y,20,'#9d4edd');v.life=0}else{v.x+=dx/dist*v.speed;v.y+=dy/dist*v.speed}break;case'meteor':v.y+=v.speed;if(v.y>=v.targetY){enemies.forEach(e=>{if(Math.abs(e.x-v.x)<30)e.hp-=v.damage});createExplosion(v.x,v.y,30,'#fca311');v.life=0}break}ctx.restore()})}
     function drawEffects(){projectiles.forEach(p=>{ctx.fillStyle=p.isPlayer?'#fff':'#ff4d4d';ctx.beginPath();ctx.arc(p.x,p.y,5,0,2*Math.PI);ctx.fill()});particles.forEach(p=>{ctx.fillStyle=p.color;ctx.globalAlpha=p.life/30;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,2*Math.PI);ctx.fill()});ctx.globalAlpha=1;floatingTexts.forEach(t=>{ctx.font='bold 28px sans-serif';ctx.fillStyle=t.color;ctx.globalAlpha=t.life/60;ctx.textAlign='center';ctx.shadowColor='black';ctx.shadowBlur=4;ctx.fillText(t.text,t.x,t.y)});ctx.shadowBlur=0;ctx.shadowColor='transparent';ctx.globalAlpha=1}
-    function drawCountdown(){let text='';let scale=1+(countdownTimer%60)/30;if(countdownTimer>120){text='3'}else if(countdownTimer>60){text='2'}else if(countdownTimer>0){text='1'}if(text){ctx.save();ctx.font=`bold ${120*scale}px Cinzel`;ctx.fillStyle=`rgba(255,255,255,${1-(countdownTimer%60)/60})`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(255, 100, 100, 0.7)';ctx.shadowBlur=20;ctx.fillText(text,canvas.width/2,canvas.height/2);ctx.restore()}}
+    function drawCountdown(){let text='';let scale=1+(countdownTimer%60)/30;if(countdownTimer>120){text='3'}else if(countdownTimer>60){text='2'}else if(countdownTimer>0){text='1'}if(text){ctx.save();ctx.font=`bold ${120*scale}px Cinzel`;ctx.fillStyle;`rgba(255,255,255,${1-(countdownTimer%60)/60})`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(255, 100, 100, 0.7)';ctx.shadowBlur=20;ctx.fillText(text,canvas.width/2,canvas.height/2);ctx.restore()}}
     function drawExplorationMode() {
         const dCtx = expCtx;
         dCtx.fillStyle = '#031018';
         dCtx.fillRect(0, 0, explorationCanvas.width, explorationCanvas.height);
         explorationBackgroundStars.forEach(star => { dCtx.beginPath(); dCtx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); dCtx.fillStyle = `rgba(255, 255, 255, ${star.speed / 3})`; dCtx.fill(); });
-        dCtx.save(); dCtx.translate(player.x, player.y); dCtx.fillStyle = player.color; dCtx.fillRect(-player.size/2, -player.size/2, player.size, player.size); dCtx.restore();
+        
+        dCtx.save(); 
+        dCtx.translate(player.x, player.y);
+        const drawSize = player.size;
+        const halfDrawSize = drawSize / 2;
+        if (playerSpriteLoaded) {
+            dCtx.drawImage(playerSprite, -halfDrawSize, -halfDrawSize, drawSize, drawSize);
+        } else {
+            dCtx.fillStyle = player.color; 
+            dCtx.fillRect(-halfDrawSize, -halfDrawSize, drawSize, drawSize);
+        }
+        dCtx.restore();
+
         const barWidth=100, barX=player.x-barWidth/2;
-        dCtx.fillStyle='#333'; dCtx.fillRect(barX,player.y+player.size/2+5,barWidth,12);
-        dCtx.fillStyle='#2a9d8f'; dCtx.fillRect(barX,player.y+player.size/2+5,barWidth*Math.max(0,player.hp/player.stats.maxHp.current),12);
+        dCtx.fillStyle='#333'; dCtx.fillRect(barX,player.y+halfDrawSize+5,barWidth,12);
+        dCtx.fillStyle='#2a9d8f'; dCtx.fillRect(barX,player.y+halfDrawSize+5,barWidth*Math.max(0,player.hp/player.stats.maxHp.current),12);
         explorationEnemies.forEach(e => {
             dCtx.save(); dCtx.translate(e.x, e.y); dCtx.beginPath(); dCtx.arc(0, 0, e.radius, 0, Math.PI * 2); dCtx.fillStyle = e.color; dCtx.fill(); dCtx.restore();
             const eBarWidth=e.radius*2;
@@ -1152,7 +1137,7 @@
     }
     function draw(){
         if (!mainScreen.classList.contains('hidden')) {
-            // The main menu background is now CSS, so no canvas drawing is needed for it.
+            drawUiParticles();
         }
         if (!explorationContainer.classList.contains('hidden')) {
             drawExplorationMode();
@@ -1171,8 +1156,8 @@
 
     function initializeBootSequence() {
         let progress = 0;
-        const loadingTime = 2500; // 2.5 seconds total
-        const intervalTime = 25; // update every 25ms
+        const loadingTime = 2500;
+        const intervalTime = 25;
         const progressIncrement = 100 / (loadingTime / intervalTime);
 
         const bootInterval = setInterval(() => {
@@ -1183,7 +1168,7 @@
                 clearInterval(bootInterval);
                 setTimeout(() => {
                     startGameButton.classList.add('visible');
-                }, 300); // Small delay after bar fills
+                }, 300);
             }
         }, intervalTime);
 
@@ -1293,18 +1278,5 @@
     initMapBackground();
     gameLoop();
     </script>
-    <script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(registration => {
-                    console.log('Service Worker registered successfully:', registration.scope);
-                })
-                .catch(error => {
-                    console.log('Service Worker registration failed:', error);
-                });
-        });
-    }
-</script>
 </body>
 </html>
