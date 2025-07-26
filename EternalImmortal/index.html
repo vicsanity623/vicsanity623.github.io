@@ -223,6 +223,51 @@
             } 
         }
         /* --- END NEW TOP BAR UI --- */
+        #inventory-button {
+        bottom: 20px;
+        right: 20px;
+        width: 120px; /* Smaller button */
+        height: 120px;
+        }
+        #inventory-button .icon { font-size: 50px; color: #b5838d; }
+
+        .inventory-tabs {
+            display: flex;
+            border-bottom: 2px solid #4a6a7c;
+            margin-bottom: 20px;
+        }
+        .inventory-tab-btn {
+            flex-grow: 1;
+            padding: 15px;
+            font-size: 16px;
+            font-family: 'Cinzel', serif;
+            background: none;
+            border: none;
+            color: #a0b8c8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 3px solid transparent;
+        }
+        .inventory-tab-btn.active {
+            color: #6efcff;
+            border-bottom-color: #6efcff;
+        }
+        .inventory-tab-btn:hover {
+            background-color: rgba(110, 252, 255, 0.1);
+        }
+
+        .inventory-panel {
+            display: none; /* Hide all panels by default */
+            text-align: center;
+            padding: 10px;
+        }
+        .inventory-panel.active {
+            display: block; /* Show only the active one */
+        }
+        #stones-grid {
+            max-height: 300px;
+            overflow-y: auto;
+        }
 
         .screen-container { position: relative; width: 450px; height: 800px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); overflow: hidden; }
         .hidden { display: none !important; }
@@ -391,6 +436,10 @@
             <div class="icon"><i class="fas fa-hammer"></i></div>
             <div class="label">Player Station</div>
         </div>
+        <div id="inventory-button" class="world-button">
+            <div class="icon"><i class="fas fa-briefcase"></i></div>
+            <div class="label">Inventory</div>
+        </div>
     </div>
     <div id="player-upgrade-screen" class="ui-panel scrollable-panel hidden">
          <h1>Player Station</h1>
@@ -434,8 +483,61 @@
         <canvas id="exploration-canvas"></canvas>
         <div id="exploration-exit-button" class="button small danger">Exit</div>
     </div>
+    <div id="inventory-modal" class="modal-overlay">
+        <div class="modal-content" style="width: 95%; max-width: 420px; height: 80%;">
+            <i class="fas fa-times close-button" id="inventory-close-button"></i>
+            
+            <div class="inventory-tabs">
+                <button id="weapons-tab-btn" class="inventory-tab-btn active">Weapons</button>
+                <button id="stones-tab-btn" class="inventory-tab-btn">Stones</button>
+                <button id="souls-tab-btn" class="inventory-tab-btn">Souls</button>
+            </div>
+
+            <div class="inventory-panels">
+                <!-- WEAPONS PANEL -->
+                <div id="weapons-panel" class="inventory-panel active">
+                    <h3>Equipped Weapon</h3>
+                    <div class="shop-item" style="flex-direction: column;">
+                        <h4 id="weapon-name">Worn Bow</h4>
+                        <p>Type: <span id="weapon-type">Bow</span>, Tier: <span id="weapon-tier">0</span></p>
+                        <p>Power: <span id="weapon-power">5</span></p>
+                    </div>
+                </div>
+
+                <!-- STONES PANEL -->
+                <div id="stones-panel" class="inventory-panel">
+                    <div id="stones-grid" style="max-height: 400px; overflow-y: auto; padding: 5px;">
+                        <!-- Stones will be grouped and added here by JS -->
+                    </div>
+                </div>
+
+                <!-- SOULS PANEL -->
+                <div id="souls-panel" class="inventory-panel">
+                    <h3>Soul Core</h3>
+                    <p>Absorb souls to empower your essence, boosting all stats permanently.</p>
+                    <p>Level: <span id="soul-level">1</span></p>
+                    <div class="progress-bar-container"><div id="soul-progress-bar" class="progress-bar-fill rage"></div></div>
+                    <p><span id="soul-current">0</span> / <span id="soul-target">500</span> Souls</p>
+                    <p>Current Boost: +<span id="soul-boost">0</span>% to all stats.</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
+    const inventoryModal = document.getElementById('inventory-modal');
+    const inventoryButton = document.getElementById('inventory-button');
+    const inventoryCloseButton = document.getElementById('inventory-close-button');
+    const tabButtons = {
+        weapons: document.getElementById('weapons-tab-btn'),
+        stones: document.getElementById('stones-tab-btn'),
+        souls: document.getElementById('souls-tab-btn')
+    };
+    const panels = {
+        weapons: document.getElementById('weapons-panel'),
+        stones: document.getElementById('stones-panel'),
+        souls: document.getElementById('souls-panel')
+    };
     // --- UPDATED SCRIPT ---
     const bootScreen = document.getElementById('boot-screen');
     const bootProgressBar = document.getElementById('boot-progress-bar');
@@ -629,7 +731,8 @@
         document.getElementById('path-svg').style.height = mapContent.style.height;
         drawPath();
     }
-    const canvas = document.getElementById('game-canvas'), ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('game-canvas');
+    let ctx = canvas.getContext('2d');
     const uiCanvas = document.getElementById('ui-canvas'), uiCtx = uiCanvas.getContext('2d');
     const explorationCanvas = document.getElementById('exploration-canvas'), expCtx = explorationCanvas.getContext('2d');
     canvas.width = uiCanvas.width = explorationCanvas.width = 450;
@@ -768,37 +871,51 @@
         if (!silent) gameState='LOADING';
         if (!player || fromScratch) {
             currentStage=1;
-            player={
-                hp:100,
-                rage:0,
-                gold:0,
-                rubies:0,
-                energy: 85, // Added for new UI
-                maxEnergy: 85, // Added for new UI
-                lastEnergyUpdateTime: Date.now(), 
-                level:1,
-                xp:0,
-                xpToNextLevel:100,
-                dungeonCompletions: 0,
-                dungeonMap:{},
-                stats:{
-                    maxHp:createStat({name:"Max Health",current:100,target:500,baseGain:20,color:'health'}),
-                    attackPower:createStat({name:"Attack Power",current:10,target:100,baseGain:2,color:'attack'}),
-                    rageGain:createStat({name:"Rage Gain",current:5,target:50,baseGain:1,color:'rage'}),
-                    healthRegen:createStat({name:"Health Regen",current:0,target:10,baseGain:.5,isFloat:!0,displaySuffix:'/s',color:'regen'})
-                },
-                costs:{maxHp:10,attackPower:10,rageGain:20,healthRegen:30},
-                skills:{},
-                x:canvas.width/2,
-                y:canvas.height-150,
-                size:60,
-                color:"#61a5c2",
-                isAttacking:!1,
-                attackAnimTimer:0,
-                baseY:canvas.height-150,
-                sword:{angle:0,length:40},
-                flash: 0
-            };
+            player = {
+            hp: 100,
+            rage: 0,
+            gold: 0,
+            rubies: 0,
+            energy: 85,
+            maxEnergy: 85,
+            lastEnergyUpdateTime: Date.now(),
+            level: 1,
+            xp: 0,
+            xpToNextLevel: 100,
+            dungeonCompletions: 0,
+            dungeonMap: {},
+            stats: {
+                maxHp: createStat({ name: "Max Health", current: 100, target: 500, baseGain: 20, color: 'health' }),
+                attackPower: createStat({ name: "Attack Power", current: 10, target: 100, baseGain: 2, color: 'attack' }),
+                rageGain: createStat({ name: "Rage Gain", current: 5, target: 50, baseGain: 1, color: 'rage' }),
+                healthRegen: createStat({ name: "Health Regen", current: 0, target: 10, baseGain: .5, isFloat: !0, displaySuffix: '/s', color: 'regen' }),
+                // --- ADD NEW DEFENSE STAT ---
+                defense: createStat({ name: "Defense", current: 0, target: 100, baseGain: 1, color: 'skill' })
+            },
+            costs: { maxHp: 10, attackPower: 10, rageGain: 20, healthRegen: 30 },
+            skills: {},
+            x: canvas.width / 2,
+            y: canvas.height - 150,
+            baseY: canvas.height - 150,
+            size: 60,
+            weaponVisual: { 
+                angle: 0, 
+                animState: 'idle', // 'idle', 'drawing', 'firing'
+                animTimer: 0,
+                target: null },
+            flash: 0,
+            // --- REPLACE INVENTORY AND SOULS ---
+            inventory: {
+                // Start with a basic weapon. Tier 0 signifies it's not forged.
+                weapon: { id: 'starter_bow', type: 'bow', tier: 0, name: 'Worn Bow', power: 5 },
+                stones: [] // Stones are now complex objects
+            },
+            souls: {
+                level: 1,
+                current: 0,
+                toNextLevel: 500
+            }
+        };
             Object.keys(SKILLS_DATA).forEach(id=>{player.skills[id]={isUnlocked:!1,cooldownTimer:0,level:1,currentXP:0,targetXP:SKILLS_DATA[id].baseTargetXP}});
             isAutoBattle=!1;
         }
@@ -861,7 +978,27 @@
             if (player.rubies === undefined) player.rubies = 0;
             if (player.energy === undefined) { player.energy = 85; player.maxEnergy = 85; }
             if (player.lastEnergyUpdateTime === undefined) { player.lastEnergyUpdateTime = Date.now(); } // <-- 1. ADD THIS LINE
-            if (!player.dungeonMap) { player.dungeonMap = {}; player.dungeonCompletions = 0; }
+            // --- ADD THESE THREE CHECKS ---
+            if (player.inventory === undefined || !player.inventory.weapon) {
+                // This updates old saves to the new weapon/stone system
+                player.inventory = {
+                    weapon: { id: 'starter_bow', type: 'bow', tier: 0, name: 'Worn Bow', power: 5 },
+                    stones: []
+                };
+            }
+            if (player.souls === undefined) {
+                player.souls = { level: 1, current: 0, toNextLevel: 500 };
+            }
+            // Add check for the new defense stat
+            if (player.stats.defense === undefined) {
+                player.stats.defense = createStat({ name: "Defense", current: 0, target: 100, baseGain: 1, color: 'skill' });
+            }
+
+            if (player.size === undefined) { player.size = 60; }
+            if (player.weaponVisual === undefined || player.sword) { // <-- ADD THIS
+                delete player.sword; // Remove the old property
+                player.weaponVisual = { angle: 0, animState: 'idle', animTimer: 0, target: null };
+            }
             
             Object.values(player.dungeonMap).forEach(d => {
                 if (d.completionCount === undefined) d.completionCount = 0;
@@ -912,7 +1049,26 @@
     function updateShopUI() {if (currentDungeon) {document.getElementById('shop-title').textContent = `${currentDungeon.name} Cleared!`;document.getElementById('shop-subtitle').textContent = "You are victorious. Claim your rewards.";dom.proceedBtn.textContent = 'Return to Map';} else {document.getElementById('shop-title').textContent = `Stage ${currentStage} Cleared!`;document.getElementById('shop-subtitle').textContent = 'Spend Gold to grow stronger.';dom.proceedBtn.textContent = 'Next Stage';} dom.goldDisplay.textContent = `${player.gold}`;document.getElementById('attack-power-stat').textContent=player.stats.attackPower.current;document.getElementById('max-health-stat').textContent=player.stats.maxHp.current;document.getElementById('rage-gain-stat').textContent=player.stats.rageGain.current;document.getElementById('health-regen-stat').textContent=player.stats.healthRegen.current.toFixed(1);document.getElementById('attack-cost').textContent=player.costs.attackPower;document.getElementById('health-cost').textContent=player.costs.maxHp;document.getElementById('rage-cost').textContent=player.costs.rageGain;document.getElementById('regen-cost').textContent=player.costs.healthRegen;dom.upgradeBtns.attack.classList.toggle('disabled',player.gold<player.costs.attackPower);dom.upgradeBtns.health.classList.toggle('disabled',player.gold<player.costs.maxHp);dom.upgradeBtns.rage.classList.toggle('disabled',player.gold<player.costs.rageGain);dom.upgradeBtns.regen.classList.toggle('disabled',player.gold<player.costs.healthRegen);}
     function updateGameOverUI() {if (currentDungeon) {document.getElementById('game-over-message').textContent = `Defeated by ${currentDungeon.boss.name}`;dom.retryBtn.textContent = "Return to Map";} else {document.getElementById('game-over-message').innerHTML = `You reached Stage <span id="final-stage-reached">${currentStage}</span>`;dom.retryBtn.textContent = "Try Again";}}
     function updatePlayerScreenUI(){const statsContainer=document.querySelector(".stats-container"),skillsContainer=document.querySelector(".skills-container");statsContainer.innerHTML="";skillsContainer.innerHTML='<h2>Skills</h2>';Object.values(player.stats).forEach(stat=>{const progress=stat.current/stat.target*100,block=document.createElement("div");block.className="stat-block",block.innerHTML=`<div class="stat-header"><h3 id="stat-title-${stat.color}">${stat.name}</h3><span>Level ${stat.level}</span></div><p class="stat-value">${stat.isFloat?stat.current.toFixed(1):stat.current} / ${stat.target}${stat.displaySuffix}</p><div class="progress-bar-container"><div id="progress-${stat.color}" class="progress-bar-fill ${stat.color}" style="width: ${Math.min(progress,100)}%;"></div></div>`,statsContainer.appendChild(block)});Object.keys(SKILLS_DATA).forEach(id=>{const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],block=document.createElement("div");block.className="skill-block";if(playerSkill.isUnlocked){const progress=playerSkill.currentXP/playerSkill.targetXP*100;block.innerHTML=`<div class="skill-header"><h3 id="skill-title-${id}">${skillData.name}</h3><span>Level ${playerSkill.level}</span></div><p>${getSkillDescription(id)}</p><div class="progress-bar-container"><div class="progress-bar-fill skill" style="width: ${Math.min(progress,100)}%;"></div></div>`}else{block.classList.add("locked");block.innerHTML=`<h3>${skillData.name}</h3><p>Unlock by clearing Stage ${skillData.unlockStage}</p>`}skillsContainer.appendChild(block)})}
-    function getSkillDescription(id){const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],level=playerSkill.level;const damage=Math.floor(player.stats.attackPower.current*(skillData.baseDamageMultiplier+(level-1)*skillData.damageMultiplierPerLevel));switch(id){case'orbitalStrike':return`Launches an orb dealing ${damage} damage.`;case'chainLightning':const jumps=SKILLS_DATA.chainLightning.baseJumps+Math.floor((level-1)/skillData.jumpsPerLevel);return`Lightning hits ${jumps+1} enemies for ${damage} damage.`;case'meteorShower':const count=SKILLS_DATA.meteorShower.baseCount+Math.floor((level-1)/SKILLS_DATA.countPerLevel);return`Calls down ${count} meteors that deal ${damage} damage.`}}
+    function getSkillDescription(id) {
+        const skillData = SKILLS_DATA[id],
+            playerSkill = player.skills[id],
+            level = playerSkill.level;
+        
+        // --- THIS LINE IS THE FIX ---
+        const damage = Math.floor(player.inventory.weapon.power * (skillData.baseDamageMultiplier + (level - 1) * skillData.damageMultiplierPerLevel));
+        // --- END OF FIX ---
+
+        switch (id) {
+            case 'orbitalStrike':
+                return `Launches an orb dealing ${damage} damage.`;
+            case 'chainLightning':
+                const jumps = SKILLS_DATA.chainLightning.baseJumps + Math.floor((level - 1) / skillData.jumpsPerLevel);
+                return `Lightning hits ${jumps + 1} enemies for ${damage} damage.`;
+            case 'meteorShower':
+                const count = SKILLS_DATA.meteorShower.baseCount + Math.floor((level - 1) / SKILLS_DATA.meteorShower.countPerLevel);
+                return `Calls down ${count} meteors that deal ${damage} damage.`
+        }
+    }
     // --- NEW ENERGY REPLENISHMENT FUNCTION ---
     function updateEnergyReplenishment() {
         if (!player || player.energy >= player.maxEnergy) {
@@ -971,6 +1127,191 @@
             if(gameState==="PLAYER_STATS")updatePlayerScreenUI();
         }
     }
+
+    // --- NEW INVENTORY FUNCTIONS ---
+
+    function showInventory() {
+        updateInventoryUI();
+        inventoryModal.classList.add('visible');
+    }
+
+    function hideInventory() {
+        inventoryModal.classList.remove('visible');
+    }
+
+    function switchInventoryTab(tabName) {
+        // Deactivate all tabs and panels
+        Object.values(tabButtons).forEach(btn => btn.classList.remove('active'));
+        Object.values(panels).forEach(panel => panel.classList.remove('active'));
+        
+        // Activate the selected one
+        tabButtons[tabName].classList.add('active');
+        panels[tabName].classList.add('active');
+    }
+
+    function updateInventoryUI() {
+        // Weapons Panel
+        const weapon = player.inventory.weapon;
+        document.getElementById('weapon-name').textContent = weapon.name;
+        document.getElementById('weapon-type').textContent = weapon.type.charAt(0).toUpperCase() + weapon.type.slice(1);
+        document.getElementById('weapon-tier').textContent = weapon.tier;
+        document.getElementById('weapon-power').textContent = weapon.power;
+
+        // Stones Panel
+        const stonesGrid = document.getElementById('stones-grid');
+        stonesGrid.innerHTML = '';
+        if (player.inventory.stones.length === 0) {
+            stonesGrid.innerHTML = '<p>No stones collected. Clear 5 dungeons to find one!</p>';
+        } else {
+            const groupedStones = {};
+            player.inventory.stones.forEach(stone => {
+                const key = `${stone.type}_${stone.tier}`;
+                if (!groupedStones[key]) {
+                    groupedStones[key] = { ...stone, count: 0 };
+                }
+                groupedStones[key].count++;
+            });
+
+            Object.values(groupedStones).sort((a,b) => a.tier - b.tier || a.type.localeCompare(b.type)).forEach(group => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'shop-item';
+                const canForgeStones = group.count >= 3 && group.tier < 50;
+                const canForgeWeapon = group.tier >= 10; // Forge weapon at T10
+                
+                itemEl.innerHTML = `
+                    <div class="shop-item-info">
+                        <h3>${group.name} (x${group.count})</h3>
+                    </div>
+                    <div>
+                        <button class="button small forge-stone-btn" ${!canForgeStones ? 'disabled' : ''} data-type="${group.type}" data-tier="${group.tier}">Forge T${group.tier+1}</button>
+                        <button class="button small forge-weapon-btn" ${!canForgeWeapon ? 'disabled' : ''} data-type="${group.type}" data-tier="${group.tier}">Forge Weapon</button>
+                    </div>
+                `;
+                stonesGrid.appendChild(itemEl);
+            });
+        }
+
+        // Souls Panel
+        document.getElementById('soul-level').textContent = player.souls.level;
+        document.getElementById('soul-current').textContent = player.souls.current;
+        document.getElementById('soul-target').textContent = player.souls.toNextLevel;
+        const soulProgress = Math.min(100, (player.souls.current / player.souls.toNextLevel) * 100);
+        document.getElementById('soul-progress-bar').style.width = `${soulProgress}%`;
+        document.getElementById('soul-boost').textContent = ((player.souls.level - 1) * 2).toFixed(0); // 2% boost per level
+    }
+
+    function forgeStones(type, tier) {
+        tier = parseInt(tier);
+        if (tier >= 50) {
+            alert("This stone is at its maximum tier!");
+            return;
+        }
+
+        let removedCount = 0;
+        // Remove 3 stones of the specified type and tier
+        for (let i = player.inventory.stones.length - 1; i >= 0; i--) {
+            const stone = player.inventory.stones[i];
+            if (stone.type === type && stone.tier === tier) {
+                player.inventory.stones.splice(i, 1);
+                removedCount++;
+                if (removedCount === 3) break;
+            }
+        }
+
+        // Add 1 new stone of the next tier
+        const typeNames = { copper: 'CopperStone', iron: 'IronStone', obsidian: 'ObsidianStone' };
+        const newStone = {
+            id: `stone_${Date.now()}`,
+            type: type,
+            tier: tier + 1,
+            name: `${typeNames[type]} T${tier + 1}`
+        };
+        player.inventory.stones.push(newStone);
+
+        SOUNDS.upgrade();
+        updateInventoryUI();
+        saveGame();
+    }
+
+    function forgeNewWeapon(type, tier) {
+        tier = parseInt(tier);
+        // Find and remove one stone of the specified type and tier
+        const stoneIndex = player.inventory.stones.findIndex(s => s.type === type && s.tier === tier);
+        if (stoneIndex === -1) return; // Should not happen if button is enabled
+        player.inventory.stones.splice(stoneIndex, 1);
+
+        const weaponNames = {
+            bow: ["Sky-Piercer", "Whisperwind", "Starfall Longbow"],
+            sword: ["Soul-Drinker", "King's Bane", "Blade of the Abyss"],
+            shield: ["Aegis of Valor", "Bulwark of the Ancients", "Obsidian Mirrorwall"]
+        };
+        
+        const newWeapon = {
+            id: `${type}_${Date.now()}`,
+            type: type === 'copper' ? 'bow' : (type === 'iron' ? 'sword' : 'shield'),
+            tier: tier,
+            name: weaponNames[type === 'copper' ? 'bow' : (type === 'iron' ? 'sword' : 'shield')][Math.floor(Math.random() * 3)],
+            power: Math.floor(5 + (tier * 5) * (type === 'obsidian' ? 0.5 : 1)), // Shields have less power
+            defense: type === 'obsidian' ? Math.floor(tier * 2) : 0 // Only shields give defense
+        };
+
+        player.inventory.weapon = newWeapon;
+        SOUNDS.stageClear();
+        showBattleBanner(`Forged ${newWeapon.name}!`, 'ultimate-banner', 3000);
+        updateInventoryUI();
+        saveGame();
+    }
+
+    function refineWeapon() {
+        const weapon = player.inventory.weapons[0];
+        if (player.rubies < weapon.refineCost) return;
+        
+        player.rubies -= weapon.refineCost;
+        weapon.power = Math.floor(weapon.power * 1.1 + 5); // Increase power
+        weapon.refineCost = Math.floor(weapon.refineCost * 1.5); // Increase cost
+        
+        SOUNDS.upgrade();
+        updateInventoryUI();
+        updatePlayerXpBar(); // Update top bar UI
+        saveGame();
+    }
+
+    function checkSoulLevelUp() {
+        while (player.souls.current >= player.souls.toNextLevel) {
+            player.souls.current -= player.souls.toNextLevel;
+            player.souls.level++;
+            player.souls.toNextLevel = Math.floor(player.souls.toNextLevel * 1.8); // Increase XP requirement
+
+            // Apply a 5% boost to all core stats
+            Object.values(player.stats).forEach(stat => {
+                stat.current = Math.floor(stat.current * 1.05);
+                if(stat.isFloat) stat.current = parseFloat((stat.current * 1.05).toFixed(1));
+            });
+            player.hp = player.stats.maxHp.current; // Heal to new max HP
+            SOUNDS.levelUp();
+            showBattleBanner('SOUL CORE EMPOWERED!', 'ultimate-banner', 2500);
+        }
+    }
+
+    function gainNewStone(dungeon) {
+        const stoneTypes = ['copper', 'iron', 'obsidian'];
+        const typeNames = { copper: 'CopperStone', iron: 'IronStone', obsidian: 'ObsidianStone' };
+
+        // Higher level dungeons drop higher tier stones
+        const tier = Math.max(1, Math.floor(dungeon.boss.level / 4));
+        const type = stoneTypes[Math.floor(Math.random() * stoneTypes.length)];
+
+        const newStone = {
+            id: `stone_${Date.now()}`,
+            type: type,
+            tier: tier,
+            name: `${typeNames[type]} T${tier}`
+        };
+
+        player.inventory.stones.push(newStone);
+        showBattleBanner(`Found ${newStone.name}!`, 'stage-clear-banner', 3000);
+        saveGame();
+    }
     
     function checkSkillUnlocks() {Object.keys(SKILLS_DATA).forEach(id => {const skillData = SKILLS_DATA[id], playerSkill = player.skills[id];if (!playerSkill.isUnlocked && currentStage > skillData.unlockStage) {playerSkill.isUnlocked = true;showBattleBanner(`${skillData.name} Unlocked!`, "ultimate-banner", 3000)}})}
     document.getElementById('dungeons-button').onclick = () => showScreen('map');
@@ -989,6 +1330,11 @@
             player.dungeonCompletions = (player.dungeonCompletions || 0) + 1;
             const completedDungeon = player.dungeonMap[currentDungeon.id];
             completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
+            if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 5 === 0) {
+                gainNewStone(completedDungeon);
+            }
+            // --- END ADD ---
+
             if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
                 completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
                 const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
@@ -1014,7 +1360,31 @@
     dom.backBtn.onclick=()=>changeState('SHOP');
     dom.upgradeBtns.attack.onclick=()=>buyUpgrade('attackPower');dom.upgradeBtns.health.onclick=()=>buyUpgrade('maxHp');dom.upgradeBtns.rage.onclick=()=>buyUpgrade('rageGain');dom.upgradeBtns.regen.onclick=()=>buyUpgrade('healthRegen');
     dom.autoBtn.onclick=()=>{isAutoBattle=!isAutoBattle;dom.autoBtn.classList.toggle('active',isAutoBattle);};dom.ultBtn.onclick=()=>{if(gameState!=='COMBAT'||player.rage<100)return;player.rage=0;SOUNDS.ultimate();showBattleBanner('RAGE BURST!','ultimate-banner',1500);triggerScreenShake(20);enemies.forEach(e=>{const t=5*player.stats.attackPower.current;e.hp-=t;createExplosion(e.x,e.y,40,'#f72585',5,10);addFloatingText(t,e.x,e.y,'#f72585');});};canvas.addEventListener('click',e=>{if(gameState!=='COMBAT')return;const t=canvas.getBoundingClientRect(),a=e.clientX-t.left,s=e.clientY-t.top;let n=null;enemies.forEach(e=>{Math.hypot(a-e.x,s-e.y)<e.radius&&(n=e)});isAutoBattle||playerAttack(n);healthOrbs.forEach((e,t)=>{if(Math.hypot(a-e.x,s-e.y)<e.radius){const a=Math.floor(.1*player.stats.maxHp.current);player.hp=Math.min(player.stats.maxHp.current,player.hp+a);addFloatingText(`+${a}`,player.x,player.y,'#4caf50');SOUNDS.heal();healthOrbs.splice(t,1);}});});
-    function playerAttack(target){if(!target||player.isAttacking)return;player.isAttacking=!0;player.attackAnimTimer=20;SOUNDS.playerAttack();projectiles.push({x:player.x,y:player.y,target:target,speed:15,isPlayer:!0,damage:player.stats.attackPower.current+Math.floor(5*Math.random())})}
+    inventoryButton.onclick = showInventory;
+    inventoryCloseButton.onclick = hideInventory;
+    tabButtons.weapons.onclick = () => switchInventoryTab('weapons');
+    tabButtons.stones.onclick = () => switchInventoryTab('stones');
+    tabButtons.souls.onclick = () => switchInventoryTab('souls');
+    inventoryModal.addEventListener('click', function(event) {
+        const target = event.target;
+        if (target.classList.contains('forge-stone-btn')) {
+            forgeStones(target.dataset.type, target.dataset.tier);
+        }
+        if (target.classList.contains('forge-weapon-btn')) {
+            if (confirm(`Forge a new T${target.dataset.tier} weapon? This will consume the stone.`)) {
+                forgeNewWeapon(target.dataset.type, target.dataset.tier);
+            }
+        }
+    });
+    function playerAttack(target) {
+        if (!target || player.weaponVisual.animState !== 'idle') return; // Can only attack from idle state
+        
+        player.isAttacking = true; // Still used for general state
+        player.weaponVisual.animState = 'drawing';
+        player.weaponVisual.animTimer = 30; // 30 frames to draw the weapon
+        player.weaponVisual.target = target; // Remember who we're aiming at
+        SOUNDS.playerAttack(); // A new "draw" sound might be good later
+    }
     function updateSkills() {
         if (enemies.length === 0) return;
         Object.keys(player.skills).forEach(id => {
@@ -1073,13 +1443,107 @@
         })
     }
     function updateCountdown() { countdownTimer--; if(countdownTimer % 60 === 0 && countdownTimer > 0) { playSound(500, "sine", 0.1, 0.3); } if (countdownTimer <= 0) { changeState('COMBAT'); playSound(800, "sine", 0.1, 0.4); } }
-    function updateCombat(){
+    function updateCombat() {
+        // --- Player positioning block (This part is correct) ---
+        const barHeight = 18;
+        const bottomPadding = 5;
+        const ultButtonRect = dom.ultBtn.getBoundingClientRect();
+        const containerRect = gameContainer.getBoundingClientRect();
+        const buttonTopInCanvas = ultButtonRect.top - containerRect.top;
+        const rageBarY = buttonTopInCanvas - barHeight - bottomPadding;
+        const hpBarY = rageBarY - barHeight;
+        const newPlayerY = hpBarY - (player.size / 2);
+        player.y = newPlayerY;
+        player.baseY = newPlayerY;
+
+        // --- THIS IS THE CHANGE ---
+        // The large animation state machine is now replaced with this single, clean function call.
+        updateWeaponAnimation();
+        // --- END OF CHANGE ---
+
         if (player.flash > 0) player.flash--;
-        if(player.isAttacking){player.attackAnimTimer--;if(player.attackAnimTimer<=0)player.isAttacking=!1}if(isAutoBattle&&!player.isAttacking&&enemies.length>0){let e=enemies.reduce((e,t)=>Math.hypot(e.x-player.x,e.y-player.y)<Math.hypot(t.x-player.x,t.y-player.y)?e:t);playerAttack(e)}updateSkills();enemies.forEach(e=>{e.attackTimer++;if(e.attackTimer>=e.attackCooldown&&!e.isAttacking){e.isAttacking=!0;e.chargeTimer=30}if(e.chargeTimer>0){e.chargeTimer--;if(e.chargeTimer<=0){e.attackTimer=0;SOUNDS.enemyAttack();projectiles.push({x:e.x,y:e.y,target:player,speed:10,isPlayer:!1,damage:e.attack})}}else if(e.isAttacking)e.isAttacking=!1;if(e.flash>0)e.flash--});projectiles.forEach((e,t)=>{const a=e.target.x-e.x,s=e.target.y-e.y,n=Math.hypot(a,s);if(n<e.speed){e.target.hp-=e.damage;e.target.flash=5;
-            if (!e.isPlayer && e.target === player) {
-                player.flash = 5;
+
+        if (isAutoBattle && player.weaponVisual.animState === 'idle' && enemies.length > 0) {
+            let e = enemies.reduce((e, t) => Math.hypot(e.x - player.x, e.y - player.y) < Math.hypot(t.x - player.x, t.y - player.y) ? e : t);
+            playerAttack(e);
+        }
+        
+        updateSkills();
+        
+        enemies.forEach(e => {
+            e.attackTimer++;
+            if (e.attackTimer >= e.attackCooldown && !e.isAttacking) {
+                e.isAttacking = !0;
+                e.chargeTimer = 30;
             }
-            if(e.isPlayer)player.rage=Math.min(player.rage+player.stats.rageGain.current,100);SOUNDS.hit();triggerScreenShake(e.isPlayer?5:8);createExplosion(e.target.x,e.target.y,20,e.isPlayer?"#fff":"#ff4d4d");addFloatingText(e.damage,e.target.x,e.y,e.isPlayer?"#ffd700":"#ff4d4d");projectiles.splice(t,1)}else{e.x+=a/n*e.speed;e.y+=s/n*e.speed}});if(player.hp<=0)return SOUNDS.gameOver(),void changeState("GAME_OVER");const deadEnemies=enemies.filter(e=>e.hp<=0);deadEnemies.forEach(e=>{createExplosion(e.x,e.y,50,e.color,4,8);SOUNDS.enemyDeath();if(!currentDungeon){player.gold+=Math.floor(1.5*currentStage+5)}const xpGain=Math.floor(5*currentStage+Math.random()*5);gainXP(xpGain);});enemies=enemies.filter(e=>e.hp>0);if(enemies.length===0&&gameState==="COMBAT")changeState("ENDING_COMBAT");if(Math.random()<.005&&healthOrbs.length<3)healthOrbs.push({x:40+Math.random()*(canvas.width-80),y:100+300*Math.random(),radius:12,life:600,pulse:0})}
+            if (e.chargeTimer > 0) {
+                e.chargeTimer--;
+                if (e.chargeTimer <= 0) {
+                    e.attackTimer = 0;
+                    SOUNDS.enemyAttack();
+                    projectiles.push({
+                        x: e.x,
+                        y: e.y,
+                        target: player,
+                        speed: 10,
+                        isPlayer: !1,
+                        damage: e.attack
+                    });
+                }
+            } else if (e.isAttacking) e.isAttacking = !1;
+            if (e.flash > 0) e.flash--;
+        });
+
+        projectiles.forEach((e, t) => {
+            const a = e.target.x - e.x,
+                s = e.target.y - e.y,
+                n = Math.hypot(a, s);
+            if (n < e.speed) {
+                let finalDamage = e.damage;
+                if (!e.isPlayer && e.target === player) {
+                    const defensePower = player.inventory.weapon.type === 'shield' ? (player.inventory.weapon.defense || 0) : 0;
+                    finalDamage = Math.max(1, e.damage - defensePower);
+                    player.flash = 5;
+                }
+                e.target.hp -= finalDamage;
+                e.target.flash = 5;
+                if (e.isPlayer) player.rage = Math.min(player.rage + player.stats.rageGain.current, 100);
+                SOUNDS.hit();
+                triggerScreenShake(e.isPlayer ? 5 : 8);
+                createExplosion(e.target.x, e.target.y, 20, e.isPlayer ? "#fff" : "#ff4d4d");
+                addFloatingText(finalDamage, e.target.x, e.y, e.isPlayer ? "#ffd700" : "#ff4d4d");
+                projectiles.splice(t, 1);
+            } else {
+                e.x += a / n * e.speed;
+                e.y += s / n * e.speed;
+            }
+        });
+
+        if (player.hp <= 0) return SOUNDS.gameOver(), void changeState("GAME_OVER");
+
+        const deadEnemies = enemies.filter(e => e.hp <= 0);
+        deadEnemies.forEach(e => {
+            createExplosion(e.x, e.y, 50, e.color, 4, 8);
+            SOUNDS.enemyDeath();
+            if (!currentDungeon) {
+                player.gold += Math.floor(1.5 * currentStage + 5);
+            }
+            const xpGain = Math.floor(5 * currentStage + Math.random() * 5);
+            gainXP(xpGain);
+            player.souls.current++;
+            checkSoulLevelUp();
+        });
+
+        enemies = enemies.filter(e => e.hp > 0);
+        if (enemies.length === 0 && gameState === "COMBAT") changeState("ENDING_COMBAT");
+        if (Math.random() < .005 && healthOrbs.length < 3) healthOrbs.push({
+            x: 40 + Math.random() * (canvas.width - 80),
+            y: 100 + 300 * Math.random(),
+            radius: 12,
+            life: 600,
+            pulse: 0
+        });
+    }
     function initExplorationMode() {
         explorationEnemies = [];
         projectiles = [];
@@ -1102,46 +1566,87 @@
     }
     function updateExplorationMode() {
         if (!player) return;
+        
+        // --- NEW AND CORRECTED LOGIC ---
+        updateWeaponAnimation(); // Handle the drawing/firing animation states
+        
+        enemies = explorationEnemies;
+        updateSkills(); // Also update skills in exploration mode
+        explorationEnemies = enemies;
 
-        // --- FIX STARTS HERE ---
-        // Temporarily assign the exploration enemies to the global 'enemies' array
-        // so the updateSkills function knows who to target.
-        enemies = explorationEnemies; 
-        updateSkills();
-        explorationEnemies = enemies; // Assign it back to the correct variable after skills are updated.
-        // --- FIX ENDS HERE ---
+        // Auto-attack trigger for exploration mode
+        // If we are idle and there are enemies, start a new attack animation.
+        if (player.weaponVisual.animState === 'idle' && explorationEnemies.length > 0) {
+            let target = explorationEnemies[0]; // In exploration, always target the front enemy
+            if (target) {
+                playerAttack(target); // This will correctly start the 'drawing' animation
+            }
+        }
+        // --- END OF NEW LOGIC ---
 
-        explorationBackgroundStars.forEach(star => { star.x -= star.speed; if (star.x < 0) { star.x = explorationCanvas.width; star.y = Math.random() * explorationCanvas.height; }});
+        explorationBackgroundStars.forEach(star => {
+            star.x -= star.speed;
+            if (star.x < 0) {
+                star.x = explorationCanvas.width;
+                star.y = Math.random() * explorationCanvas.height;
+            }
+        });
+
         explorationSpawnTimer--;
         if (explorationSpawnTimer <= 0) {
             const enemyHp = Math.floor(50 * explorationDifficulty);
             const enemyAttack = Math.floor(5 * explorationDifficulty);
-            explorationEnemies.push({ x: explorationCanvas.width + 50, y: Math.random() * (explorationCanvas.height - 200) + 100, hp: enemyHp, maxHp: enemyHp, attack: enemyAttack, radius: 25, color: `hsl(${Math.random() * 60 + 200}, 80%, 50%)`, attackCooldown: Math.max(45, 120 - explorationDifficulty), attackTimer: 0, xpValue: Math.floor(10 * explorationDifficulty) });
+            explorationEnemies.push({
+                x: explorationCanvas.width + 50,
+                y: Math.random() * (explorationCanvas.height - 200) + 100,
+                hp: enemyHp, maxHp: enemyHp, attack: enemyAttack, radius: 25,
+                color: `hsl(${Math.random()*60+200}, 80%, 50%)`,
+                attackCooldown: Math.max(45, 120 - explorationDifficulty),
+                attackTimer: 0,
+                xpValue: Math.floor(10 * explorationDifficulty)
+            });
             explorationSpawnTimer = Math.max(30, 180 - explorationDifficulty * 5);
             explorationDifficulty += 0.1;
         }
-        if (!player.isAttacking && explorationEnemies.length > 0) {
-            let closestEnemy = explorationEnemies[0];
-            if (closestEnemy) {
-                player.isAttacking = true;
-                player.attackAnimTimer = 20;
-                SOUNDS.playerAttack();
-                projectiles.push({ x: player.x, y: player.y, target: closestEnemy, speed: 15, isPlayer: true, damage: player.stats.attackPower.current + Math.floor(5 * Math.random()) });
-            }
-        }
-        if (player.isAttacking) { player.attackAnimTimer--; if (player.attackAnimTimer <= 0) player.isAttacking = false; }
+        
         const battleLineX = player.x + 80;
-        explorationEnemies.forEach(e => { if (e.x > battleLineX) { e.x -= 2; } });
-        projectiles.forEach((p, i) => {
-            if (!p.target || p.target.hp <= 0) { projectiles.splice(i, 1); return; }
-            const dx = p.target.x - p.x, dy = p.target.y - p.y, dist = Math.hypot(dx, dy);
-            if (dist < p.speed) { p.target.hp -= p.damage; SOUNDS.hit(); addFloatingText(p.damage, p.target.x, p.target.y, '#ffd700'); createExplosion(p.target.x, p.target.y, 20, '#fff'); projectiles.splice(i, 1); } else { p.x += dx / dist * p.speed; p.y += dy / dist * p.speed; }
+        explorationEnemies.forEach(e => {
+            if (e.x > battleLineX) {
+                e.x -= 2;
+            }
         });
+
+        projectiles.forEach((p, i) => {
+            if (!p.target || p.target.hp <= 0) {
+                projectiles.splice(i, 1);
+                return;
+            }
+            const dx = p.target.x - p.x, dy = p.target.y - p.y, dist = Math.hypot(dx, dy);
+            if (dist < p.speed) {
+                p.target.hp -= p.damage;
+                SOUNDS.hit();
+                addFloatingText(p.damage, p.target.x, p.target.y, '#ffd700');
+                createExplosion(p.target.x, p.target.y, 20, '#fff');
+                projectiles.splice(i, 1);
+            } else {
+                p.x += dx / dist * p.speed;
+                p.y += dy / dist * p.speed;
+            }
+        });
+
         const dead = explorationEnemies.filter(e => e.hp <= 0);
-        dead.forEach(e => { createExplosion(e.x, e.y, 50, e.color, 4, 8); SOUNDS.enemyDeath(); gainXP(e.xpValue); player.gold += Math.floor(e.xpValue / 2); });
+        dead.forEach(e => {
+            createExplosion(e.x, e.y, 50, e.color, 4, 8);
+            SOUNDS.enemyDeath();
+            gainXP(e.xpValue);
+            player.gold += Math.floor(e.xpValue / 2);
+            player.souls.current++;
+            checkSoulLevelUp();
+        });
+
         explorationEnemies = explorationEnemies.filter(e => e.hp > 0 && e.x > -50);
-        particles=particles.filter(e=>{e.x+=e.vx;e.y+=e.vy;e.life--;return e.life>0});
-        floatingTexts=floatingTexts.filter(e=>{e.y-=1;e.life--;return e.life>0});
+        particles = particles.filter(e => { e.x += e.vx; e.y += e.vy; e.life--; return e.life > 0 });
+        floatingTexts = floatingTexts.filter(e => { e.y -= 1; e.life--; return e.life > 0 });
     }
     function update(){
         updatePlayerXpBar();
@@ -1329,30 +1834,6 @@
     function drawBackground(){ctx.fillStyle='#0c0c14';ctx.fillRect(0,0,canvas.width,canvas.height);if(window.stars)window.stars.forEach(s=>{ctx.beginPath();ctx.arc(s.x,s.y,s.radius,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${.5+s.speed})`;ctx.fill()})}
     
     function drawPlayer() {
-        // --- START OF NEW DYNAMIC POSITIONING LOGIC ---
-        // Only run this logic in Dungeon Mode where the big HUD bars are visible
-        if (!gameContainer.classList.contains('hidden') && !dom.ultBtn.classList.contains('panel-hidden')) {
-            const barHeight = 18;
-            const bottomPadding = 5;
-
-            // Get the position of the RAGE button to calculate the HUD's top edge
-            const ultButtonRect = dom.ultBtn.getBoundingClientRect();
-            const containerRect = gameContainer.getBoundingClientRect();
-            const buttonTopInCanvas = ultButtonRect.top - containerRect.top;
-
-            // Calculate the Y position for the top-most bar (the HP bar)
-            const rageBarY = buttonTopInCanvas - barHeight - bottomPadding;
-            const hpBarY = rageBarY - barHeight;
-
-            // Set the player's Y position to be just above the HP bar
-            // We subtract half the player's size to align the bottom of the sprite with the bar
-            const newPlayerY = hpBarY - (player.size / 2);
-            player.y = newPlayerY;
-            player.baseY = newPlayerY; // Update baseY as well for consistency
-        }
-        // --- END OF NEW DYNAMIC POSITIONING LOGIC ---
-
-
         dom.ultBtn.classList.toggle('is-flashing', player.rage >= 100);
         dom.ultBtn.style.background = player.rage >= 100 ? '#f72585' : '#5a1835';
         dom.autoBtn.classList.toggle('active', isAutoBattle);
@@ -1394,17 +1875,12 @@
         }
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 5;
-        if (player.isAttacking) {
-            player.sword.angle += .6;
-        } else {
-            player.sword.angle += (0 - player.sword.angle) * .2;
-        }
-        ctx.rotate(player.sword.angle);
-        ctx.fillStyle = '#ddd';
-        ctx.fillRect(halfDrawSize * 0.7, -3, player.sword.length, 6);
+    
         ctx.restore();
-
-        // The small player bars are only drawn in exploration mode now
+        ctx.save();
+        ctx.translate(player.x, player.y); // Re-translate for weapon drawing
+        drawWeapon(ctx); // Call the new weapon drawing function
+        ctx.restore();
         if (!explorationContainer.classList.contains('hidden')) {
             const barWidth = 100,
                 barX = player.x - barWidth / 2;
@@ -1417,6 +1893,126 @@
             ctx.fillStyle = '#ffd700';
             ctx.fillRect(barX, player.y + halfDrawSize + 18, barWidth * (player.rage / 100), 8);
         }
+    }
+
+    function drawWeapon(ctx) {
+        const weapon = player.inventory.weapon;
+        const v = player.weaponVisual;
+        const tier = weapon.tier;
+
+        // Aim at the target if we have one
+        if (v.target) {
+            const dx = v.target.x - player.x;
+            const dy = v.target.y - player.y;
+            v.angle = Math.atan2(dy, dx);
+        }
+        ctx.rotate(v.angle);
+
+        switch (weapon.type) {
+            case 'bow':
+                drawAnimatedBow(ctx, weapon, v, tier);
+                break;
+            case 'sword':
+                // Placeholder for a future sword animation
+                drawAnimatedSword(ctx, weapon, v, tier);
+                break;
+            case 'shield':
+                // Placeholder for a future shield visual
+                drawAnimatedShield(ctx, weapon, v, tier);
+                break;
+        }
+    }
+
+    function drawAnimatedBow(ctx, weapon, v, tier) {
+        // --- Define visual properties based on Tier ---
+        let bowColor = '#8c5e3c'; // Wood
+        let stringColor = '#fff';
+        let glowColor = null;
+        let particleColor = '#ffecb3';
+
+        if (tier >= 10 && tier < 25) { // Magic Tier
+            bowColor = '#7b8cde';
+            stringColor = '#aaffff';
+            glowColor = 'rgba(170, 255, 255, 0.5)';
+        } else if (tier >= 25) { // Godly Tier
+            bowColor = '#ffd700';
+            stringColor = '#fff';
+            glowColor = 'rgba(255, 220, 150, 0.7)';
+            particleColor = '#fff';
+        }
+        
+        // --- Animation Logic ---
+        let drawRatio = 0; // How far back the string is pulled (0 to 1)
+        if (v.animState === 'drawing') {
+            drawRatio = 1 - (v.animTimer / 30);
+        } else if (v.animState === 'firing') {
+            drawRatio = v.animTimer / 15; // Recoil effect
+        }
+
+        const bowWidth = 50;
+        const bowThickness = 5 + Math.floor(tier / 10);
+        const stringPullback = 20 * drawRatio;
+
+        // Draw Bow Glow (for higher tiers)
+        if (glowColor) {
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 15;
+        }
+
+        // Draw the Bow
+        ctx.beginPath();
+        ctx.moveTo(0, -bowWidth / 2);
+        ctx.quadraticCurveTo(15 + stringPullback, 0, 0, bowWidth / 2);
+        ctx.lineWidth = bowThickness;
+        ctx.strokeStyle = bowColor;
+        ctx.stroke();
+        
+        ctx.shadowBlur = 0; // Reset shadow
+
+        // Draw the String
+        ctx.beginPath();
+        ctx.moveTo(0, -bowWidth / 2);
+        ctx.lineTo(-stringPullback, 0); // Pull the string back
+        ctx.lineTo(0, bowWidth / 2);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = stringColor;
+        ctx.stroke();
+
+        // Draw Arrow/Energy at the tip
+        if (drawRatio > 0.1) {
+            ctx.beginPath();
+            ctx.arc(-stringPullback, 0, 3 + tier / 10, 0, Math.PI * 2);
+            ctx.fillStyle = particleColor;
+            ctx.shadowColor = particleColor;
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    // Basic placeholder functions for other weapon types
+    function drawAnimatedSword(ctx, weapon, v, tier) {
+        const length = 50 + tier;
+        const width = 8 + Math.floor(tier / 10);
+        ctx.fillStyle = '#c0c0c0';
+        if (tier >= 10) ctx.fillStyle = '#6495ed';
+        if (tier >= 25) ctx.fillStyle = '#ff4500';
+        
+        ctx.fillRect(20, -width/2, length, width);
+    }
+
+    function drawAnimatedShield(ctx, weapon, v, tier) {
+        const size = 30 + tier;
+        ctx.fillStyle = '#a0522d';
+        if (tier >= 10) ctx.fillStyle = '#4682b4';
+        if (tier >= 25) ctx.fillStyle = '#4b0082';
+
+        ctx.beginPath();
+        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        ctx.stroke();
     }
     
     function drawEnemies() {
@@ -1570,38 +2166,63 @@
     }
     function drawEffects(){projectiles.forEach(p=>{ctx.fillStyle=p.isPlayer?'#fff':'#ff4d4d';ctx.beginPath();ctx.arc(p.x,p.y,5,0,2*Math.PI);ctx.fill()});particles.forEach(p=>{ctx.fillStyle=p.color;ctx.globalAlpha=p.life/30;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,2*Math.PI);ctx.fill()});ctx.globalAlpha=1;floatingTexts.forEach(t=>{ctx.font='bold 28px sans-serif';ctx.fillStyle=t.color;ctx.globalAlpha=t.life/60;ctx.textAlign='center';ctx.shadowColor='black';ctx.shadowBlur=4;ctx.fillText(t.text,t.x,t.y)});ctx.shadowBlur=0;ctx.shadowColor='transparent';ctx.globalAlpha=1}
     function drawCountdown(){let text='';let scale=1+(countdownTimer%60)/30;if(countdownTimer>120){text='3'}else if(countdownTimer>60){text='2'}else if(countdownTimer>0){text='1'}if(text){ctx.save();ctx.font=`bold ${120*scale}px Cinzel`;ctx.fillStyle;`rgba(255,255,255,${1-(countdownTimer%60)/60})`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(255, 100, 100, 0.7)';ctx.shadowBlur=20;ctx.fillText(text,canvas.width/2,canvas.height/2);ctx.restore()}}
-    function drawExplorationMode() {
-        const dCtx = expCtx;
-        dCtx.fillStyle = '#031018';
-        dCtx.fillRect(0, 0, explorationCanvas.width, explorationCanvas.height);
-        explorationBackgroundStars.forEach(star => { dCtx.beginPath(); dCtx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); dCtx.fillStyle = `rgba(255, 255, 255, ${star.speed / 3})`; dCtx.fill(); });
-        
-        dCtx.save(); 
-        dCtx.translate(player.x, player.y);
-        const drawSize = player.size;
-        const halfDrawSize = drawSize / 2;
-        if (playerSpriteLoaded) {
-            dCtx.drawImage(playerSprite, -halfDrawSize, -halfDrawSize, drawSize, drawSize);
-        } else {
-            dCtx.fillStyle = player.color; 
-            dCtx.fillRect(-halfDrawSize, -halfDrawSize, drawSize, drawSize);
-        }
-        dCtx.restore();
+    function updateWeaponAnimation() {
+        if (player.weaponVisual.animState !== 'idle') {
+            player.weaponVisual.animTimer--;
+            if (player.weaponVisual.animTimer <= 0) {
+                if (player.weaponVisual.animState === 'drawing') {
+                    // Time to fire!
+                    player.weaponVisual.animState = 'firing';
+                    player.weaponVisual.animTimer = 15; // 15 frames for the firing animation
 
-        const barWidth=100, barX=player.x-barWidth/2;
-        dCtx.fillStyle='#333'; dCtx.fillRect(barX,player.y+halfDrawSize+5,barWidth,12);
-        dCtx.fillStyle='#2a9d8f'; dCtx.fillRect(barX,player.y+halfDrawSize+5,barWidth*Math.max(0,player.hp/player.stats.maxHp.current),12);
-        explorationEnemies.forEach(e => {
-            dCtx.save(); dCtx.translate(e.x, e.y); dCtx.beginPath(); dCtx.arc(0, 0, e.radius, 0, Math.PI * 2); dCtx.fillStyle = e.color; dCtx.fill(); dCtx.restore();
-            const eBarWidth=e.radius*2;
-            dCtx.fillStyle='#333'; dCtx.fillRect(e.x-e.radius,e.y-e.radius-15,eBarWidth,5);
-            dCtx.fillStyle='#c1121f'; dCtx.fillRect(e.x-e.radius,e.y-e.radius-15,eBarWidth*Math.max(0,e.hp/e.maxHp),5);
+                    // NOW we create the projectile
+                    const weapon = player.inventory.weapon;
+                    const baseDamage = weapon.power;
+                    const finalDamage = baseDamage + Math.floor(baseDamage * 0.1 * Math.random());
+                    
+                    projectiles.push({
+                        x: player.x, y: player.y,
+                        target: player.weaponVisual.target,
+                        speed: 15, isPlayer: !0,
+                        damage: finalDamage
+                    });
+
+                    // Create a muzzle-flash style effect
+                    createExplosion(player.x, player.y, 20, '#fff', 2, 4);
+
+                } else if (player.weaponVisual.animState === 'firing') {
+                    // Animation is over, return to idle
+                    player.weaponVisual.animState = 'idle';
+                    player.isAttacking = false;
+                    player.weaponVisual.target = null;
+                }
+            }
+        }
+    }
+    function drawExplorationMode() {
+        ctx = expCtx; // <-- This now works because ctx is a 'let'
+        
+        // Clear the exploration canvas
+        ctx.clearRect(0, 0, explorationCanvas.width, explorationCanvas.height);
+        
+        // Draw the background
+        explorationBackgroundStars.forEach(star => { 
+            ctx.beginPath(); 
+            ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); 
+            ctx.fillStyle = `rgba(255, 255, 255, ${star.speed / 3})`; 
+            ctx.fill(); 
         });
-        projectiles.forEach(p => { dCtx.fillStyle = '#fff'; dCtx.beginPath(); dCtx.arc(p.x, p.y, 5, 0, 2 * Math.PI); dCtx.fill(); });
-        particles.forEach(p => { dCtx.fillStyle = p.color; dCtx.globalAlpha = p.life/30; dCtx.beginPath(); dCtx.arc(p.x, p.y, p.size, 0, 2*Math.PI); dCtx.fill(); });
-        dCtx.globalAlpha=1;
-        floatingTexts.forEach(t => { dCtx.font='bold 28px sans-serif'; dCtx.fillStyle=t.color; dCtx.globalAlpha=t.life/60; dCtx.textAlign='center'; dCtx.shadowColor='black'; dCtx.shadowBlur=4; dCtx.fillText(t.text,t.x,t.y); });
-        dCtx.shadowBlur=0; dCtx.globalAlpha=1;
+        
+        // Call the same universal drawing functions as the main game loop
+        drawPlayer();
+        drawEnemies();
+        drawEffects();
+        drawSkillVisuals();
+        
+        // --- THIS IS THE CRITICAL FIX ---
+        // After drawing everything for exploration, reset the context back to the main canvas
+        // so that the next frame doesn't try to draw the UI on the wrong screen.
+        ctx = document.getElementById('game-canvas').getContext('2d'); 
     }
     function draw() {
         if (!mainScreen.classList.contains('hidden')) {
