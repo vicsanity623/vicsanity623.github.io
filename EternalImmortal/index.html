@@ -624,7 +624,12 @@
     function updatePlayerUpgradeScreenUI() {
         if (!player) return;
         document.getElementById('upgrade-gold-total').textContent = `${player.gold}`;
-        document.getElementById('upgrade-screen-attack-power-stat').textContent = player.stats.attackPower.current;
+        const weaponDmg = player.inventory.weapon.power;
+        const statDmg = player.stats.attackPower.current;
+        const totalDmg = weaponDmg + statDmg;
+        document.getElementById('upgrade-screen-attack-title').textContent = 'Base Damage'; // More accurate title
+        document.getElementById('upgrade-screen-attack-power-stat').innerHTML = `${totalDmg} <small 
+        style="color:#ccc;">(Wpn: ${weaponDmg} + Stat: ${statDmg})</small>`;
         document.getElementById('upgrade-screen-max-health-stat').textContent = player.stats.maxHp.current;
         document.getElementById('upgrade-screen-rage-gain-stat').textContent = player.stats.rageGain.current;
         document.getElementById('upgrade-screen-health-regen-stat').textContent = player.stats.healthRegen.current.toFixed(1);
@@ -1046,7 +1051,37 @@
         });
     }
     function setupNextStage(){enemies=[];const e=Math.min(2+Math.floor(currentStage/2),7),t=1+(currentStage-1)*.25,a=3+Math.floor(currentStage/3),s=Math.max(120-2*currentStage,45);for(let n=0;n<e;n++){const e=100+200*Math.random(),r=Math.floor((20+10*Math.random())*t);enemies.push({x:40+Math.random()*(canvas.width-80),y:e,baseY:e,hp:r,maxHp:r,attack:Math.floor(a+2*Math.random()),radius:20+5*Math.random(),color:"#e63946",attackCooldown:s+60*Math.random(),attackTimer:180*Math.random(),isAttacking:!1,chargeTimer:0})}}
-    function updateShopUI() {if (currentDungeon) {document.getElementById('shop-title').textContent = `${currentDungeon.name} Cleared!`;document.getElementById('shop-subtitle').textContent = "You are victorious. Claim your rewards.";dom.proceedBtn.textContent = 'Return to Map';} else {document.getElementById('shop-title').textContent = `Stage ${currentStage} Cleared!`;document.getElementById('shop-subtitle').textContent = 'Spend Gold to grow stronger.';dom.proceedBtn.textContent = 'Next Stage';} dom.goldDisplay.textContent = `${player.gold}`;document.getElementById('attack-power-stat').textContent=player.stats.attackPower.current;document.getElementById('max-health-stat').textContent=player.stats.maxHp.current;document.getElementById('rage-gain-stat').textContent=player.stats.rageGain.current;document.getElementById('health-regen-stat').textContent=player.stats.healthRegen.current.toFixed(1);document.getElementById('attack-cost').textContent=player.costs.attackPower;document.getElementById('health-cost').textContent=player.costs.maxHp;document.getElementById('rage-cost').textContent=player.costs.rageGain;document.getElementById('regen-cost').textContent=player.costs.healthRegen;dom.upgradeBtns.attack.classList.toggle('disabled',player.gold<player.costs.attackPower);dom.upgradeBtns.health.classList.toggle('disabled',player.gold<player.costs.maxHp);dom.upgradeBtns.rage.classList.toggle('disabled',player.gold<player.costs.rageGain);dom.upgradeBtns.regen.classList.toggle('disabled',player.gold<player.costs.healthRegen);}
+    function updateShopUI() {
+        if (currentDungeon) {
+            document.getElementById('shop-title').textContent = `${currentDungeon.name} Cleared!`;
+            document.getElementById('shop-subtitle').textContent = "You are victorious. Claim your rewards.";
+            dom.proceedBtn.textContent = 'Return to Map';
+        } else {
+            document.getElementById('shop-title').textContent = `Stage ${currentStage} Cleared!`;
+            document.getElementById('shop-subtitle').textContent = 'Spend Gold to grow stronger.';
+            dom.proceedBtn.textContent = 'Next Stage';
+        } 
+        dom.goldDisplay.textContent = `${player.gold}`;
+        
+        const weaponDmg = player.inventory.weapon.power;
+        const statDmg = player.stats.attackPower.current;
+        const totalDmg = weaponDmg + statDmg;
+        document.getElementById('attack-power-stat').innerHTML = `${totalDmg} 
+        <small style="color:#ccc;">(Wpn: ${weaponDmg} + Stat: ${statDmg})</small>`;
+        
+
+        document.getElementById('max-health-stat').textContent=player.stats.maxHp.current;
+        document.getElementById('rage-gain-stat').textContent=player.stats.rageGain.current;
+        document.getElementById('health-regen-stat').textContent=player.stats.healthRegen.current.toFixed(1);
+        document.getElementById('attack-cost').textContent=player.costs.attackPower;
+        document.getElementById('health-cost').textContent=player.costs.maxHp;
+        document.getElementById('rage-cost').textContent=player.costs.rageGain;
+        document.getElementById('regen-cost').textContent=player.costs.healthRegen;
+        dom.upgradeBtns.attack.classList.toggle('disabled',player.gold<player.costs.attackPower);
+        dom.upgradeBtns.health.classList.toggle('disabled',player.gold<player.costs.maxHp);
+        dom.upgradeBtns.rage.classList.toggle('disabled',player.gold<player.costs.rageGain);
+        dom.upgradeBtns.regen.classList.toggle('disabled',player.gold<player.costs.healthRegen);
+    }
     function updateGameOverUI() {if (currentDungeon) {document.getElementById('game-over-message').textContent = `Defeated by ${currentDungeon.boss.name}`;dom.retryBtn.textContent = "Return to Map";} else {document.getElementById('game-over-message').innerHTML = `You reached Stage <span id="final-stage-reached">${currentStage}</span>`;dom.retryBtn.textContent = "Try Again";}}
     function updatePlayerScreenUI(){const statsContainer=document.querySelector(".stats-container"),skillsContainer=document.querySelector(".skills-container");statsContainer.innerHTML="";skillsContainer.innerHTML='<h2>Skills</h2>';Object.values(player.stats).forEach(stat=>{const progress=stat.current/stat.target*100,block=document.createElement("div");block.className="stat-block",block.innerHTML=`<div class="stat-header"><h3 id="stat-title-${stat.color}">${stat.name}</h3><span>Level ${stat.level}</span></div><p class="stat-value">${stat.isFloat?stat.current.toFixed(1):stat.current} / ${stat.target}${stat.displaySuffix}</p><div class="progress-bar-container"><div id="progress-${stat.color}" class="progress-bar-fill ${stat.color}" style="width: ${Math.min(progress,100)}%;"></div></div>`,statsContainer.appendChild(block)});Object.keys(SKILLS_DATA).forEach(id=>{const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],block=document.createElement("div");block.className="skill-block";if(playerSkill.isUnlocked){const progress=playerSkill.currentXP/playerSkill.targetXP*100;block.innerHTML=`<div class="skill-header"><h3 id="skill-title-${id}">${skillData.name}</h3><span>Level ${playerSkill.level}</span></div><p>${getSkillDescription(id)}</p><div class="progress-bar-container"><div class="progress-bar-fill skill" style="width: ${Math.min(progress,100)}%;"></div></div>`}else{block.classList.add("locked");block.innerHTML=`<h3>${skillData.name}</h3><p>Unlock by clearing Stage ${skillData.unlockStage}</p>`}skillsContainer.appendChild(block)})}
     function getSkillDescription(id) {
@@ -1054,9 +1089,10 @@
             playerSkill = player.skills[id],
             level = playerSkill.level;
         
-        // --- THIS LINE IS THE FIX ---
-        const damage = Math.floor(player.inventory.weapon.power * (skillData.baseDamageMultiplier + (level - 1) * skillData.damageMultiplierPerLevel));
-        // --- END OF FIX ---
+        const damage = Math.floor(
+            (player.inventory.weapon.power + player.stats.attackPower.current) * 
+            (skillData.baseDamageMultiplier + (level - 1) * skillData.damageMultiplierPerLevel)
+        );
 
         switch (id) {
             case 'orbitalStrike':
@@ -1330,23 +1366,43 @@
             player.dungeonCompletions = (player.dungeonCompletions || 0) + 1;
             const completedDungeon = player.dungeonMap[currentDungeon.id];
             completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
+            
             if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 5 === 0) {
                 gainNewStone(completedDungeon);
             }
-            // --- END ADD ---
 
+            // Check if the dungeon should evolve
             if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
                 completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
                 const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
                 const prefix = evolutionPrefixes[Math.min(completedDungeon.evolutionLevel - 1, evolutionPrefixes.length - 1)];
+                
+                // Update Dungeon & Boss Stats
                 completedDungeon.name = `${prefix} ${completedDungeon.baseName}`;
                 completedDungeon.boss.level = Math.floor(completedDungeon.boss.level * 1.2);
                 completedDungeon.boss.maxHp = Math.floor(completedDungeon.boss.maxHp * 1.5);
                 completedDungeon.boss.attack = Math.floor(completedDungeon.boss.attack * 1.3);
+
+                // --- THIS IS THE FIX ---
+                // 1. Increase the base reward values stored on the dungeon object.
+                completedDungeon.goldReward = Math.floor(completedDungeon.goldReward * 1.5);
+                if(completedDungeon.rubyReward) {
+                    completedDungeon.rubyReward = Math.floor(completedDungeon.rubyReward * 1.4);
+                }
+
+                // 2. Find and update the reward objects in the `rewards` array to reflect the change in the UI.
+                const goldRewardUI = completedDungeon.rewards.find(r => r.name === 'Gold');
+                if(goldRewardUI) goldRewardUI.amount = completedDungeon.goldReward;
+                
+                const rubyRewardUI = completedDungeon.rewards.find(r => r.name === 'Rubies');
+                if(rubyRewardUI) rubyRewardUI.amount = completedDungeon.rubyReward;
+                // --- END OF FIX ---
             }
+
             if (player.dungeonCompletions > 0 && player.dungeonCompletions % 3 === 0) {
                 addNewDungeons(currentDungeon.id);
             }
+
             saveGame(); 
             currentDungeon = null;
             showScreen('map');
@@ -1359,7 +1415,19 @@
     dom.statsBtn.onclick=()=>changeState('PLAYER_STATS');
     dom.backBtn.onclick=()=>changeState('SHOP');
     dom.upgradeBtns.attack.onclick=()=>buyUpgrade('attackPower');dom.upgradeBtns.health.onclick=()=>buyUpgrade('maxHp');dom.upgradeBtns.rage.onclick=()=>buyUpgrade('rageGain');dom.upgradeBtns.regen.onclick=()=>buyUpgrade('healthRegen');
-    dom.autoBtn.onclick=()=>{isAutoBattle=!isAutoBattle;dom.autoBtn.classList.toggle('active',isAutoBattle);};dom.ultBtn.onclick=()=>{if(gameState!=='COMBAT'||player.rage<100)return;player.rage=0;SOUNDS.ultimate();showBattleBanner('RAGE BURST!','ultimate-banner',1500);triggerScreenShake(20);enemies.forEach(e=>{const t=5*player.stats.attackPower.current;e.hp-=t;createExplosion(e.x,e.y,40,'#f72585',5,10);addFloatingText(t,e.x,e.y,'#f72585');});};canvas.addEventListener('click',e=>{if(gameState!=='COMBAT')return;const t=canvas.getBoundingClientRect(),a=e.clientX-t.left,s=e.clientY-t.top;let n=null;enemies.forEach(e=>{Math.hypot(a-e.x,s-e.y)<e.radius&&(n=e)});isAutoBattle||playerAttack(n);healthOrbs.forEach((e,t)=>{if(Math.hypot(a-e.x,s-e.y)<e.radius){const a=Math.floor(.1*player.stats.maxHp.current);player.hp=Math.min(player.stats.maxHp.current,player.hp+a);addFloatingText(`+${a}`,player.x,player.y,'#4caf50');SOUNDS.heal();healthOrbs.splice(t,1);}});});
+    dom.autoBtn.onclick=()=>{isAutoBattle=!isAutoBattle;dom.autoBtn.classList.toggle('active',isAutoBattle);};
+    dom.ultBtn.onclick=()=>{
+        if(gameState!=='COMBAT'||player.rage<100)return;
+        player.rage=0;SOUNDS.ultimate();showBattleBanner('RAGE BURST!','ultimate-banner',1500);
+        triggerScreenShake(20);
+        enemies.forEach(e=>{
+            const t = 5 * (player.inventory.weapon.power + player.stats.attackPower.current);
+            e.hp-=t;
+            createExplosion(e.x,e.y,40,'#f72585',5,10);
+            addFloatingText(t,e.x,e.y,'#f72585');
+        });
+    };
+    canvas.addEventListener('click',e=>{if(gameState!=='COMBAT')return;const t=canvas.getBoundingClientRect(),a=e.clientX-t.left,s=e.clientY-t.top;let n=null;enemies.forEach(e=>{Math.hypot(a-e.x,s-e.y)<e.radius&&(n=e)});isAutoBattle||playerAttack(n);healthOrbs.forEach((e,t)=>{if(Math.hypot(a-e.x,s-e.y)<e.radius){const a=Math.floor(.1*player.stats.maxHp.current);player.hp=Math.min(player.stats.maxHp.current,player.hp+a);addFloatingText(`+${a}`,player.x,player.y,'#4caf50');SOUNDS.heal();healthOrbs.splice(t,1);}});});
     inventoryButton.onclick = showInventory;
     inventoryCloseButton.onclick = hideInventory;
     tabButtons.weapons.onclick = () => switchInventoryTab('weapons');
@@ -2177,7 +2245,7 @@
 
                     // NOW we create the projectile
                     const weapon = player.inventory.weapon;
-                    const baseDamage = weapon.power;
+                    const baseDamage = weapon.power + player.stats.attackPower.current; 
                     const finalDamage = baseDamage + Math.floor(baseDamage * 0.1 * Math.random());
                     
                     projectiles.push({
