@@ -374,9 +374,6 @@
         .dungeon-node.locked .icon { color: #6a7f8c; text-shadow: none; }
         .dungeon-node.completed .icon { color: #a0b8c8; text-shadow: 0 0 5px #3a4850; }
         .dungeon-node.active .icon { animation: pulse 2s infinite; }
-        
-        /* --- FIX START --- */
-        /* This is the new CSS for the completion counter badge. */
         .dungeon-node .completion-counter {
             position: absolute;
             top: -5px;
@@ -397,8 +394,6 @@
         .dungeon-node .completion-counter i {
             font-size: 10px;
         }
-        /* --- FIX END --- */
-
         @keyframes pulse { 0% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } 50% { transform: scale(1.1); text-shadow: 0 0 20px #aaffff; } 100% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } }
         #path-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         #path-svg path { fill: none; stroke: url(#line-gradient); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 10 10; animation: dash 1s linear infinite; }
@@ -618,6 +613,36 @@
         #auto-battle-button.active { background: linear-gradient(45deg, #4CAF50, #2E7D32); border-color: #81C784; }
         #ult-button.is-flashing { animation: flash-effect 0.8s infinite; border: 2px solid #ffd700; }
         @keyframes flash-effect { 0%, 100% { filter: brightness(1); box-shadow: 0 4px 15px rgba(247, 37, 133, 0.4); } 50% { filter: brightness(1.8); box-shadow: 0 6px 30px rgba(247, 37, 133, 0.9); } }
+   
+        /* --- OFFLINE REWARDS START --- */
+        #offline-rewards-list {
+            list-style: none;
+            padding: 0;
+            margin: 15px 0 25px 0;
+            text-align: left;
+            font-size: 18px;
+        }
+        #offline-rewards-list li {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        #offline-rewards-list i {
+            width: 25px;
+            margin-right: 12px;
+            text-align: center;
+            color: var(--accent-blue);
+        }
+        #offline-rewards-list .icon-gold { color: var(--accent-gold); }
+        #offline-rewards-list .icon-xp { color: var(--accent-purple); }
+        #offline-rewards-list .icon-stone { color: #c0c0c0; }
+        #offline-rewards-list small {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+        }
+        /* --- OFFLINE REWARDS END --- */
+
     </style>
 </head>
 <body>
@@ -811,6 +836,19 @@
             </div>
         </div>
     </div>
+
+    <!-- --- OFFLINE REWARDS START --- -->
+    <div id="offline-rewards-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="dungeon-title">Welcome Back!</h3>
+            <p class="dungeon-mode" id="offline-time-info">You were away for a while...</p>
+            <ul id="offline-rewards-list">
+                <!-- Rewards will be populated by JS -->
+            </ul>
+            <div id="claim-offline-rewards-button" class="start-button">Claim Rewards</div>
+        </div>
+    </div>
+    <!-- --- OFFLINE REWARDS END --- -->
 
     <script>
     const inventoryModal = document.getElementById('inventory-modal');
@@ -1012,9 +1050,6 @@
         });
         svg.innerHTML = `<defs><linearGradient id="line-gradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#6efcff;stop-opacity:0" /><stop offset="50%" style="stop-color:#6efcff;stop-opacity:1" /><stop offset="100%" style="stop-color:#6efcff;stop-opacity:0" /></linearGradient></defs><path d="${pathData}" />`;
     }
-    
-    // --- FIX START ---
-    // This function has been updated to display the completion count on dungeon nodes.
     function initializeMap() {
         loadProgress(); // Ensure latest progress is loaded (though save/load handles most of this)
         const mapContent = document.getElementById('map-content');
@@ -1073,8 +1108,6 @@
         document.getElementById('path-svg').style.height = mapContent.style.height;
         drawPath();
     }
-    // --- FIX END ---
-    
     const canvas = document.getElementById('game-canvas');
     let ctx = canvas.getContext('2d');
     const uiCanvas = document.getElementById('ui-canvas'), uiCtx = uiCanvas.getContext('2d');
@@ -1229,12 +1262,12 @@
             xpToNextLevel: 100,
             dungeonCompletions: 0,
             dungeonMap: {},
+            lastSaveTime: Date.now(), // --- OFFLINE REWARDS ---
             stats: {
                 maxHp: createStat({ name: "Max Health", current: 100, target: 500, baseGain: 20, color: 'health' }),
                 attackPower: createStat({ name: "Attack Power", current: 10, target: 100, baseGain: 2, color: 'attack' }),
                 rageGain: createStat({ name: "Rage Gain", current: 5, target: 50, baseGain: 1, color: 'rage' }),
                 healthRegen: createStat({ name: "Health Regen", current: 0, target: 10, baseGain: .5, isFloat: !0, displaySuffix: '/s', color: 'regen' }),
-                // --- ADD NEW DEFENSE STAT ---
                 defense: createStat({ name: "Defense", current: 0, target: 100, baseGain: 1, color: 'skill' })
             },
             costs: { maxHp: 10, attackPower: 10, rageGain: 20, healthRegen: 30 },
@@ -1249,11 +1282,9 @@
                 animTimer: 0,
                 target: null },
             flash: 0,
-            // --- REPLACE INVENTORY AND SOULS ---
             inventory: {
-                // Start with a basic weapon. Tier 0 signifies it's not forged.
                 weapon: { id: 'starter_bow', type: 'bow', tier: 0, name: 'Worn Bow', power: 5 },
-                stones: [] // Stones are now complex objects
+                stones: [] 
             },
             souls: {
                 level: 1,
@@ -1304,7 +1335,19 @@
             if (!window.stars) { window.stars=[]; for(let i=0;i<100;i++)window.stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,radius:Math.random()*1.5,speed:.2+Math.random()*.5}); }
         }
     }
-    function saveGame(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({player,currentStage,isAutoBattle}))}catch(e){console.error("Could not save game:",e)}}
+    // --- OFFLINE REWARDS START ---
+    function saveGame() {
+        try {
+            if(player) {
+                player.lastSaveTime = Date.now(); // Update timestamp on every save
+                localStorage.setItem(SAVE_KEY, JSON.stringify({ player, currentStage, isAutoBattle }));
+            }
+        } catch (e) {
+            console.error("Could not save game:", e)
+        }
+    }
+    // --- OFFLINE REWARDS END ---
+
     function loadGame() {
         try {
             const savedData = localStorage.getItem(SAVE_KEY);
@@ -1322,10 +1365,9 @@
             if (player.level === undefined) { player.level = 1; player.xp = 0; player.xpToNextLevel = 100 }
             if (player.rubies === undefined) player.rubies = 0;
             if (player.energy === undefined) { player.energy = 85; player.maxEnergy = 85; }
-            if (player.lastEnergyUpdateTime === undefined) { player.lastEnergyUpdateTime = Date.now(); } // <-- 1. ADD THIS LINE
-            // --- ADD THESE THREE CHECKS ---
+            if (player.lastEnergyUpdateTime === undefined) { player.lastEnergyUpdateTime = Date.now(); }
+            if (player.lastSaveTime === undefined) { player.lastSaveTime = Date.now(); } // --- OFFLINE REWARDS ---
             if (player.inventory === undefined || !player.inventory.weapon) {
-                // This updates old saves to the new weapon/stone system
                 player.inventory = {
                     weapon: { id: 'starter_bow', type: 'bow', tier: 0, name: 'Worn Bow', power: 5 },
                     stones: []
@@ -1334,14 +1376,12 @@
             if (player.souls === undefined) {
                 player.souls = { level: 1, current: 0, toNextLevel: 500 };
             }
-            // Add check for the new defense stat
             if (player.stats.defense === undefined) {
                 player.stats.defense = createStat({ name: "Defense", current: 0, target: 100, baseGain: 1, color: 'skill' });
             }
-
             if (player.size === undefined) { player.size = 60; }
-            if (player.weaponVisual === undefined || player.sword) { // <-- ADD THIS
-                delete player.sword; // Remove the old property
+            if (player.weaponVisual === undefined || player.sword) {
+                delete player.sword;
                 player.weaponVisual = { angle: 0, animState: 'idle', animTimer: 0, target: null };
             }
             
@@ -1354,7 +1394,8 @@
             currentStage = loaded.currentStage;
             isAutoBattle = loaded.isAutoBattle;
 
-            updateEnergyReplenishment(); // <-- 2. ADD THIS LINE
+            updateEnergyReplenishment();
+            calculateOfflineRewards(); // --- OFFLINE REWARDS ---
 
         } catch (e) {
             console.error("Could not load save data, starting fresh.", e)
@@ -1416,12 +1457,10 @@
                     player.dungeonCompletions = (player.dungeonCompletions || 0) + 1;
                     completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
                     
-                    // Check for a stone drop
                     if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 5 === 0) {
                         gainNewStone(completedDungeon); 
                     }
 
-                    // Check for dungeon evolution -- TYPO WAS HERE
                     if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
                         completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
                         const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
@@ -1438,7 +1477,6 @@
                         if(rubyRewardUI) rubyRewardUI.amount = completedDungeon.rubyReward;
                     }
 
-                    // Check for unlocking new dungeons -- TYPO WAS HERE
                     if (player.dungeonCompletions > 0 && player.dungeonCompletions % 3 === 0) {
                         addNewDungeons(currentDungeon.id);
                     }
@@ -1484,13 +1522,13 @@
             hp: boss.maxHp,
             maxHp: boss.maxHp,
             attack: boss.attack,
-            radius: 50, // Increase radius for a larger boss presence
+            radius: 50,
             color: "#e63946",
             attackCooldown: 90,
             attackTimer: 120,
             isAttacking: false,
             chargeTimer: 0,
-            icon: boss.icon // <-- THE IMPORTANT ADDITION
+            icon: boss.icon
         });
     }
     function setupNextStage(){enemies=[];const e=Math.min(2+Math.floor(currentStage/2),7),t=1+(currentStage-1)*.25,a=3+Math.floor(currentStage/3),s=Math.max(120-2*currentStage,45);for(let n=0;n<e;n++){const e=100+200*Math.random(),r=Math.floor((20+10*Math.random())*t);enemies.push({x:40+Math.random()*(canvas.width-80),y:e,baseY:e,hp:r,maxHp:r,attack:Math.floor(a+2*Math.random()),radius:20+5*Math.random(),color:"#e63946",attackCooldown:s+60*Math.random(),attackTimer:180*Math.random(),isAttacking:!1,chargeTimer:0})}}
@@ -1505,7 +1543,6 @@
             dom.proceedBtn.textContent = 'Next Stage';
         } 
 
-        // --- NEW DISPLAY LOGIC ---
         const lootSummaryDiv = document.getElementById('loot-summary');
         const summaryLines = [];
         if (lastRunLoot.gold > 0) {
@@ -1526,7 +1563,6 @@
         } else {
             lootSummaryDiv.classList.add('hidden');
         }
-        // --- END NEW DISPLAY LOGIC ---
 
         dom.goldDisplay.textContent = `${player.gold}`;
         const weaponDmg = player.inventory.weapon.power;
@@ -1568,13 +1604,13 @@
                 return `Calls down ${count} meteors that deal ${damage} damage.`
         }
     }
-    // --- NEW ENERGY REPLENISHMENT FUNCTION ---
+    
     function updateEnergyReplenishment() {
         if (!player || player.energy >= player.maxEnergy) {
-            return; // Exit if player doesn't exist or energy is already full
+            return;
         }
 
-        const REPLENISH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes in milliseconds
+        const REPLENISH_INTERVAL_MS = 2 * 60 * 1000;
         const now = Date.now();
         const elapsedMs = now - player.lastEnergyUpdateTime;
 
@@ -1583,11 +1619,7 @@
             
             if (energyGained > 0) {
                 player.energy = Math.min(player.maxEnergy, player.energy + energyGained);
-                
-                // Important: Update the timestamp by the amount of time accounted for, not to "now".
-                // This preserves any partial progress towards the next point.
                 player.lastEnergyUpdateTime += energyGained * REPLENISH_INTERVAL_MS;
-                
                 updatePlayerXpBar();
                 saveGame();
             }
@@ -1627,8 +1659,6 @@
         }
     }
 
-    // --- NEW INVENTORY FUNCTIONS ---
-
     function showInventory() {
         updateInventoryUI();
         inventoryModal.classList.add('visible');
@@ -1639,11 +1669,9 @@
     }
 
     function switchInventoryTab(tabName) {
-        // Deactivate all tabs and panels
         Object.values(tabButtons).forEach(btn => btn.classList.remove('active'));
         Object.values(panels).forEach(panel => panel.classList.remove('active'));
         
-        // Activate the selected one
         tabButtons[tabName].classList.add('active');
         panels[tabName].classList.add('active');
     }
@@ -1675,7 +1703,12 @@
                 const itemEl = document.createElement('div');
                 itemEl.className = 'shop-item';
                 const canForgeStones = group.count >= 3 && group.tier < 50;
-                const canForgeWeapon = group.tier >= 10; // Forge weapon at T10
+
+                // --- 1. REVERTED LOGIC: The T10 requirement is back ---
+                const canForgeWeapon = group.tier >= 10; 
+
+                // --- 2. TOOLTIP LOGIC: Create the tooltip text if the button is disabled ---
+                const forgeWeaponTooltipText = !canForgeWeapon ? "Requires a Tier 10+ stone to forge a weapon." : "";
                 
                 itemEl.innerHTML = `
                     <div class="shop-item-info">
@@ -1683,7 +1716,12 @@
                     </div>
                     <div>
                         <button class="button small forge-stone-btn" ${!canForgeStones ? 'disabled' : ''} data-type="${group.type}" data-tier="${group.tier}">Forge T${group.tier+1}</button>
-                        <button class="button small forge-weapon-btn" ${!canForgeWeapon ? 'disabled' : ''} data-type="${group.type}" data-tier="${group.tier}">Forge Weapon</button>
+                        <button class="button small forge-weapon-btn" 
+                                ${!canForgeWeapon ? 'disabled' : ''} 
+                                data-type="${group.type}" 
+                                data-tier="${group.tier}"
+                                title="${forgeWeaponTooltipText}"
+                        >Forge Weapon</button>
                     </div>
                 `;
                 stonesGrid.appendChild(itemEl);
@@ -1707,7 +1745,6 @@
         }
 
         let removedCount = 0;
-        // Remove 3 stones of the specified type and tier
         for (let i = player.inventory.stones.length - 1; i >= 0; i--) {
             const stone = player.inventory.stones[i];
             if (stone.type === type && stone.tier === tier) {
@@ -1717,7 +1754,6 @@
             }
         }
 
-        // Add 1 new stone of the next tier
         const typeNames = { copper: 'CopperStone', iron: 'IronStone', obsidian: 'ObsidianStone' };
         const newStone = {
             id: `stone_${Date.now()}`,
@@ -1734,9 +1770,8 @@
 
     function forgeNewWeapon(type, tier) {
         tier = parseInt(tier);
-        // Find and remove one stone of the specified type and tier
         const stoneIndex = player.inventory.stones.findIndex(s => s.type === type && s.tier === tier);
-        if (stoneIndex === -1) return; // Should not happen if button is enabled
+        if (stoneIndex === -1) return;
         player.inventory.stones.splice(stoneIndex, 1);
 
         const weaponNames = {
@@ -1750,8 +1785,8 @@
             type: type === 'copper' ? 'bow' : (type === 'iron' ? 'sword' : 'shield'),
             tier: tier,
             name: weaponNames[type === 'copper' ? 'bow' : (type === 'iron' ? 'sword' : 'shield')][Math.floor(Math.random() * 3)],
-            power: Math.floor(5 + (tier * 5) * (type === 'obsidian' ? 0.5 : 1)), // Shields have less power
-            defense: type === 'obsidian' ? Math.floor(tier * 2) : 0 // Only shields give defense
+            power: Math.floor(5 + (tier * 5) * (type === 'obsidian' ? 0.5 : 1)),
+            defense: type === 'obsidian' ? Math.floor(tier * 2) : 0
         };
 
         player.inventory.weapon = newWeapon;
@@ -1766,12 +1801,12 @@
         if (player.rubies < weapon.refineCost) return;
         
         player.rubies -= weapon.refineCost;
-        weapon.power = Math.floor(weapon.power * 1.1 + 5); // Increase power
-        weapon.refineCost = Math.floor(weapon.refineCost * 1.5); // Increase cost
+        weapon.power = Math.floor(weapon.power * 1.1 + 5);
+        weapon.refineCost = Math.floor(weapon.refineCost * 1.5);
         
         SOUNDS.upgrade();
         updateInventoryUI();
-        updatePlayerXpBar(); // Update top bar UI
+        updatePlayerXpBar();
         saveGame();
     }
 
@@ -1779,14 +1814,13 @@
         while (player.souls.current >= player.souls.toNextLevel) {
             player.souls.current -= player.souls.toNextLevel;
             player.souls.level++;
-            player.souls.toNextLevel = Math.floor(player.souls.toNextLevel * 1.8); // Increase XP requirement
+            player.souls.toNextLevel = Math.floor(player.souls.toNextLevel * 1.8);
 
-            // Apply a 5% boost to all core stats
             Object.values(player.stats).forEach(stat => {
                 stat.current = Math.floor(stat.current * 1.05);
                 if(stat.isFloat) stat.current = parseFloat((stat.current * 1.05).toFixed(1));
             });
-            player.hp = player.stats.maxHp.current; // Heal to new max HP
+            player.hp = player.stats.maxHp.current;
             SOUNDS.levelUp();
             showBattleBanner('SOUL CORE EMPOWERED!', 'ultimate-banner', 2500);
         }
@@ -1795,23 +1829,132 @@
     function gainNewStone(dungeon) {
         const stoneTypes = ['copper', 'iron', 'obsidian'];
         const typeNames = { copper: 'CopperStone', iron: 'IronStone', obsidian: 'ObsidianStone' };
-
-        // Higher level dungeons drop higher tier stones
         const tier = Math.max(1, Math.floor(dungeon.boss.level / 4));
         const type = stoneTypes[Math.floor(Math.random() * stoneTypes.length)];
-
         const newStone = {
             id: `stone_${Date.now()}`,
             type: type,
             tier: tier,
             name: `${typeNames[type]} T${tier}`
         };
-
         player.inventory.stones.push(newStone);
         lastRunLoot.stones.push(newStone);
         showBattleBanner(`Found ${newStone.name}!`, 'stage-clear-banner', 3000);
         saveGame();
     }
+    
+    // --- OFFLINE REWARDS START ---
+    function calculateOfflineRewards() {
+        if (!player || !player.lastSaveTime) return;
+
+        const MIN_OFFLINE_SECONDS = 30;
+        const MAX_OFFLINE_SECONDS = 24 * 60 * 60; // 24 hours
+        const KILLS_PER_SECOND = 1 / 5; // Simulates one kill every 5 seconds
+        const STONE_CHANCE_PER_KILL = 0.0006; // 0.06%
+
+        const now = Date.now();
+        let offlineSeconds = (now - player.lastSaveTime) / 1000;
+        
+        if (offlineSeconds < MIN_OFFLINE_SECONDS) return;
+
+        const clampedSeconds = Math.min(offlineSeconds, MAX_OFFLINE_SECONDS);
+        const totalKills = Math.floor(clampedSeconds * KILLS_PER_SECOND);
+
+        if (totalKills <= 0) return;
+
+        const rewards = {
+            gold: 0,
+            xp: 0,
+            stones: [],
+            timeFormatted: formatTime(clampedSeconds)
+        };
+
+        const xpPerKill = Math.max(1, player.level * 2);
+        const goldPerKill = Math.max(1, player.level);
+
+        for(let i = 0; i < totalKills; i++) {
+            rewards.gold += goldPerKill;
+            rewards.xp += xpPerKill;
+            if(Math.random() < STONE_CHANCE_PER_KILL) {
+                rewards.stones.push(generateRandomStone());
+            }
+        }
+        
+        showOfflineRewardsModal(rewards);
+    }
+
+    function generateRandomStone() {
+        const stoneTypes = ['copper', 'iron', 'obsidian'];
+        const typeNames = { copper: 'CopperStone', iron: 'IronStone', obsidian: 'ObsidianStone' };
+        const tier = Math.max(1, Math.floor(player.level / 5 + Math.random() * 2));
+        const type = stoneTypes[Math.floor(Math.random() * stoneTypes.length)];
+        return {
+            id: `stone_offline_${Date.now()}_${Math.random()}`,
+            type: type,
+            tier: tier,
+            name: `${typeNames[type]} T${tier}`
+        };
+    }
+
+    function showOfflineRewardsModal(rewards) {
+        const modal = document.getElementById('offline-rewards-modal');
+        const list = document.getElementById('offline-rewards-list');
+        const timeInfo = document.getElementById('offline-time-info');
+        const claimButton = document.getElementById('claim-offline-rewards-button');
+
+        timeInfo.textContent = `While you were away for ${rewards.timeFormatted}, your hero explored the wilds:`;
+        list.innerHTML = '';
+
+        if (rewards.gold > 0) {
+            list.innerHTML += `<li><i class="fas fa-coins icon-gold"></i>+${rewards.gold.toLocaleString()} Gold</li>`;
+        }
+        if (rewards.xp > 0) {
+            list.innerHTML += `<li><i class="fas fa-star icon-xp"></i>+${rewards.xp.toLocaleString()} XP</li>`;
+        }
+        if (rewards.stones.length > 0) {
+            const groupedStones = {};
+            rewards.stones.forEach(stone => {
+                if (!groupedStones[stone.name]) {
+                    groupedStones[stone.name] = 0;
+                }
+                groupedStones[stone.name]++;
+            });
+            for(const stoneName in groupedStones) {
+                 list.innerHTML += `<li><i class="fas fa-gem icon-stone"></i>Found ${groupedStones[stoneName]}x ${stoneName}</li>`;
+            }
+        }
+
+        claimButton.onclick = () => {
+            SOUNDS.stageClear();
+            player.gold += rewards.gold;
+            gainXP(rewards.xp);
+            player.inventory.stones.push(...rewards.stones);
+
+            addFloatingText(`+${rewards.gold}💰`, player.x, player.y - 60, '#ffd700');
+            addFloatingText(`+${rewards.xp} XP`, player.x, player.y - 30, '#a371f7');
+            
+            updatePlayerXpBar();
+            saveGame();
+            modal.classList.remove('visible');
+        };
+
+        modal.classList.add('visible');
+    }
+
+    function formatTime(totalSeconds) {
+        totalSeconds = Math.floor(totalSeconds);
+        const hours = Math.floor(totalSeconds / 3600);
+        totalSeconds %= 3600;
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+
+        let result = "";
+        if (hours > 0) result += `${hours}h `;
+        if (minutes > 0) result += `${minutes}m `;
+        if (hours === 0 && minutes < 30) result += `${seconds}s`; // Only show seconds for shorter durations
+        return result.trim();
+    }
+    // --- OFFLINE REWARDS END ---
     
     function checkSkillUnlocks() {Object.keys(SKILLS_DATA).forEach(id => {const skillData = SKILLS_DATA[id], playerSkill = player.skills[id];if (!playerSkill.isUnlocked && currentStage > skillData.unlockStage) {playerSkill.isUnlocked = true;showBattleBanner(`${skillData.name} Unlocked!`, "ultimate-banner", 3000)}})}
     document.getElementById('dungeons-button').onclick = () => showScreen('map');
@@ -1827,11 +1970,9 @@
     document.getElementById('upgrade-screen-regen-button').onclick = () => buyUpgrade('healthRegen', true);
     dom.proceedBtn.onclick = () => {
         if (currentDungeon) {
-            // The logic is gone because it now runs in changeState('SHOP')
             currentDungeon = null;
             showScreen('map');
         } else {
-            // This part remains the same for non-dungeon stages
             currentStage++;
             changeState('COUNTDOWN');
         }
@@ -1870,13 +2011,13 @@
         }
     });
     function playerAttack(target) {
-        if (!target || player.weaponVisual.animState !== 'idle') return; // Can only attack from idle state
+        if (!target || player.weaponVisual.animState !== 'idle') return;
         
-        player.isAttacking = true; // Still used for general state
+        player.isAttacking = true;
         player.weaponVisual.animState = 'drawing';
-        player.weaponVisual.animTimer = 30; // 30 frames to draw the weapon
-        player.weaponVisual.target = target; // Remember who we're aiming at
-        SOUNDS.playerAttack(); // A new "draw" sound might be good later
+        player.weaponVisual.animTimer = 30;
+        player.weaponVisual.target = target;
+        SOUNDS.playerAttack();
     }
     function updateSkills() {
         if (enemies.length === 0) return;
@@ -1900,7 +2041,7 @@
                 if (!randomEnemy) return;
                 switch (id) {
                     case 'orbitalStrike':
-                        skillVisuals.push({ type: 'orbitalStrike', x: player.x, y: player.y, target: randomEnemy, speed: 3, damage: damage, life: 300, maxLife: 300 }); // <-- FIX: Added maxLife
+                        skillVisuals.push({ type: 'orbitalStrike', x: player.x, y: player.y, target: randomEnemy, speed: 3, damage: damage, life: 300, maxLife: 300 });
                         break;
                     case 'chainLightning':
                         const jumps = SKILLS_DATA.chainLightning.baseJumps + Math.floor((skill.level - 1) / skillData.jumpsPerLevel);
@@ -1914,7 +2055,7 @@
                             e.hp -= damage;
                             addFloatingText(damage, e.x, e.y, '#6efcff');
                         });
-                        skillVisuals.push({ type: 'chainLightning', targets: targets, life: 60, maxLife: 60, damage: damage }); // <-- FIX: Increased life and added maxLife
+                        skillVisuals.push({ type: 'chainLightning', targets: targets, life: 60, maxLife: 60, damage: damage });
                         break;
                     case 'meteorShower':
                         const count = SKILLS_DATA.meteorShower.baseCount + Math.floor((skill.level - 1) / SKILLS_DATA.meteorShower.countPerLevel);
@@ -1927,7 +2068,7 @@
                                 speed: 8 + Math.random() * 4,
                                 damage: damage,
                                 life: 200,
-                                maxLife: 200 // <-- FIX: Added maxLife
+                                maxLife: 200
                             });
                         }
                         break
@@ -1937,7 +2078,6 @@
     }
     function updateCountdown() { countdownTimer--; if(countdownTimer % 60 === 0 && countdownTimer > 0) { playSound(500, "sine", 0.1, 0.3); } if (countdownTimer <= 0) { changeState('COMBAT'); playSound(800, "sine", 0.1, 0.4); } }
     function updateCombat() {
-        // --- Player positioning block (This part is correct) ---
         const barHeight = 18;
         const bottomPadding = 5;
         const ultButtonRect = dom.ultBtn.getBoundingClientRect();
@@ -1949,10 +2089,7 @@
         player.y = newPlayerY;
         player.baseY = newPlayerY;
 
-        // --- THIS IS THE CHANGE ---
-        // The large animation state machine is now replaced with this single, clean function call.
         updateWeaponAnimation();
-        // --- END OF CHANGE ---
 
         if (player.flash > 0) player.flash--;
 
@@ -2061,22 +2198,18 @@
     function updateExplorationMode() {
         if (!player) return;
         
-        // --- NEW AND CORRECTED LOGIC ---
-        updateWeaponAnimation(); // Handle the drawing/firing animation states
+        updateWeaponAnimation();
         
         enemies = explorationEnemies;
-        updateSkills(); // Also update skills in exploration mode
+        updateSkills();
         explorationEnemies = enemies;
 
-        // Auto-attack trigger for exploration mode
-        // If we are idle and there are enemies, start a new attack animation.
         if (player.weaponVisual.animState === 'idle' && explorationEnemies.length > 0) {
-            let target = explorationEnemies[0]; // In exploration, always target the front enemy
+            let target = explorationEnemies[0];
             if (target) {
-                playerAttack(target); // This will correctly start the 'drawing' animation
+                playerAttack(target);
             }
         }
-        // --- END OF NEW LOGIC ---
 
         explorationBackgroundStars.forEach(star => {
             star.x -= star.speed;
@@ -2141,6 +2274,8 @@
         explorationEnemies = explorationEnemies.filter(e => e.hp > 0 && e.x > -50);
         particles = particles.filter(e => { e.x += e.vx; e.y += e.vy; e.life--; return e.life > 0 });
         floatingTexts = floatingTexts.filter(e => { e.y -= 1; e.life--; return e.life > 0 });
+        // --- FIX: Add skill visual cleanup for exploration mode ---
+        skillVisuals = skillVisuals.filter(v => { v.life--; return v.life > 0; });
     }
     function update(){
         updatePlayerXpBar();
@@ -2194,31 +2329,26 @@
     function drawBossHealthBar() {
         if (enemies.length === 0) return;
 
-        // Calculate total health of all enemies on screen
         const totalCurrentHp = enemies.reduce((sum, enemy) => sum + Math.max(0, enemy.hp), 0);
         const totalMaxHp = enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0);
 
-        if (totalMaxHp === 0) return; // Avoid division by zero
+        if (totalMaxHp === 0) return;
 
         const barWidth = canvas.width;
         const barHeight = 25;
-        const barY = 50; // Position it below the top UI
+        const barY = 50;
 
-        // Draw the background of the bar
         ctx.fillStyle = 'rgba(50, 50, 50, 0.7)';
         ctx.fillRect(0, barY, barWidth, barHeight);
 
-        // Draw the health fill
         const healthPercentage = totalCurrentHp / totalMaxHp;
-        ctx.fillStyle = '#c1121f'; // Red color for health
+        ctx.fillStyle = '#c1121f';
         ctx.fillRect(0, barY, barWidth * healthPercentage, barHeight);
 
-        // Draw a border for clarity
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
         ctx.lineWidth = 2;
         ctx.strokeRect(0, barY, barWidth, barHeight);
 
-        // Draw the health text on top
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 16px Cinzel';
         ctx.textAlign = 'center';
@@ -2226,7 +2356,7 @@
         ctx.shadowColor = 'black';
         ctx.shadowBlur = 4;
         ctx.fillText(`${Math.ceil(totalCurrentHp)} / ${totalMaxHp}`, barWidth / 2, barY + barHeight / 2);
-        ctx.shadowBlur = 0; // Reset shadow
+        ctx.shadowBlur = 0;
     }
 
     function drawPlayerHudBars() {
@@ -2234,36 +2364,28 @@
 
         const barWidth = canvas.width;
         const barHeight = 18;
-        const bottomPadding = 5; // A small gap between the bars and buttons
+        const bottomPadding = 5;
 
-        // Get the position of the RAGE button relative to the canvas
         const ultButtonRect = dom.ultBtn.getBoundingClientRect();
         const containerRect = gameContainer.getBoundingClientRect();
         
-        // Calculate the top of the button within the canvas coordinate system
         const buttonTopInCanvas = ultButtonRect.top - containerRect.top;
 
-        // Calculate the Y positions for the bars based on the button's position
-        // The Rage bar sits on top of the button
         const rageBarY = buttonTopInCanvas - barHeight - bottomPadding;
-        // The HP bar sits on top of the Rage bar
         const hpBarY = rageBarY - barHeight;
 
-        // --- Draw Health Bar (The drawing logic itself remains the same) ---
-        ctx.fillStyle = '#333'; // Background
+        ctx.fillStyle = '#333';
         ctx.fillRect(0, hpBarY, barWidth, barHeight);
         const hpPercent = Math.max(0, player.hp / player.stats.maxHp.current);
-        ctx.fillStyle = '#2a9d8f'; // Teal color for health
+        ctx.fillStyle = '#2a9d8f';
         ctx.fillRect(0, hpBarY, barWidth * hpPercent, barHeight);
 
-        // --- Draw Rage Bar ---
-        ctx.fillStyle = '#554300'; // Background
+        ctx.fillStyle = '#554300';
         ctx.fillRect(0, rageBarY, barWidth, barHeight);
         const ragePercent = player.rage / 100;
-        ctx.fillStyle = '#ffd700'; // Gold color for rage
+        ctx.fillStyle = '#ffd700';
         ctx.fillRect(0, rageBarY, barWidth * ragePercent, barHeight);
         
-        // --- Draw Text Labels ---
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 12px Roboto';
         ctx.textAlign = 'left';
@@ -2272,7 +2394,7 @@
         ctx.shadowBlur = 3;
         ctx.fillText(`HP: ${Math.ceil(player.hp)} / ${player.stats.maxHp.current}`, 10, hpBarY + barHeight / 2);
         ctx.fillText(`RAGE: ${player.rage} / 100`, 10, rageBarY + barHeight / 2);
-        ctx.shadowBlur = 0; // Reset shadow
+        ctx.shadowBlur = 0;
     }
 
     function drawHud(){
@@ -2372,8 +2494,8 @@
     
         ctx.restore();
         ctx.save();
-        ctx.translate(player.x, player.y); // Re-translate for weapon drawing
-        drawWeapon(ctx); // Call the new weapon drawing function
+        ctx.translate(player.x, player.y);
+        drawWeapon(ctx);
         ctx.restore();
         if (!explorationContainer.classList.contains('hidden')) {
             const barWidth = 100,
@@ -2394,7 +2516,6 @@
         const v = player.weaponVisual;
         const tier = weapon.tier;
 
-        // Aim at the target if we have one
         if (v.target) {
             const dx = v.target.x - player.x;
             const dy = v.target.y - player.y;
@@ -2407,53 +2528,47 @@
                 drawAnimatedBow(ctx, weapon, v, tier);
                 break;
             case 'sword':
-                // Placeholder for a future sword animation
                 drawAnimatedSword(ctx, weapon, v, tier);
                 break;
             case 'shield':
-                // Placeholder for a future shield visual
                 drawAnimatedShield(ctx, weapon, v, tier);
                 break;
         }
     }
 
     function drawAnimatedBow(ctx, weapon, v, tier) {
-        // --- Define visual properties based on Tier ---
-        let bowColor = '#8c5e3c'; // Wood
+        let bowColor = '#8c5e3c';
         let stringColor = '#fff';
         let glowColor = null;
         let particleColor = '#ffecb3';
 
-        if (tier >= 10 && tier < 25) { // Magic Tier
+        if (tier >= 10 && tier < 25) {
             bowColor = '#7b8cde';
             stringColor = '#aaffff';
             glowColor = 'rgba(170, 255, 255, 0.5)';
-        } else if (tier >= 25) { // Godly Tier
+        } else if (tier >= 25) {
             bowColor = '#ffd700';
             stringColor = '#fff';
             glowColor = 'rgba(255, 220, 150, 0.7)';
             particleColor = '#fff';
         }
         
-        // --- Animation Logic ---
-        let drawRatio = 0; // How far back the string is pulled (0 to 1)
+        let drawRatio = 0;
         if (v.animState === 'drawing') {
             drawRatio = 1 - (v.animTimer / 30);
         } else if (v.animState === 'firing') {
-            drawRatio = v.animTimer / 15; // Recoil effect
+            drawRatio = v.animTimer / 15;
         }
 
         const bowWidth = 50;
         const bowThickness = 5 + Math.floor(tier / 10);
         const stringPullback = 20 * drawRatio;
 
-        // Draw Bow Glow (for higher tiers)
         if (glowColor) {
             ctx.shadowColor = glowColor;
             ctx.shadowBlur = 15;
         }
 
-        // Draw the Bow
         ctx.beginPath();
         ctx.moveTo(0, -bowWidth / 2);
         ctx.quadraticCurveTo(15 + stringPullback, 0, 0, bowWidth / 2);
@@ -2461,18 +2576,16 @@
         ctx.strokeStyle = bowColor;
         ctx.stroke();
         
-        ctx.shadowBlur = 0; // Reset shadow
+        ctx.shadowBlur = 0;
 
-        // Draw the String
         ctx.beginPath();
         ctx.moveTo(0, -bowWidth / 2);
-        ctx.lineTo(-stringPullback, 0); // Pull the string back
+        ctx.lineTo(-stringPullback, 0);
         ctx.lineTo(0, bowWidth / 2);
         ctx.lineWidth = 2;
         ctx.strokeStyle = stringColor;
         ctx.stroke();
 
-        // Draw Arrow/Energy at the tip
         if (drawRatio > 0.1) {
             ctx.beginPath();
             ctx.arc(-stringPullback, 0, 3 + tier / 10, 0, Math.PI * 2);
@@ -2484,7 +2597,6 @@
         }
     }
 
-    // Basic placeholder functions for other weapon types
     function drawAnimatedSword(ctx, weapon, v, tier) {
         const length = 50 + tier;
         const width = 8 + Math.floor(tier / 10);
@@ -2511,15 +2623,13 @@
     
     function drawEnemies() {
         enemies.forEach(e => {
-            // --- START OF NEW ICON DRAWING LOGIC ---
-            if (e.icon) { // Check if the enemy is a boss with a special icon
+            if (e.icon) {
                 ctx.save();
-                ctx.font = `900 ${e.radius * 2}px "Font Awesome 6 Free"`; // Font Awesome, large size
+                ctx.font = `900 ${e.radius * 2}px "Font Awesome 6 Free"`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillStyle = e.chargeTimer > 0 ? '#ff6b6b' : e.color; // Use enemy color
+                ctx.fillStyle = e.chargeTimer > 0 ? '#ff6b6b' : e.color;
                 
-                // Add a white flash effect when hit
                 if (e.flash > 0) {
                     ctx.shadowColor = 'white';
                     ctx.shadowBlur = 20;
@@ -2529,15 +2639,14 @@
                     ctx.shadowOffsetY = 8;
                 }
 
-                // Convert Font Awesome class ('fa-ghost') to the correct unicode character
                 let iconChar = '';
                 const iconMap = { 'fa-ghost': '\uf6e2', 'fa-skull-crossbones': '\uf714', 'fa-robot': '\uf544', 'fa-hat-wizard': '\uf6e8', 'fa-pastafarianism': '\uf67b', 'fa-user-secret': '\uf21b', 'fa-user-ninja': '\uf504' };
-                iconChar = iconMap[e.icon] || '?'; // Default to '?' if icon not found
+                iconChar = iconMap[e.icon] || '?';
 
                 ctx.fillText(iconChar, e.x, e.y);
                 ctx.restore();
 
-            } else { // --- IF NOT A BOSS, DRAW THE NORMAL CIRCLE ---
+            } else {
                 ctx.save();
                 ctx.translate(e.x, e.y);
                 ctx.shadowColor = 'rgba(0,0,0,0.5)';
@@ -2554,9 +2663,7 @@
                     ctx.fillStyle = `rgba(255,255,255,${e.flash/5})`
                 }
             }
-            // --- END OF NEW LOGIC ---
 
-            // Health bar logic (remains the same)
             if (!explorationContainer.classList.contains('hidden')) {
                 const barWidth = e.radius * 2;
                 ctx.fillStyle = '#333';
@@ -2570,17 +2677,14 @@
     function drawSkillVisuals() {
         skillVisuals.forEach(v => {
             ctx.save();
-            // Use maxLife for a correct fade-out, regardless of the effect's duration
-            ctx.globalAlpha = Math.min(1, v.life / v.maxLife);  // <-- FIX: Changed from 30 to v.maxLife
+            ctx.globalAlpha = Math.min(1, v.life / v.maxLife);
 
             switch (v.type) {
                 case 'orbitalStrike':
-                    // This logic was in update() before, let's move it to draw() for consistency
                     const dx = v.target.x - v.x;
                     const dy = v.target.y - v.y;
                     const dist = Math.hypot(dx, dy);
     
-                    // Draw the orb
                     ctx.beginPath();
                     ctx.arc(v.x, v.y, 8, 0, Math.PI * 2);
                     ctx.fillStyle = '#9d4edd';
@@ -2588,12 +2692,11 @@
                     ctx.shadowBlur = 20;
                     ctx.fill();
                     
-                    // Move the orb
                     if (dist < v.speed) {
                         v.target.hp -= v.damage;
                         addFloatingText(v.damage, v.target.x, v.target.y, '#d3a0ff');
                         createExplosion(v.x, v.y, 20, '#9d4edd');
-                        v.life = 0; // Mark for deletion
+                        v.life = 0;
                     } else {
                         v.x += dx / dist * v.speed;
                         v.y += dy / dist * v.speed;
@@ -2604,7 +2707,6 @@
                     if (v.targets.length > 1) {
                         ctx.beginPath();
                         ctx.moveTo(v.targets[0].x, v.targets[0].y);
-                        // Draw jagged lines between targets
                         for (let i = 1; i < v.targets.length; i++) {
                             const start = v.targets[i - 1];
                             const end = v.targets[i];
@@ -2618,7 +2720,6 @@
                         ctx.shadowBlur = 15;
                         ctx.stroke();
                     }
-                    // Also draw a little burst on each target
                     v.targets.forEach(target => {
                         ctx.beginPath();
                         ctx.arc(target.x, target.y, 10, 0, Math.PI * 2);
@@ -2628,7 +2729,6 @@
                     break;
     
                 case 'meteor':
-                    // Draw the meteor trail
                     ctx.beginPath();
                     ctx.moveTo(v.x, v.y - 20);
                     ctx.lineTo(v.x + 3, v.y);
@@ -2639,19 +2739,16 @@
                     ctx.shadowBlur = 15;
                     ctx.fill();
     
-                    // Move the meteor
                     v.y += v.speed;
-                    // Check for impact
                     if (v.y >= v.targetY) {
                         enemies.forEach(e => {
-                            // Check for horizontal proximity to the impact
                             if (Math.abs(e.x - v.x) < 40 && Math.abs(e.y - v.y) < 60) {
                                 e.hp -= v.damage;
                                 addFloatingText(v.damage, e.x, e.y, '#fca311');
                             }
                         });
                         createExplosion(v.x, v.y, 30, '#fca311', 4, 6);
-                        v.life = 0; // Mark for deletion
+                        v.life = 0;
                     }
                     break;
             }
@@ -2665,11 +2762,9 @@
             player.weaponVisual.animTimer--;
             if (player.weaponVisual.animTimer <= 0) {
                 if (player.weaponVisual.animState === 'drawing') {
-                    // Time to fire!
                     player.weaponVisual.animState = 'firing';
-                    player.weaponVisual.animTimer = 15; // 15 frames for the firing animation
+                    player.weaponVisual.animTimer = 15;
 
-                    // NOW we create the projectile
                     const weapon = player.inventory.weapon;
                     const baseDamage = weapon.power + player.stats.attackPower.current; 
                     const finalDamage = baseDamage + Math.floor(baseDamage * 0.1 * Math.random());
@@ -2681,11 +2776,9 @@
                         damage: finalDamage
                     });
 
-                    // Create a muzzle-flash style effect
                     createExplosion(player.x, player.y, 20, '#fff', 2, 4);
 
                 } else if (player.weaponVisual.animState === 'firing') {
-                    // Animation is over, return to idle
                     player.weaponVisual.animState = 'idle';
                     player.isAttacking = false;
                     player.weaponVisual.target = null;
@@ -2694,12 +2787,10 @@
         }
     }
     function drawExplorationMode() {
-        ctx = expCtx; // <-- This now works because ctx is a 'let'
+        ctx = expCtx;
         
-        // Clear the exploration canvas
         ctx.clearRect(0, 0, explorationCanvas.width, explorationCanvas.height);
         
-        // Draw the background
         explorationBackgroundStars.forEach(star => { 
             ctx.beginPath(); 
             ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); 
@@ -2707,15 +2798,11 @@
             ctx.fill(); 
         });
         
-        // Call the same universal drawing functions as the main game loop
         drawPlayer();
         drawEnemies();
         drawEffects();
         drawSkillVisuals();
         
-        // --- THIS IS THE CRITICAL FIX ---
-        // After drawing everything for exploration, reset the context back to the main canvas
-        // so that the next frame doesn't try to draw the UI on the wrong screen.
         ctx = document.getElementById('game-canvas').getContext('2d'); 
     }
     function draw() {
@@ -2741,8 +2828,7 @@
             
             ctx.restore();
             
-            // --- NEW HUD DRAWING CALLS ---
-            drawHud(); // Draws the stage name and gold
+            drawHud();
             if (gameState === 'COMBAT' || gameState === 'ENDING_COMBAT' || gameState === 'COUNTDOWN') {
                 drawBossHealthBar();
                 drawPlayerHudBars();
@@ -2770,7 +2856,6 @@
             }
         }, intervalTime);
 
-        // This listener is now simpler and more direct.
         startGameButton.addEventListener('click', () => {
             SOUNDS.click();
             const backgroundMusic = document.getElementById('bg-music');
@@ -2778,7 +2863,6 @@
                 backgroundMusic.volume = 0.3;
                 backgroundMusic.play().catch(error => console.log("Music play failed:", error));
             }
-            // Directly call showScreen to handle the transition.
             showScreen('main');
         });
     }
@@ -2875,10 +2959,11 @@
     }
     
     // --- Initialize Game ---
-    initGame(false, true); // Load saved data or create new game state in the background
-    initializeBootSequence(); // Show the boot screen animation
+    initGame(false, true);
+    initializeBootSequence();
     initMapBackground();
     setInterval(updateEnergyReplenishment, 1000);
+    window.addEventListener('beforeunload', saveGame); // --- OFFLINE REWARDS ---
     gameLoop();
     </script>
     <script>
