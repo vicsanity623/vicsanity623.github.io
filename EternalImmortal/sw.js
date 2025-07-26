@@ -1,5 +1,5 @@
 // A unique name for your cache
-const CACHE_NAME = 'eternal-immortal-cache-v0.0.7';
+const CACHE_NAME = 'eternal-immortal-cache-v0.0.8';
 
 // The list of files to cache on install
 // This should include all your core assets.
