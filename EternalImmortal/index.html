@@ -89,6 +89,36 @@
         }
         /* --- END BOOT SCREEN STYLES --- */
 
+        #loot-summary {
+            width: 85%;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin: -10px 0 20px 0;
+            text-align: left;
+        }
+        #loot-summary h4 {
+            margin: 0 0 8px 0;
+            text-align: center;
+            color: #a2b0f0;
+            font-size: 18px;
+        }
+        #loot-summary p {
+            text-align: left;
+            margin: 5px 0;
+            font-size: 16px;
+            text-shadow: none;
+        }
+        #loot-summary i {
+            color: #ffd700;
+            margin-right: 10px;
+            width: 20px; /* Align icons nicely */
+            text-align: center;
+        }
+        #loot-summary .icon-xp { color: #6a3093; }
+        #loot-summary .icon-stone { color: #c0c0c0; }
+
         /* --- NEW TOP BAR UI --- */
         #top-bar-container {
             position: absolute;
@@ -467,12 +497,14 @@
         <div class="modal-content"><i class="fas fa-times close-button" onclick="hideModal()"></i><h3 class="dungeon-title" id="modal-title">Dungeon Name</h3><p class="dungeon-mode" id="modal-mode">Challenge Mode</p><div class="boss-section"><div class="boss-portrait" id="modal-boss-icon"></div><div class="boss-info"><h4 id="modal-boss-name">Boss Name</h4><p>Level <span id="modal-boss-level">10</span></p></div></div><div class="rewards-section"><h4>Potential Rewards</h4><div class="rewards-grid" id="modal-rewards"></div></div><div id="modal-start-button" class="start-button">Start</div></div>
     </div>
     <div id="locked-modal" class="modal-overlay">
-        <div class="modal-content"><i class="fas fa-times close-button" onclick="hideModal()"></i><p>This dungeon is surrounded by dread. Clear a path by completing previous dungeons first!</p></div>
+        <div class="modal-content"><i class="fas fa-times close-button" onclick="hideModal()"></i><p>This dungeon is LOCKED. Unlock it by completing previous dungeons first!</p></div>
     </div>
     <div id="game-container" class="screen-container hidden">
         <canvas id="game-canvas"></canvas>
         <canvas id="ui-canvas"></canvas>
-        <div id="shop-screen" class="ui-panel scrollable-panel panel-hidden"><h1 id="shop-title">Stage Cleared!</h1><p class="subtitle" id="shop-subtitle">Spend Gold to grow stronger.</p><div class="gold-display">💰 <span id="gold-total">0</span></div><div class="shop-item"><div class="shop-item-info"><h3>Attack Power</h3><p>Current: <span id="attack-power-stat">10</span></p></div><div class="button" id="upgrade-attack-button">Upgrade (<span class="cost-text" id="attack-cost">10</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Max Health</h3><p>Current: <span id="max-health-stat">100</span></p></div><div class="button" id="upgrade-health-button">Upgrade (<span class="cost-text" id="health-cost">10</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Rage Gain</h3><p>Current: <span id="rage-gain-stat">5</span></p></div><div class="button" id="upgrade-rage-button">Upgrade (<span class="cost-text" id="rage-cost">20</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Health Regen</h3><p>Current: <span id="health-regen-stat">0</span>/s</p></div><div class="button" id="upgrade-regen-button">Upgrade (<span class="cost-text" id="regen-cost">30</span>)</div></div><div style="display: flex; justify-content: center; width: 100%; margin-top: 20px;"><div id="player-stats-button" class="button small">Player Stats</div><div id="proceed-button" class="button" style="margin: 10px; background: linear-gradient(45deg, #4CAF50, #2E7D32);">Next Stage</div></div></div>
+        <div id="shop-screen" class="ui-panel scrollable-panel panel-hidden"><h1 id="shop-title">Stage Cleared!</h1><p class="subtitle" id="shop-subtitle">Spend Gold to grow stronger.</p>
+            <div id="loot-summary" class="hidden"></div>
+            <div class="gold-display">💰 <span id="gold-total">0</span></div><div class="shop-item"><div class="shop-item-info"><h3>Attack Power</h3><p>Current: <span id="attack-power-stat">10</span></p></div><div class="button" id="upgrade-attack-button">Upgrade (<span class="cost-text" id="attack-cost">10</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Max Health</h3><p>Current: <span id="max-health-stat">100</span></p></div><div class="button" id="upgrade-health-button">Upgrade (<span class="cost-text" id="health-cost">10</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Rage Gain</h3><p>Current: <span id="rage-gain-stat">5</span></p></div><div class="button" id="upgrade-rage-button">Upgrade (<span class="cost-text" id="rage-cost">20</span>)</div></div><div class="shop-item"><div class="shop-item-info"><h3>Health Regen</h3><p>Current: <span id="health-regen-stat">0</span>/s</p></div><div class="button" id="upgrade-regen-button">Upgrade (<span class="cost-text" id="regen-cost">30</span>)</div></div><div style="display: flex; justify-content: center; width: 100%; margin-top: 20px;"><div id="player-stats-button" class="button small">Player Stats</div><div id="proceed-button" class="button" style="margin: 10px; background: linear-gradient(45deg, #4CAF50, #2E7D32);">Next Stage</div></div></div>
         <div id="game-over-screen" class="ui-panel panel-hidden"><h1>Defeated!</h1><h2 id="game-over-message">You reached Stage <span id="final-stage-reached">1</span></h2><div id="retry-button" class="button">Try Again</div></div>
         <div id="player-screen" class="ui-panel scrollable-panel panel-hidden"><h1>SoulCraft</h1><div class="stats-container"></div><div class="skills-container"></div><div id="player-screen-back-button" class="button small">Back to Shop</div></div>
         <div id="battle-event-banner" class="battle-banner"></div>
@@ -744,6 +776,7 @@
     canvas.height = uiCanvas.height = explorationCanvas.height = 800;
     const dom = { shop:document.getElementById('shop-screen'), gameOver:document.getElementById('game-over-screen'), playerStats:document.getElementById('player-screen'), proceedBtn:document.getElementById('proceed-button'), retryBtn:document.getElementById('retry-button'), statsBtn:document.getElementById('player-stats-button'), backBtn:document.getElementById('player-screen-back-button'), battleBanner:document.getElementById('battle-event-banner'), goldDisplay:document.getElementById('gold-total'), upgradeBtns:{attack:document.getElementById('upgrade-attack-button'),health:document.getElementById('upgrade-health-button'),rage:document.getElementById('upgrade-rage-button'),regen:document.getElementById('upgrade-regen-button')}, ultBtn:document.getElementById('ult-button'), autoBtn:document.getElementById('auto-battle-button') };
     let gameState, currentStage, player, enemies, particles, floatingTexts, projectiles, healthOrbs, shakeDuration, isAutoBattle, endCombatTimer, uiParticles=[], skillVisuals=[], countdownTimer;
+    let lastRunLoot = { gold: 0, xp: 0, stones: [] };
     let explorationEnemies = [], explorationProjectiles = [], explorationBackgroundStars = [], explorationDifficulty = 1, explorationSpawnTimer = 0;
     const SKILLS_DATA={orbitalStrike:{name:"Orbital Strike",unlockStage:10,baseCooldown:300,cooldownReductionPerLevel:2,baseDamageMultiplier:.5,damageMultiplierPerLevel:.05,baseTargetXP:10},chainLightning:{name:"Chain Lightning",unlockStage:25,baseCooldown:240,cooldownReductionPerLevel:1.5,baseDamageMultiplier:.3,damageMultiplierPerLevel:.03,baseJumps:2,jumpsPerLevel:5,baseTargetXP:15},meteorShower:{name:"Meteor Shower",unlockStage:50,baseCooldown:400,cooldownReductionPerLevel:3,baseDamageMultiplier:.8,damageMultiplierPerLevel:.1,baseCount:5,countPerLevel:10,baseTargetXP:20}};
     function createStat(c){return{name:c.name,level:c.level||1,current:c.current||0,target:c.target||100,baseGain:c.baseGain||1,displaySuffix:c.displaySuffix||'',isFloat:c.isFloat||!1,color:c.color}}
@@ -1027,7 +1060,110 @@
     function addFloatingText(t,x,y,c){floatingTexts.push({text:t,x,y,life:60,color:c})}
     function triggerScreenShake(d){shakeDuration=d}
     function showBattleBanner(t,ty,d){dom.battleBanner.textContent=t;dom.battleBanner.className=`battle-banner ${ty}`;setTimeout(()=>{dom.battleBanner.className='battle-banner panel-hidden'},d)}
-    function changeState(newState){Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});dom.ultBtn.classList.add('panel-hidden');dom.autoBtn.classList.add('panel-hidden');uiParticles=[];gameState=newState;switch(newState){case'COUNTDOWN':if(currentDungeon){setupBossStage(currentDungeon)}else{setupNextStage()}dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');countdownTimer=180;playSound(500,"sine",0.1,0.3);break;case'COMBAT':dom.ultBtn.classList.remove('panel-hidden');dom.autoBtn.classList.remove('panel-hidden');break;case'SHOP':if(currentDungeon&&!currentDungeon.rewardGiven){if(currentDungeon.goldReward){player.gold+=currentDungeon.goldReward;addFloatingText(`+${currentDungeon.goldReward}💰`,canvas.width/2,canvas.height/2-50,'#ffd700');}if(currentDungeon.rubyReward){player.rubies=(player.rubies||0)+currentDungeon.rubyReward;addFloatingText(`+${currentDungeon.rubyReward}💎`,canvas.width/2,canvas.height/2-20,'#f94144');}currentDungeon.rewardGiven=!0}saveGame();checkSkillUnlocks();dom.shop.classList.remove('panel-hidden');updateShopUI();setTimeout(createShopParticles,100);break;case'GAME_OVER':dom.gameOver.classList.remove('panel-hidden');updateGameOverUI();break;case'PLAYER_STATS':dom.playerStats.classList.remove('panel-hidden');updatePlayerScreenUI();setTimeout(createStatsScreenParticles,100);break;case'ENDING_COMBAT':player.isAttacking=!1;endCombatTimer=120;showBattleBanner('Victory!','stage-clear-banner',2500);SOUNDS.stageClear();break;}}
+    function changeState(newState){
+        Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});
+        dom.ultBtn.classList.add('panel-hidden');
+        dom.autoBtn.classList.add('panel-hidden');
+        uiParticles=[];
+        gameState=newState;
+        
+        switch(newState){
+            case'COUNTDOWN':
+                lastRunLoot = { gold: 0, xp: 0, stones: [] };
+                if(currentDungeon){
+                    setupBossStage(currentDungeon);
+                } else {
+                    setupNextStage();
+                }
+                dom.ultBtn.classList.remove('panel-hidden');
+                dom.autoBtn.classList.remove('panel-hidden');
+                countdownTimer=180;
+                playSound(500,"sine",0.1,0.3);
+                break;
+                
+            case'COMBAT':
+                dom.ultBtn.classList.remove('panel-hidden');
+                dom.autoBtn.classList.remove('panel-hidden');
+                break;
+
+            case 'SHOP':
+                if (currentDungeon) {
+                    // 1. Give player rewards and track them for the UI
+                    if (!currentDungeon.rewardGiven) {
+                        if (currentDungeon.goldReward) {
+                            const goldGained = currentDungeon.goldReward;
+                            player.gold += goldGained;
+                            lastRunLoot.gold += goldGained;
+                            addFloatingText(`+${goldGained}💰`, canvas.width / 2, canvas.height / 2 - 50, '#ffd700');
+                        }
+                        if (currentDungeon.rubyReward) {
+                            const rubiesGained = currentDungeon.rubyReward;
+                            player.rubies = (player.rubies || 0) + rubiesGained;
+                            addFloatingText(`+${rubiesGained}💎`, canvas.width / 2, canvas.height / 2 - 20, '#f94144');
+                        }
+                        currentDungeon.rewardGiven = true;
+                    }
+
+                    // 2. Increment completion counts and check for special events
+                    const completedDungeon = player.dungeonMap[currentDungeon.id];
+                    player.dungeonCompletions = (player.dungeonCompletions || 0) + 1;
+                    completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
+                    
+                    // Check for a stone drop
+                    if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 5 === 0) {
+                        gainNewStone(completedDungeon); 
+                    }
+
+                    // Check for dungeon evolution -- TYPO WAS HERE
+                    if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
+                        completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
+                        const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
+                        const prefix = evolutionPrefixes[Math.min(completedDungeon.evolutionLevel - 1, evolutionPrefixes.length - 1)];
+                        completedDungeon.name = `${prefix} ${completedDungeon.baseName}`;
+                        completedDungeon.boss.level = Math.floor(completedDungeon.boss.level * 1.2);
+                        completedDungeon.boss.maxHp = Math.floor(completedDungeon.boss.maxHp * 1.5);
+                        completedDungeon.boss.attack = Math.floor(completedDungeon.boss.attack * 1.3);
+                        completedDungeon.goldReward = Math.floor(completedDungeon.goldReward * 1.5);
+                        if(completedDungeon.rubyReward) completedDungeon.rubyReward = Math.floor(completedDungeon.rubyReward * 1.4);
+                        const goldRewardUI = completedDungeon.rewards.find(r => r.name === 'Gold');
+                        if(goldRewardUI) goldRewardUI.amount = completedDungeon.goldReward;
+                        const rubyRewardUI = completedDungeon.rewards.find(r => r.name === 'Rubies');
+                        if(rubyRewardUI) rubyRewardUI.amount = completedDungeon.rubyReward;
+                    }
+
+                    // Check for unlocking new dungeons -- TYPO WAS HERE
+                    if (player.dungeonCompletions > 0 && player.dungeonCompletions % 3 === 0) {
+                        addNewDungeons(currentDungeon.id);
+                    }
+                }
+                
+                // 3. Finalize the state change
+                saveGame();
+                checkSkillUnlocks();
+                dom.shop.classList.remove('panel-hidden');
+                updateShopUI();
+                setTimeout(createShopParticles, 100);
+                break;
+
+            case'GAME_OVER':
+                dom.gameOver.classList.remove('panel-hidden');
+                updateGameOverUI();
+                break;
+                
+            case'PLAYER_STATS':
+                dom.playerStats.classList.remove('panel-hidden');
+                updatePlayerScreenUI();
+                setTimeout(createStatsScreenParticles,100);
+                break;
+                
+            case'ENDING_COMBAT':
+                player.isAttacking=!1;
+                endCombatTimer=120;
+                showBattleBanner('Victory!','stage-clear-banner',2500);
+                SOUNDS.stageClear();
+                break;
+        }
+    }
     function createShopParticles() { document.querySelectorAll('#shop-screen .button, .gold-display, #shop-screen h1').forEach(el => { if (el.tagName === 'H1' || el.classList.contains('gold-display')) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: .1 }); } else { for (let i = 0; i < 3; i++) { uiParticles.push({ type: 'orbit', attachTo: el, angle: Math.random() * Math.PI * 2, speed: .01 + Math.random() * .02, radius: 1 + Math.random(), color: '#ffd700' }); } } }); }
     function createStatsScreenParticles() { document.querySelectorAll('#player-screen .progress-bar-fill').forEach(el => { if (el.getBoundingClientRect().width > 0) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: el.getBoundingClientRect().width / 2000, color: el.classList.contains('health') ? '#e63946' : el.classList.contains('attack') ? '#fca311' : el.classList.contains('rage') ? '#9d4edd' : el.classList.contains('regen') ? '#52b788' : '#00b4d8' }); } }); }
     function setupBossStage(dungeon) {
@@ -1061,15 +1197,35 @@
             document.getElementById('shop-subtitle').textContent = 'Spend Gold to grow stronger.';
             dom.proceedBtn.textContent = 'Next Stage';
         } 
+
+        // --- NEW DISPLAY LOGIC ---
+        const lootSummaryDiv = document.getElementById('loot-summary');
+        const summaryLines = [];
+        if (lastRunLoot.gold > 0) {
+            summaryLines.push(`<p><i class="fas fa-coins"></i>+${lastRunLoot.gold} Gold</p>`);
+        }
+        if (lastRunLoot.xp > 0) {
+            summaryLines.push(`<p><i class="fas fa-star icon-xp"></i>+${lastRunLoot.xp} XP</p>`);
+        }
+        if (lastRunLoot.stones.length > 0) {
+            lastRunLoot.stones.forEach(stone => {
+                summaryLines.push(`<p><i class="fas fa-gem icon-stone"></i>Found 1x ${stone.name}</p>`);
+            });
+        }
+
+        if(summaryLines.length > 0) {
+            lootSummaryDiv.innerHTML = `<h4>Loot Found:</h4>${summaryLines.join('')}`;
+            lootSummaryDiv.classList.remove('hidden');
+        } else {
+            lootSummaryDiv.classList.add('hidden');
+        }
+        // --- END NEW DISPLAY LOGIC ---
+
         dom.goldDisplay.textContent = `${player.gold}`;
-        
         const weaponDmg = player.inventory.weapon.power;
         const statDmg = player.stats.attackPower.current;
         const totalDmg = weaponDmg + statDmg;
-        document.getElementById('attack-power-stat').innerHTML = `${totalDmg} 
-        <small style="color:#ccc;">(Wpn: ${weaponDmg} + Stat: ${statDmg})</small>`;
-        
-
+        document.getElementById('attack-power-stat').innerHTML = `${totalDmg} <small style="color:#ccc;">(Wpn: ${weaponDmg} + Stat: ${statDmg})</small>`;
         document.getElementById('max-health-stat').textContent=player.stats.maxHp.current;
         document.getElementById('rage-gain-stat').textContent=player.stats.rageGain.current;
         document.getElementById('health-regen-stat').textContent=player.stats.healthRegen.current.toFixed(1);
@@ -1197,7 +1353,7 @@
         const stonesGrid = document.getElementById('stones-grid');
         stonesGrid.innerHTML = '';
         if (player.inventory.stones.length === 0) {
-            stonesGrid.innerHTML = '<p>No stones collected. Clear 5 dungeons to find one!</p>';
+            stonesGrid.innerHTML = '<p>No stones collected. Clear dungeons to find some! Clearing ANY 5 dungeons will yield 1 stone.</p>';
         } else {
             const groupedStones = {};
             player.inventory.stones.forEach(stone => {
@@ -1345,6 +1501,7 @@
         };
 
         player.inventory.stones.push(newStone);
+        lastRunLoot.stones.push(newStone);
         showBattleBanner(`Found ${newStone.name}!`, 'stage-clear-banner', 3000);
         saveGame();
     }
@@ -1363,50 +1520,11 @@
     document.getElementById('upgrade-screen-regen-button').onclick = () => buyUpgrade('healthRegen', true);
     dom.proceedBtn.onclick = () => {
         if (currentDungeon) {
-            player.dungeonCompletions = (player.dungeonCompletions || 0) + 1;
-            const completedDungeon = player.dungeonMap[currentDungeon.id];
-            completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
-            
-            if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 5 === 0) {
-                gainNewStone(completedDungeon);
-            }
-
-            // Check if the dungeon should evolve
-            if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
-                completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
-                const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
-                const prefix = evolutionPrefixes[Math.min(completedDungeon.evolutionLevel - 1, evolutionPrefixes.length - 1)];
-                
-                // Update Dungeon & Boss Stats
-                completedDungeon.name = `${prefix} ${completedDungeon.baseName}`;
-                completedDungeon.boss.level = Math.floor(completedDungeon.boss.level * 1.2);
-                completedDungeon.boss.maxHp = Math.floor(completedDungeon.boss.maxHp * 1.5);
-                completedDungeon.boss.attack = Math.floor(completedDungeon.boss.attack * 1.3);
-
-                // --- THIS IS THE FIX ---
-                // 1. Increase the base reward values stored on the dungeon object.
-                completedDungeon.goldReward = Math.floor(completedDungeon.goldReward * 1.5);
-                if(completedDungeon.rubyReward) {
-                    completedDungeon.rubyReward = Math.floor(completedDungeon.rubyReward * 1.4);
-                }
-
-                // 2. Find and update the reward objects in the `rewards` array to reflect the change in the UI.
-                const goldRewardUI = completedDungeon.rewards.find(r => r.name === 'Gold');
-                if(goldRewardUI) goldRewardUI.amount = completedDungeon.goldReward;
-                
-                const rubyRewardUI = completedDungeon.rewards.find(r => r.name === 'Rubies');
-                if(rubyRewardUI) rubyRewardUI.amount = completedDungeon.rubyReward;
-                // --- END OF FIX ---
-            }
-
-            if (player.dungeonCompletions > 0 && player.dungeonCompletions % 3 === 0) {
-                addNewDungeons(currentDungeon.id);
-            }
-
-            saveGame(); 
+            // The logic is gone because it now runs in changeState('SHOP')
             currentDungeon = null;
             showScreen('map');
         } else {
+            // This part remains the same for non-dungeon stages
             currentStage++;
             changeState('COUNTDOWN');
         }
@@ -1598,6 +1716,7 @@
             }
             const xpGain = Math.floor(5 * currentStage + Math.random() * 5);
             gainXP(xpGain);
+            lastRunLoot.xp += xpGain;
             player.souls.current++;
             checkSoulLevelUp();
         });
