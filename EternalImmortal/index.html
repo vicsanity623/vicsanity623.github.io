@@ -1336,7 +1336,7 @@
         }
     }
 
-    function loadGame() {
+        function loadGame() {
         try {
             const savedData = localStorage.getItem(SAVE_KEY);
             if (!savedData) return;
@@ -1347,6 +1347,9 @@
             } else {
                 player = loaded.player
             }
+            
+            // --- FIX IS HERE: MIGRATION CHECKS RUN FIRST ---
+            // This ensures all necessary properties exist before any other function is called.
             
             if (player.flash === undefined) player.flash = 0;
             if (player.level === undefined) { player.level = 1; player.xp = 0; player.xpToNextLevel = 100 }
@@ -1359,13 +1362,19 @@
                     weapon: { 
                         id: 'starter_bow', type: 'bow', tier: 0, name: 'Worn Bow', power: 5,
                         attackSpeedBonus: 0, critChance: 0, critDamage: 1.5, lifesteal: 0, statusEffect: null,
-                        goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0
+                        goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0,
+                        refineLevel: 0, refineCost: 1000
                     },
                     stones: []
                 };
             }
-             if (!player.inventory.weapon.critChance) { // Check if new stats are missing
+            if (!player.inventory.weapon.critChance) {
                 player.inventory.weapon = { ...player.inventory.weapon, attackSpeedBonus: 0, critChance: 0, critDamage: 1.5, lifesteal: 0, statusEffect: null, goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0 };
+            }
+            // The refine property check is now correctly placed here.
+            if (player.inventory.weapon.refineLevel === undefined) {
+                player.inventory.weapon.refineLevel = 0;
+                player.inventory.weapon.refineCost = 1000;
             }
             if (player.souls === undefined) {
                 player.souls = { level: 1, current: 0, toNextLevel: 500 };
@@ -1378,9 +1387,6 @@
                 delete player.sword;
                 player.weaponVisual = { angle: 0, animState: 'idle', animTimer: 0, target: null };
             }
-            
-            // --- THIS IS THE NEW LINE ---
-            // It ensures old save files have the new property needed for stone drops.
             if (player.dungeonsClearedSinceStone === undefined) {
                 player.dungeonsClearedSinceStone = 0;
             }
@@ -1390,6 +1396,8 @@
                 if (d.evolutionLevel === undefined) d.evolutionLevel = 0;
                 if (!d.baseName) d.baseName = d.name;
             });
+
+            // --- END OF MIGRATION CHECKS ---
 
             currentStage = loaded.currentStage;
             isAutoBattle = loaded.isAutoBattle;
@@ -1687,12 +1695,15 @@
         panels[tabName].classList.add('active');
     }
 
-        function updateInventoryUI() {
+    function updateInventoryUI() {
         // --- WEAPONS PANEL ---
         const weapon = player.inventory.weapon;
         const weaponCard = document.getElementById('equipped-weapon-card');
         
         let statsHTML = `<ul class="weapon-stats-list">`;
+        // Show Refine Level if > 0
+        const weaponName = weapon.refineLevel > 0 ? `${weapon.name} +${weapon.refineLevel}` : weapon.name;
+        
         statsHTML += `<li><i class="fas fa-fist-raised" style="color:#f77f00;"></i><span class="stat-value">${weapon.power}</span><span class="stat-name">Power</span></li>`;
         if (weapon.defense > 0) statsHTML += `<li><i class="fas fa-shield-alt" style="color:#a0b8c8;"></i><span class="stat-value">${weapon.defense}</span><span class="stat-name">Defense</span></li>`;
         if (weapon.attackSpeedBonus > 0) statsHTML += `<li><i class="fas fa-bolt" style="color:#6efcff;"></i><span class="stat-value">+${(weapon.attackSpeedBonus * 100).toFixed(1)}%</span><span class="stat-name">Attack Speed</span></li>`;
@@ -1705,22 +1716,34 @@
         if (weapon.stoneFindBonus > 0) statsHTML += `<li><i class="fas fa-gem" style="color:#c0c0c0;"></i><span class="stat-value">+${(weapon.stoneFindBonus * 100).toFixed(1)}%</span><span class="stat-name">Stone Find</span></li>`;
         statsHTML += `</ul>`;
 
+        const canAffordRefine = player.rubies >= weapon.refineCost;
+        const refineButtonHTML = `
+            <div class="shop-item" style="margin-top: 15px; padding: 10px;">
+                <div class="shop-item-info">
+                    <h3>Refine Weapon</h3>
+                    <p style="color: var(--accent-red);"><i class="fas fa-gem icon-ruby"></i> Cost: ${weapon.refineCost.toLocaleString()}</p>
+                </div>
+                <button class="button small primary refine-weapon-btn" ${!canAffordRefine ? 'disabled' : ''}>Refine +${weapon.refineLevel + 1}</button>
+            </div>
+        `;
+
         weaponCard.innerHTML = `
-            <h4 id="weapon-name" style="margin-bottom: 5px;">${weapon.name}</h4>
+            <h4 id="weapon-name" style="margin-bottom: 5px;">${weaponName}</h4>
             <p style="margin: 0; color: var(--text-secondary);">Type: <span id="weapon-type">${weapon.type.charAt(0).toUpperCase() + weapon.type.slice(1)}</span>, Tier: <span id="weapon-tier">${weapon.tier}</span></p>
             ${statsHTML}
+            ${refineButtonHTML}
         `;
 
         // --- STONES PANEL ---
+        // (The rest of the function remains the same)
         const stonesGrid = document.getElementById('stones-grid');
-        const stoneInfoText = document.getElementById('stone-info-text'); // Get the new element
+        const stoneInfoText = document.getElementById('stone-info-text');
         stonesGrid.innerHTML = '';
 
         if (player.inventory.stones.length === 0) {
             stonesGrid.innerHTML = '<p>No stones collected. Clear dungeons to find some!</p>';
-            stoneInfoText.innerHTML = ''; // Hide text when there are no stones
+            stoneInfoText.innerHTML = '';
         } else {
-            // Show the info text when stones are present
             stoneInfoText.innerHTML = '<strong>Only T10+ stones can be forged into weapons.</strong>';
             
             const groupedStones = {};
@@ -1780,6 +1803,68 @@
         saveGame();
     }
 
+        function refineWeapon() {
+        const weapon = player.inventory.weapon;
+        if (player.rubies < weapon.refineCost) {
+            alert("You don't have enough Rubies to refine this weapon.");
+            return;
+        }
+
+        SOUNDS.upgrade();
+        player.rubies -= weapon.refineCost;
+        weapon.refineLevel++;
+
+        // Increase all stats by 10% of their tier-based value, per refine level
+        const boostMultiplier = 1 + (weapon.refineLevel * 0.10);
+
+        // Recalculate stats based on a "clean" version of the weapon
+        const baseWeapon = {
+            power: 5 + (weapon.tier * 4),
+            attackSpeedBonus: 0, critChance: 0, critDamage: 1.5, lifesteal: 0,
+            goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0
+        };
+
+        switch(weapon.type) {
+            case 'sword':
+                baseWeapon.power += weapon.tier * 2;
+                baseWeapon.critChance = 0.05 + (weapon.tier * 0.005);
+                baseWeapon.critDamage = 1.5 + (weapon.tier * 0.05);
+                baseWeapon.lifesteal = 0.01 + (weapon.tier * 0.002);
+                break;
+            case 'bow':
+                baseWeapon.attackSpeedBonus = 0.05 + (weapon.tier * 0.01);
+                baseWeapon.critChance = 0.02 + (weapon.tier * 0.003);
+                // Status effect damage also gets boosted!
+                if (weapon.statusEffect) weapon.statusEffect.damage = (2 + weapon.tier) * boostMultiplier;
+                break;
+            case 'shield':
+                baseWeapon.power = Math.floor(baseWeapon.power * 0.5);
+                baseWeapon.defense = 5 + (weapon.tier * 2);
+                baseWeapon.goldBonus = 0.10 + (weapon.tier * 0.01);
+                baseWeapon.xpBonus = 0.10 + (weapon.tier * 0.01);
+                baseWeapon.stoneFindBonus = 0.01 + (weapon.tier * 0.005);
+                break;
+        }
+        
+        // Apply the boosted multiplier to the base stats
+        weapon.power = Math.floor(baseWeapon.power * boostMultiplier);
+        weapon.defense = Math.floor(baseWeapon.defense * boostMultiplier);
+        weapon.attackSpeedBonus = baseWeapon.attackSpeedBonus * boostMultiplier;
+        weapon.critChance = baseWeapon.critChance * boostMultiplier;
+        weapon.lifesteal = baseWeapon.lifesteal * boostMultiplier;
+        weapon.goldBonus = baseWeapon.goldBonus * boostMultiplier;
+        weapon.xpBonus = baseWeapon.xpBonus * boostMultiplier;
+        weapon.stoneFindBonus = baseWeapon.stoneFindBonus * boostMultiplier;
+
+        // The scaling cost you wanted - it gets very expensive!
+        weapon.refineCost = Math.floor(weapon.refineCost * 2.5);
+
+        showBattleBanner(`Refined to +${weapon.refineLevel}!`, 'ultimate-banner', 2500);
+        updateInventoryUI();
+        updatePlayerXpBar(); // Update the top bar ruby count
+        saveGame();
+    }
+
     function forgeNewWeapon(type, tier) {
         tier = parseInt(tier);
         const stoneIndex = player.inventory.stones.findIndex(s => s.type === type && s.tier === tier);
@@ -1789,7 +1874,9 @@
         const newWeapon = {
             id: `${type}_${Date.now()}`, tier: tier, power: 5 + (tier * 4),
             attackSpeedBonus: 0, critChance: 0, critDamage: 1.5, lifesteal: 0, statusEffect: null,
-            goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0
+            goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0,
+            refineLevel: 0,
+            refineCost: 1000
         };
 
         switch(type) {
@@ -1972,8 +2059,18 @@
     tabButtons.souls.onclick = () => switchInventoryTab('souls');
     inventoryModal.addEventListener('click', function(event) {
         const target = event.target;
-        if (target.classList.contains('forge-stone-btn')) forgeStones(target.dataset.type, target.dataset.tier);
-        if (target.classList.contains('forge-weapon-btn')) if (confirm(`Forge a new T${target.dataset.tier} weapon? This will consume the stone.`)) forgeNewWeapon(target.dataset.type, target.dataset.tier);
+        if (target.classList.contains('forge-stone-btn')) {
+            forgeStones(target.dataset.type, target.dataset.tier);
+        }
+        if (target.classList.contains('forge-weapon-btn')) {
+            if (confirm(`Forge a new T${target.dataset.tier} weapon? This will consume the stone and replace your current weapon.`)) {
+                forgeNewWeapon(target.dataset.type, target.dataset.tier);
+            }
+        }
+        // --- ADD THIS BLOCK ---
+        if (target.classList.contains('refine-weapon-btn')) {
+            refineWeapon();
+        }
     });
 
     function playerAttack(target) {
