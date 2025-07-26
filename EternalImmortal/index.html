@@ -374,6 +374,31 @@
         .dungeon-node.locked .icon { color: #6a7f8c; text-shadow: none; }
         .dungeon-node.completed .icon { color: #a0b8c8; text-shadow: 0 0 5px #3a4850; }
         .dungeon-node.active .icon { animation: pulse 2s infinite; }
+        
+        /* --- FIX START --- */
+        /* This is the new CSS for the completion counter badge. */
+        .dungeon-node .completion-counter {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--accent-green);
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .dungeon-node .completion-counter i {
+            font-size: 10px;
+        }
+        /* --- FIX END --- */
+
         @keyframes pulse { 0% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } 50% { transform: scale(1.1); text-shadow: 0 0 20px #aaffff; } 100% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } }
         #path-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         #path-svg path { fill: none; stroke: url(#line-gradient); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 10 10; animation: dash 1s linear infinite; }
@@ -987,33 +1012,69 @@
         });
         svg.innerHTML = `<defs><linearGradient id="line-gradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#6efcff;stop-opacity:0" /><stop offset="50%" style="stop-color:#6efcff;stop-opacity:1" /><stop offset="100%" style="stop-color:#6efcff;stop-opacity:0" /></linearGradient></defs><path d="${pathData}" />`;
     }
+    
+    // --- FIX START ---
+    // This function has been updated to display the completion count on dungeon nodes.
     function initializeMap() {
-        loadProgress();
+        loadProgress(); // Ensure latest progress is loaded (though save/load handles most of this)
         const mapContent = document.getElementById('map-content');
-        mapContent.innerHTML = '<svg id="path-svg"></svg>';
+        mapContent.innerHTML = '<svg id="path-svg"></svg>'; // Clear previous map nodes
         let maxTop = 0;
+
         Object.values(player.dungeonMap).forEach(data => {
             const node = document.createElement('div');
-            node.className = 'dungeon-node'; node.id = data.id; 
-            node.style.top = `${data.position.top}px`; 
-            node.style.left = `${data.position.left}%`; 
+            node.className = 'dungeon-node';
+            node.id = data.id;
+            node.style.top = `${data.position.top}px`;
+            node.style.left = `${data.position.left}%`;
             node.style.transform = `translateX(-50%)`;
+            
+            // The dungeon name now correctly reflects evolutions (e.g., "Empowered...")
             node.innerHTML = `<div class="icon"><i class="fas ${data.icon}"></i></div><div class="name">${data.name}</div>`;
-            const dungeonData = player.dungeonMap[data.id];
-            const isCompleted = dungeonData && (dungeonData.completionCount || 0) > 0;
-            const unlockedByDungeonData = player.dungeonMap[data.unlockedBy];
-            const isUnlocked = data.isUnlockedByDefault || (data.unlockedBy && unlockedByDungeonData && (unlockedByDungeonData.completionCount || 0) > 0);
-            if (isUnlocked) node.classList.add('active'); 
-            else node.classList.add('locked');
-            if (isCompleted) node.classList.add('completed');
-            node.addEventListener('click', () => { if (isUnlocked) showDetailsModal(data.id); else lockedModal.classList.add('visible'); });
+
+            const completionCount = data.completionCount || 0;
+            const isCompleted = completionCount > 0;
+            
+            const unlockedByDungeon = player.dungeonMap[data.unlockedBy];
+            const isUnlocked = data.isUnlockedByDefault || (data.unlockedBy && unlockedByDungeon && (unlockedByDungeon.completionCount || 0) > 0);
+
+            if (isUnlocked) {
+                node.classList.add('active');
+            } else {
+                node.classList.add('locked');
+            }
+            
+            if (isCompleted) {
+                node.classList.add('completed');
+                
+                // This is the new part: add a visual counter if completed
+                const counterDiv = document.createElement('div');
+                counterDiv.className = 'completion-counter';
+                counterDiv.innerHTML = `<i class="fas fa-check"></i> ${completionCount}`;
+                node.appendChild(counterDiv);
+            }
+
+            node.addEventListener('click', () => {
+                if (isUnlocked) {
+                    showDetailsModal(data.id);
+                } else {
+                    lockedModal.classList.add('visible');
+                }
+            });
+
             mapContent.appendChild(node);
-            if (data.position.top > maxTop) { maxTop = data.position.top; }
+            if (data.position.top > maxTop) {
+                maxTop = data.position.top;
+            }
         });
+
+        // Ensure the scrollable area is large enough
         mapContent.style.height = `${Math.max(800, maxTop + 200)}px`;
         document.getElementById('path-svg').style.height = mapContent.style.height;
         drawPath();
     }
+    // --- FIX END ---
+    
     const canvas = document.getElementById('game-canvas');
     let ctx = canvas.getContext('2d');
     const uiCanvas = document.getElementById('ui-canvas'), uiCtx = uiCanvas.getContext('2d');
@@ -1842,7 +1903,7 @@
                         skillVisuals.push({ type: 'orbitalStrike', x: player.x, y: player.y, target: randomEnemy, speed: 3, damage: damage, life: 300, maxLife: 300 }); // <-- FIX: Added maxLife
                         break;
                     case 'chainLightning':
-                        const jumps = SKILLS_DATA.chainLightning.baseJumps + Math.floor((skill.level - 1) / SKILLS_DATA.chainLightning.jumpsPerLevel);
+                        const jumps = SKILLS_DATA.chainLightning.baseJumps + Math.floor((skill.level - 1) / skillData.jumpsPerLevel);
                         let targets = [randomEnemy];
                         for (let i = 0; i < jumps; i++) {
                             const lastTarget = targets[targets.length - 1];
