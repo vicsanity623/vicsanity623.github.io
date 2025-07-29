@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Mini-RPG</title>
+    <title>Mini-RPG: The 2D Adventure</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
@@ -33,7 +33,11 @@
             user-select: none; -webkit-user-select: none;
         }
         #game-container { position: relative; width: 100%; height: 100%; }
-        #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        /* --- NEW: Added a subtle filter for atmosphere --- */
+        #game-canvas { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            filter: saturate(1.1) contrast(1.05);
+        }
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
         .unit-frame {
@@ -304,6 +308,7 @@ class Game {
             this.entities = this.entities.filter(e => !deadNPCs.includes(e));
         }
         this.camera.update(); ParticleSystem.update(deltaTime); this.ui.update(this.player, deltaTime);
+        this.world.updateAmbiance(deltaTime); // NEW: Update world particles
     }
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); this.ctx.save();
@@ -330,20 +335,71 @@ class Game {
 }
 
 class World {
-    constructor(ctx, width, height) { this.ctx = ctx; this.width = width; this.height = height; this.bgColor = "#182c18"; this.decorations = []; this.generateDecorations(); }
+    constructor(ctx, width, height) { this.ctx = ctx; this.width = width; this.height = height; this.bgColor = "#182c18"; this.decorations = []; this.sparkles = []; this.generateDecorations(); this.generateAmbiance(); }
     generateDecorations() {
+        // NEW: Add mist patches first so they are drawn under other decor
+        for (let i = 0; i < 50; i++) {
+            this.decorations.push({
+                x: Math.random() * this.width, y: Math.random() * this.height,
+                type: 'mist', char: '', // Char not used, will be drawn as a circle
+                color: `rgba(200, 220, 255, 0.04)`, size: Math.random() * 200 + 150
+            });
+        }
         for (let i = 0; i < 1000; i++) this.decorations.push({ x: Math.random() * this.width, y: Math.random() * this.height, type: 'grass', char: ['"', ',', "`"][Math.floor(Math.random()*3)], color: `rgba(144, 238, 144, ${Math.random() * 0.4 + 0.2})`, size: Math.random() * 8 + 12 });
         for (let i = 0; i < 300; i++) this.decorations.push({ x: Math.random() * this.width, y: Math.random() * this.height, type: 'tree', char: '\uf1bb', color: `rgba(0, 100, 0, ${Math.random() * 0.3 + 0.5})`, size: Math.random() * 30 + 20 });
+    }
+    // NEW: Generate sparkling ambient particles
+    generateAmbiance() {
+        for (let i = 0; i < 500; i++) {
+            this.sparkles.push({
+                x: Math.random() * this.width, y: Math.random() * this.height,
+                size: Math.random() * 1.5 + 0.5, opacity: Math.random() * 0.5,
+                opacityDir: 1 // 1 for increasing, -1 for decreasing
+            });
+        }
+    }
+    // NEW: Update particle animations
+    updateAmbiance(deltaTime) {
+        this.sparkles.forEach(s => {
+            s.opacity += 0.05 * s.opacityDir * (deltaTime / 16.67);
+            if (s.opacity > 1 || s.opacity < 0) {
+                s.opacityDir *= -1;
+                s.opacity = Math.max(0, Math.min(1, s.opacity));
+            }
+        });
     }
     draw(camera) {
         this.ctx.fillStyle = this.bgColor; this.ctx.fillRect(camera.x, camera.y, camera.width, camera.height);
         this.decorations.forEach(d => {
             if (d.x > camera.x - d.size && d.x < camera.x + camera.width + d.size && d.y > camera.y - d.size && d.y < camera.y + camera.height + d.size) {
-                this.ctx.font = `${d.size}px "Font Awesome 6 Free"`; this.ctx.fillStyle = d.color;
-                if(d.type === 'grass') this.ctx.font = `${d.size}px "Verdana"`;
-                this.ctx.fillText(d.char, d.x, d.y);
+                 // NEW: Handle drawing for new mist type
+                if (d.type === 'mist') {
+                    this.ctx.fillStyle = d.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(d.x, d.y, d.size, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                } else {
+                    this.ctx.font = `${d.size}px "Font Awesome 6 Free"`; this.ctx.fillStyle = d.color;
+                    if(d.type === 'grass') this.ctx.font = `${d.size}px "Verdana"`;
+                    this.ctx.fillText(d.char, d.x, d.y);
+                }
             }
         });
+        this.drawAmbiance(camera); // NEW: Draw the ambient particles
+    }
+    // NEW: Draw ambient particle effects
+    drawAmbiance(camera) {
+        this.ctx.save();
+        this.ctx.globalCompositeOperation = 'lighter'; // Makes particles glow
+        this.sparkles.forEach(s => {
+            if (s.x > camera.x && s.x < camera.x + camera.width && s.y > camera.y && s.y < camera.y + camera.height) {
+                this.ctx.fillStyle = `rgba(255, 255, 220, ${s.opacity * 0.6})`;
+                this.ctx.beginPath();
+                this.ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        });
+        this.ctx.restore();
     }
 }
 class Camera {
@@ -394,11 +450,11 @@ class Player extends Character {
         super(x, y, 30, '#ddd', '\uf007', 'Hero');
         this.input = input; this.speed = 3.5; this.xp = 0; this.nextLevelXp = GameData.XP_TABLE[this.level]; this.gold = 0;
         this.inventory = new Array(16).fill(null); this.equipment = { 'main-hand': null, 'chest': null };
-        // --- CHANGE: Renamed 'abilities' to 'hotbar' for clarity ---
         this.hotbar = new Array(10).fill(null);
         this.hotbar[0] = { type: 'ability', ref: GameData.ABILITIES[1] };
         this.hotbar[1] = { type: 'ability', ref: GameData.ABILITIES[2] };
         this.cooldowns = {}; this.quests = []; this.autoAttackTimer = 0; this.attackSpeed = 2000;
+        this.inCombatTimer = 0; // NEW: Timer for the "five-second rule"
         this.addItem(1, 1); this.addItem(5, 3); this.recalculateStats();
     }
     update(deltaTime) {
@@ -413,10 +469,27 @@ class Player extends Character {
         for(let i = 0; i < 10; i++) { if (this.input.keys[`${(i + 1) % 10}`]) { this.useHotbarSlot(i); this.input.keys[`${(i + 1) % 10}`] = false; } }
         this.autoAttackTimer += deltaTime;
         if(this.target && !this.target.isDead && distance(this, this.target) <= 40) { if (this.autoAttackTimer >= this.attackSpeed) { this.autoAttack(); this.autoAttackTimer = 0; } }
+        
+        // NEW: Handle out-of-combat mana regeneration
+        if (this.inCombatTimer > 0) {
+            this.inCombatTimer -= deltaTime;
+        } else if (this.stats.mana < this.stats.maxMana) {
+            const manaRegenPerSecond = 2 + (this.stats.intellect * 0.2); // Base regen + intellect scaling
+            this.stats.mana = Math.min(this.stats.maxMana, this.stats.mana + manaRegenPerSecond * (deltaTime / 1000));
+            // Round to avoid floating point issues in display
+            this.stats.mana = Math.round(this.stats.mana * 10) / 10; 
+        }
+    }
+    // NEW: Override takeDamage to enter combat
+    takeDamage(amount, type) {
+        super.takeDamage(amount, type);
+        if (!this.isDead) {
+            this.inCombatTimer = 5000; // Enter combat for 5s on taking damage
+        }
     }
     die() { super.die(); game.ui.showDeathScreen(); }
     respawn() { this.isDead = false; this.x = RESPAWN_POINT.x; this.y = RESPAWN_POINT.y; this.stats.health = this.stats.maxHealth; this.stats.mana = this.stats.maxMana; this.setTarget(null); game.ui.hideDeathScreen(); game.ui.updatePlayerFrame(this); }
-    autoAttack() { if (!this.target) return; ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8); this.target.takeDamage(this.getAttackDamage(), 'physical'); }
+    autoAttack() { if (!this.target) return; ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8); this.target.takeDamage(this.getAttackDamage(), 'physical'); this.inCombatTimer = 5000; } // NEW: Enter combat on attack
     useHotbarSlot(index) {
         const slotItem = this.hotbar[index];
         if (!slotItem) return;
@@ -427,6 +500,7 @@ class Player extends Character {
             if(distance(this, this.target) > ability.range) { game.createFloatingText("Out of range", this.x, this.y, "yellow"); return; }
             if (this.stats.mana < ability.cost) { game.createFloatingText("Not enough mana", this.x, this.y, "blue"); return; }
             this.stats.mana -= ability.cost; ability.onUse(this, this.target); this.cooldowns[ability.id] = ability.cooldown;
+            this.inCombatTimer = 5000; // NEW: Enter combat on spell cast
         } else if (slotItem.type === 'item') {
             const item = slotItem.ref;
             if (item.slot === 'consumable' && item.onUse) {
@@ -489,7 +563,7 @@ class UI {
     constructor(game) { this.game = game; this.minimapCanvas = $("#minimap-canvas"); this.mCtx = this.minimapCanvas.getContext("2d"); this.tooltip = $('#tooltip'); this.setupActionbar(game.player); this.setupTooltips(); this.setupDragAndDrop(game.player); }
     update(player, deltaTime) { this.updatePlayerFrame(player); this.updateTargetFrame(player.target); this.updateXPBar(player); this.updateCooldowns(player); this.drawMinimap(player, game.entities); }
     updateAll(player) { this.updatePlayerFrame(player); this.updateTargetFrame(player.target); this.updateCharacterSheet(player); this.updateInventory(player); this.updateXPBar(player); this.updateQuestLog(player); }
-    updatePlayerFrame(player) { $('#player-name').textContent = player.name; $('#player-level').textContent = `Lvl ${player.level}`; $('#player-health-text').textContent = `${player.stats.health} / ${player.stats.maxHealth}`; $('#player-health-fill').style.width = `${(player.stats.health / player.stats.maxHealth) * 100}%`; $('#player-mana-text').textContent = `${player.stats.mana} / ${player.stats.maxMana}`; $('#player-mana-fill').style.width = `${(player.stats.mana / player.stats.maxMana) * 100}%`; }
+    updatePlayerFrame(player) { $('#player-name').textContent = player.name; $('#player-level').textContent = `Lvl ${player.level}`; $('#player-health-text').textContent = `${Math.ceil(player.stats.health)} / ${player.stats.maxHealth}`; $('#player-health-fill').style.width = `${(player.stats.health / player.stats.maxHealth) * 100}%`; $('#player-mana-text').textContent = `${Math.ceil(player.stats.mana)} / ${player.stats.maxMana}`; $('#player-mana-fill').style.width = `${(player.stats.mana / player.stats.maxMana) * 100}%`; }
     updateTargetFrame(target) { const frame = $('#target-frame'); if (target && !target.isDead) { frame.style.display = 'flex'; $('#target-portrait').innerHTML = `<i class="fas ${target.icon.substring(1)}"></i>`; $('#target-portrait').style.color = target.color; $('#target-name').textContent = target.name; $('#target-level').textContent = `Lvl ${target.level}`; $('#target-health-text').textContent = `${target.stats.health} / ${target.stats.maxHealth}`; $('#target-health-fill').style.width = `${(target.stats.health / target.stats.maxHealth) * 100}%`; } else { frame.style.display = 'none'; } }
     updateXPBar(player) { $('#xp-bar-fill').style.width = `${(player.xp / player.nextLevelXp) * 100}%`; }
     setupActionbar(player) {
