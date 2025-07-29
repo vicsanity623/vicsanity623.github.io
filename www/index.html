@@ -2458,14 +2458,34 @@
         const totalCurrentHp = enemies.reduce((sum, enemy) => sum + Math.max(0, enemy.hp), 0);
         const totalMaxHp = enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0);
         if (totalMaxHp === 0) return;
-        const barWidth = 450; const barHeight = 25; const barY = 25 + safeAreaTopOffset;
+    
+        const barWidth = 450; 
+        const barHeight = 25; 
+        const barY = 65 + safeAreaTopOffset; 
+    
         ctx.fillStyle = 'rgba(50, 50, 50, 0.7)'; ctx.fillRect(0, barY, barWidth, barHeight);
         const healthPercentage = totalCurrentHp / totalMaxHp;
         ctx.fillStyle = '#c1121f'; ctx.fillRect(0, barY, barWidth * healthPercentage, barHeight);
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'; ctx.lineWidth = 2; ctx.strokeRect(0, barY, barWidth, barHeight);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Cinzel'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
-        ctx.fillText(`${Math.ceil(totalCurrentHp)} / ${totalMaxHp}`, barWidth / 2, barY + barHeight / 2);
+        
+        // --- NEW IMPROVED TEXT LOGIC ---
+        ctx.fillStyle = '#fff'; 
+        ctx.font = 'bold 16px Cinzel'; 
+        ctx.textAlign = 'center'; 
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'black'; 
+        ctx.shadowBlur = 4;
+        
+        // Get the stage/dungeon name
+        let titleText = currentDungeon ? currentDungeon.name : `Stage: ${currentStage}`;
+        
+        // Draw the name on the left and the HP on the right
+        ctx.textAlign = 'left';
+        ctx.fillText(titleText, 15, barY + barHeight / 2);
+        
+        ctx.textAlign = 'right';
+        ctx.fillText(`${Math.ceil(totalCurrentHp)} / ${totalMaxHp}`, barWidth - 15, barY + barHeight / 2);
+        
         ctx.shadowBlur = 0;
     }
 
@@ -2488,38 +2508,6 @@
         ctx.fillText(`HP: ${Math.ceil(player.hp)} / ${player.stats.maxHp.current}`, 10, hpBarY + barHeight / 2);
         ctx.fillText(`RAGE: ${player.rage} / 100`, 10, rageBarY + barHeight / 2);
         ctx.shadowBlur = 0;
-    }
-    function drawHud(){
-        if (safeAreaTopOffset === null) { safeAreaTopOffset = parseInt(getComputedStyle(document.body).getPropertyValue('--safe-area-inset-top')) || 0; }
-        if(gameState!=='COMBAT' && gameState !== 'COUNTDOWN') return;
-        
-        ctx.save(); 
-        ctx.font='bold 24px Segoe UI'; 
-        ctx.shadowColor='black'; 
-        ctx.shadowBlur=5; 
-        ctx.fillStyle='white'; 
-        ctx.textAlign='left';
-        
-        let titleText = currentDungeon ? currentDungeon.name : `Stage: ${currentStage}`;
-        const maxWidth = 450 - 140;
-        
-        if (ctx.measureText(titleText).width > maxWidth) {
-            let truncatedText = titleText;
-            while (ctx.measureText(truncatedText + '...').width > maxWidth && truncatedText.length > 0) {
-                truncatedText = truncatedText.slice(0, -1);
-            }
-            titleText = truncatedText + '...';
-        }
-        
-        ctx.fillText(titleText, 15, 35 + safeAreaTopOffset);
-        
-        if (!currentDungeon) {
-            ctx.textAlign='right'; 
-            ctx.fillStyle='#ffd700';
-            ctx.fillText(`💰 ${formatLargeNumber(player.gold)}`, 450 - 15, 35 + safeAreaTopOffset);
-        }
-        
-        ctx.restore();
     }
     
     function drawUiParticles() {
@@ -3015,7 +3003,6 @@
     
             if (gameState === 'COUNTDOWN') drawCountdown();
             ctx.restore();
-            drawHud();
     
             if (gameState === 'COMBAT' || gameState === 'ENDING_COMBAT' || gameState === 'COUNTDOWN') {
                 drawBossHealthBar(); 
