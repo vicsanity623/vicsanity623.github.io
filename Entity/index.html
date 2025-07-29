@@ -326,7 +326,7 @@
         #vendor-content, #crafting-content { display: flex; flex-direction: column; gap: 10px; }
         .vendor-section, .crafting-section { border: 1px solid var(--color-border); padding: 8px; background: var(--color-bg-dark); }
         .vendor-section h3, .crafting-section h3 { margin: 0 0 5px 0; font-size: 1.1em; color: var(--color-text-quest); }
-        .vendor-grid, .crafting-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        .vendor-grid, .crafting-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 5px; }
         .vendor-item-slot, .crafting-recipe-slot {
             width: 60px; height: 60px; background: var(--color-bg-medium);
             border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center;
@@ -492,10 +492,10 @@ const GameData = {
         3: { id: 3, name: "Rend", icon: "fa-heart-crack", cost: 15, cooldown: 6000, range: 90, onUse: (caster, target) => { target.addBuff({ id: 'rend_dot', name: 'Rend', icon: 'fa-heart-crack', duration: 9000, tickRate: 3000, onTick: (t) => { const damage = caster.getAttackDamage() * 0.2; t.takeDamage(damage, 'physical', caster, true); game.createFloatingText(Math.round(damage), t.x, t.y, '#ff4500'); }, isDebuff: true }); }},
     },
     ENEMY_TYPES: {
-        'WOLF': { name: "Dire Wolf", icon: "\uf6f0", color: "#a9a9a9", size: 28, speed: 1.5, health: 80, attack: 5, aggroRadius: 150, attackRange: 40, attackSpeed: 2000, xp: 15, lootTable: [{itemId: 4, chance: 0.8, min: 1, max: 2}, {itemId: 9, chance: 0.5, min: 1, max: 1}, {gold: 50, chance: 1.0}] },
-        'SPIDER': { name: "Forest Spider", icon: "\uf717", color: "#654321", size: 25, speed: 1.2, health: 60, attack: 4, aggroRadius: 120, attackRange: 35, attackSpeed: 1800, xp: 10, lootTable: [{itemId: 3, chance: 0.9, min: 1, max: 3}, {gold: 30, chance: 1.0}] },
-        'GOBLIN': { name: "Goblin Thug", icon: "\uf7a0", color: "#2E8B57", size: 22, speed: 1.8, health: 120, attack: 8, aggroRadius: 180, attackRange: 45, attackSpeed: 2200, xp: 25, lootTable: [{itemId: 101, chance: 0.1}, {gold: 150, chance: 0.5}] },
-        'DARK_CASTER': { name: "Dark Caster", icon: "\uf718", color: "#8A2BE2", size: 24, speed: 1.4, health: 100, attack: 5, aggroRadius: 220, attackRange: 200, attackSpeed: 3000, xp: 30, lootTable: [{gold: 200, chance: 0.8}] }
+        'WOLF': { name: "Dire Wolf", icon: "\uf6f0", color: "#a9a9a9", size: 28, speed: 1.5, health: 80, attack: 5, aggroRadius: 150, attackRange: 40, attackSpeed: 2000, xp: 15, lootTable: [{itemId: 4, chance: 0.8, min: 1, max: 2}, {itemId: 9, chance: 0.5, min: 1, max: 1}, {gold: 50, chance: 1.0}], reputation: { faction: 'Wilderness', value: -10 } },
+        'SPIDER': { name: "Forest Spider", icon: "\uf717", color: "#654321", size: 25, speed: 1.2, health: 60, attack: 4, aggroRadius: 120, attackRange: 35, attackSpeed: 1800, xp: 10, lootTable: [{itemId: 3, chance: 0.9, min: 1, max: 3}, {gold: 30, chance: 1.0}], reputation: { faction: 'Wilderness', value: -5 } },
+        'GOBLIN': { name: "Goblin Thug", icon: "\uf7a0", color: "#2E8B57", size: 22, speed: 1.8, health: 120, attack: 8, aggroRadius: 180, attackRange: 45, attackSpeed: 2200, xp: 25, lootTable: [{itemId: 101, chance: 0.1}, {gold: 150, chance: 0.5}], reputation: { faction: 'Stormwind Guard', value: 5 } },
+        'DARK_CASTER': { name: "Dark Caster", icon: "\uf718", color: "#8A2BE2", size: 24, speed: 1.4, health: 100, attack: 5, aggroRadius: 220, attackRange: 200, attackSpeed: 3000, xp: 30, lootTable: [{gold: 200, chance: 0.8}], onAttack: (caster, target) => { target.addBuff({id: 'curse_of_weakness', name: 'Curse of Weakness', icon: 'fa-skull', duration: 15000, isDebuff: true, stats: { attack: -5 }})}, reputation: { faction: 'Stormwind Guard', value: 10 } }
     },
     NPC_TYPES: {
         'BLACKSMITH': { name: "Barton the Blacksmith", icon: '\uf0e7', color: '#a9a9a9', interactType: 'repair', interaction: (player) => { const cost = player.getRepairCost(); if (cost > 0) { if (confirm(`Repair all items for ${UI.formatCurrency(cost)}?`)) { if (player.gold >= cost) { player.gold -= cost; player.repairAllItems(); alert('All items repaired!'); game.ui.updateAll(player); } else { alert("You don't have enough gold!"); } } } else { alert('Your items are in perfect condition.'); } } },
@@ -504,8 +504,8 @@ const GameData = {
         'WOODWORKING_TRAINER': { name: "Master Woodworker", icon: '\uf5bb', color: '#8b4513', interactType: 'crafting_trainer', profession: 'Woodworking', interaction: (player) => { if (player.professions.Woodworking) { player.addRecipe('wooden_staff'); player.addRecipe('wooden_shield'); alert("You learned new woodworking recipes!"); game.ui.updateSpellbook(player); game.ui.updateCraftingWindow(player); } else { alert("You need to learn Woodworking first!"); } } }
     },
     QUESTS: { 
-        1: { id: 1, title: "A Tangled Web", description: "The forest path is overrun with spiders. Clear out 5 of them so travelers can pass safely.", objectives: [{ type: 'kill', target: 'SPIDER', count: 5 }], rewards: { xp: 100, gold: 1000, items: [{id: 2, quantity: 1}] }, reputation: { faction: 'Stormwind Guard', value: 50 }, repeatable: false },
-        2: { id: 2, title: "Wolf Hunting", description: "The local farmers are losing livestock to dire wolves. Hunt 3 dire wolves.", objectives: [{ type: 'kill', target: 'WOLF', count: 3 }], rewards: { xp: 80, gold: 800, items: [{id: 4, quantity: 1}] }, reputation: { faction: 'Stormwind Guard', value: 40 }, repeatable: true, cooldown: 3600000 }, // 1 hour cooldown
+        1: { id: 1, title: "A Tangled Web", description: "The forest path is overrun with spiders. Clear out 5 of them so travelers can pass safely.", objectives: [{ type: 'kill', target: 'SPIDER', count: 5 }], rewards: { xp: 100, gold: 1000, items: [{id: 2, quantity: 1}], reputation: { faction: 'Stormwind Guard', value: 50 } }, repeatable: false },
+        2: { id: 2, title: "Wolf Hunting", description: "The local farmers are losing livestock to dire wolves. Hunt 3 dire wolves.", objectives: [{ type: 'kill', target: 'WOLF', count: 3 }], rewards: { xp: 80, gold: 800, items: [{id: 4, quantity: 1}], reputation: { faction: 'Stormwind Guard', value: 40 } }, repeatable: true, cooldown: 3600000 }, // 1 hour cooldown
         3: { id: 3, title: "Gather Peacebloom", description: "Collect 5 Peacebloom for the local alchemist.", objectives: [{ type: 'gather', target: 'PEACEBLOOM', count: 5 }], rewards: { xp: 50, gold: 300 }, repeatable: true, cooldown: 1800000 } // 30 min cooldown
     },
     XP_TABLE: [0, 100, 250, 500, 1000, 2000, 4000, 8000, 12000, 18000],
@@ -672,8 +672,11 @@ class Game {
             const sortedEntities = [...this.entities].sort((a, b) => b.y - a.y);
             for (const entity of sortedEntities) {
                 if (entity !== this.player && distance(clickWorldPos, entity) < entity.size) {
-                    if (entity.isInteractable && distance(this.player, entity) < 100) entity.interact(this.player);
-                    else if (entity instanceof Character) this.player.setTarget(entity); // BUG FIX: Only allow Characters to be targeted.
+                    if (entity.isInteractable && distance(this.player, entity) < 100) {
+                        entity.interact(this.player);
+                    } else if (entity instanceof Enemy) { // BUG FIX: Only allow Enemies to be targeted for combat.
+                        this.player.setTarget(entity);
+                    }
                     clickedOnSomething = true; break;
                 }
             }
@@ -701,7 +704,7 @@ class Game {
     setupUIInteractions() {
         if (this.isMobile) $("#mobile-controls").style.display = "block";
         $$('.sys-button').forEach(btn => btn.addEventListener('click', () => { const windowId = btn.dataset.window; const win = $(`#${windowId}`); win.style.display = win.style.display === 'flex' ? 'none' : 'flex'; this.ui.updateAll(this.player); }));
-        $$('.close-btn').forEach(btn => btn.addEventListener('click', (e) => e.target.closest('.window').style.display = 'none'));
+        $$('.close-btn').forEach(btn => btn.addEventListener('click', (e) => { e.target.closest('.window').style.display = 'none'; this.ui.tooltip.style.display = 'none'; }));
         $$('.window').forEach(win => this.ui.makeDraggable(win));
         window.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -713,6 +716,7 @@ class Game {
             }
         });
         $('#release-spirit-button').addEventListener('click', () => this.player.releaseSpirit());
+        window.addEventListener('mouseleave', () => { this.ui.tooltip.style.display = 'none'; });
     }
 }
 
@@ -806,6 +810,9 @@ class Character extends Entity {
     constructor(x, y, size, color, icon, name) { super(x, y, size, color, icon); this.name = name; this.level = 1; this.stats = { strength: 5, agility: 5, stamina: 5, intellect: 5, spirit: 5, health: 100, maxHealth: 100, mana: 100, maxMana: 100, attack: 5, armor: 0, critChance: 5, dodgeChance: 5 }; this.target = null; this.buffs = []; this.threatTable = new Map(); }
     
     recalculateStats() {
+        const currentHealth = this.stats.health;
+        const currentMana = this.stats.mana;
+
         // Base stats are inherent
         const baseStats = { ...this.baseStats };
         // Apply gear stats
@@ -830,6 +837,9 @@ class Character extends Entity {
         this.stats.attack = 5 + (this.stats.strength * 0.5);
         this.stats.critChance = 5 + (this.stats.agility * 0.2);
         this.stats.dodgeChance = 5 + (this.stats.agility * 0.25);
+
+        this.stats.health = Math.min(currentHealth, this.stats.maxHealth);
+        this.stats.mana = Math.min(currentMana, this.stats.maxMana);
     }
     
     update(deltaTime) {
@@ -924,7 +934,7 @@ class Player extends Character {
         this.talentBonuses = {};
         this.talents = {}; this.talentPoints = 0;
         this.reputation = {}; 
-        // --- NEW: Initialize reputation for all factions
+        // --- NEW: Initialize reputation for all factions ---
         for(const factionId in GameData.FACTIONS) {
             this.reputation[factionId] = GameData.FACTIONS[factionId].base;
         }
@@ -1001,7 +1011,13 @@ class Player extends Character {
             for(let i = 0; i < 10; i++) { if (this.input.keys[`${(i + 1) % 10}`]) { this.useHotbarSlot(i); this.input.keys[`${(i + 1) % 10}`] = false; } }
         }
         this.autoAttackTimer += deltaTime;
-        if(this.target && !this.target.isDead && distance(this, this.target) <= 40 && !this.isGhost) { if (this.autoAttackTimer >= this.attackSpeed) { this.autoAttack(); this.autoAttackTimer = 0; } }
+        // BUG FIX: Add check to ensure target is an Enemy before auto-attacking
+        if(this.target && this.target instanceof Enemy && !this.target.isDead && distance(this, this.target) <= 40 && !this.isGhost) { 
+            if (this.autoAttackTimer >= this.attackSpeed) { 
+                this.autoAttack(); 
+                this.autoAttackTimer = 0; 
+            } 
+        }
         
         // WoW-like Regen
         if (this.inCombatTimer > 0) { this.inCombatTimer -= deltaTime; if(this.inCombatTimer < 0) this.inCombatTimer = 0; }
@@ -1215,11 +1231,23 @@ class Player extends Character {
     addXp(amount) { let bonusXp = 0; if (this.restedXp > 0) { bonusXp = Math.min(this.restedXp, amount); this.restedXp -= bonusXp; } const totalXp = amount + bonusXp; this.xp += totalXp; game.createFloatingText(`${amount} XP` + (bonusXp > 0 ? ` (+${bonusXp})` : ''), this.x, this.y - 20, bonusXp > 0 ? '#00bfff' : '#b636d1'); while(this.xp >= this.nextLevelXp && this.level < GameData.XP_TABLE.length -1) this.levelUp(); game.ui.updateXPBar(this); }
     levelUp() { this.xp -= this.nextLevelXp; this.level++; this.talentPoints++; this.nextLevelXp = GameData.XP_TABLE[this.level] || 99999; this.baseStats.strength += 2; this.baseStats.agility += 1; this.baseStats.stamina += 2; this.baseStats.intellect += 1; this.baseStats.spirit += 1; this.recalculateStats(); this.stats.health = this.stats.maxHealth; this.stats.mana = this.stats.maxMana; game.createFloatingText('LEVEL UP!', this.x, this.y, 'gold', 'crit'); ParticleSystem.create(this.x, this.y, 'gold', 50, 1.5, 30); }
     recalculateStats() {
+        const currentHealth = this.stats.health;
+        const currentMana = this.stats.mana;
+        
         this.baseStats.maxHealth = this.baseStats.stamina * 10;
         this.baseStats.maxMana = this.baseStats.intellect * 10;
-        this.statBonuses = {}; this.stats = {...this.baseStats}; this.talentBonuses = {};
-        for(const talentId in this.talents) { const talentData = GameData.TALENTS.WARRIOR.find(t=>t.id === talentId); if(talentData) talentData.apply(this, this.talents[talentId]); }
+        this.statBonuses = {};
+        this.stats = {...this.baseStats}; // This line resets health/mana temporarily
+        this.talentBonuses = {};
+        for(const talentId in this.talents) {
+            const talentData = GameData.TALENTS.WARRIOR.find(t=>t.id === talentId);
+            if(talentData) talentData.apply(this, this.talents[talentId]);
+        }
         super.recalculateStats();
+
+        // Restore and clamp health and mana after all calculations are complete.
+        this.stats.health = Math.min(currentHealth, this.stats.maxHealth);
+        this.stats.mana = Math.min(currentMana, this.stats.maxMana);
     }
     
     learnTalent(talentId) {
@@ -1558,7 +1586,17 @@ class InputHandler {
     getMoveVector() { if(this.isMobile) return this.joystickVector; let vector = { x: 0, y: 0 }; if (this.keys['w']) vector.y -= 1; if (this.keys['s']) vector.y += 1; if (this.keys['a']) vector.x -= 1; if (this.keys['d']) vector.x += 1; return vector; }
 }
 class UI {
-    constructor(game) { this.game = game; this.minimapCanvas = $("#minimap-canvas"); this.mCtx = this.minimapCanvas.getContext("2d"); this.tooltip = $('#tooltip'); this.setupActionbar(game.player); this.setupTooltips(); this.setupDragAndDrop(game.player); }
+    constructor(game) { 
+        this.game = game; 
+        this.minimapCanvas = $("#minimap-canvas"); 
+        this.mCtx = this.minimapCanvas.getContext("2d"); 
+        this.tooltip = $('#tooltip'); 
+        this.needsVendorUpdate = true;
+        this.needsCraftingUpdate = true;
+        this.setupActionbar(game.player); 
+        this.setupTooltips(); 
+        this.setupDragAndDrop(game.player); 
+    }
     update(player, deltaTime) {
         this.updatePlayerFrame(player);
         if (!player.isDead) {
@@ -1571,16 +1609,27 @@ class UI {
         this.drawMinimap(player, game.entities);
         $('#res-sickness-overlay').style.display = player.buffs.some(b => b.id === 'res_sickness') ? 'block' : 'none';
         
-        // --- NEW: Update open vendor/crafting windows ---
         if ($('#vendor-window').style.display === 'flex') {
             const vendor = game.entities.find(e => e.isTargeted && e.interactType === 'vendor');
-            if (vendor) this.updateVendorWindow(player, vendor);
-            else $('#vendor-window').style.display = 'none'; // Close if vendor is no longer targeted
+            if (vendor) {
+                if (this.needsVendorUpdate) {
+                    this.updateVendorWindow(player, vendor);
+                    this.needsVendorUpdate = false;
+                }
+            } else {
+                 $('#vendor-window').style.display = 'none'; // Close if vendor is no longer targeted
+            }
         }
         if ($('#crafting-window').style.display === 'flex') {
             const station = game.entities.find(e => e.isTargeted && e instanceof CraftingStation);
-            if (station) this.updateCraftingWindow(player, station);
-            else $('#crafting-window').style.display = 'none'; // Close if station is no longer targeted
+            if (station) {
+                if(this.needsCraftingUpdate) {
+                    this.updateCraftingWindow(player, station);
+                    this.needsCraftingUpdate = false;
+                }
+            } else {
+                $('#crafting-window').style.display = 'none'; // Close if station is no longer targeted
+            }
         }
         // --- END NEW ---
     }
@@ -1856,10 +1905,55 @@ class UI {
 
     // --- NEW: Vendor Window Logic ---
     openVendorWindow(player, vendor) {
+        this.needsVendorUpdate = true;
         $('#vendor-window').style.display = 'flex';
-        this.updateVendorWindow(player, vendor);
         // Set vendor as targeted temporarily to ensure window closes if vendor moves away
         player.setTarget(vendor); 
+    }
+
+    sellItemFromInventory(player, item, index, vendor) {
+        if (!item || !item.sellPrice || !vendor.buys.includes(item.slot)) {
+            game.createFloatingText("Vendor doesn't buy that!", player.x, player.y, 'red');
+            return;
+        }
+        this.needsVendorUpdate = true;
+        player.gold += item.sellPrice;
+        player.removeItem(item.id, 1);
+        game.createFloatingText(`+${UI.formatCurrency(item.sellPrice)}`, player.x, player.y, 'gold');
+        this.updateInventory(player); // Also update main inventory
+    }
+
+    buyItemFromVendor(player, itemData, price, quantity) {
+        if (player.gold < price) {
+            game.createFloatingText("Not enough gold!", player.x, player.y, 'red');
+            return;
+        }
+        if (player.inventory.filter(s => s === null).length === 0 && (!itemData.stackable || !player.inventory.some(i => i && i.id === itemData.id))) {
+            game.createFloatingText("Inventory full!", player.x, player.y, 'red');
+            return;
+        }
+        this.needsVendorUpdate = true;
+        player.gold -= price;
+        player.addItem(itemData.id, quantity);
+        game.createFloatingText(`-${UI.formatCurrency(price)}`, player.x, player.y, 'red');
+        game.createFloatingText(`+ ${itemData.name}`, player.x, player.y - 20, 'white');
+        this.updateInventory(player); // Update main inventory too
+    }
+
+    openCraftingWindow(player, station) {
+        this.needsCraftingUpdate = true;
+        $('#crafting-window').style.display = 'flex';
+        this.updateCraftingWindow(player, station);
+        // Set station as targeted temporarily
+        player.setTarget(station);
+        this.activeCraftingStation = station; // Store reference to current station
+        this.selectedRecipe = null; // Clear selected recipe on open
+        $('#craft-button').removeEventListener('click', this.boundCraftingHandler); // Clear old listener
+        this.boundCraftingHandler = () => {
+             player.craftItem(this.selectedRecipe.id);
+             this.needsCraftingUpdate = true; // Flag for re-render after crafting
+        };
+        $('#craft-button').addEventListener('click', this.boundCraftingHandler);
     }
 
     updateVendorWindow(player, vendor) {
@@ -1872,7 +1966,7 @@ class UI {
         player.inventory.forEach((item, index) => {
             if (item && vendor.buys.includes(item.slot)) { // Vendor only buys specific item types/slots
                 const slot = document.createElement('div');
-                slot.className = 'vendor-item-slot inventory-slot'; // Re-use inventory-slot styles
+                slot.className = 'vendor-item-slot'; // BUG FIX: Simplified class name for consistent styling.
                 slot.dataset.index = index;
                 slot.dataset.itemId = item.id;
                 slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`;
@@ -1909,11 +2003,10 @@ class UI {
             game.createFloatingText("Vendor doesn't buy that!", player.x, player.y, 'red');
             return;
         }
-
+        this.needsVendorUpdate = true;
         player.gold += item.sellPrice;
         player.removeItem(item.id, 1);
         game.createFloatingText(`+${UI.formatCurrency(item.sellPrice)}`, player.x, player.y, 'gold');
-        this.updateVendorWindow(player, vendor);
         this.updateInventory(player); // Also update main inventory
     }
 
@@ -1926,18 +2019,18 @@ class UI {
             game.createFloatingText("Inventory full!", player.x, player.y, 'red');
             return;
         }
-
+        this.needsVendorUpdate = true;
         player.gold -= price;
         player.addItem(itemData.id, quantity);
         game.createFloatingText(`-${UI.formatCurrency(price)}`, player.x, player.y, 'red');
         game.createFloatingText(`+ ${itemData.name}`, player.x, player.y - 20, 'white');
-        this.updateVendorWindow(player, game.entities.find(e => e.isTargeted && e.interactType === 'vendor'));
         this.updateInventory(player); // Update main inventory too
     }
     // --- END NEW ---
 
     // --- NEW: Crafting Window Logic ---
     openCraftingWindow(player, station) {
+        this.needsCraftingUpdate = true;
         $('#crafting-window').style.display = 'flex';
         this.updateCraftingWindow(player, station);
         // Set station as targeted temporarily
@@ -1972,7 +2065,7 @@ class UI {
 
             slot.addEventListener('click', () => {
                 this.selectedRecipe = recipe;
-                this.updateCraftingWindow(player, station); // Re-render to show selection/materials
+                this.needsCraftingUpdate = true;
             });
             recipesGrid.appendChild(slot);
         });
