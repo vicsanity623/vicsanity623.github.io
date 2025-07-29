@@ -1,13 +1,14 @@
 // A unique name for the cache, with a version number.
 // Change the version number when you update the app's core files.
-const CACHE_NAME = 'ecosim-cache-v1.0.1';
+const CACHE_NAME = 'ecosim-cache-v1.0.2';
 
 // A list of all the files that make up the "app shell".
 // This is the minimum needed for the app to load and run offline.
 const URLS_TO_CACHE = [
   './', // This caches the root URL (your index.html)
   './manifest.json',
-  './index.html'
+  './index.html',
+  './V2.html'
   // NOTE: Chart.js is loaded from a CDN and will not be cached for offline use by default.
   // The app will function offline, but the chart will not render without an internet connection.
 ];
