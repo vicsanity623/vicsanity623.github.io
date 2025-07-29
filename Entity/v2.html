@@ -781,7 +781,7 @@ class World {
 }
 class Camera {
     constructor(target, width, height) { this.target = target; this.width = width; this.height = height; this.x = 0; this.y = 0; }
-    update() { if(!this.target || (this.target.isDead && !this.target.isGhost)) return; this.x = this.target.x - this.width / 2; this.y = this.target.y - this.height / 2; this.x = Math.max(0, Math.min(this.x, game.world.width - this.width)); this.y = Math.max(0, Math.min(this.y, game.world.height - this.y)); }
+    update() { if(!this.target || (this.target.isDead && !this.target.isGhost)) return; this.x = this.target.x - this.width / 2; this.y = this.target.y - this.height / 2; this.x = Math.max(0, Math.min(this.x, game.world.width - this.width)); this.y = Math.max(0, Math.min(this.y, game.world.height - this.height)); }
 }
 class Entity {
     constructor(x, y, size, color, icon) { this.x = x; this.y = y; this.size = size; this.color = color; this.icon = icon; this.isDead = false; }
@@ -1078,48 +1078,142 @@ class UI {
     drawMinimap(player, entities) { const size = 150; const range = 400; this.mCtx.clearRect(0, 0, size, size); this.mCtx.fillStyle = 'rgba(0,0,0,0.5)'; this.mCtx.fillRect(0, 0, size, size); entities.forEach(entity => { const dx = entity.x - player.x; const dy = entity.y - player.y; const dist = Math.sqrt(dx*dx + dy*dy); if (dist > range || entity === player || (entity instanceof ResourceNode && entity.depleted)) return; const mapX = (dx / range) * (size / 2) + (size / 2); const mapY = (dy / range) * (size / 2) + (size / 2); let color = 'gray'; let radius = 3; if(entity instanceof Enemy) color = 'red'; if(entity instanceof QuestGiver) { color = 'yellow'; radius=4; } if(entity instanceof GenericNPC) { color = '#bbb'; } if(entity instanceof ResourceNode) { color = entity.type.color; } if(entity instanceof PlayerCorpse) { color = '#ff4500'; radius = 4; } if (entity instanceof CraftingStation) { color = entity.color; radius = 4;} this.mCtx.fillStyle = color; this.mCtx.beginPath(); this.mCtx.arc(mapX, mapY, radius, 0, 2 * Math.PI); this.mCtx.fill(); }); this.mCtx.fillStyle = player.isResting ? 'cyan' : 'white'; this.mCtx.save(); this.mCtx.translate(size/2, size/2); this.mCtx.beginPath(); this.mCtx.moveTo(0, -5); this.mCtx.lineTo(4, 5); this.mCtx.lineTo(-4, 5); this.mCtx.closePath(); this.mCtx.fill(); this.mCtx.restore(); }
     updateMap() {
         if (!game || !game.player) return;
+
         const player = game.player;
         const entities = game.entities;
-        const worldWidth = game.world.width;
-        const worldHeight = game.world.height;
-        
+        const regions = GameData.REGIONS;
+
+        // 1. Calculate bounding box of all regions to "zoom" the map to content
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        regions.forEach(r => {
+            minX = Math.min(minX, r.x);
+            minY = Math.min(minY, r.y);
+            maxX = Math.max(maxX, r.x + r.width);
+            maxY = Math.max(maxY, r.y + r.height);
+        });
+
+        // Add some padding to the bounding box
+        const padding = 5000; // world units
+        minX -= padding;
+        minY -= padding;
+        maxX += padding;
+        maxY += padding;
+
+        const contentWidth = maxX - minX;
+        const contentHeight = maxY - minY;
+
+        // 2. Resize canvas to fit its container
         this.mapCanvas.width = this.mapCanvas.offsetWidth;
         this.mapCanvas.height = this.mapCanvas.offsetHeight;
-        
-        this.mapCtx.clearRect(0, 0, this.mapCanvas.width, this.mapCanvas.height);
-        this.mapCtx.fillStyle = "rgba(10, 20, 10, 0.8)";
-        this.mapCtx.fillRect(0, 0, this.mapCanvas.width, this.mapCanvas.height);
+        const canvasWidth = this.mapCanvas.width;
+        const canvasHeight = this.mapCanvas.height;
+        if (canvasWidth === 0 || canvasHeight === 0) return; // Don't draw if not visible
 
-        // Draw regions
-        GameData.REGIONS.forEach(region => {
-            const mapX = (region.x / worldWidth) * this.mapCanvas.width;
-            const mapY = (region.y / worldHeight) * this.mapCanvas.height;
-            const mapW = (region.width / worldWidth) * this.mapCanvas.width;
-            const mapH = (region.height / worldHeight) * this.mapCanvas.height;
-            this.mapCtx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-            this.mapCtx.fillRect(mapX, mapY, mapW, mapH);
-            this.mapCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-            this.mapCtx.strokeRect(mapX, mapY, mapW, mapH);
-            this.mapCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            this.mapCtx.font = '12px Verdana';
-            this.mapCtx.textAlign = 'center';
-            this.mapCtx.fillText(region.name, mapX + mapW/2, mapY + 20);
-        });
-        
-        // Draw entities
-        entities.forEach(entity => {
-            const mapX = (entity.x / worldWidth) * this.mapCanvas.width;
-            const mapY = (entity.y / worldHeight) * this.mapCanvas.height;
-            let color = 'gray'; let radius = 1;
-            if(entity instanceof Player) { color = 'blue'; radius = 5; }
-            else if(entity instanceof QuestGiver) { color = 'yellow'; radius = 3; }
-            else if(entity instanceof GenericNPC) { color = 'white'; radius = 2; }
-            else return; // Don't draw enemies or other minor things on world map for now
+        // 3. Clear canvas with a dark background
+        this.mapCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        this.mapCtx.fillStyle = "#0A0A0A";
+        this.mapCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+        // 4. Helper function to transform world coordinates to map coordinates
+        const worldToMap = (worldX, worldY) => {
+            const x = ((worldX - minX) / contentWidth) * canvasWidth;
+            const y = ((worldY - minY) / contentHeight) * canvasHeight;
+            return { x, y };
+        };
+
+        // 5. Draw regions
+        this.mapCtx.save();
+        regions.forEach(region => {
+            const start = worldToMap(region.x, region.y);
+            const end = worldToMap(region.x + region.width, region.y + region.height);
+            const w = end.x - start.x;
+            const h = end.y - start.y;
+
+            // Use the region's actual background color
+            this.mapCtx.fillStyle = region.bgColor;
+            this.mapCtx.globalAlpha = 0.6;
+            this.mapCtx.fillRect(start.x, start.y, w, h);
             
-            this.mapCtx.fillStyle = color;
-            this.mapCtx.beginPath();
-            this.mapCtx.arc(mapX, mapY, radius, 0, 2 * Math.PI);
-            this.mapCtx.fill();
+            this.mapCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            this.mapCtx.lineWidth = 1;
+            this.mapCtx.strokeRect(start.x, start.y, w, h);
+
+            this.mapCtx.globalAlpha = 1.0;
+            this.mapCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            this.mapCtx.font = 'bold 14px Verdana';
+            this.mapCtx.textAlign = 'center';
+            this.mapCtx.textBaseline = 'middle';
+            this.mapCtx.shadowColor = "black";
+            this.mapCtx.shadowBlur = 4;
+            this.mapCtx.fillText(region.name, start.x + w / 2, start.y + h / 2);
+            this.mapCtx.shadowBlur = 0;
+        });
+        this.mapCtx.restore();
+
+        // 6. Draw important entities
+        entities.forEach(entity => {
+            // Only draw specific types on the world map
+            if (!(entity instanceof Player) && !(entity instanceof QuestGiver) && !(entity instanceof GenericNPC) && !(entity instanceof CraftingStation)) {
+                return;
+            }
+
+            const pos = worldToMap(entity.x, entity.y);
+
+            if (entity instanceof Player) {
+                this.mapCtx.save();
+                this.mapCtx.translate(pos.x, pos.y);
+
+                // Rotate player arrow based on movement direction
+                const moveVector = game.input.getMoveVector();
+                if (moveVector.x !== 0 || moveVector.y !== 0) {
+                     const angle = Math.atan2(moveVector.y, moveVector.x);
+                     this.mapCtx.rotate(angle);
+                } else {
+                     this.mapCtx.rotate(-Math.PI / 2); // Point up when still
+                }
+
+                this.mapCtx.fillStyle = '#3498db'; // Brighter blue
+                this.mapCtx.strokeStyle = '#ecf0f1';
+                this.mapCtx.lineWidth = 2;
+                
+                // Draw arrow shape
+                this.mapCtx.beginPath();
+                this.mapCtx.moveTo(10, 0); // Point
+                this.mapCtx.lineTo(-5, -6);
+                this.mapCtx.lineTo(-5, 6);
+                this.mapCtx.closePath();
+                
+                this.mapCtx.fill();
+                this.mapCtx.stroke();
+                
+                this.mapCtx.restore();
+
+            } else if (entity instanceof QuestGiver) {
+                const status = entity.getQuestStatus(player);
+                let icon = ''; let iconColor = 'yellow';
+                if (status === 'available') icon = '!';
+                else if (status === 'complete') { icon = '?'; iconColor = 'yellow'; }
+                else if (player.quests.find(q => entity.questIds.includes(q.id))) { icon = '?'; iconColor = '#888'; }
+
+                if (icon) {
+                    this.mapCtx.font = 'bold 24px Arial';
+                    this.mapCtx.fillStyle = iconColor;
+                    this.mapCtx.textAlign = 'center';
+                    this.mapCtx.textBaseline = 'middle';
+                    this.mapCtx.strokeStyle = 'black';
+                    this.mapCtx.lineWidth = 4;
+                    this.mapCtx.strokeText(icon, pos.x, pos.y);
+                    this.mapCtx.fillText(icon, pos.x, pos.y);
+                }
+            } else if (entity instanceof GenericNPC || entity instanceof CraftingStation) {
+                this.mapCtx.fillStyle = entity.color || 'white';
+                this.mapCtx.strokeStyle = 'black';
+                this.mapCtx.lineWidth = 2;
+                this.mapCtx.beginPath();
+                this.mapCtx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+                this.mapCtx.fill();
+                this.mapCtx.stroke();
+            }
         });
     }
     createFloatingText(text, worldX, worldY, color, camera, type = '') { const textElement = document.createElement('div'); textElement.className = `floating-text ${type}`; textElement.textContent = text; textElement.style.color = color; textElement.style.left = `${worldX - camera.x}px`; textElement.style.top = `${worldY - camera.y}px`; $('#floating-text-container').appendChild(textElement); setTimeout(() => textElement.remove(), 1500); }
