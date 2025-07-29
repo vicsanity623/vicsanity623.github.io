@@ -180,10 +180,11 @@
         #stones-grid { max-height: 300px; overflow-y: auto; }
         .screen-container {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            /* Note: width and height are removed. JS will set them. */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        
             box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
             overflow: hidden;
             background-color: var(--bg-medium);
@@ -541,7 +542,7 @@
             </div>
             <button id="start-game-button" class="button">Start Game</button>
         </div>
-        <div id="version-info">EternalImmortal v0.1.0.8</div>
+        <div id="version-info">EternalImmortal v0.1.0.9</div>
     </div>
 
     <!-- NEW TOP BAR UI STRUCTURE -->
@@ -878,6 +879,7 @@
     
     // --- GLOBAL STATE VARIABLES ---
     let isGameRunning = false;
+    let scaleX = 1, scaleY = 1;
     let safeAreaTopOffset = null; 
     let lastTime = 0;
     let isAppInitialized = false;
@@ -905,24 +907,20 @@
     const SKILLS_DATA={orbitalStrike:{name:"Orbital Strike",unlockStage:10,baseCooldown:5,cooldownReductionPerLevel:0.04,baseDamageMultiplier:.5,damageMultiplierPerLevel:.05,baseTargetXP:10},chainLightning:{name:"Chain Lightning",unlockStage:25,baseCooldown:4,cooldownReductionPerLevel:0.03,baseDamageMultiplier:.3,damageMultiplierPerLevel:.03,baseJumps:2,jumpsPerLevel:5,baseTargetXP:15},meteorShower:{name:"Meteor Shower",unlockStage:50,baseCooldown:7,cooldownReductionPerLevel:0.05,baseDamageMultiplier:.8,damageMultiplierPerLevel:.1,baseCount:5,countPerLevel:10,baseTargetXP:20}};
 
     // --- GAME FUNCTIONS ---
-    function resizeGame() {
+    function resizeAndScaleCanvases() {
         const baseWidth = 450;
         const baseHeight = 800;
-        const aspectRatio = baseWidth / baseHeight;
-        let newWidth = window.innerWidth;
-        let newHeight = window.innerHeight;
-        if (newHeight / newWidth < 1 / aspectRatio) {
-            newWidth = newHeight * aspectRatio;
-        } else {
-            newHeight = newWidth / aspectRatio;
-        }
-        const allContainers = document.querySelectorAll('.screen-container');
-        allContainers.forEach(container => {
-            container.style.width = `${newWidth}px`;
-            container.style.height = `${newHeight}px`;
-        });
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+    
+        // Set the actual pixel size of all canvases to match the window
+        canvas.width = uiCanvas.width = explorationCanvas.width = worldCanvas.width = screenWidth;
+        canvas.height = uiCanvas.height = explorationCanvas.height = worldCanvas.height = screenHeight;
+        
+        // Calculate the scale factors
+        scaleX = screenWidth / baseWidth;
+        scaleY = screenHeight / baseHeight;
     }
-
     function startGame() {
         if (isGameRunning) return; 
         isGameRunning = true;
@@ -2173,19 +2171,22 @@
     function drawWorldMode() {
         if (!player || !player.world) return;
         const p = player.world;
-        const canvasWidth = worldCanvas.width;
-        const canvasHeight = worldCanvas.height;
         
-        worldCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        // Apply scaling to the world canvas
         worldCtx.save();
-        const camX = -p.x + canvasWidth / 2;
-        const camY = -p.y + canvasHeight / 2;
+        worldCtx.scale(scaleX, scaleY);
+    
+        worldCtx.clearRect(0, 0, 450, 800); // Clear based on original coordinates
+        worldCtx.save();
+        // Camera translate should be based on original coordinates
+        const camX = -p.x + (450 / 2); 
+        const camY = -p.y + (800 / 2);
         worldCtx.translate(camX, camY);
-
+    
         const isTextureReady = worldBgTexture && worldBgTexture.complete && worldBgTexture.naturalWidth !== 0;
         worldCtx.fillStyle = isTextureReady ? worldCtx.createPattern(worldBgTexture, 'repeat') : '#1a1a2a';
         worldCtx.fillRect(p.x - 3000, p.y - 3000, 6000, 6000);
-
+    
         p.objects.forEach(obj => {
             const pulseSize = obj.size + Math.sin(obj.pulse) * 3;
             let color, glowColor;
@@ -2211,6 +2212,7 @@
         drawSkillVisuals(worldCtx);
         drawEffects(worldCtx);
 
+        worldCtx.restore();
         worldCtx.restore();
     }
     
@@ -2969,7 +2971,10 @@
     
     function drawExplorationMode() {
         ctx = expCtx;
-        ctx.clearRect(0, 0, explorationCanvas.width, explorationCanvas.height);
+        ctx.save();
+        ctx.scale(scaleX, scaleY);
+    
+        ctx.clearRect(0, 0, 450, 800);
         explorationBackgroundStars.forEach(star => { 
             ctx.beginPath(); ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); 
             ctx.fillStyle = `rgba(255, 255, 255, ${star.speed / 200})`; ctx.fill(); 
@@ -2981,12 +2986,17 @@
         drawEffects(expCtx); 
         drawSkillVisuals();
         
+        ctx.restore();
+        
         ctx = document.getElementById('game-canvas').getContext('2d'); 
     }
     
     function draw() {
+        ctx.save();
+        ctx.scale(scaleX, scaleY);
+    
         if (!worldScreen.classList.contains('hidden')) {
-            drawWorldMode(); 
+            drawWorldMode();
         } else if (!explorationContainer.classList.contains('hidden')) {
             drawExplorationMode();
         } else if (!gameContainer.classList.contains('hidden')) {
@@ -3002,17 +3012,21 @@
                 drawEffects(ctx);
                 drawSkillVisuals();
             }
-
+    
             if (gameState === 'COUNTDOWN') drawCountdown();
             ctx.restore();
             drawHud();
-
+    
             if (gameState === 'COMBAT' || gameState === 'ENDING_COMBAT' || gameState === 'COUNTDOWN') {
                 drawBossHealthBar(); 
                 drawPlayerHudBars();
             }
-            drawUiParticles();
         }
+        
+        ctx.restore();
+        
+        if (!mapScreen.classList.contains('hidden')) renderMapBackground();
+        drawUiParticles();
     }
 
     function initializeBootSequence() {
@@ -3139,9 +3153,8 @@
 
         // --- Now add event listeners ---
         backgroundMusic = document.getElementById('bg-music');
-        resizeGame();
-        window.addEventListener('resize', resizeGame);
-        
+        resizeAndScaleCanvases();
+        window.addEventListener('resize', resizeAndScaleCanvases);        
         document.getElementById('dungeons-button').onclick = () => showScreen('map');
         document.getElementById('station-button').onclick = () => showScreen('player-upgrade');
         document.getElementById('exploration-button').onclick = () => showScreen('exploration');
