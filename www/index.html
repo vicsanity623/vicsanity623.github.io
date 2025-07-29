@@ -9,6 +9,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
+    <!-- --- CHANGE: Merged and corrected all styles into one block --- -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400;500&display=swap');
         :root {
@@ -30,7 +31,7 @@
             box-sizing: border-box;
         }
         
-
+        /* --- CHANGE: Added safe area padding to the body --- */
         body { 
             margin: 0; 
             background-color: var(--bg-dark); 
@@ -42,7 +43,7 @@
             user-select: none;
         }
 
-
+        /* --- BOOT SCREEN STYLES --- */
         #boot-screen {
             background-image: radial-gradient(ellipse at 50% 0%, #3d2c58, #031018 70%);
             display: flex;
@@ -121,18 +122,18 @@
         }
         #version-info {
             position: absolute;
-            bottom: 20px;
+            bottom: 20px; /* Distance from the bottom */
             left: 50%;
-            transform: translateX(-50%);
+            transform: translateX(-50%); /* Horizontally centers the element */
             
             font-family: 'Roboto', sans-serif;
             font-size: 12px;
-            color: var(--text-secondary);
-            opacity: 0.6;
+            color: var(--text-secondary); /* Use a subtle theme color */
+            opacity: 0.6; /* Make it even more subtle */
             letter-spacing: 0.5px;
-            pointer-events: none;
+            pointer-events: none; /* Make sure it's not clickable */
         }
-
+        /* (The rest of your CSS remains the same as you provided) */
         .weapon-stats-list { list-style: none; padding: 10px; margin: 10px 0 0 0; text-align: left; background-color: rgba(0,0,0,0.2); border-radius: 6px; }
         .weapon-stats-list li { font-size: 14px; margin-bottom: 5px; display: flex; align-items: center; }
         .weapon-stats-list i { width: 20px; margin-right: 8px; color: var(--accent-blue); }
@@ -146,6 +147,7 @@
         #loot-summary .icon-stone { color: #c0c0c0; }
         #top-bar-container {
             position: absolute;
+            /* This calculates the position: (height of the notch) + 10px of space */
             top: calc(env(safe-area-inset-top, 0px) + 10px);
             left: 50%;
             transform: translateX(-50%);
@@ -181,6 +183,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            /* Note: width and height are removed. JS will set them. */
             box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
             overflow: hidden;
             background-color: var(--bg-medium);
@@ -314,8 +317,8 @@
         #offline-rewards-list small { font-size: 14px; color: var(--text-secondary); margin-left: 8px; }
         #world-player-health-bar {
             position: absolute;
-            bottom: 80px;
-            left: 5%;
+            bottom: 80px; /* Position it above the 'Back to Menu' button */
+            left: 5%;     /* Give it some padding from the edges */
             width: 90%;
             height: 20px;
             background-color: rgba(0, 0, 0, 0.5);
@@ -348,16 +351,20 @@
         }
         @media (max-width: 450px) {
         #boot-title {
+            /* 
+            'vw' means "viewport width". 10vw is 10% of the screen's width.
+            This makes the font size shrink automatically on smaller devices.
+            */
             font-size: 10vw;
         }
     }
     #offline-rewards-widget {
         position: absolute;
-
+        /* Position it below the top resource bar with 10px of space */
         top: calc(env(safe-area-inset-top, 0px) + 35px);
-        left: 15px; 
-        width: auto;
-        min-width: 110px;
+        left: 15px; /* Give it some padding from the edge */
+        width: auto; /* Let it size to its content */
+        min-width: 110px; /* But don't let it get too small */
         background-color: rgba(0,0,0,0.4);
         border: 1px solid var(--border-color);
         border-radius: 8px;
@@ -367,7 +374,7 @@
         gap: 8px;
         backdrop-filter: blur(3px);
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        z-index: 100;
+        z-index: 100; /* Ensure it's above other elements */
     }
     #offline-rewards-widget .widget-icon {
         font-size: 40px;
@@ -389,7 +396,7 @@
         margin: 0 0 8px 0;
         font-size: 18px;
         font-weight: 500;
-        font-family: monospace;
+        font-family: monospace; /* Gives a nice clock look */
         text-align: left;
         text-shadow: none;
         color: var(--accent-green);
@@ -397,7 +404,7 @@
     #offline-rewards-widget button {
         margin: 0;
         width: 100%;
-        padding: 4px 8px;
+        padding: 4px 8px; /* Make button smaller */
         font-size: 12px;
     }
     #bottom-bar-container {
@@ -411,26 +418,26 @@
         align-items: center;
     }
     .bottom-bar-btn {
-        position: relative;
+        position: relative; /* Remove absolute positioning */
         top: auto;
         left: auto;
-        transform: none;
-        width: 100px;
+        transform: none; /* Reset transform */
+        width: 100px; /* Uniform size */
         height: 100px;
     }
     .bottom-bar-btn .icon {
-        font-size: 40px;
+        font-size: 40px; /* Smaller icons */
         margin-bottom: 5px;
     }
     .bottom-bar-btn .label {
-        font-size: 18px;
+        font-size: 18px; /* Smaller labels */
     }
     #house-button .icon {
-        color: #f4a261; 
+        color: #f4a261; /* A warm, homey color */
     }
     #world-stats-container {
         position: absolute;
-        top: calc(env(safe-area-inset-top, 0px) + 10px);
+        top: calc(env(safe-area-inset-top, 0px) + 10px); /* Position below the top bar */
         left: 50%;
         transform: translateX(-50%);
         display: flex;
@@ -453,13 +460,18 @@
 
     #world-combo-display {
         position: absolute;
+        /* --- CHANGE: Move it up, just below the top stats --- */
         top: calc(env(safe-area-inset-top, 0px) + 55px);
+        /* --- CHANGE: Move it to the left side --- */
         left: 20px;
+        /* --- CHANGE: Remove the horizontal centering transform --- */
         transform: scale(0.8);
         font-family: 'Cinzel', serif;
+        /* --- CHANGE: Make the font smaller --- */
         font-size: 28px;
         font-weight: bold;
         color: var(--accent-gold);
+        /* --- CHANGE: Make the glow more subtle --- */
         text-shadow: 0 0 5px rgba(0,0,0,0.5);
         z-index: 10;
         pointer-events: none;
@@ -469,13 +481,14 @@
 
     #world-combo-display.visible {
         opacity: 1;
+        /* --- CHANGE: Remove the horizontal centering transform here too --- */
         transform: scale(1.0);
     }
     #world-back-button {
         position: absolute;
         bottom: 20px;
         left: 20px;
-        z-index: 10;
+        z-index: 10; /* Make sure it's on top of the canvas */
     }
 
     #world-auto-button {
@@ -485,6 +498,7 @@
         z-index: 10;
     }
 
+    /* Add this style to make the auto button glow green when active */
     #world-auto-button.active {
         background: linear-gradient(45deg, #4CAF50, #2E7D32);
         border-color: #81C784;
@@ -513,6 +527,7 @@
     </style>
 </head>
 <body>
+    <!-- (The entire body's HTML structure is the same as you provided) -->
     <audio id="bg-music" loop>
     <source src="music.mp3" type="audio/mpeg">
         Your browser does not support the audio element.
@@ -526,10 +541,12 @@
             </div>
             <button id="start-game-button" class="button">Start Game</button>
         </div>
-        <div id="version-info">EternalImmortal v0.1.0.7</div>
+        <div id="version-info">EternalImmortal v0.1.0.8</div>
     </div>
 
+    <!-- NEW TOP BAR UI STRUCTURE -->
     <div id="top-bar-container" class="hidden">
+        <!-- Player Info (Avatar, Level, XP) -->
         <div id="player-info-bar">
             <div id="player-avatar">
                 <i class="fas fa-user-shield"></i>
@@ -541,6 +558,7 @@
             </div>
         </div>
 
+        <!-- Resources Group -->
         <div id="player-resources-group">
             <div class="resource-item" id="player-gold-display">
                 <i class="fas fa-coins" style="color: #f9c74f;"></i>
@@ -556,6 +574,7 @@
             </div>
         </div>
     </div>
+    <!-- END OF NEW UI STRUCTURE -->
 
     <div id="main-screen" class="screen-container hidden">
         <div id="dungeons-button" class="world-button">
@@ -693,16 +712,23 @@
             </div>
 
             <div class="inventory-panels">
+                <!-- WEAPONS PANEL -->
                 <div id="weapons-panel" class="inventory-panel active">
                     <h3>Equipped Weapon</h3>
                     <div id="equipped-weapon-card" class="shop-item" style="flex-direction: column; align-items: stretch;">
+                        <!-- Content will be generated by JS -->
                     </div>
                 </div>
+
+                <!-- STONES PANEL -->
                 <div id="stones-panel" class="inventory-panel">
                     <div id="stones-grid" style="max-height: 400px; overflow-y: auto; padding: 5px;">
+                        <!-- Stones will be grouped and added here by JS -->
                     </div>
                     <p id="stone-info-text" style="font-size: 13px; color: var(--text-secondary); margin-top: 20px; text-shadow: none;"></p>
                 </div>
+
+                <!-- SOULS PANEL -->
                 <div id="souls-panel" class="inventory-panel">
                     <h3>Soul Core</h3>
                     <p>Absorb souls to empower your essence, boosting all stats permanently.</p>
@@ -716,8 +742,10 @@
     </div>
     <div id="world-screen" class="screen-container hidden">
         <canvas id="world-canvas"></canvas>
+            <!-- (Your health bar and buttons are here) -->
         <div id="world-player-health-bar">
             <div id="world-player-health-fill"></div>
+            <!-- ADD THIS LINE -->
             <div id="world-player-health-text"></div> 
         </div>
         <button id="world-back-button" class="button small">
@@ -726,6 +754,8 @@
         <button id="world-auto-button" class="button small">
             <i class="fas fa-robot"></i> Auto Collect
         </button>
+
+        <!-- ADD THIS NEW CONTAINER FOR SESSION STATS -->
         <div id="world-stats-container">
             <div class="world-stat-item">
                 <i class="fas fa-star" style="color: var(--accent-purple);"></i>
@@ -736,21 +766,27 @@
                 <span id="world-souls-total">0</span>
             </div>
         </div>
+
+        <!-- ADD THIS NEW CONTAINER FOR THE COMBO MULTIPLIER -->
         <div id="world-combo-display">x2 COMBO!</div>
     </div>
     <img id="world-bg-texture" src="img/tileable_background.png" style="display: none;">
     <img id="tree-sprite" src="img/tree.png" style="display: none;">
     <img id="chest-sprite" src="img/chest.png" style="display: none;">
+
+    <!-- --- OFFLINE REWARDS START --- -->
     <div id="away-rewards-modal" class="modal-overlay">
         <div class="modal-content">
             <i class="fas fa-times close-button" id="close-away-rewards-btn"></i>
             <h3 class="dungeon-title">Rewards Earned!</h3>
             <p class="dungeon-mode" id="away-time-info">While you were away for...</p>
             <ul id="away-rewards-list" class="offline-rewards-list" style="margin-bottom: 25px;">
+                <!-- Rewards will be populated by JS -->
             </ul>
             <div id="claim-away-rewards-button" class="start-button">Claim All</div>
         </div>
     </div>
+    <!-- --- OFFLINE REWARDS END --- -->
 <script>
     // =========================================================================
     // PART 1: STABLE AUDIO SYSTEM
@@ -788,11 +824,18 @@
             gainNode.connect(audioContext.destination);
             oscillator.connect(gainNode);
             oscillator.type = type;
+            
+            // Set the starting frequency
             oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+
+            // --- NEW PITCH BEND LOGIC ---
+            // If a pitchBend value is provided, schedule a frequency change over the sound's duration.
             if (pitchBend !== 0) {
                 const endFreq = freq + pitchBend;
                 oscillator.frequency.linearRampToValueAtTime(endFreq, audioContext.currentTime + duration);
             }
+            // --- END OF NEW LOGIC ---
+
             gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
             oscillator.start(audioContext.currentTime);
@@ -801,6 +844,7 @@
             console.error("Error playing tone:", e);
         }
     }
+
     const SOUNDS = {
         click:        () => playTone(880, 0.05, 0.3, 'sine'),
         playerAttack: (pitchOffset = 0) => playTone(660 + pitchOffset, 0.1, 0.4, 'triangle'),
@@ -821,6 +865,7 @@
     // =========================================================================
 
     // --- DOM ELEMENT VARIABLES ---
+    // Declared here with `let`, but assigned in `initApp` to prevent loading errors.
     let inventoryModal, inventoryButton, inventoryCloseButton, tabButtons, panels,
         bootScreen, bootProgressBar, startGameButton, mainScreen, playerUpgradeScreen,
         mapScreen, gameContainer, explorationContainer, detailsModal, lockedModal,
@@ -1163,7 +1208,7 @@
         }
     }
     function startNextWorld() {
-        if (!confirm(`Are you sure you want to proceed to the next world? Your current dungeon map and ALL player progress will be reset. This cannot be undone.`)) return;
+        if (!confirm(`Are you sure you want to proceed to the next world? Your current dungeon map will be reset.`)) return;
         player.worldTier++;
         player.dungeonMap = {};
         createInitialDungeonMap();
@@ -1645,6 +1690,7 @@
         player.rubies -= weapon.refineCost;
         weapon.refineLevel++;
         if (weapon.special && weapon.special.id === 'multishot') {
+            // Increase multishot value every 2 refine levels
             if (weapon.refineLevel > 0 && weapon.refineLevel % 2 === 0) {
                 weapon.special.value++;
                 showBattleBanner(`Multishot Upgraded!`, 'ultimate-banner', 2000);
@@ -1686,10 +1732,11 @@
                 newWeapon.critChance = 0.05 + (tier * 0.005); 
                 newWeapon.critDamage = 1.5 + (tier * 0.05); 
                 newWeapon.lifesteal = 0.01 + (tier * 0.002); 
+                // --- ADD THESE LINES ---
                 newWeapon.special = {
                     id: 'cleave',
                     description: "Cleave",
-                    value: 0.25
+                    value: 0.25 // Deals 25% damage to nearby enemies
                 };
                 break;
             case 'jade':
@@ -1699,10 +1746,11 @@
                 newWeapon.critChance = 0.02 + (tier * 0.003);
                 newWeapon.statusEffect = { type: 'poison', chance: 0.10 + (tier * 0.01), damage: 2 + tier, duration: 3 };
                 
+                // --- ADD THESE 5 LINES ---
                 newWeapon.special = {
                     id: 'multishot',
                     description: "Multi-Shot",
-                    value: 1
+                    value: 1 // Start with 1 extra shot
                 };
                 break;
             case 'obsidian': 
@@ -1713,10 +1761,11 @@
                 newWeapon.goldBonus = 0.10 + (tier * 0.01); 
                 newWeapon.xpBonus = 0.10 + (tier * 0.01); 
                 newWeapon.stoneFindBonus = 0.01 + (tier * 0.005);
+                // --- ADD THESE LINES ---
                 newWeapon.special = {
                     id: 'retaliate',
                     description: "Retaliate",
-                    value: 0.20
+                    value: 0.20 // 20% chance to retaliate
                 };
                 break;
         }
@@ -1782,18 +1831,22 @@
 
     function findClosestEnemy(skip = 0) {
         if (!player || enemies.length === 0) return null;
-            const sortedEnemies = [...enemies].sort((a, b) => {
+        
+        // Create a copy of the enemies array and sort it by distance to the player
+        const sortedEnemies = [...enemies].sort((a, b) => {
             const distA = Math.hypot(a.x - player.x, a.y - player.y);
             const distB = Math.hypot(b.x - player.x, b.y - player.y);
             return distA - distB;
         });
 
+        // Return the enemy at the 'skip' index, if it exists
         if (sortedEnemies.length > skip) {
             return sortedEnemies[skip];
         }
         
-        return null;
+        return null; // Return null if not enough enemies
     }
+    
     function updateSkills(dt) {
         if (enemies.length === 0) return;
         Object.keys(player.skills).forEach(id => {
@@ -1849,13 +1902,19 @@
                             const startY = -50 - (Math.random() * 200);
                             const targetY = 100 + Math.random() * (800 / 1.5);
                             
+                            // --- THIS IS THE NEW LOGIC ---
+                            // Calculate how far the meteor travels vertically
                             const verticalDistance = targetY - startY;
+                            // Calculate how far it must travel horizontally based on its angle
                             const horizontalDistance = verticalDistance / Math.tan(angle);
-                            const impactX = 100 + Math.random() * (450 - 200);
+                            // Calculate a random impact point within the screen width
+                            const impactX = 100 + Math.random() * (450 - 200); // Between 100 and 350
+                            // Calculate the required starting X to hit that impact point
                             const startX = impactX - horizontalDistance;
+
                             skillVisuals.push({
                                 type: 'meteorShower',
-                                x: startX,
+                                x: startX, // Use our newly calculated startX
                                 y: startY,
                                 targetY: targetY,
                                 speed: 1500 + Math.random() * 500,
@@ -1872,6 +1931,7 @@
             }
         });
     }
+    
     function updateBattleCountdown(dt) { 
         battleCountdown -= dt; 
         if (battleCountdown <= 2 && battleCountdown + dt > 2) SOUNDS.click();
@@ -1882,6 +1942,7 @@
             SOUNDS.click();
         } 
     }
+    
     function updatePlayerMovement(dt) {
         const MELEE_RANGE = 60;
         switch (player.state) {
@@ -1918,6 +1979,7 @@
                 break;
         }
     }
+
     function updateCombat(dt) {
         updatePlayerMovement(dt);
         updateWeaponAnimation(dt);
@@ -1962,19 +2024,25 @@
                     const defensePower = player.inventory.weapon.defense || 0;
                     finalDamage = Math.max(1, p.damage - (player.stats.defense.current + defensePower));
                     player.flash = 0.1;
+                    
+                    // --- ADD RETALIATE LOGIC HERE ---
                     const weapon = player.inventory.weapon;
                     if (weapon.special && weapon.special.id === 'retaliate' && Math.random() < weapon.special.value) {
+                        // We know who attacked from the projectile's owner property
                         const attacker = p.owner;
                         if (attacker && attacker.hp > 0) {
-                            const retaliateDamage = Math.floor(player.stats.attackPower.current * 0.5);
+                            const retaliateDamage = Math.floor(player.stats.attackPower.current * 0.5); // Retaliates for 50% of stat damage
+                            // Create a new projectile going back at the attacker
                             projectiles.push({
                                 x: player.x, y: player.y, target: attacker, isPlayer: true,
                                 speed: 1200, damage: retaliateDamage, isCrit: false
                             });
-                            SOUNDS.shock();
+                            SOUNDS.shock(); // A good sound for a magic bolt
+                            // Add a visual cue on the player
                             createExplosion(player.x, player.y, 15, '#4682b4', 3, 5);
                         }
                     }
+                    // --- END OF RETALIATE LOGIC ---
                 }
                 p.target.hp -= finalDamage;
                 p.target.flash = 0.1;
@@ -2279,7 +2347,7 @@
     function update(dt){
         if (player) {
 
-            if (Math.random() < 0.85) {
+            if (Math.random() < 0.85) { // Adjust 0.5 to make more/less smoke
                 const isWorld = !worldScreen.classList.contains('hidden');
                 const playerX = isWorld ? player.world.x : player.x;
                 const playerY = isWorld ? player.world.y : player.y;
@@ -2288,13 +2356,13 @@
                     type: 'smoke',
                     x: playerX + (Math.random() - 0.5) * (player.size * 0.5),
                     y: playerY + (Math.random() - 0.5) * (player.size * 0.5),
-                    life: 1.0,
+                    life: 1.0,          // Lives for 1 second
                     maxLife: 1.0,
-                    startSize: 2,
-                    endSize: 15,
-                    vx: (Math.random() - 0.5) * 10,
-                    vy: -20,
-                    color: `rgba(255, 50, 50, ${0.1 + Math.random() * 0.3})`
+                    startSize: 2,       // Starts small
+                    endSize: 15,        // Grows larger
+                    vx: (Math.random() - 0.5) * 10, // Slight horizontal drift
+                    vy: -20,            // Drifts upwards
+                    color: `rgba(255, 50, 50, ${0.1 + Math.random() * 0.3})` // Semi-transparent black
                 });
             }
         }
@@ -2567,22 +2635,31 @@
         if (tier >= 10) bladeColor = '#6495ed'; 
         if (tier >= 25) bladeColor = '#ff4500';
 
-        context.save();
+        context.save(); // Save the current state (which is already rotated towards the target)
 
+        // --- NEW ANIMATION LOGIC ---
         let swingAngle = 0;
         if (v.animState === 'drawing') {
+            // The sword is being raised back for the swing
             const progress = 1 - (v.animTimer / (0.5 * (1/(1+player.inventory.weapon.attackSpeedBonus))));
-            swingAngle = -Math.PI / 4 * progress;
+            swingAngle = -Math.PI / 4 * progress; // Starts at 0, moves to -45 degrees
         } else if (v.animState === 'firing') {
+            // The sword is swinging down
             const progress = 1 - (v.animTimer / 0.25);
-            swingAngle = -Math.PI / 4 + (Math.PI / 2 * progress);
+            swingAngle = -Math.PI / 4 + (Math.PI / 2 * progress); // Swings from -45 to +45 degrees
         }
-        context.rotate(swingAngle);
-        context.fillStyle = '#8B4513'; 
-        context.fillRect(0, -width/2, 20, width); 
+        context.rotate(swingAngle); // Apply the additional swing rotation
+        // --- END OF NEW LOGIC ---
+
+        // Draw the hilt (handle)
+        context.fillStyle = '#8B4513'; // Brown color for the hilt
+        context.fillRect(0, -width/2, 20, width); // Draw a small rectangle for the hilt at the pivot point
+
+        // Draw the blade
         context.fillStyle = bladeColor;
-        context.fillRect(20, -width/2, length, width); 
-        context.restore(); 
+        context.fillRect(20, -width/2, length, width); // Draw the blade extending from the hilt
+
+        context.restore(); // Restore the context to remove the swing rotation
     }
 
     function drawAnimatedShield(context, v, tier) {
@@ -2656,9 +2733,12 @@
                     }
                     break;
                 case 'meteorShower':
+                    // Update meteor position
                     const dt_ms = 1/60;
                     v.x += Math.cos(v.angle) * v.speed * dt_ms;
                     v.y += Math.sin(v.angle) * v.speed * dt_ms;
+
+                    // Draw the meteor's fiery trail (same as before)
                     const trailLength = 40;
                     const headX = v.x;
                     const headY = v.y;
@@ -2678,10 +2758,13 @@
                     context.shadowBlur = 25;
                     context.stroke();
                     
+                    // --- NEW AND IMPROVED IMPACT LOGIC ---
                     if (v.y >= v.targetY) {
                         createExplosion(v.x, v.y, 40, 'fire', 5, 8);
                         let directTarget = null;
                         let minDistance = Infinity;
+
+                        // First, find the single closest enemy to the impact point
                         enemies.forEach(enemy => {
                             const distance = Math.hypot(enemy.x - v.x, enemy.y - v.y);
                             if (distance < minDistance) {
@@ -2689,17 +2772,22 @@
                                 directTarget = enemy;
                             }
                         });
+
+                        // Now, apply damage to ALL enemies on screen
                         enemies.forEach(enemy => {
                             if (enemy === directTarget && directTarget !== null) {
+                                // This is the direct target, deal 5x damage!
                                 const directDamage = v.damage * 5;
                                 enemy.hp -= directDamage;
-                                addFloatingText(directDamage, enemy.x, enemy.y, '#ffc300'); 
+                                addFloatingText(directDamage, enemy.x, enemy.y, '#ffc300'); // Bright gold for direct hit
                             } else {
+                                // All other enemies take the base damage
                                 enemy.hp -= v.damage;
-                                addFloatingText(v.damage, enemy.x, enemy.y, '#ff8c00'); 
+                                addFloatingText(v.damage, enemy.x, enemy.y, '#ff8c00'); // Orange for area hit
                             }
                         });
-                        v.life = 0;
+                        
+                        v.life = 0; // Destroy the meteor on impact
                     }
                     break;
             }
@@ -2756,6 +2844,8 @@
             const speedMultiplier = 1 / (1 + (player.inventory.weapon.attackSpeedBonus || 0));
             player.weaponVisual.animTimer -= dt;
             if (player.weaponVisual.animTimer <= 0) {
+                
+                // This is the main "if" block for when the animation timer hits zero
                 if (player.weaponVisual.animState === 'drawing') {
                     player.weaponVisual.animState = 'firing';
                     player.weaponVisual.animTimer = 0.25;
@@ -2767,10 +2857,12 @@
                         isCrit = true;
                     }
                     const isWorld = !worldScreen.classList.contains('hidden');
+                    // --- CORRECTED: Use playerX and playerY consistently ---
                     const playerX = isWorld ? player.world.x : player.x;
                     const playerY = isWorld ? player.world.y : player.y;
 
                     if (weapon.type === 'bow') {
+                        // --- This is your correct bow logic ---
                         let numProjectiles = 1;
                         if (weapon.special && weapon.special.id === 'multishot') {
                             numProjectiles += weapon.special.value;
@@ -2797,25 +2889,35 @@
                                 }, i * 50);
                             }
                         }
+                        // --- End of bow logic ---
 
-                    } else { 
+                    } else { // This is for Sword/Shield
                         const target = player.weaponVisual.target;
                         if (target) {
                             target.hp -= finalDamage;
                             target.flash = 0.2;
+                            // ... (other logic for rage, lifesteal, etc. stays the same)
+                            
+                            // --- ADD CLEAVE LOGIC HERE ---
                             if (weapon.special && weapon.special.id === 'cleave') {
                                 const cleaveDamage = Math.floor(finalDamage * weapon.special.value);
-                                const cleaveRadius = 75; 
+                                const cleaveRadius = 75; // The range of the cleave
                                 
                                 enemies.forEach(enemy => {
+                                    // Check if the enemy is not the primary target and is within the cleave radius
                                     if (enemy !== target && Math.hypot(enemy.x - target.x, enemy.y - target.y) < cleaveRadius) {
                                         enemy.hp -= cleaveDamage;
                                         enemy.flash = 0.2;
-                                        addFloatingText(cleaveDamage, enemy.x + (Math.random() - 0.5) * 20, enemy.y, '#fca311');
+                                        // Add a smaller damage number for the cleaved enemy
+                                        addFloatingText(cleaveDamage, enemy.x + (Math.random() - 0.5) * 20, enemy.y, '#fca311'); // Orange for cleave
+                                        
+                                        // Create a small visual effect for the cleave hit
                                         createExplosion(enemy.x, enemy.y, 10, '#fca311', 2, 4);
                                     }
                                 });
                             }
+                            // --- END OF CLEAVE LOGIC ---
+
                             SOUNDS.hit();
                             triggerScreenShake(5);
                             createExplosion(target.x, target.y, 20, "#fff");
@@ -2823,7 +2925,9 @@
                         }
                     }
                     
+                    // --- THIS LOGIC IS NOW CORRECTLY PLACED ---
                     if (weapon.statusEffect && Math.random() < weapon.statusEffect.chance) {
+                        // It's safer to just re-find the target here for status effects
                         const targetForStatus = findClosestEnemy(0); 
                         if(targetForStatus) {
                             if (!targetForStatus.statusEffects) targetForStatus.statusEffects = [];
@@ -2836,6 +2940,7 @@
                         }
                     }
 
+                // --- THIS "else if" is now in the correct place ---
                 } else if (player.weaponVisual.animState === 'firing') {
                     if (player.inventory.weapon.type === 'sword' || player.inventory.weapon.type === 'shield') {
                         player.state = 'returning';
@@ -2851,9 +2956,9 @@
     }
     function drawPlayerAura(context) {
         playerAuraParticles.forEach(p => {
-            const progress = 1 - (p.life / p.maxLife);
+            const progress = 1 - (p.life / p.maxLife); // 0 -> 1
             const currentSize = p.startSize + (p.endSize - p.startSize) * progress;
-            const opacity = (1 - progress) * 0.5;
+            const opacity = (1 - progress) * 0.5; // Fades out
 
             context.beginPath();
             context.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
@@ -2983,7 +3088,9 @@
         originalDraw();
     }
     
+    // --- APP INITIALIZATION ---
     const initApp = () => {
+        // --- THIS IS THE FIX: Assign all DOM variables now ---
         inventoryModal = document.getElementById('inventory-modal');
         inventoryButton = document.getElementById('inventory-button');
         inventoryCloseButton = document.getElementById('inventory-close-button');
@@ -3029,9 +3136,12 @@
         canvas.width = uiCanvas.width = explorationCanvas.width = worldCanvas.width = 450;
         canvas.height = uiCanvas.height = explorationCanvas.height = worldCanvas.height = 800;
         dom = { shop:document.getElementById('shop-screen'), gameOver:document.getElementById('game-over-screen'), playerStats:document.getElementById('player-screen'), proceedBtn:document.getElementById('proceed-button'), retryBtn:document.getElementById('retry-button'), statsBtn:document.getElementById('player-stats-button'), backBtn:document.getElementById('player-screen-back-button'), battleBanner:document.getElementById('battle-event-banner'), goldDisplay:document.getElementById('gold-total'), upgradeBtns:{attack:document.getElementById('upgrade-attack-button'),health:document.getElementById('upgrade-health-button'),rage:document.getElementById('upgrade-rage-button'),regen:document.getElementById('upgrade-regen-button')}, ultBtn:document.getElementById('ult-button'), autoBtn:document.getElementById('auto-battle-button') };
+
+        // --- Now add event listeners ---
         backgroundMusic = document.getElementById('bg-music');
         resizeGame();
         window.addEventListener('resize', resizeGame);
+        
         document.getElementById('dungeons-button').onclick = () => showScreen('map');
         document.getElementById('station-button').onclick = () => showScreen('player-upgrade');
         document.getElementById('exploration-button').onclick = () => showScreen('exploration');
@@ -3084,12 +3194,16 @@
             updatePlayerUpgradeScreenUI();
             updatePlayerXpBar();
         };
+
+        // --- Final startup calls ---
         initGame(false, true);
         initializeBootSequence();
         initMapBackground();
         requestAnimationFrame(gameLoop);
         setInterval(updateEnergyReplenishment, 1000);
+
         setInterval(() => { if (isAppInitialized) { saveGame(); } }, 15000);
+
         setInterval(() => {
             if (!player || mainScreen.classList.contains('hidden')) return;
             const now = Date.now();
@@ -3099,11 +3213,13 @@
             elapsedSeconds = Math.min(elapsedSeconds, MAX_SECONDS);
             document.getElementById('offline-timer-display').textContent = formatTimerDisplay(elapsedSeconds);
         }, 1000);
+
         const awayRewardsModal = document.getElementById('away-rewards-modal');
         const awayRewardsList = document.getElementById('away-rewards-list');
         const awayTimeInfo = document.getElementById('away-time-info');
         const claimAwayRewardsBtn = document.getElementById('claim-away-rewards-button');
         const closeAwayRewardsBtn = document.getElementById('close-away-rewards-btn');
+        
         document.getElementById('collect-offline-rewards-btn').addEventListener('click', () => {
             if (!player) return;
             const now = Date.now();
@@ -3144,7 +3260,9 @@
                 awayRewardsModal.classList.remove('visible');
             };
         });
+        
         closeAwayRewardsBtn.onclick = () => awayRewardsModal.classList.remove('visible');
+
         document.getElementById('house-button').onclick = () => showScreen('world');
         document.getElementById('world-back-button').onclick = () => showScreen('main');
         const worldAutoButton = document.getElementById('world-auto-button');
@@ -3157,6 +3275,7 @@
         const stopMovement = (e) => { e.preventDefault(); if (!player) return; player.world.touchStartX = null; player.world.touchStartY = null; player.world.moveDx = 0; player.world.moveDy = 0; };
         worldCanvas.addEventListener('touchend', stopMovement, { passive: false });
         worldCanvas.addEventListener('touchcancel', stopMovement, { passive: false });
+        
         startGameButton.addEventListener('click', () => {
             unlockAudio();
             SOUNDS.click();
