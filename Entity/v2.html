@@ -495,7 +495,7 @@ const GRAVEYARD_POINT = { x: 48500, y: 48000 }; // Adjusted relative to new cent
 
 const GameData = {
     ITEMS: {
-        1: { id: 1, name: "Rusty Sword", icon: "fa-sword", slot: "main-hand", quality: "common", stats: { attack: 2 }, durability: 100, maxDurability: 100, sellPrice: 100 },
+        1: { id: 1, name: "Rusty Sword", icon: 'fa-gavel', slot: "main-hand", quality: "common", stats: { attackPower: 2 }, durability: 100, maxDurability: 100, sellPrice: 100 },
         2: { id: 2, name: "Worn Leather Vest", icon: "fa-vest-patches", slot: "chest", quality: "common", stats: { armor: 5 }, durability: 100, maxDurability: 100, sellPrice: 150 },
         3: { id: 3, name: "Spider Silk", icon: "fa-network-wired", slot: "material", quality: "common", stackable: true, sellPrice: 50 },
         4: { id: 4, name: "Wolf Fang", icon: "fa-tooth", slot: "material", quality: "common", stackable: true, sellPrice: 40 },
@@ -648,7 +648,11 @@ const GameData = {
                 { type: 'QuestGiver', name: "Old Man Willow", x: 50000, y: 49500, questIds: [1, 2, 3] },
                 { type: 'GenericNPC', npcType: 'BLACKSMITH', x: 49000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'GENERAL_VENDOR', x: 51000, y: 50500 },
-                { type: 'GenericNPC', npcType: 'SPIRIT_HEALER', x: 48500, y: 48000 }
+                { type: 'GenericNPC', npcType: 'SPIRIT_HEALER', x: 48500, y: 48000 },
+                
+                // --- ADD THESE TWO LINES ---
+                { type: 'GenericNPC', npcType: 'WOODWORKING_TRAINER', x: 49000, y: 49500 },
+                { type: 'CraftingStation', stationType: 'WOODWORKING_BENCH', x: 49000, y: 49600 }
             ]
         },
         {
@@ -825,6 +829,7 @@ class Game {
                 hotbar: this.player.hotbar.map(slot => { if (!slot) return null; if (slot.type === 'ability') { return { type: 'ability', id: slot.ref.id }; } if (slot.type === 'item') { const invIndex = this.player.inventory.indexOf(slot.ref); return invIndex > -1 ? { type: 'item', invIndex: invIndex } : null; } return null; }),
                 quests: this.player.quests.map(q => ({ id: q.id, progress: q.progress.map(p => p.current) })),
                 recipes: this.player.recipes.map(r => r.id),
+                spellbook: this.player.spellbook.map(a => a.id),
                 talents: { ...this.player.talents },
                 talentPoints: this.player.talentPoints,
                 reputation: { ...this.player.reputation },
@@ -846,14 +851,18 @@ class Game {
             this.player.name = pData.name; this.player.race = pData.race; this.player.x = pData.x; this.player.y = pData.y; this.player.level = pData.level; this.player.xp = pData.xp; this.player.restedXp = pData.restedXp; this.player.gold = pData.gold; this.player.baseStats = { ...pData.baseStats }; this.player.talents = { ...pData.talents }; this.player.talentPoints = pData.talentPoints; this.player.reputation = { ...pData.reputation }; this.player.professions = { ...pData.professions }; this.player.nextLevelXp = GameData.XP_TABLE[this.player.level] || 99999;
             this.player.inventory = pData.inventory.map(itemData => { if (!itemData) return null; const baseItem = { ...GameData.ITEMS[itemData.id] }; baseItem.quantity = itemData.quantity; if (itemData.durability !== undefined) baseItem.durability = itemData.durability; return baseItem; });
             this.player.equipment = {}; for (const slot in pData.equipment) { const itemData = pData.equipment[slot]; this.player.equipment[slot] = itemData ? { ...GameData.ITEMS[itemData.id], durability: itemData.durability } : null; }
-            this.player.quests = []; pData.quests.forEach(qData => { const questTemplate = GameData.QUESTS[qData.id]; const questGiver = this.entities.find(e => e instanceof QuestGiver && e.questIds.includes(qData.id)); if (questTemplate && questGiver) { this.player.quests.push({ ...questTemplate, progress: questTemplate.objectives.map((o, i) => ({ ...o, current: qData.progress[i] || 0 })), giver: questGiver }); } });
+            this.player.quests = []; pData.quests.forEach(qData => { const questTemplate = GameData.QUESTS[qData.id]; const questGiver = this.entities.find(e => e instanceof QuestGiver && e.questIds.includes(qData.id)); if (questTemplate && questGiver) { this.player.quests.push({ ...questTemplate, progress: questTemplate.objectives.map((o, i) => ({ ...o, current: qData.progress[i] || 0 })), giver: questGiver }); } }); if (pData.spellbook) {
+                this.player.spellbook = pData.spellbook.map(id => GameData.ABILITIES[id]);
+            }
+            
+            this.player.recipes = pData.recipes.map(id => GameData.CRAFTING_RECIPES[id]);
             this.player.recipes = pData.recipes.map(id => GameData.CRAFTING_RECIPES[id]);
             this.player.hotbar = pData.hotbar.map(slotData => { if (!slotData) return null; if (slotData.type === 'ability') { return { type: 'ability', ref: GameData.ABILITIES[slotData.id] }; } if (slotData.type === 'item' && slotData.invIndex !== undefined) { const item = this.player.inventory[slotData.invIndex]; return item ? { type: 'item', ref: item } : null; } return null; });
             this.player.questCooldowns = {}; for(const id in pData.questCooldowns) { const endTime = pData.questCooldowns[id]; const timeLeft = endTime - Date.now(); if (timeLeft > 0) this.player.questCooldowns[id] = timeLeft; }
             
             this.player.recalculateStats();
             this.player.stats.health = pData.stats.health; this.player.stats.mana = pData.stats.mana;
-            
+            this.ui.setupActionbar(this.player);
             console.log("Game loaded successfully!"); return true;
         } catch (e) { console.error("Failed to load save data. It might be corrupted.", e); localStorage.removeItem('miniWowSaveData'); return false; }
     }
@@ -1087,19 +1096,25 @@ class Player extends Character {
         this.recipes = [];
         this.hotbar = new Array(10).fill(null);
         this.spellbook = [];
+        
+        // --- CORRECTED ABILITY SETUP ---
+        // First, add all abilities to the spellbook
         this.addAbilityToSpellbook(1); // Slash
         if (this.race === 'Elf') {
             this.addAbilityToSpellbook(2); // Fireball
             this.addAbilityToSpellbook(3); // Rend
         }
-        
+        // Then, call the auto-slotter to populate the hotbar
+        this.autoSlotAbilities(); 
+        // --- END CORRECTION ---
+
         this.cooldowns = {}; this.quests = []; this.autoAttackTimer = 0; this.attackSpeed = 2000;
         this.inCombatTimer = 0; this.fiveSecondRuleTimer = 0;
         this.isGhost = false; this.corpse = null; this.isResting = false;
         this.isAutoQuesting = false; this.autoQuest = null; this.autoMoveTarget = null;
         this.questCooldowns = {};
 
-        this.addItem(1, 1); this.addItem(5, 3);
+        this.addItem(1, 1); this.addItem(5, 3); // This will auto-slot the potion to slot 0
         this.recalculateStats();
         this.stats.health = this.stats.maxHealth; this.stats.mana = this.stats.maxMana;
     }
@@ -1234,14 +1249,78 @@ class Player extends Character {
     takeDamage(amount, type, source) { super.takeDamage(amount, type, source); if (!this.isDead) { this.inCombatTimer = 8000; this.fiveSecondRuleTimer = 5000; } }
     die(killer) { if (this.isDead) return; super.die(killer); if (this.isAutoQuesting) { this.toggleAutoQuest(this.autoQuest); } game.ui.showDeathScreen(); Object.values(this.equipment).forEach(item => { if (item) item.durability = Math.max(0, item.durability - 10); }); this.corpse = new PlayerCorpse(this.x, this.y); game.entities.push(this.corpse); }
     releaseSpirit() { if (!this.isDead || this.isGhost) return; this.isGhost = true; this.x = GRAVEYARD_POINT.x; this.y = GRAVEYARD_POINT.y; this.setTarget(null); game.ui.hideDeathScreen(); }
-    resurrectAtCorpse() { this.isDead = false; this.isGhost = false; this.stats.health = this.stats.maxHealth * 0.5; this.stats.mana = this.stats.maxMana * 0.5; this.x = this.corpse.x; this.y = this.corpse.y; this.corpse.isDead = true; game.entities = game.entities.filter(e => e !== this.corpse); this.corpse = null; game.ui.updateAll(this); }
+    resurrectAtCorpse() {
+        this.isDead = false;
+        this.isGhost = false;
+        
+        // --- THE FIX ---
+        // First, recalculate all stats to restore them from the "dead" state.
+        this.recalculateStats(); 
+        // --- END FIX ---
+
+        // Now that maxHealth and maxMana are correct, set the current values.
+        this.stats.health = this.stats.maxHealth * 0.5;
+        this.stats.mana = this.stats.maxMana * 0.5;
+
+        this.x = this.corpse.x;
+        this.y = this.corpse.y;
+        this.corpse.isDead = true;
+        game.entities = game.entities.filter(e => e !== this.corpse);
+        this.corpse = null;
+        
+        // Update the UI with the newly restored stats.
+        game.ui.updateAll(this);
+    }
     resurrectAtHealer() { this.isDead = false; this.isGhost = false; this.x = this.x; this.y = this.y; this.addBuff({ id: 'res_sickness', name: 'Resurrection Sickness', icon: 'fa-skull', duration: 60000, isDebuff: true, stats: { strength: -10, agility: -10, stamina: -10, intellect: -10, spirit: -10 } }); Object.values(this.equipment).forEach(item => { if (item) item.durability = Math.max(0, item.durability - 15); }); this.recalculateStats(); this.stats.health = this.stats.maxHealth * 0.25; this.stats.mana = this.stats.maxMana * 0.25; game.ui.updateAll(this); }
     autoAttack() { if (!this.target) return; ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8); this.target.takeDamage(this.getAttackDamage(), 'physical', this); this.inCombatTimer = 8000; }
     useHotbarSlot(index) { const slotItem = this.hotbar[index]; if (!slotItem || this.isGhost || this.isRooted) return; if(slotItem.type === 'ability') { const ability = slotItem.ref; if (this.cooldowns[ability.id] || !this.target || this.target.isDead) return; if(distance(this, this.target) > ability.range) { if(!this.isAutoQuesting) game.createFloatingText("Out of range", this.x, this.y, "yellow"); return; } if (this.stats.mana < ability.cost) { if(!this.isAutoQuesting) game.createFloatingText("Not enough mana", this.x, this.y, "blue"); return; } this.stats.mana -= ability.cost; ability.onUse(this, this.target); this.cooldowns[ability.id] = ability.cooldown; this.inCombatTimer = 8000; if(ability.cost > 0) this.fiveSecondRuleTimer = 5000; game.ui.updatePlayerFrame(this); } else if (slotItem.type === 'item') { const item = slotItem.ref; if (item.slot === 'consumable' && item.onUse) { item.onUse(this); item.quantity--; if(item.quantity <= 0) { const invIndex = this.inventory.findIndex(i => i === item); if (invIndex > -1) this.inventory[invIndex] = null; this.hotbar[index] = null; } game.ui.updateInventory(this); game.ui.setupActionbar(this); } } }
     setHotbarSlot(hotbarIndex, source, sourceIdentifier) { let sourceItem = null; let type = ''; if (source === 'inventory') { const idx = parseInt(sourceIdentifier); if (!isNaN(idx) && this.inventory[idx]) { sourceItem = this.inventory[idx]; type = 'item'; } } else if (source === 'spellbook') { const idx = parseInt(sourceIdentifier); if (!isNaN(idx) && this.spellbook[idx]) { sourceItem = this.spellbook[idx]; type = 'ability'; } } if (sourceItem) { this.hotbar[hotbarIndex] = { type, ref: sourceItem }; } else { this.hotbar[hotbarIndex] = null; } game.ui.setupActionbar(this); }
     addXp(amount) { let bonusXp = 0; if (this.restedXp > 0) { bonusXp = Math.min(this.restedXp, amount); this.restedXp -= bonusXp; } const totalXp = amount + bonusXp; this.xp += totalXp; game.createFloatingText(`${amount} XP` + (bonusXp > 0 ? ` (+${bonusXp})` : ''), this.x, this.y - 20, bonusXp > 0 ? '#00bfff' : '#b636d1'); while(this.xp >= this.nextLevelXp && this.level < GameData.XP_TABLE.length -1) this.levelUp(); game.ui.updateXPBar(this); }
     levelUp() { this.xp -= this.nextLevelXp; this.level++; this.talentPoints++; this.nextLevelXp = GameData.XP_TABLE[this.level] || 99999; this.baseStats.strength += 2; this.baseStats.agility += 1; this.baseStats.stamina += 2; this.baseStats.intellect += 1; this.baseStats.spirit += 1; this.recalculateStats(); this.stats.health = this.stats.maxHealth; this.stats.mana = this.stats.maxMana; game.createFloatingText('LEVEL UP!', this.x, this.y, 'gold', 'crit'); ParticleSystem.create(this.x, this.y, 'gold', 50, 1.5, 30); }
-    recalculateStats() { this.baseStats.maxHealth = this.baseStats.stamina * 10; this.baseStats.maxMana = this.baseStats.intellect * 10; this.statBonuses = {}; this.stats = {...this.baseStats}; this.talentBonuses = {}; for(const talentId in this.talents) { const talentData = GameData.TALENTS.WARRIOR.find(t=>t.id === talentId); if(talentData) talentData.apply(this, this.talents[talentId]); } super.recalculateStats(); }
+    recalculateStats() {
+        // Step 1: Create a clean slate for our final stats, starting with the character's base values.
+        const finalStats = { ...this.baseStats };
+
+        // Step 2: Create a separate object to hold all bonuses from gear and buffs.
+        const allBonuses = {};
+        const sources = [this.equipment, this.buffs]; // Combine equipment and buffs into one list of sources
+
+        sources.forEach(source => {
+            Object.values(source).forEach(itemOrBuff => {
+                if (itemOrBuff && itemOrBuff.stats) {
+                    for (const stat in itemOrBuff.stats) {
+                        allBonuses[stat] = (allBonuses[stat] || 0) + itemOrBuff.stats[stat];
+                    }
+                }
+            });
+        });
+        // After this, 'allBonuses' will contain { attackPower: 2 } from the sword.
+
+        // Step 3: Add all PRIMARY stat bonuses (like Strength, Agility) to our final stats.
+        for (const stat in allBonuses) {
+            if (stat in finalStats) { // This checks if it's a primary stat (str, agi, etc.)
+                finalStats[stat] += allBonuses[stat];
+            }
+        }
+
+        // Step 4: Calculate DERIVED stats (like Health, Attack Power) based on the final primary stats.
+        finalStats.maxHealth = finalStats.stamina * 10;
+        finalStats.maxMana = finalStats.intellect * 10;
+        finalStats.attackPower = 5 + (finalStats.strength * 0.5); // Base AP + AP from Strength
+        finalStats.critChance = 0.05 + (finalStats.agility * 0.0025); // Base Crit + Crit from Agility
+        finalStats.dodgeChance = 0.05 + (finalStats.agility * 0.0030); // Base Dodge + Dodge from Agility
+        finalStats.armor = (finalStats.armor || 0); // Base Armor
+
+        // Step 5: Add the SECONDARY stat bonuses (like +2 Attack Power) to the final derived values.
+        if (allBonuses.attackPower) finalStats.attackPower += allBonuses.attackPower;
+        if (allBonuses.critChance) finalStats.critChance += allBonuses.critChance;
+        if (allBonuses.dodgeChance) finalStats.dodgeChance += allBonuses.dodgeChance;
+        if (allBonuses.armor) finalStats.armor += allBonuses.armor;
+
+        // Step 6: Finally, assign the fully calculated stats object to the player.
+        this.stats = finalStats;
+        this.statBonuses = allBonuses; // Also save the bonuses for tooltips if needed
+    }
     learnTalent(talentId) { if(this.talentPoints <= 0) return; const talentData = GameData.TALENTS.WARRIOR.find(t => t.id === talentId); if(!talentData) return; const currentRank = this.talents[talentId] || 0; if(currentRank >= talentData.maxRank) return; this.talents[talentId] = currentRank + 1; this.talentPoints--; this.recalculateStats(); game.ui.updateAll(this); }
     addAbilityToSpellbook(abilityId) { const abilityData = GameData.ABILITIES[abilityId]; if (abilityData && !this.spellbook.find(a => a.id === abilityId)) this.spellbook.push(abilityData); }
     addRecipe(recipeId) { const recipeData = GameData.CRAFTING_RECIPES[recipeId]; if (recipeData && !this.recipes.find(r => r.id === recipeId)) { this.recipes.push(recipeData); game.createFloatingText(`New Recipe: ${recipeData.name}!`, this.x, this.y - 80, 'cyan'); } }
@@ -1283,8 +1362,38 @@ class Player extends Character {
         }
     }
     removeItem(itemId, quantity = 1) { const itemIndex = this.inventory.findIndex(item => item && item.id === itemId && item.quantity >= quantity); if (itemIndex > -1) { const itemStack = this.inventory[itemIndex]; itemStack.quantity -= quantity; if (itemStack.quantity <= 0) { this.inventory[itemIndex] = null; this.hotbar.forEach((slot, idx) => { if (slot && slot.type === 'item' && slot.ref === itemStack) { this.hotbar[idx] = null; } }); } return true; } return false; }
-    equipItem(inventoryIndex) { const item = this.inventory[inventoryIndex]; if (!item || !item.slot || !this.equipment.hasOwnProperty(item.slot)) return; const currentlyEquipped = this.equipment[item.slot]; this.equipment[item.slot] = item; this.inventory[inventoryIndex] = currentlyEquipped; this.recalculateStats(); game.ui.updateAll(this); }
-    unequipItem(slot) { const itemToUnequip = this.equipment[slot]; if (!itemToUnequip) return; const emptyInvSlot = this.inventory.findIndex(i => i === null); if (emptyInvSlot === -1) { game.createFloatingText("Inventory is full!", this.x, this.y, 'red'); return; } this.inventory[emptyInvSlot] = itemToUnequip; this.equipment[slot] = null; this.recalculateStats(); game.ui.updateAll(this); }
+    equipItem(inventoryIndex) {
+        const item = this.inventory[inventoryIndex];
+        if (!item || !item.slot || !this.equipment.hasOwnProperty(item.slot)) return;
+        const currentlyEquipped = this.equipment[item.slot];
+        this.equipment[item.slot] = item;
+        this.inventory[inventoryIndex] = currentlyEquipped;
+        
+        this.recalculateStats();
+
+        // --- THE FIX ---
+        // Explicitly update the windows that changed
+        game.ui.updateCharacterSheet(this);
+        game.ui.updateInventory(this);
+    }
+    unequipItem(slot) {
+        const itemToUnequip = this.equipment[slot];
+        if (!itemToUnequip) return;
+        const emptyInvSlot = this.inventory.findIndex(i => i === null);
+        if (emptyInvSlot === -1) {
+            game.createFloatingText("Inventory is full!", this.x, this.y, 'red');
+            return;
+        }
+        this.inventory[emptyInvSlot] = itemToUnequip;
+        this.equipment[slot] = null;
+
+        this.recalculateStats();
+
+        // --- THE FIX ---
+        // Explicitly update the windows that changed
+        game.ui.updateCharacterSheet(this);
+        game.ui.updateInventory(this);
+    }
     addReputation(factionId, value) { if (!this.reputation[factionId]) this.reputation[factionId] = GameData.FACTIONS[factionId].base; this.reputation[factionId] += value; const factionData = GameData.FACTIONS[factionId]; if (factionData && factionData.values) { this.reputation[factionId] = Math.max(factionData.values[0], Math.min(this.reputation[factionId], factionData.values[factionData.values.length - 1])); } game.createFloatingText(`${value > 0 ? '+' : ''}${value} ${GameData.FACTIONS[factionId].name} Rep`, this.x, this.y-60, value > 0 ? 'lightgreen' : 'red'); }
     getRepairCost() { let totalCost = 0; Object.values(this.equipment).forEach(item => { if (item) { const damage = item.maxDurability - item.durability; totalCost += damage * 5; } }); return totalCost; }
     repairAllItems() { Object.values(this.equipment).forEach(item => { if (item) item.durability = item.maxDurability; }); }
@@ -1740,7 +1849,7 @@ class UI {
         if (player.race === 'Elf') statsHtml += `<div class="stat-line"><span>Mana</span><span>${Math.ceil(player.stats.mana)} / ${player.stats.maxMana}</span></div>`;
         statsHtml += `<hr><div class="stat-line"><span>Strength</span><span>${Math.floor(player.stats.strength)}</span></div> <div class="stat-line"><span>Agility</span><span>${Math.floor(player.stats.agility)}</span></div> <div class="stat-line"><span>Stamina</span><span>${Math.floor(player.stats.stamina)}</span></div>`;
         if (player.race === 'Elf') statsHtml += `<div class="stat-line"><span>Intellect</span><span>${Math.floor(player.stats.intellect)}</span></div>`;
-        statsHtml += `<div class="stat-line"><span>Spirit</span><span>${Math.floor(player.stats.spirit)}</span></div><hr> <div class="stat-line"><span>Attack Power</span><span>${player.getAttackDamage().toFixed(1)}</span></div> <div class="stat-line"><span>Crit Chance</span><span>${player.stats.critChance.toFixed(2)}%</span></div> <div class="stat-line"><span>Dodge Chance</span><span>${player.stats.dodgeChance.toFixed(2)}%</span></div> <div class="stat-line"><span>Armor</span><span>${player.stats.armor}</span></div>`;
+        statsHtml += `<div class="stat-line"><span>Spirit</span><span>${Math.floor(player.stats.spirit)}</span></div><hr> <div class="stat-line"><span>Attack Power</span><span>${player.stats.attackPower.toFixed(1)}</span></div> <div class="stat-line"><span>Crit Chance</span><span>${(player.stats.critChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Dodge Chance</span><span>${(player.stats.dodgeChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Armor</span><span>${player.stats.armor}</span></div>`;
         statsCol.innerHTML = statsHtml;
         const equipCol = $('#equipment-slots'); equipCol.innerHTML = '';
         for (const slotName in player.equipment) { const slot = document.createElement('div'); slot.className = 'equipment-slot'; slot.dataset.slot = slotName; const item = player.equipment[slotName]; if (item) { slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`; slot.draggable = true; slot.dataset.source = 'equipment'; } slot.innerHTML += `<div class="equipment-slot-name">${slotName.replace('-', ' ')}</div>`; equipCol.appendChild(slot); }
