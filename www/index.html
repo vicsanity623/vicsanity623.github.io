@@ -1,0 +1,3310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Eternal Immortal</title>
+    
+    <script src="capacitor.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- --- CHANGE: Merged and corrected all styles into one block --- -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400;500&display=swap');
+        :root {
+            --bg-dark: #0d1117;
+            --bg-medium: #161b22;
+            --border-color: #30363d;
+            --border-highlight: #8b949e;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-purple: #a371f7;
+            --accent-red: #f85149;
+            --accent-gold: #ffc107;
+            --safe-area-inset-top: env(safe-area-inset-top, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+        
+        /* --- CHANGE: Added safe area padding to the body --- */
+        body { 
+            margin: 0; 
+            background-color: var(--bg-dark); 
+            color: var(--text-primary); 
+            font-family: 'Roboto', sans-serif; 
+            height: 100vh; 
+            width: 100vw;
+            overflow: hidden; 
+            user-select: none;
+        }
+
+        /* --- BOOT SCREEN STYLES --- */
+        #boot-screen {
+            background-image: radial-gradient(ellipse at 50% 0%, #3d2c58, #031018 70%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 0.7s ease-out;
+            z-index: 999;
+        }
+        #boot-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .boot-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 35px;
+            width: 100%;
+        }
+        #boot-title {
+            font-family: 'Cinzel', serif;
+            font-size: 44px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.5), 
+                        0 0 15px #6efcff, 
+                        0 0 25px #6efcff, 
+                        0 0 40px #6efcff;
+            animation: boot-title-glow 2.5s ease-in-out infinite alternate;
+            text-align: center;
+        }
+        @keyframes boot-title-glow {
+            from {
+                text-shadow: 0 0 8px rgba(255, 255, 255, 0.5), 
+                            0 0 15px #6efcff, 
+                            0 0 25px #6efcff, 
+                            0 0 40px #6efcff;
+            }
+            to {
+                text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 
+                            0 0 20px #aaffff, 
+                            0 0 35px #aaffff, 
+                            0 0 55px #aaffff;
+            }
+        }
+        #boot-progress-container {
+            width: 300px;
+            height: 10px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid #5a4a78;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(90, 74, 120, 0.5) inset;
+        }
+        #boot-progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #6efcff, #aaffff);
+            box-shadow: 0 0 10px #aaffff, 0 0 20px #aaffff;
+            border-radius: 5px;
+            transition: width 0.1s linear;
+        }
+        #start-game-button {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s;
+        }
+        #start-game-button.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+        #version-info {
+            position: absolute;
+            bottom: 20px; /* Distance from the bottom */
+            left: 50%;
+            transform: translateX(-50%); /* Horizontally centers the element */
+            
+            font-family: 'Roboto', sans-serif;
+            font-size: 12px;
+            color: var(--text-secondary); /* Use a subtle theme color */
+            opacity: 0.6; /* Make it even more subtle */
+            letter-spacing: 0.5px;
+            pointer-events: none; /* Make sure it's not clickable */
+        }
+        /* (The rest of your CSS remains the same as you provided) */
+        .weapon-stats-list { list-style: none; padding: 10px; margin: 10px 0 0 0; text-align: left; background-color: rgba(0,0,0,0.2); border-radius: 6px; }
+        .weapon-stats-list li { font-size: 14px; margin-bottom: 5px; display: flex; align-items: center; }
+        .weapon-stats-list i { width: 20px; margin-right: 8px; color: var(--accent-blue); }
+        .weapon-stats-list .stat-value { color: var(--text-primary); font-weight: 500; }
+        .weapon-stats-list .stat-name { color: var(--text-secondary); margin-left: auto; }
+        #loot-summary { width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 15px; margin: 0 0 20px 0; text-align: left; }
+        #loot-summary h4 { margin: 0 0 8px 0; text-align: center; color: var(--accent-blue); font-size: 16px; font-weight: 500; }
+        #loot-summary p { text-align: left; margin: 5px 0; font-size: 16px; text-shadow: none; }
+        #loot-summary i { color: var(--accent-gold); margin-right: 10px; width: 20px; text-align: center; }
+        #loot-summary .icon-xp { color: var(--accent-purple); }
+        #loot-summary .icon-stone { color: #c0c0c0; }
+        #top-bar-container {
+            position: absolute;
+            /* This calculates the position: (height of the notch) + 10px of space */
+            top: calc(env(safe-area-inset-top, 0px) + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 95%;
+            max-width: 430px;
+            justify-content: flex-end;
+        }
+        #player-info-bar { display: flex; align-items: center; background-color: #1a1f2c; border: 1px solid #4a5468; border-radius: 20px; height: 40px; position: relative; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.5); flex-grow: 1; margin-right: auto; }
+        #player-avatar { width: 40px; height: 40px; flex-shrink: 0; background-color: #0d1117; border-right: 1px solid #4a5468; display: flex; justify-content: center; align-items: center; position: relative; }
+        #player-avatar .fa-user-shield { font-size: 24px; color: #a0b8c8; }
+        #player-level-badge { position: absolute; bottom: -2px; right: -2px; background-color: #3d4a66; color: #e0e0e0; font-size: 10px; font-weight: bold; border-radius: 50%; width: 16px; height: 16px; display: flex; justify-content: center; align-items: center; border: 1px solid #4a5468; line-height: 1; }
+        #xp-bar-wrapper { flex-grow: 1; height: 100%; position: relative; background-color: #333; }
+        #xp-bar-fill { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: linear-gradient(90deg, #6a3093, #a044ff); transition: width 0.3s ease; }
+        #xp-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 2.8vw; font-weight: 500; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); }
+        #player-resources-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .resource-item { display: flex; align-items: center; gap: 6px; background-color: #1a1f2c; border: 1px solid #4a5468; border-radius: 20px; padding: 6px 12px; font-size: 14px; font-weight: bold; color: #e0e0e0; height: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.5); min-width: 50px; justify-content: center; }
+        .resource-item i { font-size: 16px; }
+        @keyframes xp-level-up-flash { 0%, 100% { transform: scale(1); box-shadow: 0 2px 8px rgba(0,0,0,0.5); } 50% { transform: scale(1.03); box-shadow: 0 0 20px rgba(255, 215, 0, 0.7); } }
+        #inventory-button .icon { font-size: 40px; color: #b5838d; }
+        .inventory-tabs { display: flex; border-bottom: 2px solid #4a6a7c; margin-bottom: 10px; }
+        .inventory-tab-btn { flex-grow: 1; padding: 15px; font-size: 12px; font-family: 'Cinzel', serif; background: none; border: none; color: #a0b8c8; cursor: pointer; transition: all 0.2s ease; border-bottom: 3px solid transparent; }
+        .inventory-tab-btn.active { color: #6efcff; border-bottom-color: #6efcff; }
+        .inventory-tab-btn:hover { background-color: rgba(110, 252, 255, 0.1); }
+        .inventory-panel { display: none; text-align: center; padding: 8px; }
+        .inventory-panel.active { display: block; }
+        #stones-grid { max-height: 300px; overflow-y: auto; }
+        .screen-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            /* Note: width and height are removed. JS will set them. */
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+            background-color: var(--bg-medium);
+            border: 1px solid var(--border-color);
+            transition: opacity 0.4s ease-in-out;
+        }
+        .screen-container.is-fading-out { opacity: 0; pointer-events: none; }
+        .hidden { display: none !important; }
+        #main-screen { background-image: radial-gradient(ellipse at 50% 100%, #3d2c58, #0f0c14 60%); border-color: #5a4a78; }
+        .world-button { position: absolute; cursor: pointer; border-radius: 15px; background-color: rgba(0,0,0,0.3); border: 2px solid rgba(138, 156, 226, 0.3); display: flex; flex-direction: column; justify-content: center; align-items: center; transition: all 0.3s ease; backdrop-filter: blur(2px); }
+        .world-button:hover { background-color: rgba(0,0,0,0.5); border-color: rgba(138, 156, 226, 0.7); transform: scale(1.05); }
+        .world-button .icon { font-size: 70px; text-shadow: 0 0 15px; margin-bottom: 10px; }
+        .world-button .label { font-family: 'Cinzel', serif; font-size: 24px; font-weight: bold; color: #fff; text-shadow: 1px 1px 3px #000; }
+        #dungeons-button { top: 18%; left: 50%; transform: translateX(-50%); width: 180px; height: 180px; }
+        #dungeons-button .icon { color: #6efcff; }
+        #exploration-button { top: 48%; left: 50%; transform: translateX(-50%); width: 180px; height: 180px; }
+        #exploration-button .icon { color: #90be6d; }
+        #station-button .icon { color: #f9c74f; }
+        #map-screen { border: 1px solid var(--border-color); }
+        #map-background-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #map-scroll-area { position: relative; z-index: 2; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; }
+        #map-scroll-area::-webkit-scrollbar { width: 6px; }
+        #map-scroll-area::-webkit-scrollbar-track { background: transparent; }
+        #map-scroll-area::-webkit-scrollbar-thumb { background-color: rgba(110, 252, 255, 0.3); border-radius: 10px; border: 1px solid rgba(0, 0, 0, 0.2); }
+        #map-scroll-area::-webkit-scrollbar-thumb:hover { background-color: rgba(110, 252, 255, 0.5); }
+        #map-button-container { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 10px; }
+        #map-content { position: relative; width: 100%; height: 100%; }
+        .dungeon-node { position: absolute; width: 80px; height: 80px; cursor: pointer; transition: transform 0.3s ease, filter 0.3s ease; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        .dungeon-node:hover { transform: scale(1.1); }
+        .dungeon-node .icon { font-size: 50px; color: #c5dce8; text-shadow: 0 0 10px #6efcff; }
+        .dungeon-node .name { font-family: 'Cinzel', serif; font-size: 14px; font-weight: bold; color: #fff; background-color: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; margin-top: 5px; white-space: nowrap; }
+        .dungeon-node.locked { filter: grayscale(1) brightness(0.6); cursor: not-allowed; }
+        .dungeon-node.locked .icon { color: #6a7f8c; text-shadow: none; }
+        .dungeon-node.completed .icon { color: #a0b8c8; text-shadow: 0 0 5px #3a4850; }
+        .dungeon-node.active .icon { animation: pulse 2s infinite; }
+        .dungeon-node .completion-counter { position: absolute; top: -5px; right: -5px; background-color: var(--accent-green); color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 1px 3px rgba(0,0,0,0.4); z-index: 5; display: flex; align-items: center; gap: 3px; }
+        .dungeon-node .completion-counter i { font-size: 10px; }
+        @keyframes pulse { 0% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } 50% { transform: scale(1.1); text-shadow: 0 0 20px #aaffff; } 100% { transform: scale(1); text-shadow: 0 0 10px #6efcff; } }
+        #path-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #path-svg path { fill: none; stroke: url(#line-gradient); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 10 10; animation: dash 1s linear infinite; }
+        @keyframes dash { to { stroke-dashoffset: -20; } }
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 26, 34, 0.8); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 100; }
+        .modal-overlay.visible { opacity: 1; pointer-events: all; }
+        .modal-content { background: #10212a; border: 2px solid #4a6a7c; border-radius: 10px; padding: 20px; width: 90%; max-width: 380px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); position: relative; }
+        .modal-content .close-button { position: absolute; top: 10px; right: 10px; font-size: 24px; cursor: pointer; color: #a0b8c8; }
+        .modal-content .close-button:hover { color: #fff; }
+        .dungeon-title { font-family: 'Cinzel', serif; font-size: 24px; text-align: center; color: #6efcff; margin: 0 0 5px 0; }
+        .dungeon-mode { text-align: center; font-style: italic; color: #a0b8c8; margin-bottom: 20px; }
+        .boss-section { display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        .boss-portrait { font-size: 60px; width: 70px; height: 70px; display: flex; justify-content: center; align-items: center; background: #234758; border-radius: 5px; color: #e63946; }
+        .boss-info h4 { margin: 0 0 5px; font-size: 18px; }
+        .boss-info p { margin: 0; color: #a0b8c8; }
+        .rewards-section h4 { text-align: center; margin-bottom: 10px; }
+        .rewards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 10px; justify-items: center; }
+        .reward-item { display: flex; flex-direction: column; align-items: center; font-size: 12px; background-color: rgba(0,0,0,0.3); padding: 5px; border-radius: 5px; width: 60px; }
+        .reward-icon { font-size: 30px; margin-bottom: 5px; }
+        .icon-ruby { color: #f94144; } .icon-shard { color: #f3722c; } .icon-potion { color: #90be6d; } .icon-gold { color: #f9c74f; } .icon-chest { color: #577590; }
+        .start-button { display: block; width: 100%; padding: 15px; margin-top: 25px; font-size: 20px; font-weight: bold; font-family: 'Cinzel', serif; color: #e0e0e0; background: linear-gradient(45deg, #4CAF50, #2E7D32); border: 2px solid #81C784; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s ease; }
+        .start-button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4); }
+        #locked-modal .modal-content { text-align: center; font-size: 18px; }
+        #game-container { background: #0c0c14; border: 1px solid var(--border-color); }
+        #exploration-container { background: #031018; border: 1px solid var(--border-color); }
+        #exploration-exit-button { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #ui-canvas { z-index: 15; pointer-events: none; }
+        .ui-panel { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background-image: radial-gradient(circle at 50% 0%, #1c2330, var(--bg-medium) 80%); backdrop-filter: blur(3px); transition: opacity 0.4s ease; z-index: 10; padding: 80px 20px 20px 20px; box-sizing: border-box; opacity: 1; }
+        .panel-hidden { opacity: 0 !important; pointer-events: none; }
+        .scrollable-panel { justify-content: flex-start; overflow-y: auto; padding-bottom: 50px; }
+        .scrollable-panel::-webkit-scrollbar { display: none; }
+        .scrollable-panel { -ms-overflow-style: none; scrollbar-width: none; }
+        .button { padding: 12px 25px; font-size: 18px; font-weight: bold; font-family: 'Cinzel', serif; color: var(--text-primary); background: linear-gradient(180deg, #2a3038, #161b22); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s ease-out; box-shadow: 0 2px 5px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05); text-shadow: 1px 1px 2px rgba(0,0,0,0.5); margin: 10px; }
+        .button:not(.disabled):hover { transform: translateY(-2px); background: linear-gradient(180deg, #323842, #1f242c); border-color: var(--border-highlight); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .button:not(.disabled):active { transform: translateY(1px); background: linear-gradient(180deg, #161b22, #2a3038); box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        .button.disabled { background: #21262d; border-color: var(--border-color); color: var(--text-secondary); cursor: not-allowed; box-shadow: none; transform: none; }
+        .button.primary { background: linear-gradient(180deg, #238636, #165c26); border-color: #3fb950; color: white; }
+        .button.primary:not(.disabled):hover { background: linear-gradient(180deg, #2ea043, #1a6829); }
+        .button.danger { background: linear-gradient(180deg, #da3633, #a12421); border-color: var(--accent-red); color: white; }
+        .button.danger:not(.disabled):hover { background: linear-gradient(180deg, #e44f4d, #b1312e); }
+        .button.small { padding: 8px 16px; font-size: 14px; }
+        h1, h2, p { text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.7); }
+        h1 { font-size: 48px; margin-bottom: 20px; }
+        h2 { font-size: 32px; color: var(--accent-blue); }
+        p.subtitle { font-size: 16px; color: var(--text-secondary); margin-top: -20px; margin-bottom: 25px; }
+        .shop-content-wrapper { width: 100%; height: calc(100% - 80px); overflow-y: auto; padding: 0 10px; display: flex; flex-direction: column; align-items: center; }
+        .shop-content-wrapper::-webkit-scrollbar { display: none; }
+        .shop-content-wrapper { -ms-overflow-style: none; scrollbar-width: none; }
+        #shop-screen h1 { font-family: 'Cinzel', serif; font-size: 36px; color: white; text-shadow: 0 0 15px var(--accent-blue); }
+        .upgrade-list { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 380px; }
+        .shop-item { display: flex; justify-content: space-between; align-items: center; width: 100%; background: var(--bg-medium); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; box-shadow: inset 0 0 10px rgba(0,0,0,0.4); }
+        .shop-item-info { text-align: left; }
+        .shop-item-info h3 { margin: 0; font-size: 18px; font-weight: 500; }
+        .shop-item-info p { margin: 4px 0 0; font-size: 14px; color: var(--text-secondary); text-align: left; text-shadow: none; }
+        .cost-text { color: var(--accent-gold); }
+        .gold-display { position: absolute; top: 25px; right: 25px; font-size: 20px; font-weight: bold; color: var(--accent-gold); background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border-color); display: none; }
+        .shop-footer { position: absolute; bottom: 0; left: 0; width: 100%; padding: 15px; background: linear-gradient(180deg, transparent, rgba(13,17,23,0.8) 50%); display: flex; justify-content: center; align-items: center; }
+        #game-over-screen h2 { color: var(--accent-red); }
+        .stats-container, .skills-container { width: 85%; }
+        .skills-container h2 { font-size: 24px; margin-top: 10px; margin-bottom: 10px; }
+        .stat-block, .skill-block { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin-bottom: 10px; }
+        .stat-header, .skill-header { display: flex; justify-content: space-between; align-items: baseline; }
+        .stat-header h3, .skill-header h3 { margin: 0; font-size: 18px; color: var(--accent-blue); }
+        .stat-header span, .skill-header span { font-size: 14px; color: var(--text-secondary); }
+        .stat-value { font-size: 22px; color: var(--text-primary); margin: 5px 0; }
+        .progress-bar-container { width: 100%; height: 8px; background-color: #333; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+        .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+        .progress-bar-fill.health { background-color: var(--accent-red); } 
+        .progress-bar-fill.attack { background-color: #f77f00; } 
+        .progress-bar-fill.rage { background-color: var(--accent-purple); } 
+        .progress-bar-fill.regen { background-color: var(--accent-green); } 
+        .progress-bar-fill.skill { background-color: var(--accent-blue); }
+        .skill-block p { font-size: 14px; color: var(--text-secondary); text-align: left; margin: 5px 0 0; }
+        .skill-block.locked { opacity: 0.5; } .skill-block.locked h3 { color: #aaa; }
+        #player-screen h3.level-up, #player-upgrade-screen h3.level-up { animation: level-up-flash 1s ease; }
+        @keyframes level-up-flash { 0%, 100% { color: var(--accent-blue); transform: scale(1); } 50% { color: var(--accent-gold); transform: scale(1.1); } }
+        .battle-banner { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); font-size: 48px; font-weight: bold; color: #fff; padding: 10px 30px; border-radius: 10px; z-index: 20; pointer-events: none; opacity: 0; }
+        .stage-clear-banner { background: linear-gradient(90deg, #4CAF50, #2E7D32); text-shadow: 0 0 10px #fff; animation: ultimate-flash 2.5s ease-out forwards; }
+        .ultimate-banner { background: linear-gradient(90deg, #f72585, #7209b7); text-shadow: 0 0 10px #fff; animation: ultimate-flash 1.5s ease-out forwards; }
+        @keyframes ultimate-flash { 0% { transform: translateX(-50%) scale(0.5); opacity: 0; } 50% { transform: translateX(-50%) scale(1.1); opacity: 1; } 80% { transform: translateX(-50%) scale(1); opacity: 1; } 100% { transform: translateX(-50%) scale(1); opacity: 0; } }
+        .combat-button { position: absolute; padding: 10px; width: 80px; height: 80px; display: flex; justify-content: center; align-items: center; flex-direction: column; line-height: 1; font-size: 20px; z-index: 5; }
+        #ult-button { left: 10px; bottom: 10px; background: #5a1835; border-color: #f72585; }
+        #auto-battle-button { right: 10px; bottom: 10px; background: #555; border-color: #888; }
+        #auto-battle-button.active { background: linear-gradient(45deg, #4CAF50, #2E7D32); border-color: #81C784; }
+        #ult-button.is-flashing { animation: flash-effect 0.8s infinite; border: 2px solid #ffd700; }
+        @keyframes flash-effect { 0%, 100% { filter: brightness(1); box-shadow: 0 4px 15px rgba(247, 37, 133, 0.4); } 50% { filter: brightness(1.8); box-shadow: 0 6px 30px rgba(247, 37, 133, 0.9); } }
+        #offline-rewards-list #away-rewards-list { list-style: none; padding: 0; margin: 15px 0 25px 0; text-align: left; font-size: 18px; }
+        #offline-rewards-list li { margin-bottom: 8px; display: flex; align-items: center; }
+        #offline-rewards-list i { width: 25px; margin-right: 12px; text-align: center; color: var(--accent-blue); }
+        #offline-rewards-list .icon-gold { color: var(--accent-gold); }
+        #offline-rewards-list .icon-xp { color: var(--accent-purple); }
+        #offline-rewards-list .icon-stone { color: #c0c0c0; }
+        #offline-rewards-list small { font-size: 14px; color: var(--text-secondary); margin-left: 8px; }
+        #world-player-health-bar {
+            position: absolute;
+            bottom: 80px; /* Position it above the 'Back to Menu' button */
+            left: 5%;     /* Give it some padding from the edges */
+            width: 90%;
+            height: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 2px solid #555;
+            border-radius: 10px;
+            z-index: 10;
+            overflow: hidden;
+        }
+
+        #world-player-health-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #d00000, #ff4d6d);
+            transition: width 0.2s linear;
+        }
+
+        #world-player-health-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+        @media (max-width: 450px) {
+        #boot-title {
+            /* 
+            'vw' means "viewport width". 10vw is 10% of the screen's width.
+            This makes the font size shrink automatically on smaller devices.
+            */
+            font-size: 10vw;
+        }
+    }
+    #offline-rewards-widget {
+        position: absolute;
+        /* Position it below the top resource bar with 10px of space */
+        top: calc(env(safe-area-inset-top, 0px) + -10px);
+        left: 15px; /* Give it some padding from the edge */
+        width: auto; /* Let it size to its content */
+        min-width: 110px; /* But don't let it get too small */
+        background-color: rgba(0,0,0,0.4);
+        border: 1px solid var(--border-color);
+        border-radius: 1px;
+        padding: 1px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        backdrop-filter: blur(3px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 100; /* Ensure it's above other elements */
+    }
+    #offline-rewards-widget .widget-icon {
+        font-size: 40px;
+        color: var(--accent-gold);
+        text-shadow: 0 0 10px rgba(255, 193, 7, 0.7);
+    }
+    #offline-rewards-widget .widget-info {
+        text-align: center;
+    }
+    #offline-rewards-widget h4 {
+        margin: 0 0 4px 0;
+        font-size: 14px;
+        font-family: 'Cinzel', serif;
+        text-align: center;
+        text-shadow: none;
+        color: var(--text-primary);
+    }
+    #offline-rewards-widget p {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+        font-weight: 500;
+        font-family: monospace; /* Gives a nice clock look */
+        text-align: left;
+        text-shadow: none;
+        color: var(--accent-green);
+    }
+    #offline-rewards-widget button {
+        margin: 0;
+        width: 100%;
+        padding: 4px 8px; /* Make button smaller */
+        font-size: 12px;
+    }
+    #bottom-bar-container {
+        position: absolute;
+        bottom: 5%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+    }
+    .bottom-bar-btn {
+        position: relative; /* Remove absolute positioning */
+        top: auto;
+        left: auto;
+        transform: none; /* Reset transform */
+        width: 100px; /* Uniform size */
+        height: 100px;
+    }
+    .bottom-bar-btn .icon {
+        font-size: 40px; /* Smaller icons */
+        margin-bottom: 5px;
+    }
+    .bottom-bar-btn .label {
+        font-size: 18px; /* Smaller labels */
+    }
+    #house-button .icon {
+        color: #f4a261; /* A warm, homey color */
+    }
+    #world-stats-container {
+        position: absolute;
+        top: calc(env(safe-area-inset-top, 0px) + 10px); /* Position below the top bar */
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 15px;
+        background-color: rgba(0, 0, 0, 0.4);
+        padding: 5px 15px;
+        border-radius: 15px;
+        border: 1px solid var(--border-color);
+        z-index: 10;
+        backdrop-filter: blur(2px);
+    }
+
+    .world-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    #world-combo-display {
+        position: absolute;
+        /* --- CHANGE: Move it up, just below the top stats --- */
+        top: calc(env(safe-area-inset-top, 0px) + 55px);
+        /* --- CHANGE: Move it to the left side --- */
+        left: 20px;
+        /* --- CHANGE: Remove the horizontal centering transform --- */
+        transform: scale(0.8);
+        font-family: 'Cinzel', serif;
+        /* --- CHANGE: Make the font smaller --- */
+        font-size: 28px;
+        font-weight: bold;
+        color: var(--accent-gold);
+        /* --- CHANGE: Make the glow more subtle --- */
+        text-shadow: 0 0 5px rgba(0,0,0,0.5);
+        z-index: 10;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+    }
+
+    #world-combo-display.visible {
+        opacity: 1;
+        /* --- CHANGE: Remove the horizontal centering transform here too --- */
+        transform: scale(1.0);
+    }
+    #world-back-button {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 10; /* Make sure it's on top of the canvas */
+    }
+
+    #world-auto-button {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 10;
+    }
+
+    /* Add this style to make the auto button glow green when active */
+    #world-auto-button.active {
+        background: linear-gradient(45deg, #4CAF50, #2E7D32);
+        border-color: #81C784;
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+    }
+    .weapon-special-ability {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 10px;
+        margin-top: 10px;
+        text-align: center;
+    }
+    .weapon-special-ability h4 {
+        margin: 0;
+        color: var(--accent-gold);
+        font-size: 14px;
+        text-shadow: none;
+    }
+    .weapon-special-ability p {
+        margin: 5px 0 0;
+        color: var(--text-secondary);
+        font-size: 12px;
+        text-shadow: none;
+        text-align: center;
+    }
+    </style>
+</head>
+<body>
+    <!-- (The entire body's HTML structure is the same as you provided) -->
+    <audio id="bg-music" loop>
+    <source src="music.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <div id="boot-screen" class="screen-container">
+        <div class="boot-content">
+            <h1 id="boot-title">EternalImmortal</h1>
+            <div id="boot-progress-container">
+                <div id="boot-progress-bar"></div>
+            </div>
+            <button id="start-game-button" class="button">Start Game</button>
+        </div>
+        <div id="version-info">EternalImmortal v0.1.0.4</div>
+    </div>
+
+    <!-- NEW TOP BAR UI STRUCTURE -->
+    <div id="top-bar-container" class="hidden">
+        <!-- Player Info (Avatar, Level, XP) -->
+        <div id="player-info-bar">
+            <div id="player-avatar">
+                <i class="fas fa-user-shield"></i>
+                <div id="player-level-badge">1</div>
+            </div>
+            <div id="xp-bar-wrapper">
+                 <div id="xp-bar-fill"></div>
+                 <div id="xp-text">0 / 100 XP</div>
+            </div>
+        </div>
+
+        <!-- Resources Group -->
+        <div id="player-resources-group">
+            <div class="resource-item" id="player-gold-display">
+                <i class="fas fa-coins" style="color: #f9c74f;"></i>
+                <span id="player-gold-total">0</span>
+            </div>
+            <div class="resource-item" id="player-rubies-display">
+                <i class="fas fa-gem icon-ruby"></i>
+                <span id="player-rubies-total">0</span>
+            </div>
+            <div class="resource-item" id="player-energy-display">
+                <i class="fas fa-bolt" style="color: #6efcff;"></i>
+                <span id="player-energy-total">85/85</span>
+            </div>
+        </div>
+    </div>
+    <!-- END OF NEW UI STRUCTURE -->
+
+    <div id="main-screen" class="screen-container hidden">
+        <div id="dungeons-button" class="world-button">
+            <div class="icon"><i class="fas fa-dungeon"></i></div>
+            <div class="label">Dungeons</div>
+        </div>
+        <div id="exploration-button" class="world-button">
+            <div class="icon"><i class="fas fa-compass"></i></div>
+            <div class="label">Exploration</div>
+        </div>
+        <div id="bottom-bar-container">
+            <div id="station-button" class="world-button bottom-bar-btn">
+                <div class="icon"><i class="fas fa-hammer"></i></div>
+                <div class="label">Station</div>
+            </div>
+            <div id="house-button" class="world-button bottom-bar-btn">
+                <div class="icon"><i class="fas fa-home"></i></div>
+                <div class="label">World</div>
+            </div>
+            <div id="inventory-button" class="world-button bottom-bar-btn">
+                <div class="icon"><i class="fas fa-briefcase"></i></div>
+                <div class="label">Bag</div>
+            </div>
+        </div>
+        <div id="offline-rewards-widget">
+        <div class="widget-icon"><i class="fas fa-treasure-chest"></i></div>
+        <div class="widget-info">
+            <h4>Away Rewards</h4>
+            <p id="offline-timer-display">00:00:00</p>
+            <button id="collect-offline-rewards-btn" class="button small primary">Collect</button>
+        </div>
+    </div>
+    </div>
+    <div id="player-upgrade-screen" class="ui-panel scrollable-panel hidden">
+         <h1>Player Station</h1>
+         <p class="subtitle">Hone your skills and forge your power.</p>
+         <div class="gold-display">💰 <span id="upgrade-gold-total">0</span></div>
+         <div class="shop-item"><div class="shop-item-info"><h3 id="upgrade-screen-attack-title">Attack Power</h3><p>Current: <span id="upgrade-screen-attack-power-stat">10</span></p></div><div class="button" id="upgrade-screen-attack-button">Upgrade (<span class="cost-text" id="upgrade-screen-attack-cost">10</span>)</div></div>
+         <div class="shop-item"><div class="shop-item-info"><h3 id="upgrade-screen-health-title">Max Health</h3><p>Current: <span id="upgrade-screen-max-health-stat">100</span></p></div><div class="button" id="upgrade-screen-health-button">Upgrade (<span class="cost-text" id="upgrade-screen-health-cost">10</span>)</div></div>
+         <div class="shop-item"><div class="shop-item-info"><h3 id="upgrade-screen-rage-title">Rage Gain</h3><p>Current: <span id="upgrade-screen-rage-gain-stat">5</span></p></div><div class="button" id="upgrade-screen-rage-button">Upgrade (<span class="cost-text" id="upgrade-screen-rage-cost">20</span>)</div></div>
+         <div class="shop-item"><div class="shop-item-info"><h3 id="upgrade-screen-regen-title">Health Regen</h3><p>Current: <span id="upgrade-screen-health-regen-stat">0</span>/s</p></div><div class="button" id="upgrade-screen-regen-button">Upgrade (<span class="cost-text" id="upgrade-screen-regen-cost">30</span>)</div></div>
+         <div class="shop-item" style="margin-top: 20px; border-color: var(--accent-blue);">
+             <div class="shop-item-info">
+                 <h3 id="refill-energy-title">Energy Refill</h3>
+                 <p>Current: <span id="refill-energy-stat">0/85</span></p>
+             </div>
+             <div class="button" id="refill-energy-button">Buy +50 (<span class="cost-text" id="refill-energy-cost">50k</span>)</div>
+         </div>
+         <div id="upgrade-screen-back-button" class="button small" style="margin-top: 30px;">Back to World</div>
+    </div>
+    <div id="map-screen" class="screen-container hidden">
+        <canvas id="map-background-canvas"></canvas>
+        <div id="map-scroll-area">
+            <div id="map-content">
+                <svg id="path-svg"></svg>
+            </div>
+        </div>
+        <div id="map-button-container">
+            <button id="map-back-button" class="button small">Back to World</button>
+            <button id="next-world-button" class="button primary hidden">Enter Next World</button>
+            <button id="global-reset-button" class="button small danger">Reset</button>
+        </div>
+    </div>
+    <div id="details-modal" class="modal-overlay">
+        <div class="modal-content"><i class="fas fa-times close-button" onclick="hideModal()"></i><h3 class="dungeon-title" id="modal-title">Dungeon Name</h3><p class="dungeon-mode" id="modal-mode">Challenge Mode</p><div class="boss-section"><div class="boss-portrait" id="modal-boss-icon"></div><div class="boss-info"><h4 id="modal-boss-name">Boss Name</h4><p>Level <span id="modal-boss-level">10</span></p></div></div><div class="rewards-section"><h4>Potential Rewards</h4><div class="rewards-grid" id="modal-rewards"></div></div><div id="modal-start-button" class="start-button">Start</div></div>
+    </div>
+    <div id="locked-modal" class="modal-overlay">
+        <div class="modal-content"><i class="fas fa-times close-button" onclick="hideModal()"></i><p>This dungeon is LOCKED. Unlock it by completing previous dungeons first!</p></div>
+    </div>
+    <div id="game-container" class="screen-container hidden">
+        <canvas id="game-canvas"></canvas>
+        <canvas id="ui-canvas"></canvas>
+        <div id="shop-screen" class="ui-panel panel-hidden">
+            <div class="shop-content-wrapper">
+                <h1 id="shop-title">Stage Cleared!</h1>
+                <p class="subtitle" id="shop-subtitle">You are victorious. Claim your rewards.</p>
+                
+                <div id="loot-summary" class="hidden"></div>
+                
+                <div class="upgrade-list">
+                    <div class="shop-item">
+                        <div class="shop-item-info">
+                            <h3>Attack Power</h3>
+                            <p>Current: <span id="attack-power-stat">10</span></p>
+                        </div>
+                        <div class="button" id="upgrade-attack-button">Upgrade (<span class="cost-text" id="attack-cost">10</span>)</div>
+                    </div>
+                    <div class="shop-item">
+                        <div class="shop-item-info">
+                            <h3>Max Health</h3>
+                            <p>Current: <span id="max-health-stat">100</span></p>
+                        </div>
+                        <div class="button" id="upgrade-health-button">Upgrade (<span class="cost-text" id="health-cost">10</span>)</div>
+                    </div>
+                    <div class="shop-item">
+                        <div class="shop-item-info">
+                            <h3>Rage Gain</h3>
+                            <p>Current: <span id="rage-gain-stat">5</span></p>
+                        </div>
+                        <div class="button" id="upgrade-rage-button">Upgrade (<span class="cost-text" id="rage-cost">20</span>)</div>
+                    </div>
+                    <div class="shop-item">
+                        <div class="shop-item-info">
+                            <h3>Health Regen</h3>
+                            <p>Current: <span id="health-regen-stat">0</span>/s</p>
+                        </div>
+                        <div class="button" id="upgrade-regen-button">Upgrade (<span class="cost-text" id="regen-cost">30</span>)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="shop-footer">
+                <div id="player-stats-button" class="button small">Player Stats</div>
+                <div id="proceed-button" class="button primary">Next Stage</div>
+            </div>
+            <div class="gold-display">💰 <span id="gold-total">0</span></div>
+        </div>
+        <div id="game-over-screen" class="ui-panel panel-hidden"><h1>Defeated!</h1><h2 id="game-over-message">You reached Stage <span id="final-stage-reached">1</span></h2><div id="retry-button" class="button">Try Again</div></div>
+        <div id="player-screen" class="ui-panel scrollable-panel panel-hidden"><h1>SoulCraft</h1><div class="stats-container"></div><div class="skills-container"></div><div id="player-screen-back-button" class="button small">Back to Shop</div></div>
+        <div id="battle-event-banner" class="battle-banner"></div>
+        <div id="ult-button" class="button combat-button panel-hidden">RAGE</div>
+        <div id="auto-battle-button" class="button combat-button panel-hidden">AUTO</div>
+    </div>
+    <div id="exploration-container" class="screen-container hidden">
+        <canvas id="exploration-canvas"></canvas>
+        <div id="exploration-exit-button" class="button small danger">Exit</div>
+    </div>
+    <div id="inventory-modal" class="modal-overlay">
+        <div class="modal-content" style="width: 95%; max-width: 420px; height: 80%;">
+            <i class="fas fa-times close-button" id="inventory-close-button"></i>
+            
+            <div class="inventory-tabs">
+                <button id="weapons-tab-btn" class="inventory-tab-btn active">Weapons</button>
+                <button id="stones-tab-btn" class="inventory-tab-btn">Stones</button>
+                <button id="souls-tab-btn" class="inventory-tab-btn">Souls</button>
+            </div>
+
+            <div class="inventory-panels">
+                <!-- WEAPONS PANEL -->
+                <div id="weapons-panel" class="inventory-panel active">
+                    <h3>Equipped Weapon</h3>
+                    <div id="equipped-weapon-card" class="shop-item" style="flex-direction: column; align-items: stretch;">
+                        <!-- Content will be generated by JS -->
+                    </div>
+                </div>
+
+                <!-- STONES PANEL -->
+                <div id="stones-panel" class="inventory-panel">
+                    <div id="stones-grid" style="max-height: 400px; overflow-y: auto; padding: 5px;">
+                        <!-- Stones will be grouped and added here by JS -->
+                    </div>
+                    <p id="stone-info-text" style="font-size: 13px; color: var(--text-secondary); margin-top: 20px; text-shadow: none;"></p>
+                </div>
+
+                <!-- SOULS PANEL -->
+                <div id="souls-panel" class="inventory-panel">
+                    <h3>Soul Core</h3>
+                    <p>Absorb souls to empower your essence, boosting all stats permanently.</p>
+                    <p>Level: <span id="soul-level">1</span></p>
+                    <div class="progress-bar-container"><div id="soul-progress-bar" class="progress-bar-fill rage"></div></div>
+                    <p><span id="soul-current">0</span> / <span id="soul-target">500</span> Souls</p>
+                    <p>Current Boost: +<span id="soul-boost">0</span>% to all stats.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="world-screen" class="screen-container hidden">
+        <canvas id="world-canvas"></canvas>
+            <!-- (Your health bar and buttons are here) -->
+        <div id="world-player-health-bar">
+            <div id="world-player-health-fill"></div>
+            <!-- ADD THIS LINE -->
+            <div id="world-player-health-text"></div> 
+        </div>
+        <button id="world-back-button" class="button small">
+            <i class="fas fa-arrow-left"></i> Back to Hub
+        </button>
+        <button id="world-auto-button" class="button small">
+            <i class="fas fa-robot"></i> Auto Collect
+        </button>
+
+        <!-- ADD THIS NEW CONTAINER FOR SESSION STATS -->
+        <div id="world-stats-container">
+            <div class="world-stat-item">
+                <i class="fas fa-star" style="color: var(--accent-purple);"></i>
+                <span id="world-xp-total">0</span>
+            </div>
+            <div class="world-stat-item">
+                <i class="fas fa-ghost" style="color: var(--accent-blue);"></i>
+                <span id="world-souls-total">0</span>
+            </div>
+        </div>
+
+        <!-- ADD THIS NEW CONTAINER FOR THE COMBO MULTIPLIER -->
+        <div id="world-combo-display">x2 COMBO!</div>
+    </div>
+    <img id="world-bg-texture" src="img/tileable_background.png" style="display: none;">
+    <img id="tree-sprite" src="img/tree.png" style="display: none;">
+    <img id="chest-sprite" src="img/chest.png" style="display: none;">
+
+    <!-- --- OFFLINE REWARDS START --- -->
+    <div id="away-rewards-modal" class="modal-overlay">
+        <div class="modal-content">
+            <i class="fas fa-times close-button" id="close-away-rewards-btn"></i>
+            <h3 class="dungeon-title">Rewards Earned!</h3>
+            <p class="dungeon-mode" id="away-time-info">While you were away for...</p>
+            <ul id="away-rewards-list" class="offline-rewards-list" style="margin-bottom: 25px;">
+                <!-- Rewards will be populated by JS -->
+            </ul>
+            <div id="claim-away-rewards-button" class="start-button">Claim All</div>
+        </div>
+    </div>
+    <!-- --- OFFLINE REWARDS END --- -->
+<script>
+    // =========================================================================
+    // PART 1: STABLE AUDIO SYSTEM
+    // =========================================================================
+    let audioContext = null;
+    let audioInitialized = false;
+    let backgroundMusic;
+
+    function unlockAudio() {
+        if (audioInitialized || (window.AudioContext === undefined && window.webkitAudioContext === undefined)) { return; }
+        if (!audioContext) { audioContext = new (window.AudioContext || window.webkitAudioContext)(); }
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+                console.log("AudioContext resumed successfully.");
+                audioInitialized = true;
+                if (backgroundMusic && !backgroundMusic.sourceNode) {
+                    backgroundMusic.sourceNode = audioContext.createMediaElementSource(backgroundMusic);
+                    backgroundMusic.sourceNode.connect(audioContext.destination);
+                }
+            });
+        } else {
+            audioInitialized = true;
+            if (backgroundMusic && !backgroundMusic.sourceNode) {
+                backgroundMusic.sourceNode = audioContext.createMediaElementSource(backgroundMusic);
+                backgroundMusic.sourceNode.connect(audioContext.destination);
+            }
+        }
+    }
+
+    function playTone(freq, duration, volume = 0.5, type = 'sine', pitchBend = 0) {
+        if (!audioInitialized) return;
+        try {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            gainNode.connect(audioContext.destination);
+            oscillator.connect(gainNode);
+            oscillator.type = type;
+            
+            // Set the starting frequency
+            oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+
+            // --- NEW PITCH BEND LOGIC ---
+            // If a pitchBend value is provided, schedule a frequency change over the sound's duration.
+            if (pitchBend !== 0) {
+                const endFreq = freq + pitchBend;
+                oscillator.frequency.linearRampToValueAtTime(endFreq, audioContext.currentTime + duration);
+            }
+            // --- END OF NEW LOGIC ---
+
+            gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        } catch(e) {
+            console.error("Error playing tone:", e);
+        }
+    }
+
+    const SOUNDS = {
+        click:        () => playTone(880, 0.05, 0.3, 'sine'),
+        playerAttack: (pitchOffset = 0) => playTone(660 + pitchOffset, 0.1, 0.4, 'triangle'),
+        enemyAttack:  () => playTone(330, 0.15, 0.3, 'sawtooth'),
+        hit:          () => playTone(440, 0.08, 0.2, 'square'),
+        enemyDeath:   () => playTone(220, 0.3, 0.5, 'sawtooth'),
+        ultimate:     () => { playTone(1200, 0.5, 0.8, 'sine'); playTone(1500, 0.5, 0.8, 'sine'); },
+        upgrade:      () => playTone(1000, 0.15, 0.6, 'triangle'),
+        gameOver:     () => playTone(110, 0.8, 0.7, 'sawtooth'),
+        stageClear:   () => { playTone(523, 0.15, 0.6); setTimeout(() => playTone(659, 0.15, 0.6), 150); setTimeout(() => playTone(784, 0.2, 0.6), 300); },
+        heal:         () => playTone(600, 0.2, 0.5, 'sine'),
+        levelUp:      () => playTone(1318, 0.4, 0.7, 'triangle'),
+        shock:        () => playTone(1100, 0.2, 0.6, 'square')
+    };
+    
+    // =========================================================================
+    // PART 2: GAME LOGIC
+    // =========================================================================
+
+    // --- DOM ELEMENT VARIABLES ---
+    // Declared here with `let`, but assigned in `initApp` to prevent loading errors.
+    let inventoryModal, inventoryButton, inventoryCloseButton, tabButtons, panels,
+        bootScreen, bootProgressBar, startGameButton, mainScreen, playerUpgradeScreen,
+        mapScreen, gameContainer, explorationContainer, detailsModal, lockedModal,
+        worldScreen, worldPlayerHealthBar, worldPlayerHealthFill, worldPlayerHealthText,
+        topBarContainer, playerInfoBar, playerLevelBadgeUI, xpBarFillUI, xpTextUI,
+        playerGoldTotalUI, playerRubiesTotalUI, playerEnergyTotalUI,
+        worldStatsContainer, worldXpTotalUI, worldSoulsTotalUI, worldComboDisplay,
+        canvas, ctx, uiCanvas, uiCtx, explorationCanvas, expCtx, worldCanvas, worldCtx,
+        worldBgTexture, treeSprite, chestSprite, dom;
+    
+    // --- GLOBAL STATE VARIABLES ---
+    let isGameRunning = false;
+    let safeAreaTopOffset = null; 
+    let lastTime = 0;
+    let isAppInitialized = false;
+    const SAVE_KEY = 'endlessShapesSaveData';
+    const DUNGEON_SAVE_KEY = 'endlessShapesDungeonProgress';
+    let currentDungeon = null;
+    let playerProgress = { completed: [] };
+    const GEN_DATA = {
+        nameParts1: ["Tomb", "Crypt", "Cave", "Den", "Lair", "Dungeon", "Fortress", "Catacomb", "Hall", "Spire", "Pits"],
+        nameParts2: ["of the", "of", "beneath the", "in the"],
+        nameParts3: ["Sorrow", "Lost King", "Fallen", "Dread", "Screaming", "Whispering", "Ancient", "Forgotten", "Gloom", "Abyss"],
+        icons: ['fa-chess-rook', 'fa-cross', 'fa-fort-awesome', 'fa-skull', 'fa-spider', 'fa-dragon', 'fa-mountain', 'fa-tree', 'fa-ankh'],
+        bossIcons: ['fa-ghost', 'fa-skull-crossbones', 'fa-robot', 'fa-hat-wizard', 'fa-pastafarianism', 'fa-user-secret', 'fa-user-ninja'],
+        bossNames1: ["Grave Lord", "Dread Knight", "Soul Eater", "Chaos Bringer", "Abyssal", "Mad", "Ironclad"],
+        bossNames2: ["Zarthus", "Malakor", "Shana", "Harven", "Grolnok", "Vexia", "Mortis"]
+    };
+    let gameState, currentStage, player, enemies, particles = [], playerAuraParticles = [], floatingTexts = [], projectiles = [], healthOrbs, shakeDuration, isAutoBattle, endCombatTimer, uiParticles=[], skillVisuals=[], battleCountdown;
+    let isWorldAutoBattle = false;
+    let worldSessionXP = 0;
+    let worldSessionSouls = 0;
+    let comboCounter = 0;
+    let comboTimer = 0;
+    let lastRunLoot = { gold: 0, xp: 0, stones: [] };
+    let explorationEnemies = [], explorationProjectiles = [], explorationBackgroundStars = [], explorationDifficulty = 1, explorationSpawnTimer = 0;
+    const SKILLS_DATA={orbitalStrike:{name:"Orbital Strike",unlockStage:10,baseCooldown:5,cooldownReductionPerLevel:0.04,baseDamageMultiplier:.5,damageMultiplierPerLevel:.05,baseTargetXP:10},chainLightning:{name:"Chain Lightning",unlockStage:25,baseCooldown:4,cooldownReductionPerLevel:0.03,baseDamageMultiplier:.3,damageMultiplierPerLevel:.03,baseJumps:2,jumpsPerLevel:5,baseTargetXP:15},meteorShower:{name:"Meteor Shower",unlockStage:50,baseCooldown:7,cooldownReductionPerLevel:0.05,baseDamageMultiplier:.8,damageMultiplierPerLevel:.1,baseCount:5,countPerLevel:10,baseTargetXP:20}};
+
+    // --- GAME FUNCTIONS ---
+    function resizeGame() {
+        const baseWidth = 450;
+        const baseHeight = 800;
+        const aspectRatio = baseWidth / baseHeight;
+        let newWidth = window.innerWidth;
+        let newHeight = window.innerHeight;
+        if (newHeight / newWidth < 1 / aspectRatio) {
+            newWidth = newHeight * aspectRatio;
+        } else {
+            newHeight = newWidth / aspectRatio;
+        }
+        const allContainers = document.querySelectorAll('.screen-container');
+        allContainers.forEach(container => {
+            container.style.width = `${newWidth}px`;
+            container.style.height = `${newHeight}px`;
+        });
+    }
+
+    function startGame() {
+        if (isGameRunning) return; 
+        isGameRunning = true;
+    }
+    
+    function gameLoop(currentTime) {
+        requestAnimationFrame(gameLoop);
+        if (!isGameRunning) return;
+        if (!lastTime) {
+            lastTime = currentTime;
+        }
+        const dt = (currentTime - lastTime) / 1000;
+        lastTime = currentTime;
+        update(dt);
+        draw();
+    }
+    
+    function createMainScreenParticles() {
+        const dungeonsButton = document.getElementById('dungeons-button');
+        if (!dungeonsButton) return;
+        const rect = dungeonsButton.getBoundingClientRect();
+        const containerRect = mainScreen.getBoundingClientRect();
+        uiParticles.push({ type: 'sparkleGenerator', x: rect.left - containerRect.left, y: rect.top - containerRect.top, width: rect.width, height: rect.height, spawnRate: 0.2, color: 'rgba(110, 252, 255, 0.7)' });
+    }
+
+    function updatePlayerUpgradeScreenUI() {
+        if (!player) return;
+        const energyRefillCost = 50000;
+        
+        document.getElementById('upgrade-gold-total').textContent = formatLargeNumber(player.gold);
+
+        const weaponDmg = player.inventory.weapon.power;
+        const statDmg = player.stats.attackPower.current;
+        const totalDmg = weaponDmg + statDmg;
+        document.getElementById('upgrade-screen-attack-title').textContent = 'Base Damage';
+        document.getElementById('upgrade-screen-attack-power-stat').innerHTML = `${totalDmg} <small style="color:#ccc;">(Wpn: ${weaponDmg} + Stat: ${statDmg})</small>`;
+        
+        document.getElementById('upgrade-screen-max-health-stat').textContent = player.stats.maxHp.current;
+        document.getElementById('upgrade-screen-rage-gain-stat').textContent = player.stats.rageGain.current;
+        document.getElementById('upgrade-screen-health-regen-stat').textContent = player.stats.healthRegen.current.toFixed(1);
+        
+        document.getElementById('upgrade-screen-attack-cost').textContent = formatLargeNumber(player.costs.attackPower);
+        document.getElementById('upgrade-screen-health-cost').textContent = formatLargeNumber(player.costs.maxHp);
+        document.getElementById('upgrade-screen-rage-cost').textContent = formatLargeNumber(player.costs.rageGain);
+        document.getElementById('upgrade-screen-regen-cost').textContent = formatLargeNumber(player.costs.healthRegen);
+        
+        document.getElementById('refill-energy-stat').textContent = `${player.energy}/${player.maxEnergy}`;
+        document.getElementById('refill-energy-cost').textContent = formatLargeNumber(energyRefillCost);
+
+        document.getElementById('upgrade-screen-attack-button').classList.toggle('disabled', player.gold < player.costs.attackPower);
+        document.getElementById('upgrade-screen-health-button').classList.toggle('disabled', player.gold < player.costs.maxHp);
+        document.getElementById('upgrade-screen-rage-button').classList.toggle('disabled', player.gold < player.costs.rageGain);
+        document.getElementById('upgrade-screen-regen-button').classList.toggle('disabled', player.gold < player.costs.healthRegen);
+        document.getElementById('refill-energy-button').classList.toggle('disabled', player.gold < energyRefillCost || player.energy >= player.maxEnergy);
+    }
+    
+    function loadProgress() { const saved = localStorage.getItem(DUNGEON_SAVE_KEY); if (saved) playerProgress = JSON.parse(saved); }
+    function saveProgress() { localStorage.setItem(DUNGEON_SAVE_KEY, JSON.stringify(playerProgress)); }
+    function hideModal() { detailsModal.classList.remove('visible'); lockedModal.classList.remove('visible'); }
+    function showDetailsModal(dungeonId) {
+        const data = player.dungeonMap[dungeonId];
+        document.getElementById('modal-title').textContent = data.name;
+        document.getElementById('modal-mode').textContent = data.mode;
+        document.getElementById('modal-boss-name').textContent = data.boss.name;
+        document.getElementById('modal-boss-level').textContent = data.boss.level;
+        document.getElementById('modal-boss-icon').innerHTML = `<i class="fas ${data.boss.icon}"></i>`;
+        const rewardsGrid = document.getElementById('modal-rewards');
+        rewardsGrid.innerHTML = '';
+        data.rewards.forEach(reward => {
+            let amountText = reward.amount;
+            if(reward.name === 'Gold' || reward.name === 'Rubies') {
+                 amountText = (reward.amount > 999) ? `x${(reward.amount/1000).toFixed(1)}k` : `x${reward.amount}`;
+            }
+            rewardsGrid.innerHTML += `<div class="reward-item"><i class="fas ${reward.icon} reward-icon"></i><span>${amountText}</span></div>`;
+        });
+        const startButton = document.getElementById('modal-start-button');
+        const isCompleted = data.completionCount > 0;
+        startButton.textContent = isCompleted ? 'COMPLETED' : 'Start';
+        startButton.classList.toggle('disabled', isCompleted);
+        startButton.onclick = () => {
+            if (isCompleted) return;
+            if (player.energy < 2) {
+                alert("Not enough energy to start the dungeon!");
+                return;
+            }
+            player.energy -= 2;
+            player.lastEnergyUpdateTime = Date.now();
+            updatePlayerXpBar();
+            saveGame();
+            hideModal();
+            setTimeout(() => {
+                currentDungeon = data;
+                delete currentDungeon.rewardGiven;
+                showScreen('battle');
+            }, 300);
+        };
+        detailsModal.classList.add('visible');
+    }
+    function toRoman(num) {
+        if (num < 1 || num > 39) return num;
+        const numerals = [{ value: 10, symbol: 'X' },{ value: 9, symbol: 'IX' },{ value: 5, symbol: 'V' },{ value: 4, symbol: 'IV' },{ value: 1, symbol: 'I' }];
+        let result = '';
+        for (const pair of numerals) { while (num >= pair.value) { result += pair.symbol; num -= pair.value; } }
+        return result;
+    }
+    function drawPath() {
+        const svg = document.getElementById('path-svg');
+        let pathData = '';
+        const mapContent = document.getElementById('map-content');
+        Object.values(player.dungeonMap).forEach(parentDungeon => {
+            if (parentDungeon.unlocks && parentDungeon.unlocks.length > 0) {
+                 const startNode = mapContent.querySelector(`#${parentDungeon.id}`);
+                 if (startNode) {
+                    parentDungeon.unlocks.forEach(childId => {
+                        const endNode = mapContent.querySelector(`#${childId}`);
+                        if (endNode) {
+                            const startX = startNode.offsetLeft + startNode.offsetWidth / 2;
+                            const startY = startNode.offsetTop + startNode.offsetHeight / 2;
+                            const endX = endNode.offsetLeft + endNode.offsetWidth / 2;
+                            const endY = endNode.offsetTop + endNode.offsetHeight / 2;
+                            pathData += `M${startX},${startY} L${endX},${endY} `;
+                        }
+                    });
+                }
+            }
+        });
+        svg.innerHTML = `<defs><linearGradient id="line-gradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#6efcff;stop-opacity:0" /><stop offset="50%" style="stop-color:#6efcff;stop-opacity:1" /><stop offset="100%" style="stop-color:#6efcff;stop-opacity:0" /></linearGradient></defs><path d="${pathData}" />`;
+    }
+    function initializeMap() {
+        loadProgress();
+        const mapContent = document.getElementById('map-content');
+        mapContent.innerHTML = '<svg id="path-svg"></svg>';
+        let maxTop = 0;
+        Object.values(player.dungeonMap).forEach(data => {
+            const node = document.createElement('div');
+            node.className = 'dungeon-node';
+            node.id = data.id;
+            node.style.top = `${data.position.top}px`;
+            node.style.left = `${data.position.left}%`;
+            node.style.transform = `translateX(-50%)`;
+            node.innerHTML = `<div class="icon"><i class="fas ${data.icon}"></i></div><div class="name">${data.name}</div>`;
+            const completionCount = data.completionCount || 0;
+            const isCompleted = completionCount > 0;
+            const unlockedByDungeon = player.dungeonMap[data.unlockedBy];
+            const isUnlocked = data.isUnlockedByDefault || (data.unlockedBy && unlockedByDungeon && (unlockedByDungeon.completionCount || 0) > 0);
+            if (isUnlocked) {
+                node.classList.add('active');
+            } else {
+                node.classList.add('locked');
+            }
+            if (isCompleted) {
+                node.classList.add('completed');
+                const counterDiv = document.createElement('div');
+                counterDiv.className = 'completion-counter';
+                counterDiv.innerHTML = `<i class="fas fa-check"></i> ${completionCount}`;
+                node.appendChild(counterDiv);
+            }
+            node.addEventListener('click', () => {
+                if (isUnlocked) {
+                    showDetailsModal(data.id);
+                } else {
+                    lockedModal.classList.add('visible');
+                }
+            });
+            mapContent.appendChild(node);
+            if (data.position.top > maxTop) {
+                maxTop = data.position.top;
+            }
+        });
+
+        const nextWorldButton = document.getElementById('next-world-button');
+        const lastDungeonInChain = Object.values(player.dungeonMap).find(d => d.unlocks.length === 0);
+        if (Object.keys(player.dungeonMap).length >= 50 && lastDungeonInChain && lastDungeonInChain.completionCount > 0) {
+            nextWorldButton.classList.remove('hidden');
+        } else {
+            nextWorldButton.classList.add('hidden');
+        }
+        nextWorldButton.onclick = startNextWorld;
+        
+        mapContent.style.height = `${Math.max(800, maxTop + 200)}px`;
+        document.getElementById('path-svg').style.height = mapContent.style.height;
+        drawPath();
+    }
+    
+    function createStat(c){return{name:c.name,level:c.level||1,current:c.current||0,target:c.target||100,baseGain:c.baseGain||1,displaySuffix:c.displaySuffix||'',isFloat:c.isFloat||!1,color:c.color}}
+    
+    function updatePlayerXpBar() {
+        if (!player) return;
+        if (player.energy === undefined) player.energy = 85;
+        if (player.maxEnergy === undefined) player.maxEnergy = 85;
+        
+        playerLevelBadgeUI.textContent = player.level;
+        
+        const xpPercentage = Math.min(100, (player.xp / player.xpToNextLevel) * 100);
+        xpBarFillUI.style.width = `${xpPercentage}%`;
+        
+        xpTextUI.textContent = `${formatLargeNumber(player.xp)} / ${formatLargeNumber(player.xpToNextLevel)} XP`;
+        
+        playerGoldTotalUI.textContent = formatLargeNumber(player.gold || 0);
+        playerRubiesTotalUI.textContent = formatLargeNumber(player.rubies || 0);
+        
+        playerEnergyTotalUI.textContent = `${player.energy}/${player.maxEnergy}`;
+    }
+
+    function levelUp() {
+        SOUNDS.levelUp();
+        player.level++;
+        player.xp -= player.xpToNextLevel;
+        player.xpToNextLevel = Math.floor(player.xpToNextLevel * 1.5);
+        playerInfoBar.style.animation = 'xp-level-up-flash 1s ease';
+        setTimeout(() => { playerInfoBar.style.animation = ''; }, 1000);
+        if (player.xp >= player.xpToNextLevel) { levelUp(); }
+    }
+
+    function gainXP(amount) {
+        if (!player) return;
+        const xpBonus = 1 + (player.inventory.weapon.xpBonus || 0);
+        const finalAmount = Math.floor(amount * xpBonus);
+        player.xp += finalAmount;
+        lastRunLoot.xp += finalAmount;
+        while (player.xp >= player.xpToNextLevel) { levelUp(); }
+    }
+    
+    function generateDungeonName(usedNames = []) {
+        const availableNameParts3 = GEN_DATA.nameParts3.filter(name => !usedNames.includes(name));
+        const finalNameParts3 = availableNameParts3.length > 0 ? availableNameParts3 : GEN_DATA.nameParts3;
+        const part1 = GEN_DATA.nameParts1[Math.floor(Math.random() * GEN_DATA.nameParts1.length)];
+        const part2 = GEN_DATA.nameParts2[Math.floor(Math.random() * GEN_DATA.nameParts2.length)];
+        const part3 = finalNameParts3[Math.floor(Math.random() * finalNameParts3.length)];
+        return { name: `${part1} ${part2} ${part3}`, bossNamePart: part3 };
+    }
+
+    function addNewDungeons(triggeringDungeonId) {
+        if (Object.keys(player.dungeonMap).length >= 50) return;
+
+        let endOfChainNode = Object.values(player.dungeonMap).find(d => d.unlocks.length === 0);
+        if (!endOfChainNode) {
+            endOfChainNode = Object.values(player.dungeonMap).reduce((a, b) => a.position.top > b.position.top ? a : b);
+            if (!endOfChainNode) return;
+        }
+        let lastDungeon = endOfChainNode;
+        const depth = Object.keys(player.dungeonMap).length;
+        const worldMultiplier = Math.pow(1.8, player.worldTier - 1);
+        let usedBossNames = Object.values(player.dungeonMap).map(d => d.baseName.split(' ').pop()).filter(name => name !== null);
+        
+        for (let i = 0; i < 2; i++) {
+            if (Object.keys(player.dungeonMap).length >= 50) break;
+
+            const newDungeonId = `dungeon-${Date.now()}-${i}`;
+            const currentDepth = depth + i;
+            const bossLevel = Math.floor((10 + currentDepth) * worldMultiplier);
+            const goldReward = Math.floor(((200 + (currentDepth * 25)) * worldMultiplier));
+            const rubyReward = Math.floor(((50 + (currentDepth * 5)) * worldMultiplier));
+            const generatedName = generateDungeonName(usedBossNames);
+            usedBossNames.push(generatedName.bossNamePart);
+            const newDungeon = {
+                id: newDungeonId,
+                name: `${generatedName.name} ${toRoman(player.worldTier)}`,
+                baseName: generatedName.name,
+                completionCount: 0, evolutionLevel: 0,
+                position: { top: lastDungeon.position.top + 160 + (Math.random() * 30), left: (lastDungeon.position.left < 50) ? 70 + (Math.random() * 10 - 5) : 30 + (Math.random() * 10 - 5) },
+                icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
+                unlockedBy: lastDungeon.id,
+                unlocks: [],
+                goldReward: goldReward,
+                rubyReward: rubyReward,
+                boss: {
+                    name: `${GEN_DATA.bossNames1[Math.floor(Math.random() * GEN_DATA.bossNames1.length)]} ${GEN_DATA.bossNames2[Math.floor(Math.random() * GEN_DATA.bossNames2.length)]}`,
+                    level: bossLevel,
+                    icon: GEN_DATA.bossIcons[Math.floor(Math.random() * GEN_DATA.bossIcons.length)],
+                    attack: Math.floor((10 + currentDepth * 2.5) * worldMultiplier),
+                    maxHp: Math.floor((500 + currentDepth * 80) * worldMultiplier)
+                },
+                mode: 'Endless Challenge',
+                rewards: [
+                    { name: 'Gold', amount: goldReward, icon: 'fa-coins icon-gold' },
+                    { name: 'Rubies', amount: rubyReward, icon: 'fa-gem icon-ruby' }
+                ]
+            };
+            player.dungeonMap[newDungeonId] = newDungeon;
+            lastDungeon.unlocks.push(newDungeonId);
+            lastDungeon = newDungeon;
+        }
+    }
+    function startNextWorld() {
+        if (!confirm(`Are you sure you want to proceed to the next world? Your current dungeon map will be reset.`)) return;
+        player.worldTier++;
+        player.dungeonMap = {};
+        createInitialDungeonMap();
+        saveGame();
+        initializeMap();
+    }
+
+    let playerSprite = new Image();
+    let playerSpriteLoaded = false;
+    playerSprite.onload = () => { playerSpriteLoaded = true; };
+    playerSprite.src = 'img/icon-192x192.PNG';
+
+    function createInitialDungeonMap() {
+        let lastDungeon = null;
+        const startingLeftPositions = [50, 30, 70];
+        let usedBossNames = [];
+        const worldMultiplier = Math.pow(1.8, player.worldTier - 1);
+        for (let i = 0; i < 3; i++) {
+            const dungeonId = `starter-${i}`;
+            const bossLevel = Math.floor((5 + i * 2) * worldMultiplier);
+            const goldReward = Math.floor(((50 + (bossLevel * 10)) * worldMultiplier));
+            const generatedName = generateDungeonName(usedBossNames);
+            usedBossNames.push(generatedName.bossNamePart);
+            const dungeon = {
+                id: dungeonId,
+                name: `${generatedName.name} ${toRoman(player.worldTier)}`,
+                baseName: generatedName.name,
+                completionCount: 0, evolutionLevel: 0,
+                isUnlockedByDefault: (i === 0),
+                unlockedBy: lastDungeon ? lastDungeon.id : null,
+                unlocks: [],
+                goldReward: goldReward,
+                position: { top: 100 + (i * 160), left: startingLeftPositions[i] + (Math.random() * 10 - 5) },
+                icon: GEN_DATA.icons[Math.floor(Math.random() * GEN_DATA.icons.length)],
+                boss: { name: 'Stone Guardian', level: bossLevel, icon: 'fa-ghost', attack: Math.floor(10 * worldMultiplier), maxHp: Math.floor(500 * worldMultiplier) },
+                mode: 'Standard',
+                rewards: [{ name: 'Gold', amount: goldReward, icon: 'fa-coins icon-gold' }]
+            };
+            player.dungeonMap[dungeon.id] = dungeon;
+            if (lastDungeon) { lastDungeon.unlocks.push(dungeon.id); }
+            lastDungeon = dungeon;
+        }
+    }
+    function initGame(fromScratch=false, silent=false){
+        if (!silent) gameState='LOADING';
+        if (!player || fromScratch) {
+            currentStage=1;
+            player = {
+                hp: 100, rage: 0, gold: 0, rubies: 0, energy: 85, maxEnergy: 85, lastEnergyUpdateTime: Date.now(),
+                level: 1, xp: 0, xpToNextLevel: 100, dungeonCompletions: 0, dungeonMap: {}, lastSaveTime: Date.now(),
+                souls: { level: 1, current: 0, toNextLevel: 500 }, highestTierForged: 0, worldTier: 1,
+                stats: {
+                    maxHp: createStat({ name: "Max Health", current: 100, target: 500, baseGain: 20, color: 'health' }),
+                    attackPower: createStat({ name: "Attack Power", current: 10, target: 100, baseGain: 2, color: 'attack' }),
+                    rageGain: createStat({ name: "Rage Gain", current: 5, target: 50, baseGain: 1, color: 'rage' }),
+                    healthRegen: createStat({ name: "Health Regen", current: 0, target: 10, baseGain: .5, isFloat: !0, displaySuffix: '/s', color: 'regen' }),
+                    defense: createStat({ name: "Defense", current: 0, target: 100, baseGain: 1, color: 'skill' })
+                },
+                costs: { maxHp: 10, attackPower: 10, rageGain: 20, healthRegen: 30 }, skills: {},
+                x: 450 / 2, y: 800 - 150, baseY: 800 - 150, baseX: 450 / 2, state: 'idle', speed: 350, size: 60,
+                weaponVisual: { angle: 0, animState: 'idle', animTimer: 0, target: null }, flash: 0,
+                inventory: {
+                    weapon: { id: 'starter_bow', type: 'bow', tier: 0, name: 'Worn Bow', power: 5, attackSpeedBonus: 0, critChance: 0, critDamage: 1.5, lifesteal: 0, statusEffect: null, goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0, refineLevel: 0, refineCost: 1000 },
+                    stones: [] 
+                },
+                world: { x: 450/2, y: 800/2, touchStartX: null, touchStartY: null, moveDx: 0, moveDy: 0, objects: [], sceneryGenerated: false }, 
+            };
+            Object.keys(SKILLS_DATA).forEach(id=>{player.skills[id]={isUnlocked:!1,cooldownTimer:0,level:1,currentXP:0,targetXP:SKILLS_DATA[id].baseTargetXP}});
+            isAutoBattle=!1;
+        }
+        if(!fromScratch) loadGame();
+        if (Object.keys(player.dungeonMap).length === 0) {
+            createInitialDungeonMap();
+        }
+        if (!silent) {
+            endCombatTimer=0;enemies=[];particles=[];floatingTexts=[];projectiles=[];healthOrbs=[];shakeDuration=0;uiParticles=[];skillVisuals=[];
+            player.hp=player.stats.maxHp.current;
+            if (!window.stars) { window.stars=[]; for(let i=0;i<100;i++)window.stars.push({x:Math.random()*450,y:Math.random()*800,radius:Math.random()*1.5,speed:.2+Math.random()*.5}); }
+        }
+    }
+    
+    function saveGame() {
+        try {
+            if(player) {
+                player.lastSaveTime = Date.now(); 
+                localStorage.setItem(SAVE_KEY, JSON.stringify({ player, currentStage, isAutoBattle }));
+            }
+        } catch (e) { console.error("Could not save game:", e) }
+    }
+
+    function formatTimerDisplay(totalSeconds) {
+        totalSeconds = Math.floor(totalSeconds);
+        const hours = Math.floor(totalSeconds / 3600);
+        totalSeconds %= 3600;
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        const paddedHours = String(hours).padStart(2, '0');
+        const paddedMinutes = String(minutes).padStart(2, '0');
+        const paddedSeconds = String(seconds).padStart(2, '0');
+        return `${paddedHours}:${paddedMinutes}:${paddedSeconds}`;
+    }
+
+    function formatLargeNumber(num) {
+        if (!isFinite(num) || num <= 0) return "0";
+        if (num < 1000) return Math.floor(num).toString();
+        const suffixes = ["", "k", "M", "B", "T"];
+        const i = Math.floor(Math.log10(num) / 3);
+        let shortNum = (num / Math.pow(1000, i)).toFixed(1);
+        if (shortNum.endsWith('.0')) shortNum = shortNum.slice(0, -2);
+        return shortNum + suffixes[i];
+    }
+
+    function validatePlayerObject(p) {
+        if (!p) return null;
+        const defaults = {
+            hp: 100, rage: 0, gold: 0, rubies: 0, energy: 85, maxEnergy: 85, lastEnergyUpdateTime: Date.now(), level: 1, xp: 0, xpToNextLevel: 100,
+            dungeonCompletions: 0, dungeonMap: {}, lastSaveTime: Date.now(), highestTierForged: 0, worldTier: 1, x: 450 / 2, y: 800 - 150,
+            baseY: 800 - 150, baseX: 450 / 2, state: 'idle', speed: 350, size: 60, flash: 0
+        };
+        for (const key in defaults) { if (p[key] === undefined) { p[key] = defaults[key]; } }
+        if (!p.stats || typeof p.stats.maxHp === "number") {
+            p.stats = {
+                maxHp: createStat({ name: "Max Health", current: 100, target: 500, baseGain: 20, color: 'health' }),
+                attackPower: createStat({ name: "Attack Power", current: 10, target: 100, baseGain: 2, color: 'attack' }),
+                rageGain: createStat({ name: "Rage Gain", current: 5, target: 50, baseGain: 1, color: 'rage' }),
+                healthRegen: createStat({ name: "Health Regen", current: 0, target: 10, baseGain: .5, isFloat: !0, displaySuffix: '/s', color: 'regen' }),
+                defense: createStat({ name: "Defense", current: 0, target: 100, baseGain: 1, color: 'skill' })
+            };
+        }
+        if (!p.stats.defense) { p.stats.defense = createStat({ name: "Defense", current: 0, target: 100, baseGain: 1, color: 'skill' }); }
+        if (!p.costs) p.costs = { maxHp: 10, attackPower: 10, rageGain: 20, healthRegen: 30 };
+        if (!p.skills) p.skills = {};
+        Object.keys(SKILLS_DATA).forEach(id => { if (!p.skills[id]) p.skills[id] = { isUnlocked: false, cooldownTimer: 0, level: 1, currentXP: 0, targetXP: SKILLS_DATA[id].baseTargetXP }; });
+        if (!p.inventory) p.inventory = { weapon: null, stones: [] };
+        if (!p.inventory.weapon) {
+            p.inventory.weapon = { id: 'starter_bow', type: 'bow', tier: 0, name: 'Worn Bow', power: 5, attackSpeedBonus: 0, critChance: 0, critDamage: 1.5, lifesteal: 0, statusEffect: null, goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0, refineLevel: 0, refineCost: 1000 };
+        }
+        if (p.inventory.weapon.refineLevel === undefined) { p.inventory.weapon.refineLevel = 0; p.inventory.weapon.refineCost = 1000; }
+        if (!p.weaponVisual) p.weaponVisual = { angle: 0, animState: 'idle', animTimer: 0, target: null };
+        if (!p.souls) p.souls = { level: 1, current: 0, toNextLevel: 500 };
+        if (p.dungeonsClearedSinceStone === undefined) p.dungeonsClearedSinceStone = 0;
+        if (!p.world) p.world = { x: 450/2, y: 800/2, touchStartX: null, touchStartY: null, moveDx: 0, moveDy: 0 };
+        if (!p.world.objects) p.world.objects = [];
+        return p;
+    }
+
+    function loadGame() {
+        try {
+            const savedData = localStorage.getItem(SAVE_KEY);
+            if (!savedData) return;
+            const loaded = JSON.parse(savedData);
+            const validatedPlayer = validatePlayerObject(loaded.player);
+            if (!validatedPlayer) { console.warn("Could not validate player from save. Starting fresh."); return; }
+            player = validatedPlayer;
+            if (player.lastOfflineRewardCollectTime === undefined) {
+                player.lastOfflineRewardCollectTime = Date.now();
+            }
+            currentStage = loaded.currentStage || 1;
+            isAutoBattle = loaded.isAutoBattle || false;
+            updateEnergyReplenishment();
+        } catch (e) {
+            console.error("Could not load or parse save data, starting fresh.", e);
+            player = null;
+        }
+    }
+    function resetGame(){if(confirm("Are you sure you want to reset all progress? This cannot be undone.")){localStorage.removeItem(SAVE_KEY);localStorage.removeItem(DUNGEON_SAVE_KEY);playerProgress={completed:[]};player=null;location.reload();}}
+    
+    function createExplosion(x, y, c, co, s = 3, sp = 5) {
+        if (co === 'lightning') {
+            const colors = ['#ffffff', '#6efcff', '#aaffff'];
+            for (let i = 0; i < c; i++) particles.push({ x, y, vx: (Math.random() - .5) * sp * 1.5, vy: (Math.random() - .5) * sp * 1.5, life: 0.3 + Math.random() * 0.4, color: colors[Math.floor(Math.random() * colors.length)], size: Math.random() * s + 1 });
+        } else if (co === 'fire') {
+            const colors = ['#ffc300', '#ff5733', '#c70039', '#900c3f'];
+            for (let i = 0; i < c; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = sp * (1 + Math.random());
+                particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 0.6 + Math.random() * 0.5, color: colors[Math.floor(Math.random() * colors.length)], size: Math.random() * s + 2 });
+            }
+        } else {
+            const colors = ["#fff", "#ffd700", "#ff8c00", co];
+            for (let i = 0; i < c; i++) particles.push({ x, y, vx: (Math.random() - .5) * sp, vy: (Math.random() - .5) * sp, life: 0.5 + Math.random() * 0.5, color: colors[Math.floor(Math.random()*colors.length)], size: Math.random()*s+1 });
+        }
+    }
+    function addFloatingText(t,x,y,c){floatingTexts.push({text:t,x,y,life:1,color:c})}
+    function triggerScreenShake(d){shakeDuration=d}
+    function showBattleBanner(t,ty,d){dom.battleBanner.textContent=t;dom.battleBanner.className=`battle-banner ${ty}`;setTimeout(()=>{dom.battleBanner.className='battle-banner panel-hidden'},d)}
+    
+    function changeState(newState){
+        Object.values(dom).forEach(el=>{if(el.classList&&el.classList.contains('ui-panel'))el.classList.add('panel-hidden')});
+        dom.ultBtn.classList.add('panel-hidden');
+        dom.autoBtn.classList.add('panel-hidden');
+        uiParticles=[];
+        gameState=newState;
+        switch(newState){
+            case'COUNTDOWN':
+                player.x = player.baseX; player.y = player.baseY; player.state = 'idle'; 
+                lastRunLoot = { gold: 0, xp: 0, stones: [] };
+                if(currentDungeon) { setupBossStage(currentDungeon); } else { setupNextStage(); }
+                dom.ultBtn.classList.remove('panel-hidden'); dom.autoBtn.classList.remove('panel-hidden');
+                battleCountdown=3.0;
+                SOUNDS.click();
+                break;
+            case'COMBAT':
+                dom.ultBtn.classList.remove('panel-hidden'); dom.autoBtn.classList.remove('panel-hidden');
+                requestAnimationFrame(() => {
+                    const barHeight = 18; const bottomPadding = 5;
+                    const ultButtonRect = dom.ultBtn.getBoundingClientRect();
+                    const containerRect = gameContainer.getBoundingClientRect();
+                    if (containerRect.width === 0) return;
+                    const buttonTopInCanvas = ultButtonRect.top - containerRect.top;
+                    const rageBarY = buttonTopInCanvas - barHeight - bottomPadding;
+                    const hpBarY = rageBarY - barHeight;
+                    const finalPlayerY = hpBarY - (player.size / 2);
+                    player.y = finalPlayerY;
+                    player.baseY = finalPlayerY;
+                });
+                break;
+            case 'SHOP':
+                const weapon = player.inventory.weapon;
+                if (currentDungeon) {
+                    if (!currentDungeon.rewardGiven) {
+                        const goldBonus = 1 + (weapon.goldBonus || 0);
+                        if (currentDungeon.goldReward) {
+                            const goldGained = Math.floor(currentDungeon.goldReward * goldBonus);
+                            player.gold += goldGained;
+                            lastRunLoot.gold += goldGained;
+                        }
+                        if (currentDungeon.rubyReward) player.rubies += currentDungeon.rubyReward;
+                        currentDungeon.rewardGiven = true;
+                    }
+                    const completedDungeon = player.dungeonMap[currentDungeon.id];
+                    const wasAlreadyCompleted = (completedDungeon.completionCount || 0) > 0;
+                    completedDungeon.completionCount = (completedDungeon.completionCount || 0) + 1;
+                    player.dungeonsClearedSinceStone = (player.dungeonsClearedSinceStone || 0) + 1;
+                    if (!wasAlreadyCompleted) { addNewDungeons(currentDungeon.id); }
+                    if (player.dungeonsClearedSinceStone >= 2) { gainNewStone(completedDungeon); player.dungeonsClearedSinceStone = 0; }
+                    if (completedDungeon.completionCount > 0 && completedDungeon.completionCount % 3 === 0) {
+                        completedDungeon.evolutionLevel = (completedDungeon.evolutionLevel || 0) + 1;
+                        const evolutionPrefixes = ['Empowered', 'Dread', 'Nightmare', 'Infernal', 'Abyssal'];
+                        const prefix = evolutionPrefixes[Math.min(completedDungeon.evolutionLevel - 1, evolutionPrefixes.length - 1)];
+                        completedDungeon.name = `${prefix} ${completedDungeon.baseName}`;
+                        completedDungeon.boss.level = Math.floor(completedDungeon.boss.level * 1.2);
+                        completedDungeon.boss.maxHp = Math.floor(completedDungeon.boss.maxHp * 1.5);
+                        completedDungeon.boss.attack = Math.floor(completedDungeon.boss.attack * 1.3);
+                        completedDungeon.goldReward = Math.floor(completedDungeon.goldReward * 1.5);
+                        if(completedDungeon.rubyReward) completedDungeon.rubyReward = Math.floor(completedDungeon.rubyReward * 1.4);
+                        const goldRewardUI = completedDungeon.rewards.find(r => r.name === 'Gold');
+                        if(goldRewardUI) goldRewardUI.amount = completedDungeon.goldReward;
+                        const rubyRewardUI = completedDungeon.rewards.find(r => r.name === 'Rubies');
+                        if(rubyRewardUI) rubyRewardUI.amount = completedDungeon.rubyReward;
+                    }
+                }
+                saveGame();
+                checkSkillUnlocks();
+                dom.shop.classList.remove('panel-hidden');
+                updateShopUI();
+                setTimeout(createShopParticles, 100);
+                break;
+            case'GAME_OVER':
+                dom.gameOver.classList.remove('panel-hidden');
+                updateGameOverUI();
+                break;
+            case'PLAYER_STATS':
+                dom.playerStats.classList.remove('panel-hidden');
+                updatePlayerScreenUI();
+                setTimeout(createStatsScreenParticles,100);
+                break;
+            case'ENDING_COMBAT':
+                player.isAttacking=!1;
+                endCombatTimer = 2.0;
+                showBattleBanner('Victory!','stage-clear-banner',2500);
+                SOUNDS.stageClear();
+                break;
+        }
+    }
+    function createShopParticles() { document.querySelectorAll('#shop-screen .button, .gold-display, #shop-screen h1').forEach(el => { if (el.tagName === 'H1' || el.classList.contains('gold-display')) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: .1 }); } else { for (let i = 0; i < 3; i++) { uiParticles.push({ type: 'orbit', attachTo: el, angle: Math.random() * Math.PI * 2, speed: .01 + Math.random() * .02, radius: 1 + Math.random(), color: '#ffd700' }); } } }); }
+    function createStatsScreenParticles() { document.querySelectorAll('#player-screen .progress-bar-fill').forEach(el => { if (el.getBoundingClientRect().width > 0) { uiParticles.push({ type: 'sparkleGenerator', attachTo: el, spawnRate: el.getBoundingClientRect().width / 2000, color: el.classList.contains('health') ? '#e63946' : el.classList.contains('attack') ? '#fca311' : el.classList.contains('rage') ? '#9d4edd' : el.classList.contains('regen') ? '#52b788' : '#00b4d8' }); } }); }
+    
+    function setupBossStage(dungeon) {
+        enemies = [];
+        currentStage = dungeon.boss.level;
+        const boss = dungeon.boss;
+        enemies.push({ x: 450 / 2, y: 150, baseY: 150, hp: boss.maxHp, maxHp: boss.maxHp, attack: boss.attack, radius: 50, color: "#e63946", attackCooldown: 1.5, attackTimer: 2.0, isAttacking: false, chargeTimer: 0, icon: boss.icon, statusEffects: [] });
+    }
+    
+    function setupNextStage(){
+        enemies=[];
+        const e=Math.min(2+Math.floor(currentStage/2),7),t=1+(currentStage-1)*.25,a=3+Math.floor(currentStage/3),s=Math.max(0.75, 2 - (currentStage * 0.03));
+        for(let n=0;n<e;n++){ const e=100+200*Math.random(),r=Math.floor((20+10*Math.random())*t); enemies.push({ x:40+Math.random()*(450-80),y:e,baseY:e,hp:r,maxHp:r,attack:Math.floor(a+2*Math.random()),radius:20+5*Math.random(),color:"#e63946", attackCooldown:s+Math.random(), attackTimer:3*Math.random(), isAttacking:!1,chargeTimer:0, statusEffects: [] }) }
+    }
+    
+    function updateShopUI() {
+        if (currentDungeon) {
+            document.getElementById('shop-title').textContent = `${currentDungeon.name} Cleared!`;
+            document.getElementById('shop-subtitle').textContent = "You are victorious. Claim your rewards.";
+            dom.proceedBtn.textContent = 'Return to Map';
+        } else {
+            document.getElementById('shop-title').textContent = `Stage ${currentStage} Cleared!`;
+            document.getElementById('shop-subtitle').textContent = 'Spend Gold to grow stronger.';
+            dom.proceedBtn.textContent = 'Next Stage';
+        } 
+        const lootSummaryDiv = document.getElementById('loot-summary');
+        const summaryLines = [];
+        if (lastRunLoot.gold > 0) { summaryLines.push(`<p><i class="fas fa-coins"></i>+${lastRunLoot.gold} Gold</p>`); }
+        if (lastRunLoot.xp > 0) { summaryLines.push(`<p><i class="fas fa-star icon-xp"></i>+${lastRunLoot.xp} XP</p>`); }
+        if (lastRunLoot.stones.length > 0) { lastRunLoot.stones.forEach(stone => { summaryLines.push(`<p><i class="fas fa-gem icon-stone"></i>Found 1x ${stone.name}</p>`); }); }
+        if(summaryLines.length > 0) { lootSummaryDiv.innerHTML = `<h4>Loot Found:</h4>${summaryLines.join('')}`; lootSummaryDiv.classList.remove('hidden'); } 
+        else { lootSummaryDiv.classList.add('hidden'); }
+        dom.goldDisplay.textContent = `${player.gold}`;
+        const weaponDmg = player.inventory.weapon.power;
+        const statDmg = player.stats.attackPower.current;
+        const totalDmg = weaponDmg + statDmg;
+        document.getElementById('attack-power-stat').innerHTML = `${totalDmg} <small style="color:#ccc;">(Wpn: ${weaponDmg} + Stat: ${statDmg})</small>`;
+        document.getElementById('max-health-stat').textContent=player.stats.maxHp.current;
+        document.getElementById('rage-gain-stat').textContent=player.stats.rageGain.current;
+        document.getElementById('health-regen-stat').textContent=player.stats.healthRegen.current.toFixed(1);
+        document.getElementById('attack-cost').textContent=formatLargeNumber(player.costs.attackPower);
+        document.getElementById('health-cost').textContent=formatLargeNumber(player.costs.maxHp);
+        document.getElementById('rage-cost').textContent= formatLargeNumber(player.costs.rageGain);
+        document.getElementById('regen-cost').textContent= formatLargeNumber(player.costs.healthRegen);
+        dom.upgradeBtns.attack.classList.toggle('disabled',player.gold<player.costs.attackPower);
+        dom.upgradeBtns.health.classList.toggle('disabled',player.gold<player.costs.maxHp);
+        dom.upgradeBtns.rage.classList.toggle('disabled',player.gold<player.costs.rageGain);
+        dom.upgradeBtns.regen.classList.toggle('disabled',player.gold<player.costs.healthRegen);
+    }
+    function updateGameOverUI() {if (currentDungeon) {document.getElementById('game-over-message').textContent = `Defeated by ${currentDungeon.boss.name}`;dom.retryBtn.textContent = "Return to Map";} else {document.getElementById('game-over-message').innerHTML = `You reached Stage <span id="final-stage-reached">${currentStage}</span>`;dom.retryBtn.textContent = "Try Again";}}
+    function updatePlayerScreenUI(){const statsContainer=document.querySelector(".stats-container"),skillsContainer=document.querySelector(".skills-container");statsContainer.innerHTML="";skillsContainer.innerHTML='<h2>Skills</h2>';Object.values(player.stats).forEach(stat=>{const progress=stat.current/stat.target*100,block=document.createElement("div");block.className="stat-block",block.innerHTML=`<div class="stat-header"><h3 id="stat-title-${stat.color}">${stat.name}</h3><span>Level ${stat.level}</span></div><p class="stat-value">${stat.isFloat?stat.current.toFixed(1):stat.current} / ${stat.target}${stat.displaySuffix}</p><div class="progress-bar-container"><div id="progress-${stat.color}" class="progress-bar-fill ${stat.color}" style="width: ${Math.min(progress,100)}%;"></div></div>`,statsContainer.appendChild(block)});Object.keys(SKILLS_DATA).forEach(id=>{const skillData=SKILLS_DATA[id],playerSkill=player.skills[id],block=document.createElement("div");block.className="skill-block";if(playerSkill.isUnlocked){const progress=playerSkill.currentXP/playerSkill.targetXP*100;block.innerHTML=`<div class="skill-header"><h3 id="skill-title-${id}">${skillData.name}</h3><span>Level ${playerSkill.level}</span></div><p>${getSkillDescription(id)}</p><div class="progress-bar-container"><div class="progress-bar-fill skill" style="width: ${Math.min(progress,100)}%;"></div></div>`}else{block.classList.add("locked");block.innerHTML=`<h3>${skillData.name}</h3><p>Unlock by clearing Stage ${skillData.unlockStage}</p>`}skillsContainer.appendChild(block)})}
+    
+    function getSkillDescription(id) {
+        const skillData = SKILLS_DATA[id], playerSkill = player.skills[id], level = playerSkill.level;
+        const damage = Math.floor((player.inventory.weapon.power + player.stats.attackPower.current) * (skillData.baseDamageMultiplier + (level - 1) * skillData.damageMultiplierPerLevel));
+        switch (id) {
+            case 'orbitalStrike': return `Launches an orb dealing ${damage} damage.`;
+            case 'chainLightning':
+                const jumps = SKILLS_DATA.chainLightning.baseJumps + Math.floor((level - 1) / skillData.jumpsPerLevel);
+                return `Lightning hits ${jumps + 1} enemies for ${damage} damage.`;
+            case 'meteorShower':
+                const count = SKILLS_DATA.meteorShower.baseCount + Math.floor((level - 1) / SKILLS_DATA.meteorShower.countPerLevel);
+                return `Calls down ${count} meteors that deal ${damage} damage.`
+        }
+        return "";
+    }
+    
+    function updateEnergyReplenishment() {
+        if (!player || player.energy >= player.maxEnergy) return;
+        const REPLENISH_INTERVAL_MS = 2 * 60 * 1000;
+        const now = Date.now();
+        const elapsedMs = now - player.lastEnergyUpdateTime;
+        if (elapsedMs >= REPLENISH_INTERVAL_MS) {
+            const energyGained = Math.floor(elapsedMs / REPLENISH_INTERVAL_MS);
+            if (energyGained > 0) {
+                player.energy = Math.min(player.maxEnergy, player.energy + energyGained);
+                player.lastEnergyUpdateTime += energyGained * REPLENISH_INTERVAL_MS;
+                updatePlayerXpBar();
+                saveGame();
+            }
+        }
+    }
+    
+    function buyUpgrade(type, fromUpgradeScreen = false){
+        if(player.gold < player.costs[type]) return;
+        SOUNDS.upgrade();
+        player.gold -= player.costs[type];
+        player.costs[type] = Math.floor(1.15 * player.costs[type] + 5);
+        const stat = player.stats[type];
+        const oldCurrentStatValue = stat.current;
+        stat.current += stat.baseGain;
+        if (type === 'maxHp') {
+            const hpGainedFromUpgrade = stat.current - oldCurrentStatValue;
+            player.hp = Math.min(player.hp + hpGainedFromUpgrade, player.stats.maxHp.current);
+        }
+        if(stat.current >= stat.target){
+            SOUNDS.levelUp();
+            stat.level++;
+            stat.target = Math.floor(1.8 * stat.target);
+            stat.baseGain = stat.isFloat ? 1.4 * stat.baseGain : Math.ceil(1.5 * stat.baseGain);
+            if (type === 'maxHp') { player.hp = Math.min(player.hp, player.stats.maxHp.current); }
+            const titleSelector = fromUpgradeScreen ? `#upgrade-screen-${stat.color}-title` : `#stat-title-${stat.color}`;
+            const title = document.querySelector(titleSelector);
+            title && (title.classList.add("level-up"),setTimeout(() => title.classList.remove("level-up"), 1e3));
+        }
+        saveGame();
+        if(fromUpgradeScreen){ updatePlayerUpgradeScreenUI(); } else { updateShopUI(); if(gameState==="PLAYER_STATS")updatePlayerScreenUI(); }
+    }
+
+    function showInventory() { updateInventoryUI(); inventoryModal.classList.add('visible'); }
+    function hideInventory() { inventoryModal.classList.remove('visible'); }
+    function switchInventoryTab(tabName) {
+        Object.values(tabButtons).forEach(btn => btn.classList.remove('active'));
+        Object.values(panels).forEach(panel => panel.classList.remove('active'));
+        tabButtons[tabName].classList.add('active');
+        panels[tabName].classList.add('active');
+    }
+
+    function updateInventoryUI() {
+        const weapon = player.inventory.weapon;
+        const weaponCard = document.getElementById('equipped-weapon-card');
+        let statsHTML = `<ul class="weapon-stats-list">`;
+        const weaponName = weapon.refineLevel > 0 ? `${weapon.name} +${weapon.refineLevel}` : weapon.name;
+        statsHTML += `<li><i class="fas fa-fist-raised" style="color:#f77f00;"></i><span class="stat-value">${weapon.power}</span><span class="stat-name">Power</span></li>`;
+        if (weapon.defense > 0) statsHTML += `<li><i class="fas fa-shield-alt" style="color:#a0b8c8;"></i><span class="stat-value">${weapon.defense}</span><span class="stat-name">Defense</span></li>`;
+        if (weapon.attackSpeedBonus > 0) statsHTML += `<li><i class="fas fa-bolt" style="color:#6efcff;"></i><span class="stat-value">+${(weapon.attackSpeedBonus * 100).toFixed(1)}%</span><span class="stat-name">Attack Speed</span></li>`;
+        if (weapon.critChance > 0) statsHTML += `<li><i class="fas fa-crosshairs" style="color:#e63946;"></i><span class="stat-value">${(weapon.critChance * 100).toFixed(1)}%</span><span class="stat-name">Crit Chance</span></li>`;
+        if (weapon.critDamage > 1.5) statsHTML += `<li><i class="fas fa-skull-crossbones" style="color:#e63946;"></i><span class="stat-value">${(weapon.critDamage * 100).toFixed(0)}%</span><span class="stat-name">Crit Damage</span></li>`;
+        if (weapon.lifesteal > 0) statsHTML += `<li><i class="fas fa-heart" style="color:#ff4d6d;"></i><span class="stat-value">${(weapon.lifesteal * 100).toFixed(1)}%</span><span class="stat-name">Lifesteal</span></li>`;
+        if (weapon.statusEffect) statsHTML += `<li><i class="fas ${weapon.statusEffect.type === 'poison' ? 'fa-skull' : 'fa-fire'}" style="color:#90be6d;"></i><span class="stat-value">${(weapon.statusEffect.chance * 100).toFixed(0)}%</span><span class="stat-name">${weapon.statusEffect.type.charAt(0).toUpperCase() + weapon.statusEffect.type.slice(1)}</span></li>`;
+        if (weapon.goldBonus > 0) statsHTML += `<li><i class="fas fa-coins" style="color:#f9c74f;"></i><span class="stat-value">+${(weapon.goldBonus * 100).toFixed(0)}%</span><span class="stat-name">Gold Find</span></li>`;
+        if (weapon.xpBonus > 0) statsHTML += `<li><i class="fas fa-star" style="color:#a371f7;"></i><span class="stat-value">+${(weapon.xpBonus * 100).toFixed(0)}%</span><span class="stat-name">XP Gain</span></li>`;
+        if (weapon.stoneFindBonus > 0) statsHTML += `<li><i class="fas fa-gem" style="color:#c0c0c0;"></i><span class="stat-value">+${(weapon.stoneFindBonus * 100).toFixed(1)}%</span><span class="stat-name">Stone Find</span></li>`;
+        statsHTML += `</ul>`;
+        if (weapon.special) {
+            statsHTML += `<div class="weapon-special-ability">`;
+            statsHTML += `<h4><i class="fas fa-star" style="color: var(--accent-gold);"></i> ${weapon.special.description}</h4>`;
+            if (weapon.special.id === 'multishot') {
+                statsHTML += `<p>Extra Projectiles: ${weapon.special.value}</p>`;
+            }
+            statsHTML += `</div>`;
+        }
+        const canAffordRefine = player.rubies >= weapon.refineCost;
+        const refineButtonHTML = `<div class="shop-item" style="margin-top: 15px; padding: 10px;"><div class="shop-item-info"><h3>Refine Weapon</h3><p style="color: var(--accent-red);"><i class="fas fa-gem icon-ruby"></i> Cost: ${weapon.refineCost.toLocaleString()}</p></div><button class="button small primary refine-weapon-btn" ${!canAffordRefine ? 'disabled' : ''}>Refine +${weapon.refineLevel + 1}</button></div>`;
+        weaponCard.innerHTML = `<h4 id="weapon-name" style="margin-bottom: 5px;">${weaponName}</h4><p style="margin: 0; color: var(--text-secondary);">Type: <span id="weapon-type">${weapon.type.charAt(0).toUpperCase() + weapon.type.slice(1)}</span>, Tier: <span id="weapon-tier">${weapon.tier}</span></p>${statsHTML}${refineButtonHTML}`;
+        const stonesGrid = document.getElementById('stones-grid');
+        const stoneInfoText = document.getElementById('stone-info-text');
+        stonesGrid.innerHTML = '';
+        if (player.inventory.stones.length === 0) {
+            stonesGrid.innerHTML = '<p>No stones collected. Clear dungeons to find some!</p>';
+            stoneInfoText.innerHTML = '';
+        } else {
+            stoneInfoText.innerHTML = '<strong>Only T2+ stones can be forged into weapons.</strong>';
+            const groupedStones = {};
+            player.inventory.stones.forEach(stone => {
+                const key = `${stone.type}_${stone.tier}`;
+                if (!groupedStones[key]) groupedStones[key] = { ...stone, count: 0 };
+                groupedStones[key].count++;
+            });
+            Object.values(groupedStones).sort((a,b) => a.tier - b.tier || a.type.localeCompare(b.type)).forEach(group => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'shop-item';
+                const canForgeStones = group.count >= 3 && group.tier < 50;
+                const canForgeWeapon = group.tier >= 2;
+                const forgeWeaponTooltipText = !canForgeWeapon ? "Requires a Tier 2+ stone to forge a weapon." : "";
+                itemEl.innerHTML = `<div class="shop-item-info"><h3>${group.name} (x${group.count})</h3></div><div><button class="button small forge-stone-btn" ${!canForgeStones ? 'disabled' : ''} data-type="${group.type}" data-tier="${group.tier}">Forge T${group.tier+1}</button><button class="button small forge-weapon-btn" ${!canForgeWeapon ? 'disabled' : ''} data-type="${group.type}" data-tier="${group.tier}" title="${forgeWeaponTooltipText}">Forge Weapon</button></div>`;
+                stonesGrid.appendChild(itemEl);
+            });
+        }
+        document.getElementById('soul-level').textContent = player.souls.level;
+        document.getElementById('soul-current').textContent = player.souls.current;
+        document.getElementById('soul-target').textContent = player.souls.toNextLevel;
+        const soulProgress = Math.min(100, (player.souls.current / player.souls.toNextLevel) * 100);
+        document.getElementById('soul-progress-bar').style.width = `${soulProgress}%`;
+        document.getElementById('soul-boost').textContent = ((player.souls.level - 1) * 2).toFixed(0);
+    }
+
+    function forgeStones(type, tier) {
+        tier = parseInt(tier);
+        if (tier >= 50) { alert("This stone is at its maximum tier!"); return; }
+        let removedCount = 0;
+        for (let i = player.inventory.stones.length - 1; i >= 0; i--) {
+            const stone = player.inventory.stones[i];
+            if (stone.type === type && stone.tier === tier) {
+                player.inventory.stones.splice(i, 1);
+                removedCount++;
+                if (removedCount === 3) break;
+            }
+        }
+        const typeNames = { iron: 'IronStone', obsidian: 'ObsidianStone', jade: 'JadeStone' };
+        const newStone = { id: `stone_${Date.now()}`, type: type, tier: tier + 1, name: `${typeNames[type]} T${tier + 1}` };
+        player.inventory.stones.push(newStone);
+        player.highestTierForged = Math.max(player.highestTierForged, newStone.tier);
+        SOUNDS.upgrade();
+        updateInventoryUI();
+        saveGame();
+    }
+
+    function refineWeapon() {
+        const weapon = player.inventory.weapon;
+        if (player.rubies < weapon.refineCost) { alert("You don't have enough Rubies to refine this weapon."); return; }
+        SOUNDS.upgrade();
+        player.rubies -= weapon.refineCost;
+        weapon.refineLevel++;
+        if (weapon.special && weapon.special.id === 'multishot') {
+            // Increase multishot value every 2 refine levels
+            if (weapon.refineLevel > 0 && weapon.refineLevel % 2 === 0) {
+                weapon.special.value++;
+                showBattleBanner(`Multishot Upgraded!`, 'ultimate-banner', 2000);
+            }
+        }
+        const boostMultiplier = 1 + (weapon.refineLevel * 0.10);
+        const baseWeapon = { power: 5 + (weapon.tier * 4), attackSpeedBonus: 0, critChance: 0, critDamage: 1.5, lifesteal: 0, goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0 };
+        switch(weapon.type) {
+            case 'sword': baseWeapon.power += weapon.tier * 2; baseWeapon.critChance = 0.05 + (weapon.tier * 0.005); baseWeapon.critDamage = 1.5 + (weapon.tier * 0.05); baseWeapon.lifesteal = 0.01 + (weapon.tier * 0.002); break;
+            case 'bow': baseWeapon.attackSpeedBonus = 0.05 + (weapon.tier * 0.01); baseWeapon.critChance = 0.02 + (weapon.tier * 0.003); if (weapon.statusEffect) weapon.statusEffect.damage = (2 + weapon.tier) * boostMultiplier; break;
+            case 'shield': baseWeapon.power = Math.floor(baseWeapon.power * 0.5); baseWeapon.defense = 5 + (weapon.tier * 2); baseWeapon.goldBonus = 0.10 + (weapon.tier * 0.01); baseWeapon.xpBonus = 0.10 + (weapon.tier * 0.01); baseWeapon.stoneFindBonus = 0.01 + (weapon.tier * 0.005); break;
+        }
+        weapon.power = Math.floor(baseWeapon.power * boostMultiplier);
+        weapon.defense = Math.floor(baseWeapon.defense * boostMultiplier);
+        weapon.attackSpeedBonus = baseWeapon.attackSpeedBonus * boostMultiplier;
+        weapon.critChance = baseWeapon.critChance * boostMultiplier;
+        weapon.lifesteal = baseWeapon.lifesteal * boostMultiplier;
+        weapon.goldBonus = baseWeapon.goldBonus * boostMultiplier;
+        weapon.xpBonus = baseWeapon.xpBonus * boostMultiplier;
+        weapon.stoneFindBonus = baseWeapon.stoneFindBonus * boostMultiplier;
+        weapon.refineCost = Math.floor(weapon.refineCost * 2.5);
+        showBattleBanner(`Refined to +${weapon.refineLevel}!`, 'ultimate-banner', 2500);
+        updateInventoryUI();
+        updatePlayerXpBar();
+        saveGame();
+    }
+
+    function forgeNewWeapon(type, tier) {
+        tier = parseInt(tier);
+        const stoneIndex = player.inventory.stones.findIndex(s => s.type === type && s.tier === tier);
+        if (stoneIndex === -1) return;
+        player.inventory.stones.splice(stoneIndex, 1);
+        const newWeapon = { id: `${type}_${Date.now()}`, tier: tier, power: 5 + (tier * 4), attackSpeedBonus: 0, critChance: 0, critDamage: 1.5, lifesteal: 0, statusEffect: null, goldBonus: 0, xpBonus: 0, stoneFindBonus: 0, defense: 0, refineLevel: 0, refineCost: 1000 };
+        switch(type) {
+            case 'iron': 
+                newWeapon.type = 'sword'; 
+                newWeapon.name = `Iron Blade T${tier}`; 
+                newWeapon.power += tier * 2; 
+                newWeapon.critChance = 0.05 + (tier * 0.005); 
+                newWeapon.critDamage = 1.5 + (tier * 0.05); 
+                newWeapon.lifesteal = 0.01 + (tier * 0.002); 
+                // --- ADD THESE LINES ---
+                newWeapon.special = {
+                    id: 'cleave',
+                    description: "Cleave",
+                    value: 0.25 // Deals 25% damage to nearby enemies
+                };
+                break;
+            case 'jade':
+                newWeapon.type = 'bow';
+                newWeapon.name = `Jade Bow T${tier}`;
+                newWeapon.attackSpeedBonus = 0.05 + (tier * 0.01);
+                newWeapon.critChance = 0.02 + (tier * 0.003);
+                newWeapon.statusEffect = { type: 'poison', chance: 0.10 + (tier * 0.01), damage: 2 + tier, duration: 3 };
+                
+                // --- ADD THESE 5 LINES ---
+                newWeapon.special = {
+                    id: 'multishot',
+                    description: "Multi-Shot",
+                    value: 1 // Start with 1 extra shot
+                };
+                break;
+            case 'obsidian': 
+                newWeapon.type = 'shield'; 
+                newWeapon.name = `Aegis T${tier}`; 
+                newWeapon.power = Math.floor(newWeapon.power * 0.5); 
+                newWeapon.defense = 5 + (tier * 2); 
+                newWeapon.goldBonus = 0.10 + (tier * 0.01); 
+                newWeapon.xpBonus = 0.10 + (tier * 0.01); 
+                newWeapon.stoneFindBonus = 0.01 + (tier * 0.005);
+                // --- ADD THESE LINES ---
+                newWeapon.special = {
+                    id: 'retaliate',
+                    description: "Retaliate",
+                    value: 0.20 // 20% chance to retaliate
+                };
+                break;
+        }
+        player.inventory.weapon = newWeapon;
+        SOUNDS.stageClear();
+        showBattleBanner(`Forged ${newWeapon.name}!`, 'ultimate-banner', 3000);
+        updateInventoryUI();
+        saveGame();
+    }
+
+    function checkSoulLevelUp() {
+        while (player.souls.current >= player.souls.toNextLevel) {
+            player.souls.current -= player.souls.toNextLevel;
+            player.souls.level++;
+            player.souls.toNextLevel = Math.floor(player.souls.toNextLevel * 1.8);
+            Object.values(player.stats).forEach(stat => { stat.current = stat.isFloat ? parseFloat((stat.current * 1.05).toFixed(1)) : Math.floor(stat.current * 1.05); });
+            player.hp = player.stats.maxHp.current;
+            SOUNDS.levelUp();
+            showBattleBanner('SOUL CORE EMPOWERED!', 'ultimate-banner', 2500);
+        }
+    }
+
+    function gainNewStone(dungeon) {
+        const stoneTypes = ['iron', 'obsidian', 'jade', 'jade', 'jade'];
+        const typeNames = { iron: 'IronStone', obsidian: 'ObsidianStone', jade: 'JadeStone' };
+        const maxTierToDrop = Math.max(2, player.highestTierForged);
+        const minTierToDrop = 1;
+        const tier = Math.floor(Math.random() * (maxTierToDrop - minTierToDrop + 1)) + minTierToDrop;
+        const type = stoneTypes[Math.floor(Math.random() * stoneTypes.length)];
+        const newStone = { id: `stone_${Date.now()}`, type: type, tier: tier, name: `${typeNames[type]} T${tier}` };
+        player.inventory.stones.push(newStone);
+        lastRunLoot.stones.push(newStone); 
+        saveGame();
+    }
+
+    function generateRandomStone() {
+        const stoneTypes = ['iron', 'obsidian', 'jade', 'jade', 'jade'];
+        const typeNames = { iron: 'IronStone', obsidian: 'ObsidianStone', jade: 'JadeStone' };
+        const maxTierToDrop = Math.max(2, player.highestTierForged);
+        const minTierToDrop = 1;
+        const tier = Math.floor(Math.random() * (maxTierToDrop - minTierToDrop + 1)) + minTierToDrop;
+        const type = stoneTypes[Math.floor(Math.random() * stoneTypes.length)];
+        return { id: `stone_offline_${Date.now()}_${Math.random()}`, type: type, tier: tier, name: `${typeNames[type]} T${tier}` };
+    }
+        
+    function checkSkillUnlocks() {Object.keys(SKILLS_DATA).forEach(id => {const skillData = SKILLS_DATA[id], playerSkill = player.skills[id];if (!playerSkill.isUnlocked && currentStage > skillData.unlockStage) {playerSkill.isUnlocked = true;showBattleBanner(`${skillData.name} Unlocked!`, "ultimate-banner", 3000)}})}
+    
+    function playerAttack(target) {
+        if (!target || player.state !== 'idle') return;
+        const weaponType = player.inventory.weapon.type;
+        if (weaponType === 'sword' || weaponType === 'shield') {
+            player.state = 'moving';
+            player.target = target;
+        } else {
+            player.isAttacking = true;
+            player.weaponVisual.animState = 'drawing';
+            const speedMultiplier = 1 / (1 + (player.inventory.weapon.attackSpeedBonus || 0));
+            player.weaponVisual.animTimer = 0.5 * speedMultiplier;
+            player.weaponVisual.target = target;
+            SOUNDS.playerAttack();
+        }
+    }
+
+    function findClosestEnemy(skip = 0) {
+        if (!player || enemies.length === 0) return null;
+        
+        // Create a copy of the enemies array and sort it by distance to the player
+        const sortedEnemies = [...enemies].sort((a, b) => {
+            const distA = Math.hypot(a.x - player.x, a.y - player.y);
+            const distB = Math.hypot(b.x - player.x, b.y - player.y);
+            return distA - distB;
+        });
+
+        // Return the enemy at the 'skip' index, if it exists
+        if (sortedEnemies.length > skip) {
+            return sortedEnemies[skip];
+        }
+        
+        return null; // Return null if not enough enemies
+    }
+    
+    function updateSkills(dt) {
+        if (enemies.length === 0) return;
+        Object.keys(player.skills).forEach(id => {
+            const playerSkill = player.skills[id];
+            if (!playerSkill.isUnlocked) return;
+            playerSkill.cooldownTimer += dt;
+            const skillData = SKILLS_DATA[id];
+            const cooldown = Math.max(0.5, skillData.baseCooldown - (playerSkill.level - 1) * skillData.cooldownReductionPerLevel);
+            if (playerSkill.cooldownTimer > cooldown) {
+                playerSkill.cooldownTimer = 0;
+                playerSkill.currentXP++;
+                if (playerSkill.currentXP >= playerSkill.targetXP) {
+                    playerSkill.level++;
+                    playerSkill.currentXP -= playerSkill.targetXP;
+                    playerSkill.targetXP = Math.floor(playerSkill.targetXP * 1.5);
+                    SOUNDS.levelUp();
+                }
+                const randomEnemy = enemies[Math.floor(Math.random() * enemies.length)];
+                if (!randomEnemy) return;
+                switch (id) {
+                    case 'orbitalStrike': {
+                        const damage = Math.floor((player.inventory.weapon.power + player.stats.attackPower.current) * (skillData.baseDamageMultiplier + (playerSkill.level - 1) * skillData.damageMultiplierPerLevel));
+                        skillVisuals.push({ type: 'orbitalStrike', x: player.x, y: player.y, target: randomEnemy, speed: 400, damage: damage, life: 5, maxLife: 5 });
+                        break;
+                    }
+                    case 'chainLightning': {
+                        const damage = Math.floor((player.inventory.weapon.power + player.stats.attackPower.current) * (skillData.baseDamageMultiplier + (playerSkill.level - 1) * skillData.damageMultiplierPerLevel));
+                        const jumps = SKILLS_DATA.chainLightning.baseJumps + Math.floor((playerSkill.level - 1) / skillData.jumpsPerLevel);
+                        let targets = [randomEnemy];
+                        for (let i = 0; i < jumps; i++) {
+                            const lastTarget = targets[targets.length - 1];
+                            const potentialNext = enemies.filter(e => !targets.includes(e)).sort((a, b) => Math.hypot(a.x - lastTarget.x, a.y - lastTarget.y) - Math.hypot(b.x - lastTarget.x, b.y - lastTarget.y));
+                            if (potentialNext.length > 0) targets.push(potentialNext[0]);
+                        }
+                        SOUNDS.shock();
+                        targets.forEach(target => {
+                            target.hp -= damage;
+                            addFloatingText(damage, target.x, target.y, '#6efcff');
+                            createExplosion(target.x, target.y, 25, 'lightning', 3, 7);
+                            target.flash = 0.2;
+                        });
+                        skillVisuals.push({ type: 'chainLightning', targets: targets, life: 0.5, maxLife: 0.5 });
+                        break;
+                    }
+                    case 'meteorShower': {
+                        SOUNDS.ultimate();
+                        const damage = Math.floor((player.inventory.weapon.power + player.stats.attackPower.current) * (skillData.baseDamageMultiplier + (playerSkill.level - 1) * skillData.damageMultiplierPerLevel));
+                        const count = SKILLS_DATA.meteorShower.baseCount + Math.floor((playerSkill.level - 1) / SKILLS_DATA.meteorShower.countPerLevel);
+                        const directDamage = damage;
+                        const splashDamage = Math.floor(directDamage * 0.25);
+                        for (let i = 0; i < count; i++) {
+                            const angle = Math.PI * 0.25 + Math.random() * Math.PI * 0.1;
+                            const startY = -50 - (Math.random() * 200);
+                            const targetY = 100 + Math.random() * (800 / 1.5);
+                            
+                            // --- THIS IS THE NEW LOGIC ---
+                            // Calculate how far the meteor travels vertically
+                            const verticalDistance = targetY - startY;
+                            // Calculate how far it must travel horizontally based on its angle
+                            const horizontalDistance = verticalDistance / Math.tan(angle);
+                            // Calculate a random impact point within the screen width
+                            const impactX = 100 + Math.random() * (450 - 200); // Between 100 and 350
+                            // Calculate the required starting X to hit that impact point
+                            const startX = impactX - horizontalDistance;
+
+                            skillVisuals.push({
+                                type: 'meteorShower',
+                                x: startX, // Use our newly calculated startX
+                                y: startY,
+                                targetY: targetY,
+                                speed: 1500 + Math.random() * 500,
+                                damage: directDamage,
+                                splashDamage: splashDamage,
+                                life: 2,
+                                maxLife: 2,
+                                angle: angle
+                            });
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+    }
+    
+    function updateBattleCountdown(dt) { 
+        battleCountdown -= dt; 
+        if (battleCountdown <= 2 && battleCountdown + dt > 2) SOUNDS.click();
+        if (battleCountdown <= 1 && battleCountdown + dt > 1) SOUNDS.click();
+        if (battleCountdown <= 0) { 
+            battleCountdown = 0;
+            changeState('COMBAT'); 
+            SOUNDS.click();
+        } 
+    }
+    
+    function updatePlayerMovement(dt) {
+        const MELEE_RANGE = 60;
+        switch (player.state) {
+            case 'moving':
+                if (!player.target || player.target.hp <= 0) {
+                    player.state = 'returning';
+                    return;
+                }
+                const dx = player.target.x - player.x;
+                const dist = Math.abs(dx);
+                if (dist <= MELEE_RANGE) {
+                    player.state = 'attacking';
+                    player.isAttacking = true;
+                    player.weaponVisual.animState = 'drawing';
+                    player.weaponVisual.target = player.target; 
+                    const speedMultiplier = 1 / (1 + (player.inventory.weapon.attackSpeedBonus || 0));
+                    player.weaponVisual.animTimer = 0.5 * speedMultiplier;
+                    SOUNDS.playerAttack();
+                } else {
+                    player.x += (dx / dist) * player.speed * dt;
+                }
+                break;
+            case 'returning':
+                const homeX = player.baseX;
+                const returnDx = homeX - player.x;
+                const returnDist = Math.abs(returnDx);
+                if (returnDist < 10) {
+                    player.x = homeX;
+                    player.state = 'idle';
+                    player.target = null;
+                } else {
+                    player.x += (returnDx / returnDist) * player.speed * dt;
+                }
+                break;
+        }
+    }
+
+    function updateCombat(dt) {
+        updatePlayerMovement(dt);
+        updateWeaponAnimation(dt);
+        if (player.flash > 0) player.flash -= dt;
+        if (isAutoBattle && player.weaponVisual.animState === 'idle' && enemies.length > 0) {
+            let e = enemies.reduce((e, t) => Math.hypot(e.x - player.x, e.y - player.y) < Math.hypot(t.x - player.x, t.y - player.y) ? e : t);
+            playerAttack(e);
+        }
+        updateSkills(dt);
+        enemies.forEach(e => {
+            e.attackTimer += dt;
+            if (e.attackTimer >= e.attackCooldown && !e.isAttacking) { e.isAttacking = true; e.chargeTimer = 0.5; }
+            if (e.chargeTimer > 0) {
+                e.chargeTimer -= dt;
+                if (e.chargeTimer <= 0) {
+                    e.attackTimer = 0; SOUNDS.enemyAttack();
+                    projectiles.push({ x: e.x, y: e.y, target: player, speed: 600, isPlayer: false, damage: e.attack, owner: e });
+                }
+            } else if (e.isAttacking) e.isAttacking = !1;
+            if (e.flash > 0) e.flash -= dt;
+            if (e.statusEffects && e.statusEffects.length > 0) {
+                for (let i = e.statusEffects.length - 1; i >= 0; i--) {
+                    const status = e.statusEffects[i];
+                    status.tickTimer = (status.tickTimer || 0) + dt;
+                    if (status.tickTimer >= 1.0) {
+                        status.tickTimer -= 1.0;
+                        e.hp -= status.damage;
+                        addFloatingText(status.damage, e.x, e.y + 20, '#90be6d');
+                    }
+                    status.duration -= dt;
+                    if (status.duration <= 0) e.statusEffects.splice(i, 1);
+                }
+            }
+        });
+        projectiles.forEach((p, i) => {
+            if (!p.target || p.target.hp <= 0) { projectiles.splice(i, 1); return; }
+            const dx = p.target.x - p.x, dy = p.target.y - p.y, dist = Math.hypot(dx, dy);
+            const moveDist = p.speed * dt;
+            if (dist < moveDist) {
+                let finalDamage = p.damage;
+                if (!p.isPlayer && p.target === player) {
+                    const defensePower = player.inventory.weapon.defense || 0;
+                    finalDamage = Math.max(1, p.damage - (player.stats.defense.current + defensePower));
+                    player.flash = 0.1;
+                    
+                    // --- ADD RETALIATE LOGIC HERE ---
+                    const weapon = player.inventory.weapon;
+                    if (weapon.special && weapon.special.id === 'retaliate' && Math.random() < weapon.special.value) {
+                        // We know who attacked from the projectile's owner property
+                        const attacker = p.owner;
+                        if (attacker && attacker.hp > 0) {
+                            const retaliateDamage = Math.floor(player.stats.attackPower.current * 0.5); // Retaliates for 50% of stat damage
+                            // Create a new projectile going back at the attacker
+                            projectiles.push({
+                                x: player.x, y: player.y, target: attacker, isPlayer: true,
+                                speed: 1200, damage: retaliateDamage, isCrit: false
+                            });
+                            SOUNDS.shock(); // A good sound for a magic bolt
+                            // Add a visual cue on the player
+                            createExplosion(player.x, player.y, 15, '#4682b4', 3, 5);
+                        }
+                    }
+                    // --- END OF RETALIATE LOGIC ---
+                }
+                p.target.hp -= finalDamage;
+                p.target.flash = 0.1;
+                if(p.isPlayer) {
+                    player.rage = Math.min(player.rage + player.stats.rageGain.current, 100);
+                    if(p.lifestealAmount > 0) {
+                        const healedAmount = Math.ceil(p.lifestealAmount);
+                        player.hp = Math.min(player.stats.maxHp.current, player.hp + healedAmount);
+                        addFloatingText(`+${healedAmount}`, player.x, player.y - 30, '#4caf50');
+                    }
+                }
+                SOUNDS.hit();
+                triggerScreenShake(p.isPlayer ? 5 : 8);
+                createExplosion(p.target.x, p.target.y, 20, p.isPlayer ? "#fff" : "#ff4d4d");
+                addFloatingText(finalDamage, p.target.x + (Math.random() - 0.5) * 30, p.y + (Math.random() - 0.5) * 30, p.isCrit ? "#ff4d4d" : "#ffd700");
+                projectiles.splice(i, 1);
+            } else { p.x += dx / dist * moveDist; p.y += dy / dist * moveDist; }
+        });
+        if (player.hp <= 0) return SOUNDS.gameOver(), void changeState("GAME_OVER");
+        const deadEnemies = enemies.filter(e => e.hp <= 0);
+        deadEnemies.forEach(e => {
+            createExplosion(e.x, e.y, 50, e.color, 4, 8);
+            SOUNDS.enemyDeath();
+            if (!currentDungeon) {
+                const goldBonus = 1 + (player.inventory.weapon.goldBonus || 0);
+                const goldGained = Math.floor((1.5 * currentStage + 5) * goldBonus);
+                player.gold += goldGained;
+                lastRunLoot.gold += goldGained;
+            }
+            gainXP(5 * currentStage + Math.random() * 5);
+            player.souls.current++;
+            checkSoulLevelUp();
+        });
+        enemies = enemies.filter(e => e.hp > 0);
+        if (enemies.length === 0 && gameState === "COMBAT") changeState("ENDING_COMBAT");
+        if (Math.random() < 0.005 && healthOrbs.length < 3) healthOrbs.push({ x: 40 + Math.random() * (450 - 80), y: 100 + 300 * Math.random(), radius: 12, life: 10, pulse: 0 });
+    }
+    
+    function initExplorationMode() {
+        explorationEnemies = []; projectiles = []; particles = []; floatingTexts = [];
+        explorationDifficulty = 1; explorationSpawnTimer = 2.0;
+        if (player) {
+            player.hp = player.stats.maxHp.current; player.rage = 0;
+            player.x = 100; player.y = 800 / 2;
+            player.baseX = 100;
+            player.state = 'idle';
+            player.isAttacking = false;
+        }
+        if (explorationBackgroundStars.length === 0) for(let i=0; i<150; i++) explorationBackgroundStars.push({x: Math.random()*450, y: Math.random()*800, radius: Math.random()*2, speed: 30 + Math.random()*90});
+    }
+    function showScreen(screenName) {
+        const screens = { 'boot': bootScreen, 'main': mainScreen, 'player-upgrade': playerUpgradeScreen, 'map': mapScreen, 'battle': gameContainer, 'exploration': explorationContainer, 'world': worldScreen };
+        const nextScreen = screens[screenName];
+        if (!nextScreen) { console.error("Screen not found:", screenName); return; }
+        
+        let currentScreen = Object.values(screens).find(s => !s.classList.contains('hidden'));
+        if (currentScreen && currentScreen !== nextScreen) currentScreen.classList.add('hidden');
+        
+        topBarContainer.classList.toggle('hidden', screenName === 'boot');
+        uiParticles = [];
+        
+        if (screenName === 'main') {
+            if (backgroundMusic && backgroundMusic.paused) {
+                backgroundMusic.volume = 0.3;
+                backgroundMusic.play().catch(error => console.log("Music play failed:", error));
+            }
+            createMainScreenParticles();
+        } else if (screenName === 'player-upgrade') {
+            initGame(false, true);
+            updatePlayerUpgradeScreenUI();
+        } else if (screenName === 'map') {
+            initializeMap();
+        } else if (screenName === 'battle') {
+            initGame();
+            changeState('COUNTDOWN');
+        } else if (screenName === 'exploration') {
+            initGame(false, true);
+            initExplorationMode();
+        } else if (screenName === 'world') {
+            if (player) {
+                player.hp = player.stats.maxHp.current;
+                player.world.objects = [];
+            }
+            
+            skillVisuals = [];
+            projectiles = [];
+            worldSessionXP = 0;
+            worldSessionSouls = 0;
+            comboCounter = 0;
+            comboTimer = 0;
+            
+            worldComboDisplay.classList.remove('visible');
+            worldXpTotalUI.textContent = '0';
+            worldSoulsTotalUI.textContent = '0';
+
+            if (player) {
+                 generateOrbs(player.world.x, player.world.y, 100);
+            }
+        }
+        
+        if (nextScreen.classList.contains('hidden')) nextScreen.classList.remove('hidden');
+    }
+    function generateOrbs(centerX, centerY, count) {
+        if (!player || !player.world) return;
+        const minRadius = 300;
+        const maxRadius = 1500;
+
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = minRadius + Math.random() * (maxRadius - minRadius);
+            const x = centerX + Math.cos(angle) * dist;
+            const y = centerY + Math.sin(angle) * dist;
+            
+            const type = Math.random() < 0.8 ? 'xp' : 'soul';
+
+            player.world.objects.push({
+                id: `orb_${Date.now()}_${i}`,
+                type: type,
+                x: x,
+                y: y,
+                size: 25,
+                state: 'idle',
+                pulse: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    function drawWorldMode() {
+        if (!player || !player.world) return;
+        const p = player.world;
+        const canvasWidth = worldCanvas.width;
+        const canvasHeight = worldCanvas.height;
+        
+        worldCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        worldCtx.save();
+        const camX = -p.x + canvasWidth / 2;
+        const camY = -p.y + canvasHeight / 2;
+        worldCtx.translate(camX, camY);
+
+        const isTextureReady = worldBgTexture && worldBgTexture.complete && worldBgTexture.naturalWidth !== 0;
+        worldCtx.fillStyle = isTextureReady ? worldCtx.createPattern(worldBgTexture, 'repeat') : '#1a1a2a';
+        worldCtx.fillRect(p.x - 3000, p.y - 3000, 6000, 6000);
+
+        p.objects.forEach(obj => {
+            const pulseSize = obj.size + Math.sin(obj.pulse) * 3;
+            let color, glowColor;
+            if (obj.type === 'xp') {
+                color = 'rgba(255, 255, 255, 0.9)';
+                glowColor = 'rgba(255, 220, 150, 0.7)';
+            } else { // soul
+                color = 'rgba(110, 252, 255, 0.9)';
+                glowColor = 'rgba(88, 166, 255, 0.7)';
+            }
+            
+            worldCtx.shadowColor = glowColor;
+            worldCtx.shadowBlur = 20;
+            worldCtx.fillStyle = color;
+            worldCtx.beginPath();
+            worldCtx.arc(obj.x, obj.y, pulseSize / 2, 0, Math.PI * 2);
+            worldCtx.fill();
+        });
+        worldCtx.shadowBlur = 0;
+
+        drawPlayerAura(worldCtx);
+        drawPlayer(worldCtx);
+        drawSkillVisuals(worldCtx);
+        drawEffects(worldCtx);
+
+        worldCtx.restore();
+    }
+    
+    function updateExplorationMode(dt) {
+        if (!player) return;
+        updatePlayerMovement(dt);
+        updateWeaponAnimation(dt);
+        enemies = explorationEnemies;
+        updateSkills(dt);
+        explorationEnemies = enemies;
+        if (player.weaponVisual.animState === 'idle' && explorationEnemies.length > 0) {
+            let target = explorationEnemies[0];
+            if (target) playerAttack(target);
+        }
+        explorationBackgroundStars.forEach(star => { star.x -= star.speed * dt; if (star.x < 0) { star.x = 450; star.y = Math.random() * 800; } });
+        explorationSpawnTimer -= dt;
+        if (explorationSpawnTimer <= 0) {
+            const enemyHp = Math.floor(50 * explorationDifficulty);
+            const enemyAttack = Math.floor(5 * explorationDifficulty);
+            explorationEnemies.push({
+                x: 450 + 50, y: Math.random() * (800 - 200) + 100,
+                hp: enemyHp, maxHp: enemyHp, attack: enemyAttack, radius: 25,
+                color: `hsl(${Math.random()*60+200}, 80%, 50%)`,
+                attackCooldown: Math.max(0.75, 2 - explorationDifficulty * 0.1), attackTimer: 0,
+                xpValue: Math.floor(10 * explorationDifficulty)
+            });
+            explorationSpawnTimer = Math.max(0.5, 3 - explorationDifficulty * 0.1);
+            explorationDifficulty += 0.1;
+        }
+        const battleLineX = player.x + 80;
+        explorationEnemies.forEach(e => { if (e.x > battleLineX) e.x -= 120 * dt; });
+        projectiles.forEach((p, i) => {
+            if (!p.target || p.target.hp <= 0) { projectiles.splice(i, 1); return; }
+            const dx = p.target.x - p.x, dy = p.target.y - p.y, dist = Math.hypot(dx, dy);
+            const moveDist = p.speed * dt;
+            if (dist < moveDist) {
+                p.target.hp -= p.damage; SOUNDS.hit();
+                addFloatingText(p.damage, p.target.x, p.target.y, p.isCrit ? "#ff4d4d" : "#ffd700");
+                createExplosion(p.target.x, p.target.y, 20, '#fff');
+                projectiles.splice(i, 1);
+            } else { p.x += dx / dist * moveDist; p.y += dy / dist * moveDist; }
+        });
+        const dead = explorationEnemies.filter(e => e.hp <= 0);
+        dead.forEach(e => {
+            createExplosion(e.x, e.y, 50, e.color, 4, 8); SOUNDS.enemyDeath();
+            gainXP(e.xpValue);
+            const goldBonus = 1 + (player.inventory.weapon.goldBonus || 0);
+            player.gold += Math.floor((e.xpValue / 2) * goldBonus);
+            player.souls.current++; checkSoulLevelUp();
+        });
+        explorationEnemies = explorationEnemies.filter(e => e.hp > 0 && e.x > -50);
+        particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
+        particles = particles.filter(p => p.life > 0);
+        floatingTexts.forEach(t => { t.y -= 60 * dt; t.life -= dt; });
+        floatingTexts = floatingTexts.filter(t => t.life > 0);
+        skillVisuals.forEach(v => { v.life -= dt; });
+        skillVisuals = skillVisuals.filter(v => v.life > 0);
+    }
+    function updateWorldMode(dt) {
+        if (!player || !player.world) return;
+        const p = player.world;
+        const COMBO_DURATION = 0.95;
+
+        if (comboTimer > 0) {
+            comboTimer -= dt;
+            if (comboTimer <= 0) {
+                comboCounter = 0;
+                worldComboDisplay.classList.remove('visible');
+            }
+        }
+
+        if (isWorldAutoBattle) {
+            if (p.objects.length > 0) {
+                const nearestOrb = p.objects.reduce((closest, current) => {
+                    return Math.hypot(current.x - p.x, current.y - p.y) < Math.hypot(closest.x - p.x, closest.y - p.y) ? current : closest;
+                });
+                const dx = nearestOrb.x - p.x;
+                const dy = nearestOrb.y - p.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 5) { p.moveDx = dx / dist; p.moveDy = dy / dist; }
+                else { p.moveDx = 0; p.moveDy = 0; }
+            } else { p.moveDx = 0; p.moveDy = 0; }
+        }
+        if (p.moveDx !== 0 || p.moveDy !== 0) {
+            p.x += p.moveDx * player.speed * dt;
+            p.y += p.moveDy * player.speed * dt;
+        }
+
+        const collectionRadius = player.size / 2;
+        p.objects.forEach(obj => {
+            obj.pulse += dt * 3;
+            const distance = Math.hypot(obj.x - p.x, obj.y - p.y);
+            
+            if (distance < collectionRadius + obj.size / 2) {
+                obj.state = 'collected';
+                SOUNDS.heal();
+                
+                comboTimer = COMBO_DURATION;
+                comboCounter++;
+                const isComboActive = comboCounter >= 5;
+                worldComboDisplay.classList.toggle('visible', isComboActive);
+
+                let baseAmount, finalAmount;
+
+                if (obj.type === 'xp') {
+                    baseAmount = 10 + Math.floor(player.level * 1.5);
+                    finalAmount = isComboActive ? baseAmount * 2 : baseAmount;
+                    worldSessionXP += finalAmount;
+                    gainXP(finalAmount);
+                    addFloatingText(`+${finalAmount} XP`, obj.x, obj.y, '#a371f7');
+                } else {
+                    baseAmount = 1;
+                    finalAmount = isComboActive ? baseAmount * 2 : baseAmount;
+                    worldSessionSouls += finalAmount;
+                    player.souls.current += finalAmount;
+                    checkSoulLevelUp();
+                    addFloatingText(`+${finalAmount} Soul`, obj.x, obj.y, '#58a6ff');
+                }
+            }
+        });
+
+        p.objects = p.objects.filter(obj => obj.state !== 'collected');
+        if (p.objects.length < 100) {
+            generateOrbs(p.x, p.y, 50);
+        }
+        p.objects = p.objects.filter(obj => Math.hypot(obj.x - p.x, obj.y - p.y) < 2500);
+
+        worldXpTotalUI.textContent = formatLargeNumber(worldSessionXP);
+        worldSoulsTotalUI.textContent = formatLargeNumber(worldSessionSouls);
+        const healthPercent = Math.max(0, (player.hp / player.stats.maxHp.current) * 100);
+        worldPlayerHealthFill.style.width = `${healthPercent}%`;
+        worldPlayerHealthText.textContent = `${Math.ceil(player.hp)} / ${player.stats.maxHp.current}`;
+    }
+    function update(dt){
+        if (player) {
+
+            if (Math.random() < 0.85) { // Adjust 0.5 to make more/less smoke
+                const isWorld = !worldScreen.classList.contains('hidden');
+                const playerX = isWorld ? player.world.x : player.x;
+                const playerY = isWorld ? player.world.y : player.y;
+
+                playerAuraParticles.push({
+                    type: 'smoke',
+                    x: playerX + (Math.random() - 0.5) * (player.size * 0.5),
+                    y: playerY + (Math.random() - 0.5) * (player.size * 0.5),
+                    life: 1.0,          // Lives for 1 second
+                    maxLife: 1.0,
+                    startSize: 2,       // Starts small
+                    endSize: 15,        // Grows larger
+                    vx: (Math.random() - 0.5) * 10, // Slight horizontal drift
+                    vy: -20,            // Drifts upwards
+                    color: `rgba(255, 50, 50, ${0.1 + Math.random() * 0.3})` // Semi-transparent black
+                });
+            }
+        }
+
+
+        playerAuraParticles.forEach(p => {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.life -= dt;
+        });
+        playerAuraParticles = playerAuraParticles.filter(p => p.life > 0);
+
+        updatePlayerXpBar();
+        updateUiParticles(dt);
+
+        particles.forEach(p => { 
+            p.x += p.vx * 60 * dt; 
+            p.y += p.vy * 60 * dt; 
+            p.life -= dt; 
+        });
+        particles = particles.filter(p => p.life > 0);
+
+        floatingTexts.forEach(t => { 
+            t.y -= 60 * dt;
+            t.life -= dt;
+        });
+        floatingTexts = floatingTexts.filter(t => t.life > 0);
+        
+        skillVisuals.forEach(v => v.life -= dt);
+        skillVisuals = skillVisuals.filter(v => v.life > 0);
+
+        if (!worldScreen.classList.contains('hidden')) {
+            updateWorldMode(dt);
+        } else if (!explorationContainer.classList.contains('hidden')) {
+            updateExplorationMode(dt);
+        } else if (!gameContainer.classList.contains('hidden')) {
+            if(gameState==='COUNTDOWN') updateBattleCountdown(dt); 
+            if(gameState==='COMBAT')updateCombat(dt);
+            if(gameState==='ENDING_COMBAT'){endCombatTimer -= dt; if(endCombatTimer<=0){player.hp=Math.min(player.stats.maxHp.current,player.hp+Math.floor(.2*player.stats.maxHp.current));changeState('SHOP')}}
+            if(player.hp<player.stats.maxHp.current&&player.stats.healthRegen.current>0&&(gameState==='COMBAT'||gameState==='ENDING_COMBAT'||gameState==='COUNTDOWN'))player.hp=Math.min(player.stats.maxHp.current,player.hp+player.stats.healthRegen.current * dt);
+            
+            for(let i = healthOrbs.length - 1; i >= 0; i--) {
+                const orb = healthOrbs[i];
+                orb.life -= dt;
+                orb.pulse += dt * 6;
+                if(isAutoBattle){
+                    const t=player.x-orb.x,a=player.y-orb.y;
+                    if(Math.hypot(t,a)<player.size){
+                        const healAmount=Math.floor(.1*player.stats.maxHp.current);
+                        player.hp=Math.min(player.stats.maxHp.current,player.hp+healAmount);
+                        addFloatingText(`+${healAmount}`,player.x,player.y,"#4caf50");SOUNDS.heal();
+                        healthOrbs.splice(i, 1);
+                        continue;
+                    }
+                    orb.x+=t * 0.03; orb.y+=a * 0.03;
+                }
+                if (orb.life <= 0) healthOrbs.splice(i, 1);
+            }
+            
+            if(window.stars)window.stars.forEach(s=>{s.y+=s.speed * 60 * dt;if(s.y>800){s.y=0;s.x=Math.random()*450}});
+        }
+    }
+    
+    function updateUiParticles(dt) {
+        const newParticles = [];
+        const container = !gameContainer.classList.contains('hidden') ? gameContainer : null;
+        if (!container) { uiParticles = []; return; }
+        const containerRect = container.getBoundingClientRect();
+        uiParticles.forEach(p => {
+            if (p.type === 'orbit') p.angle += p.speed;
+            else if (p.type === 'sparkle') p.life -= dt;
+            else if (p.type === 'sparkleGenerator') {
+                if (Math.random() < p.spawnRate) {
+                    let spawnX, spawnY, spawnWidth, spawnHeight;
+                    if (p.attachTo) {
+                        const elRect = p.attachTo.getBoundingClientRect();
+                        if (elRect.width <= 0) return;
+                        spawnX = elRect.left - containerRect.left; spawnY = elRect.top - containerRect.top;
+                        spawnWidth = elRect.width; spawnHeight = elRect.height;
+                    } else { spawnX = p.x; spawnY = p.y; spawnWidth = p.width; spawnHeight = p.height; }
+                    newParticles.push({ type: 'sparkle', x: spawnX + Math.random() * spawnWidth, y: spawnY + Math.random() * spawnHeight, life: 1, maxLife: 1, radius: Math.random() * 2, color: p.color || `rgba(255,220,150,${.5+Math.random()*.5})` });
+                }
+            }
+        });
+        uiParticles = uiParticles.filter(p => !(p.type === 'sparkle' && p.life <= 0));
+        uiParticles.push(...newParticles);
+    }
+    function drawBossHealthBar() {
+        if (safeAreaTopOffset === null) { safeAreaTopOffset = parseInt(getComputedStyle(document.body).getPropertyValue('--safe-area-inset-top')) || 0; }
+        if (enemies.length === 0) return;
+        const totalCurrentHp = enemies.reduce((sum, enemy) => sum + Math.max(0, enemy.hp), 0);
+        const totalMaxHp = enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0);
+        if (totalMaxHp === 0) return;
+        const barWidth = 450; const barHeight = 25; const barY = -15 + safeAreaTopOffset;
+        ctx.fillStyle = 'rgba(50, 50, 50, 0.7)'; ctx.fillRect(0, barY, barWidth, barHeight);
+        const healthPercentage = totalCurrentHp / totalMaxHp;
+        ctx.fillStyle = '#c1121f'; ctx.fillRect(0, barY, barWidth * healthPercentage, barHeight);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'; ctx.lineWidth = 2; ctx.strokeRect(0, barY, barWidth, barHeight);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Cinzel'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
+        ctx.fillText(`${Math.ceil(totalCurrentHp)} / ${totalMaxHp}`, barWidth / 2, barY + barHeight / 2);
+        ctx.shadowBlur = 0;
+    }
+
+    function drawPlayerHudBars() {
+        if (!player || dom.ultBtn.classList.contains('panel-hidden')) return;
+        const barWidth = 450; const barHeight = 18; const bottomPadding = 5;
+        const ultButtonRect = dom.ultBtn.getBoundingClientRect();
+        const containerRect = gameContainer.getBoundingClientRect();
+        const buttonTopInCanvas = ultButtonRect.top - containerRect.top;
+        const rageBarY = buttonTopInCanvas - barHeight - bottomPadding;
+        const hpBarY = rageBarY - barHeight;
+        ctx.fillStyle = '#333'; ctx.fillRect(0, hpBarY, barWidth, barHeight);
+        const hpPercent = Math.max(0, player.hp / player.stats.maxHp.current);
+        ctx.fillStyle = '#2a9d8f'; ctx.fillRect(0, hpBarY, barWidth * hpPercent, barHeight);
+        ctx.fillStyle = '#554300'; ctx.fillRect(0, rageBarY, barWidth, barHeight);
+        const ragePercent = player.rage / 100;
+        ctx.fillStyle = '#ffd700'; ctx.fillRect(0, rageBarY, barWidth * ragePercent, barHeight);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Roboto'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'black'; ctx.shadowBlur = 3;
+        ctx.fillText(`HP: ${Math.ceil(player.hp)} / ${player.stats.maxHp.current}`, 10, hpBarY + barHeight / 2);
+        ctx.fillText(`RAGE: ${player.rage} / 100`, 10, rageBarY + barHeight / 2);
+        ctx.shadowBlur = 0;
+    }
+    function drawHud(){
+        if (safeAreaTopOffset === null) { safeAreaTopOffset = parseInt(getComputedStyle(document.body).getPropertyValue('--safe-area-inset-top')) || 0; }
+        if(gameState!=='COMBAT' && gameState !== 'COUNTDOWN') return;
+        
+        ctx.save(); 
+        ctx.font='bold 24px Segoe UI'; 
+        ctx.shadowColor='black'; 
+        ctx.shadowBlur=5; 
+        ctx.fillStyle='white'; 
+        ctx.textAlign='left';
+        
+        let titleText = currentDungeon ? currentDungeon.name : `Stage: ${currentStage}`;
+        const maxWidth = 450 - 140;
+        
+        if (ctx.measureText(titleText).width > maxWidth) {
+            let truncatedText = titleText;
+            while (ctx.measureText(truncatedText + '...').width > maxWidth && truncatedText.length > 0) {
+                truncatedText = truncatedText.slice(0, -1);
+            }
+            titleText = truncatedText + '...';
+        }
+        
+        ctx.fillText(titleText, 15, 35 + safeAreaTopOffset);
+        
+        if (!currentDungeon) {
+            ctx.textAlign='right'; 
+            ctx.fillStyle='#ffd700';
+            ctx.fillText(`💰 ${formatLargeNumber(player.gold)}`, 450 - 15, 35 + safeAreaTopOffset);
+        }
+        
+        ctx.restore();
+    }
+    
+    function drawUiParticles() {
+        if (gameContainer.classList.contains('hidden') && mainScreen.classList.contains('hidden')) return;
+        const activeContainer = gameContainer.classList.contains('hidden') ? mainScreen : gameContainer;
+        uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+        const containerRect = activeContainer.getBoundingClientRect();
+        uiParticles.forEach(p => {
+            if (p.type === 'orbit' && p.attachTo) {
+                const elRect = p.attachTo.getBoundingClientRect();
+                if (elRect.bottom < containerRect.top || elRect.top > containerRect.bottom) return;
+                const currentX = elRect.left - containerRect.left; const currentY = elRect.top - containerRect.top;
+                const orbitX = (currentX + elRect.width / 2) + Math.cos(p.angle) * (elRect.width / 2 + 10);
+                const orbitY = (currentY + elRect.height / 2) + Math.sin(p.angle) * (elRect.height / 2 + 10);
+                uiCtx.beginPath(); uiCtx.arc(orbitX, orbitY, p.radius, 0, Math.PI * 2);
+                uiCtx.fillStyle = p.color; uiCtx.globalAlpha = .8; uiCtx.fill();
+            } else if (p.type === 'sparkle') {
+                uiCtx.beginPath(); uiCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                uiCtx.fillStyle = p.color; uiCtx.globalAlpha = p.life / p.maxLife * .8; uiCtx.fill();
+            }
+        });
+        uiCtx.globalAlpha = 1;
+    }
+    function drawBackground(){ctx.fillStyle='#0c0c14';ctx.fillRect(0,0,450,800);if(window.stars)window.stars.forEach(s=>{ctx.beginPath();ctx.arc(s.x,s.y,s.radius,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${.5+s.speed})`;ctx.fill()})}
+    
+    function drawPlayer(context = ctx) {
+        const isWorld = !worldScreen.classList.contains('hidden');
+        const posX = isWorld ? player.world.x : player.x;
+        const posY = isWorld ? player.world.y : player.y;
+
+        dom.ultBtn.classList.toggle('is-flashing', player.rage >= 100);
+        dom.ultBtn.style.background = player.rage >= 100 ? '#f72585' : '#5a1835';
+        dom.autoBtn.classList.toggle('active', isAutoBattle);
+        
+        context.save();
+        context.translate(posX, posY);
+        
+        const drawSize = player.size;
+        const halfDrawSize = drawSize / 2;
+        context.shadowColor = 'rgba(0,0,0,0.8)'; context.shadowBlur = 15; context.shadowOffsetY = 8; context.shadowOffsetX = 0;
+
+        if (player.rage >= 100) {
+            context.beginPath(); context.arc(0, 0, halfDrawSize * 0.9, 0, Math.PI * 2);
+            context.fillStyle = `rgba(247, 37, 133, ${0.4 + Math.sin(Date.now() * 0.005) * 0.2})`;
+            context.shadowColor = '#f72585'; context.shadowBlur = 40; context.fill(); context.shadowBlur = 0;
+        }
+
+        if (playerSpriteLoaded) {
+            let originalFilter = context.filter;
+            if (player.flash > 0 && !isWorld) {
+                context.filter = 'brightness(2) saturate(2)';
+            } else if (player.rage >= 100) {
+                const hueShift = Math.sin(Date.now() * 0.005) * 10;
+                const brightness = 1.1 + Math.sin(Date.now() * 0.003) * 0.1;
+                context.filter = `brightness(${brightness}) saturate(1.2) hue-rotate(${hueShift}deg)`;
+            }
+            context.drawImage(playerSprite, -halfDrawSize, -halfDrawSize, drawSize, drawSize);
+            context.filter = originalFilter;
+        } else {
+            context.fillStyle = player.color; context.fillRect(-halfDrawSize, -halfDrawSize, drawSize, drawSize);
+        }
+        
+        context.shadowColor = 'rgba(0,0,0,0.5)'; context.shadowBlur = 5;
+        context.restore();
+        
+        context.save();
+        context.translate(posX, posY);
+        drawWeapon(context);
+        context.restore();
+
+        if (gameContainer.classList.contains('hidden')) {
+            const barWidth = 60, barX = posX - barWidth / 2;
+            context.fillStyle = 'rgba(0,0,0,0.5)'; context.fillRect(barX, posY + halfDrawSize + 5, barWidth, 8);
+            context.fillStyle = '#d00000'; context.fillRect(barX, posY + halfDrawSize + 5, barWidth * Math.max(0, player.hp / player.stats.maxHp.current), 8);
+        }
+    }
+
+    function drawWeapon(context) {
+        const weapon = player.inventory.weapon; const v = player.weaponVisual; const tier = weapon.tier;
+        if (v.target) v.angle = Math.atan2(v.target.y - player.y, v.target.x - player.x);
+        context.rotate(v.angle);
+        switch (weapon.type) {
+            case 'bow': drawAnimatedBow(context, v, tier); break;
+            case 'sword': drawAnimatedSword(context, v, tier); break;
+            case 'shield': drawAnimatedShield(context, v, tier); break;
+        }
+    }
+
+    function drawAnimatedBow(context, v, tier) {
+        let bowColor = '#8c5e3c', stringColor = '#fff', glowColor = null, particleColor = '#ffecb3';
+        if (tier >= 10 && tier < 25) { bowColor = '#7b8cde'; stringColor = '#aaffff'; glowColor = 'rgba(170, 255, 255, 0.5)'; } 
+        else if (tier >= 25) { bowColor = '#ffd700'; stringColor = '#fff'; glowColor = 'rgba(255, 220, 150, 0.7)'; particleColor = '#fff'; }
+        let drawRatio = 0;
+        if (v.animState === 'drawing') {
+            const totalDrawTime = 0.5 * (1/(1+player.inventory.weapon.attackSpeedBonus));
+            drawRatio = 1 - (v.animTimer / totalDrawTime);
+        } else if (v.animState === 'firing') {
+            drawRatio = v.animTimer / 0.25;
+        }
+        const bowWidth = 50, bowThickness = 5 + Math.floor(tier / 10), stringPullback = 20 * drawRatio;
+        if (glowColor) { context.shadowColor = glowColor; context.shadowBlur = 15; }
+        context.beginPath(); context.moveTo(0, -bowWidth / 2); context.quadraticCurveTo(15 + stringPullback, 0, 0, bowWidth / 2);
+        context.lineWidth = bowThickness; context.strokeStyle = bowColor; context.stroke(); context.shadowBlur = 0;
+        context.beginPath(); context.moveTo(0, -bowWidth / 2); context.lineTo(-stringPullback, 0); context.lineTo(0, bowWidth / 2);
+        context.lineWidth = 2; context.strokeStyle = stringColor; context.stroke();
+        if (drawRatio > 0.1) {
+            context.beginPath(); context.arc(-stringPullback, 0, 3 + tier / 10, 0, Math.PI * 2);
+            context.fillStyle = particleColor; context.shadowColor = particleColor; context.shadowBlur = 10; context.fill(); context.shadowBlur = 0;
+        }
+    }
+
+    function drawAnimatedSword(context, v, tier) {
+        const length = 50 + tier, width = 8 + Math.floor(tier / 10);
+        let bladeColor = '#c0c0c0'; 
+        if (tier >= 10) bladeColor = '#6495ed'; 
+        if (tier >= 25) bladeColor = '#ff4500';
+
+        context.save(); // Save the current state (which is already rotated towards the target)
+
+        // --- NEW ANIMATION LOGIC ---
+        let swingAngle = 0;
+        if (v.animState === 'drawing') {
+            // The sword is being raised back for the swing
+            const progress = 1 - (v.animTimer / (0.5 * (1/(1+player.inventory.weapon.attackSpeedBonus))));
+            swingAngle = -Math.PI / 4 * progress; // Starts at 0, moves to -45 degrees
+        } else if (v.animState === 'firing') {
+            // The sword is swinging down
+            const progress = 1 - (v.animTimer / 0.25);
+            swingAngle = -Math.PI / 4 + (Math.PI / 2 * progress); // Swings from -45 to +45 degrees
+        }
+        context.rotate(swingAngle); // Apply the additional swing rotation
+        // --- END OF NEW LOGIC ---
+
+        // Draw the hilt (handle)
+        context.fillStyle = '#8B4513'; // Brown color for the hilt
+        context.fillRect(0, -width/2, 20, width); // Draw a small rectangle for the hilt at the pivot point
+
+        // Draw the blade
+        context.fillStyle = bladeColor;
+        context.fillRect(20, -width/2, length, width); // Draw the blade extending from the hilt
+
+        context.restore(); // Restore the context to remove the swing rotation
+    }
+
+    function drawAnimatedShield(context, v, tier) {
+        const size = 30 + tier;
+        context.fillStyle = '#a0522d'; if (tier >= 10) context.fillStyle = '#4682b4'; if (tier >= 25) context.fillStyle = '#4b0082';
+        context.beginPath(); context.arc(0, 0, size, 0, Math.PI * 2); context.fill();
+        context.strokeStyle = 'black'; context.lineWidth = 3; context.stroke();
+    }
+    
+    function drawEnemies() {
+        enemies.forEach(e => {
+            if (e.icon) {
+                ctx.save(); ctx.font = `900 ${e.radius * 2}px "Font Awesome 6 Free"`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = e.chargeTimer > 0 ? '#ff6b6b' : e.color;
+                if (e.flash > 0) { ctx.shadowColor = 'white'; ctx.shadowBlur = 20; } 
+                else { ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 15; ctx.shadowOffsetY = 8; }
+                const iconMap = { 'fa-ghost': '\uf6e2', 'fa-skull-crossbones': '\uf714', 'fa-robot': '\uf544', 'fa-hat-wizard': '\uf6e8', 'fa-pastafarianism': '\uf67b', 'fa-user-secret': '\uf21b', 'fa-user-ninja': '\uf504' };
+                const iconChar = iconMap[e.icon] || '?';
+                ctx.fillText(iconChar, e.x, e.y); ctx.restore();
+            } else {
+                ctx.save(); ctx.translate(e.x, e.y); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 5;
+                ctx.beginPath(); ctx.arc(0, 0, e.radius, 0, Math.PI * 2);
+                ctx.fillStyle = e.chargeTimer > 0 ? '#ff6b6b' : e.color; ctx.fill();
+                ctx.restore();
+                if (e.flash > 0) { ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fillStyle = `rgba(255,255,255,${e.flash/0.1})`; ctx.fill(); }
+            }
+            if (!explorationContainer.classList.contains('hidden')) {
+                const barWidth = e.radius * 2;
+                ctx.fillStyle = '#333'; ctx.fillRect(e.x - e.radius, e.y - e.radius - 15, barWidth, 5);
+                ctx.fillStyle = '#c1121f'; ctx.fillRect(e.x - e.radius, e.y - e.radius - 15, barWidth * Math.max(0, e.hp / e.maxHp), 5);
+            }
+        })
+    }
+    function drawHealthOrbs(){healthOrbs.forEach(orb=>{ctx.save();ctx.globalAlpha=.5+Math.sin(orb.pulse)*.3;ctx.beginPath();ctx.arc(orb.x,orb.y,orb.radius,0,Math.PI*2);ctx.fillStyle='#4caf50';ctx.fill();ctx.shadowColor='#abffc0';ctx.shadowBlur=15;ctx.fill();ctx.restore()})}
+    function drawSkillVisuals(context = ctx) {
+        const isWorld = !worldScreen.classList.contains('hidden');
+        const playerPosX = isWorld ? player.world.x : player.x;
+        const playerPosY = isWorld ? player.world.y : player.y;
+
+        skillVisuals.forEach(v => {
+            context.save();
+            context.globalAlpha = Math.min(1, v.life / v.maxLife);
+            switch (v.type) {
+                case 'orbitalStrike':
+                    const dx_os = v.target.x - v.x; const dy_os = v.target.y - v.y; const dist_os = Math.hypot(dx_os, dy_os);
+                    const moveDist_os = v.speed * (1/60);
+                    context.beginPath(); context.arc(v.x, v.y, 8, 0, Math.PI * 2);
+                    context.fillStyle = '#9d4edd'; context.shadowColor = '#d3a0ff'; context.shadowBlur = 20; context.fill();
+                    if (dist_os < moveDist_os) {
+                        v.target.hp -= v.damage; addFloatingText(v.damage, v.target.x, v.target.y, '#d3a0ff');
+                        createExplosion(v.x, v.y, 20, '#9d4edd'); v.life = 0;
+                    } else { v.x += dx_os / dist_os * moveDist_os; v.y += dy_os / dist_os * moveDist_os; }
+                    break;
+                case 'chainLightning':
+                    let lastPoint = { x: playerPosX, y: playerPosY };
+                    for (const target of v.targets) {
+                        const segmentCount = 10;
+                        const dx = (target.x - lastPoint.x) / segmentCount;
+                        const dy = (target.y - lastPoint.y) / segmentCount;
+                        const lightningJitter = 15;
+                        context.beginPath(); context.moveTo(lastPoint.x, lastPoint.y);
+                        for (let i = 1; i < segmentCount; i++) {
+                            const nextX = lastPoint.x + i * dx + (Math.random() - 0.5) * lightningJitter;
+                            const nextY = lastPoint.y + i * dy + (Math.random() - 0.5) * lightningJitter;
+                            context.lineTo(nextX, nextY);
+                        }
+                        context.lineTo(target.x, target.y);
+                        context.lineWidth = 1.5; context.strokeStyle = 'white'; context.shadowColor = '#aaffff'; context.shadowBlur = 20; context.stroke();
+                        context.lineWidth = 4; context.strokeStyle = 'rgba(110, 252, 255, 0.5)'; context.shadowBlur = 30; context.stroke();
+                        lastPoint = { x: target.x, y: target.y };
+                    }
+                    break;
+                case 'meteorShower':
+                    // Update meteor position
+                    const dt_ms = 1/60;
+                    v.x += Math.cos(v.angle) * v.speed * dt_ms;
+                    v.y += Math.sin(v.angle) * v.speed * dt_ms;
+
+                    // Draw the meteor's fiery trail (same as before)
+                    const trailLength = 40;
+                    const headX = v.x;
+                    const headY = v.y;
+                    const tailX = headX - Math.cos(v.angle) * trailLength;
+                    const tailY = headY - Math.sin(v.angle) * trailLength;
+                    const gradient = context.createLinearGradient(headX, headY, tailX, tailY);
+                    gradient.addColorStop(0, '#ffc300');
+                    gradient.addColorStop(0.5, '#ff5733');
+                    gradient.addColorStop(1, 'rgba(255, 87, 51, 0)');
+                    context.beginPath();
+                    context.moveTo(tailX, tailY);
+                    context.lineTo(headX, headY);
+                    context.strokeStyle = gradient;
+                    context.lineWidth = 8;
+                    context.lineCap = 'round';
+                    context.shadowColor = '#ff5733';
+                    context.shadowBlur = 25;
+                    context.stroke();
+                    
+                    // --- NEW AND IMPROVED IMPACT LOGIC ---
+                    if (v.y >= v.targetY) {
+                        createExplosion(v.x, v.y, 40, 'fire', 5, 8);
+                        let directTarget = null;
+                        let minDistance = Infinity;
+
+                        // First, find the single closest enemy to the impact point
+                        enemies.forEach(enemy => {
+                            const distance = Math.hypot(enemy.x - v.x, enemy.y - v.y);
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                directTarget = enemy;
+                            }
+                        });
+
+                        // Now, apply damage to ALL enemies on screen
+                        enemies.forEach(enemy => {
+                            if (enemy === directTarget && directTarget !== null) {
+                                // This is the direct target, deal 5x damage!
+                                const directDamage = v.damage * 5;
+                                enemy.hp -= directDamage;
+                                addFloatingText(directDamage, enemy.x, enemy.y, '#ffc300'); // Bright gold for direct hit
+                            } else {
+                                // All other enemies take the base damage
+                                enemy.hp -= v.damage;
+                                addFloatingText(v.damage, enemy.x, enemy.y, '#ff8c00'); // Orange for area hit
+                            }
+                        });
+                        
+                        v.life = 0; // Destroy the meteor on impact
+                    }
+                    break;
+            }
+            context.restore();
+        });
+    }
+    function drawEffects(context) {
+        projectiles.forEach(p => {
+            context.fillStyle = p.isPlayer ? '#fff' : '#ff4d4d';
+            context.beginPath();
+            context.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+            context.fill();
+        });
+
+        particles.forEach(p => {
+            context.fillStyle = p.color;
+            context.globalAlpha = p.life / p.maxLife;
+            context.beginPath();
+            context.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+            context.fill();
+        });
+
+        context.globalAlpha = 1;
+        floatingTexts.forEach(t => {
+            context.font = 'bold 28px sans-serif';
+            context.fillStyle = t.color;
+            context.globalAlpha = t.life / t.maxLife;
+            context.textAlign = 'center';
+            context.shadowColor = 'black';
+            context.shadowBlur = 4;
+            context.fillText(t.text, t.x, t.y);
+        });
+
+        context.shadowBlur = 0;
+        context.shadowColor = 'transparent';
+        context.globalAlpha = 1;
+    }
+    function drawCountdown(){
+        if(battleCountdown <= 0) return;
+        let text = Math.ceil(battleCountdown);
+        const fractional = battleCountdown - Math.floor(battleCountdown);
+        const scale = 2.0 - fractional;
+        const opacity = 1.0 - fractional;
+        ctx.save();
+        ctx.font=`bold ${120*scale}px Cinzel`;
+        ctx.fillStyle=`rgba(255,255,255,${opacity})`;
+        ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.shadowColor='rgba(255, 100, 100, 0.7)'; ctx.shadowBlur=20;
+        ctx.fillText(text,450/2,800/2);
+        ctx.restore();
+    }
+    
+    function updateWeaponAnimation(dt) {
+        if (player.weaponVisual.animState !== 'idle') {
+            const speedMultiplier = 1 / (1 + (player.inventory.weapon.attackSpeedBonus || 0));
+            player.weaponVisual.animTimer -= dt;
+            if (player.weaponVisual.animTimer <= 0) {
+                
+                // This is the main "if" block for when the animation timer hits zero
+                if (player.weaponVisual.animState === 'drawing') {
+                    player.weaponVisual.animState = 'firing';
+                    player.weaponVisual.animTimer = 0.25;
+                    const weapon = player.inventory.weapon;
+                    let finalDamage = weapon.power + player.stats.attackPower.current;
+                    let isCrit = false;
+                    if (Math.random() < (weapon.critChance || 0)) {
+                        finalDamage = Math.floor(finalDamage * (weapon.critDamage || 1.5));
+                        isCrit = true;
+                    }
+                    const isWorld = !worldScreen.classList.contains('hidden');
+                    // --- CORRECTED: Use playerX and playerY consistently ---
+                    const playerX = isWorld ? player.world.x : player.x;
+                    const playerY = isWorld ? player.world.y : player.y;
+
+                    if (weapon.type === 'bow') {
+                        // --- This is your correct bow logic ---
+                        let numProjectiles = 1;
+                        if (weapon.special && weapon.special.id === 'multishot') {
+                            numProjectiles += weapon.special.value;
+                        }
+                        const primaryTarget = findClosestEnemy(0);
+                        if (primaryTarget) { 
+                            for (let i = 0; i < numProjectiles; i++) {
+                                let currentTarget = findClosestEnemy(i);
+                                if (!currentTarget) {
+                                    currentTarget = primaryTarget;
+                                }
+                                setTimeout(() => {
+                                    const angle = Math.atan2(currentTarget.y - playerY, currentTarget.x - playerX);
+                                    const perpAngle = angle + Math.PI / 2;
+                                    const spreadDistance = 15;
+                                    const offset = (i - (numProjectiles - 1) / 2.0) * spreadDistance;
+                                    const startX = playerX + Math.cos(perpAngle) * offset;
+                                    const startY = playerY + Math.sin(perpAngle) * offset;
+                                    projectiles.push({
+                                        x: startX, y: startY, target: currentTarget, isPlayer: true,
+                                        speed: 900, damage: finalDamage, isCrit: isCrit
+                                    });
+                                    SOUNDS.playerAttack(i * 40);
+                                }, i * 50);
+                            }
+                        }
+                        // --- End of bow logic ---
+
+                    } else { // This is for Sword/Shield
+                        const target = player.weaponVisual.target;
+                        if (target) {
+                            target.hp -= finalDamage;
+                            target.flash = 0.2;
+                            // ... (other logic for rage, lifesteal, etc. stays the same)
+                            
+                            // --- ADD CLEAVE LOGIC HERE ---
+                            if (weapon.special && weapon.special.id === 'cleave') {
+                                const cleaveDamage = Math.floor(finalDamage * weapon.special.value);
+                                const cleaveRadius = 75; // The range of the cleave
+                                
+                                enemies.forEach(enemy => {
+                                    // Check if the enemy is not the primary target and is within the cleave radius
+                                    if (enemy !== target && Math.hypot(enemy.x - target.x, enemy.y - target.y) < cleaveRadius) {
+                                        enemy.hp -= cleaveDamage;
+                                        enemy.flash = 0.2;
+                                        // Add a smaller damage number for the cleaved enemy
+                                        addFloatingText(cleaveDamage, enemy.x + (Math.random() - 0.5) * 20, enemy.y, '#fca311'); // Orange for cleave
+                                        
+                                        // Create a small visual effect for the cleave hit
+                                        createExplosion(enemy.x, enemy.y, 10, '#fca311', 2, 4);
+                                    }
+                                });
+                            }
+                            // --- END OF CLEAVE LOGIC ---
+
+                            SOUNDS.hit();
+                            triggerScreenShake(5);
+                            createExplosion(target.x, target.y, 20, "#fff");
+                            addFloatingText(finalDamage, target.x, target.y, isCrit ? "#ff4d4d" : "#ffd700");
+                        }
+                    }
+                    
+                    // --- THIS LOGIC IS NOW CORRECTLY PLACED ---
+                    if (weapon.statusEffect && Math.random() < weapon.statusEffect.chance) {
+                        // It's safer to just re-find the target here for status effects
+                        const targetForStatus = findClosestEnemy(0); 
+                        if(targetForStatus) {
+                            if (!targetForStatus.statusEffects) targetForStatus.statusEffects = [];
+                            const existingEffect = targetForStatus.statusEffects.find(e => e.type === weapon.statusEffect.type);
+                            if (existingEffect) {
+                                existingEffect.duration = weapon.statusEffect.duration;
+                            } else {
+                                targetForStatus.statusEffects.push({ ...weapon.statusEffect });
+                            }
+                        }
+                    }
+
+                // --- THIS "else if" is now in the correct place ---
+                } else if (player.weaponVisual.animState === 'firing') {
+                    if (player.inventory.weapon.type === 'sword' || player.inventory.weapon.type === 'shield') {
+                        player.state = 'returning';
+                    } else {
+                        player.state = 'idle';
+                    }
+                    player.weaponVisual.animState = 'idle';
+                    player.isAttacking = false;
+                    player.weaponVisual.target = null;
+                }
+            }
+        }
+    }
+    function drawPlayerAura(context) {
+        playerAuraParticles.forEach(p => {
+            const progress = 1 - (p.life / p.maxLife); // 0 -> 1
+            const currentSize = p.startSize + (p.endSize - p.startSize) * progress;
+            const opacity = (1 - progress) * 0.5; // Fades out
+
+            context.beginPath();
+            context.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
+            context.fillStyle = `rgba(20, 20, 20, ${opacity})`;
+            context.fill();
+        });
+    }
+    
+    function drawExplorationMode() {
+        ctx = expCtx;
+        ctx.clearRect(0, 0, explorationCanvas.width, explorationCanvas.height);
+        explorationBackgroundStars.forEach(star => { 
+            ctx.beginPath(); ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); 
+            ctx.fillStyle = `rgba(255, 255, 255, ${star.speed / 200})`; ctx.fill(); 
+        });
+        
+        drawPlayerAura(expCtx);
+        drawPlayer();
+        drawEnemies();
+        drawEffects(expCtx); 
+        drawSkillVisuals();
+        
+        ctx = document.getElementById('game-canvas').getContext('2d'); 
+    }
+    
+    function draw() {
+        if (!worldScreen.classList.contains('hidden')) {
+            drawWorldMode(); 
+        } else if (!explorationContainer.classList.contains('hidden')) {
+            drawExplorationMode();
+        } else if (!gameContainer.classList.contains('hidden')) {
+            drawBackground();
+            ctx.save();
+            if (shakeDuration > 0) { ctx.translate(Math.random() * 6 - 3, Math.random() * 6 - 3); shakeDuration-- }
+            
+            if (gameState === 'COMBAT' || gameState === 'ENDING_COMBAT' || gameState === 'COUNTDOWN') {
+                drawPlayerAura(ctx);
+                drawPlayer(); 
+                drawEnemies(); 
+                drawHealthOrbs(); 
+                drawEffects(ctx);
+                drawSkillVisuals();
+            }
+
+            if (gameState === 'COUNTDOWN') drawCountdown();
+            ctx.restore();
+            drawHud();
+
+            if (gameState === 'COMBAT' || gameState === 'ENDING_COMBAT' || gameState === 'COUNTDOWN') {
+                drawBossHealthBar(); 
+                drawPlayerHudBars();
+            }
+            drawUiParticles();
+        }
+    }
+
+    function initializeBootSequence() {
+        if (window.Capacitor && Capacitor.isNativePlatform()) {
+            Capacitor.Plugins.SplashScreen.hide();
+        }
+        let progress = 0;
+        const loadingTime = 2500;
+        const intervalTime = 25;
+        const progressIncrement = 100 / (loadingTime / intervalTime);
+
+        const bootInterval = setInterval(() => {
+            progress += progressIncrement;
+            bootProgressBar.style.width = Math.min(progress, 100) + '%';
+            
+            if (progress >= 100) {
+                clearInterval(bootInterval);
+                setTimeout(() => startGameButton.classList.add('visible'), 300);
+            }
+        }, intervalTime);
+    }
+
+    let mapBackgroundCanvas, gl, mapProgram, mapStartTime;
+    const mapVertexShaderSource = `attribute vec4 a_position; void main() { gl_Position = a_position; }`;
+    const mapFragmentShaderSource = `precision mediump float; uniform vec2 u_resolution; uniform float u_time; void main() { vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y; float t = u_time * 0.1; vec2 p = uv * 3.0 + vec2(t, t); float noise = 0.5 + 0.5 * sin(p.x * 10.0 + sin(p.y * 10.0 + t)); vec3 color1 = vec3(0.05, 0.1, 0.2); vec3 color2 = vec3(0.1, 0.2, 0.4); vec3 finalColor = mix(color1, color2, noise); gl_FragColor = vec4(finalColor, 1.0); }`;
+    
+    function initMapBackground() {
+        mapBackgroundCanvas = document.getElementById('map-background-canvas');
+        gl = mapBackgroundCanvas.getContext('webgl');
+        if (!gl) {
+            console.error("WebGL not supported, falling back to CSS background.");
+            document.getElementById('map-screen').style.backgroundImage = 'radial-gradient(circle at 50% 30%, #1a5c69, #0f343d 50%, #031018 85%)';
+            return;
+        }
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type); gl.shaderSource(shader, source); gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader)); gl.deleteShader(shader); return null; }
+            return shader;
+        }
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, mapVertexShaderSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, mapFragmentShaderSource);
+        mapProgram = gl.createProgram();
+        gl.attachShader(mapProgram, vertexShader); gl.attachShader(mapProgram, fragmentShader); gl.linkProgram(mapProgram);
+        if (!gl.getProgramParameter(mapProgram, gl.LINK_STATUS)) { console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(mapProgram)); return; }
+        const positionBuffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        const positions = [-1, -1, 1, -1, -1, 1, 1, 1];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+        mapStartTime = Date.now();
+    }
+    
+    function renderMapBackground() {
+        if (!gl || !mapProgram) return;
+        const canvas = gl.canvas;
+        const displayWidth  = canvas.clientWidth; const displayHeight = canvas.clientHeight;
+        if (canvas.width  !== displayWidth || canvas.height !== displayHeight) {
+            canvas.width  = displayWidth; canvas.height = displayHeight;
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        }
+        gl.useProgram(mapProgram);
+        const positionAttributeLocation = gl.getAttribLocation(mapProgram, 'a_position');
+        gl.enableVertexAttribArray(positionAttributeLocation); gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+        const resolutionUniformLocation = gl.getUniformLocation(mapProgram, 'u_resolution');
+        gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
+        const timeUniformLocation = gl.getUniformLocation(mapProgram, 'u_time');
+        const currentTime = (Date.now() - mapStartTime) * 0.001;
+        gl.uniform1f(timeUniformLocation, currentTime);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    
+    const originalDraw = draw;
+    draw = function() {
+        if (!mapScreen.classList.contains('hidden')) renderMapBackground();
+        originalDraw();
+    }
+    
+    // --- APP INITIALIZATION ---
+    const initApp = () => {
+        // --- THIS IS THE FIX: Assign all DOM variables now ---
+        inventoryModal = document.getElementById('inventory-modal');
+        inventoryButton = document.getElementById('inventory-button');
+        inventoryCloseButton = document.getElementById('inventory-close-button');
+        tabButtons = { weapons: document.getElementById('weapons-tab-btn'), stones: document.getElementById('stones-tab-btn'), souls: document.getElementById('souls-tab-btn') };
+        panels = { weapons: document.getElementById('weapons-panel'), stones: document.getElementById('stones-panel'), souls: document.getElementById('souls-panel') };
+        bootScreen = document.getElementById('boot-screen');
+        bootProgressBar = document.getElementById('boot-progress-bar');
+        startGameButton = document.getElementById('start-game-button');
+        mainScreen = document.getElementById('main-screen');
+        playerUpgradeScreen = document.getElementById('player-upgrade-screen');
+        mapScreen = document.getElementById('map-screen');
+        gameContainer = document.getElementById('game-container');
+        explorationContainer = document.getElementById('exploration-container');
+        detailsModal = document.getElementById('details-modal');
+        lockedModal = document.getElementById('locked-modal');
+        worldScreen = document.getElementById('world-screen');
+        worldPlayerHealthBar = document.getElementById('world-player-health-bar');
+        worldPlayerHealthFill = document.getElementById('world-player-health-fill');
+        worldPlayerHealthText = document.getElementById('world-player-health-text');
+        topBarContainer = document.getElementById('top-bar-container');
+        playerInfoBar = document.getElementById('player-info-bar');
+        playerLevelBadgeUI = document.getElementById('player-level-badge');
+        xpBarFillUI = document.getElementById('xp-bar-fill');
+        xpTextUI = document.getElementById('xp-text');
+        playerGoldTotalUI = document.getElementById('player-gold-total');
+        playerRubiesTotalUI = document.getElementById('player-rubies-total');
+        playerEnergyTotalUI = document.getElementById('player-energy-total');
+        worldStatsContainer = document.getElementById('world-stats-container');
+        worldXpTotalUI = document.getElementById('world-xp-total');
+        worldSoulsTotalUI = document.getElementById('world-souls-total');
+        worldComboDisplay = document.getElementById('world-combo-display');
+        canvas = document.getElementById('game-canvas');
+        ctx = canvas.getContext('2d');
+        uiCanvas = document.getElementById('ui-canvas');
+        uiCtx = uiCanvas.getContext('2d');
+        explorationCanvas = document.getElementById('exploration-canvas');
+        expCtx = explorationCanvas.getContext('2d');
+        worldCanvas = document.getElementById('world-canvas');
+        worldCtx = worldCanvas.getContext('2d');
+        worldBgTexture = document.getElementById('world-bg-texture'); 
+        treeSprite = document.getElementById('tree-sprite');
+        chestSprite = document.getElementById('chest-sprite');
+        canvas.width = uiCanvas.width = explorationCanvas.width = worldCanvas.width = 450;
+        canvas.height = uiCanvas.height = explorationCanvas.height = worldCanvas.height = 800;
+        dom = { shop:document.getElementById('shop-screen'), gameOver:document.getElementById('game-over-screen'), playerStats:document.getElementById('player-screen'), proceedBtn:document.getElementById('proceed-button'), retryBtn:document.getElementById('retry-button'), statsBtn:document.getElementById('player-stats-button'), backBtn:document.getElementById('player-screen-back-button'), battleBanner:document.getElementById('battle-event-banner'), goldDisplay:document.getElementById('gold-total'), upgradeBtns:{attack:document.getElementById('upgrade-attack-button'),health:document.getElementById('upgrade-health-button'),rage:document.getElementById('upgrade-rage-button'),regen:document.getElementById('upgrade-regen-button')}, ultBtn:document.getElementById('ult-button'), autoBtn:document.getElementById('auto-battle-button') };
+
+        // --- Now add event listeners ---
+        backgroundMusic = document.getElementById('bg-music');
+        resizeGame();
+        window.addEventListener('resize', resizeGame);
+        
+        document.getElementById('dungeons-button').onclick = () => showScreen('map');
+        document.getElementById('station-button').onclick = () => showScreen('player-upgrade');
+        document.getElementById('exploration-button').onclick = () => showScreen('exploration');
+        document.getElementById('map-back-button').onclick = () => showScreen('main');
+        document.getElementById('upgrade-screen-back-button').onclick = () => showScreen('main');
+        document.getElementById('exploration-exit-button').onclick = () => { saveGame(); showScreen('main'); };
+        document.getElementById('global-reset-button').onclick = resetGame;
+        document.getElementById('upgrade-screen-attack-button').onclick = () => buyUpgrade('attackPower', true);
+        document.getElementById('upgrade-screen-health-button').onclick = () => buyUpgrade('maxHp', true);
+        document.getElementById('upgrade-screen-rage-button').onclick = () => buyUpgrade('rageGain', true);
+        document.getElementById('upgrade-screen-regen-button').onclick = () => buyUpgrade('healthRegen', true);
+        dom.proceedBtn.onclick = () => { if (currentDungeon) { currentDungeon = null; showScreen('map'); } else { currentStage++; changeState('COUNTDOWN'); } };
+        dom.retryBtn.onclick = () => {if(currentDungeon) {currentDungeon = null; showScreen('map');} else {player.hp=player.stats.maxHp.current;changeState('SHOP');}};
+        dom.statsBtn.onclick=()=>changeState('PLAYER_STATS');
+        dom.backBtn.onclick=()=>changeState('SHOP');
+        dom.upgradeBtns.attack.onclick=()=>buyUpgrade('attackPower');
+        dom.upgradeBtns.health.onclick=()=>buyUpgrade('maxHp');
+        dom.upgradeBtns.rage.onclick=()=>buyUpgrade('rageGain');
+        dom.upgradeBtns.regen.onclick=()=>buyUpgrade('healthRegen');
+        dom.autoBtn.onclick=()=>{isAutoBattle=!isAutoBattle;dom.autoBtn.classList.toggle('active',isAutoBattle);};
+        dom.ultBtn.onclick=()=>{
+            if(gameState!=='COMBAT'||player.rage<100)return;
+            player.rage=0;SOUNDS.ultimate();showBattleBanner('RAGE BURST!','ultimate-banner',1500);
+            triggerScreenShake(20);
+            enemies.forEach(e=>{
+                const t = 5 * (player.inventory.weapon.power + player.stats.attackPower.current);
+                e.hp-=t; createExplosion(e.x,e.y,40,'#f72585',5,10); addFloatingText(t,e.x,e.y,'#f72585');
+            });
+        };
+        canvas.addEventListener('click',e=>{if(gameState!=='COMBAT')return;const t=canvas.getBoundingClientRect(),a=e.clientX-t.left,s=e.clientY-t.top;let n=null;enemies.forEach(e=>{Math.hypot(a-e.x,s-e.y)<e.radius&&(n=e)});isAutoBattle||playerAttack(n);healthOrbs.forEach((e,t)=>{if(Math.hypot(a-e.x,s-e.y)<e.radius){const a=Math.floor(.1*player.stats.maxHp.current);player.hp=Math.min(player.stats.maxHp.current,player.hp+a);addFloatingText(`+${a}`,player.x,player.y,'#4caf50');SOUNDS.heal();healthOrbs.splice(t,1);}});});
+        inventoryButton.onclick = showInventory;
+        inventoryCloseButton.onclick = hideInventory;
+        tabButtons.weapons.onclick = () => switchInventoryTab('weapons');
+        tabButtons.stones.onclick = () => switchInventoryTab('stones');
+        tabButtons.souls.onclick = () => switchInventoryTab('souls');
+        inventoryModal.addEventListener('click', function(event) {
+            const target = event.target;
+            if (target.classList.contains('forge-stone-btn')) { forgeStones(target.dataset.type, target.dataset.tier); }
+            if (target.classList.contains('forge-weapon-btn')) { if (confirm(`Forge a new T${target.dataset.tier} weapon? This will consume the stone and replace your current weapon.`)) { forgeNewWeapon(target.dataset.type, target.dataset.tier); } }
+            if (target.classList.contains('refine-weapon-btn')) { refineWeapon(); }
+        });
+        document.getElementById('refill-energy-button').onclick = () => {
+            const energyRefillCost = 50000;
+            if (player.gold < energyRefillCost || player.energy >= player.maxEnergy) { return; }
+            SOUNDS.upgrade();
+            player.gold -= energyRefillCost;
+            player.energy = Math.min(player.maxEnergy, player.energy + 50);
+            player.lastEnergyUpdateTime = Date.now();
+            saveGame();
+            updatePlayerUpgradeScreenUI();
+            updatePlayerXpBar();
+        };
+
+        // --- Final startup calls ---
+        initGame(false, true);
+        initializeBootSequence();
+        initMapBackground();
+        requestAnimationFrame(gameLoop);
+        setInterval(updateEnergyReplenishment, 1000);
+
+        setInterval(() => { if (isAppInitialized) { saveGame(); } }, 15000);
+
+        setInterval(() => {
+            if (!player || mainScreen.classList.contains('hidden')) return;
+            const now = Date.now();
+            const lastCollect = player.lastOfflineRewardCollectTime || now;
+            let elapsedSeconds = (now - lastCollect) / 1000;
+            const MAX_SECONDS = 24 * 60 * 60;
+            elapsedSeconds = Math.min(elapsedSeconds, MAX_SECONDS);
+            document.getElementById('offline-timer-display').textContent = formatTimerDisplay(elapsedSeconds);
+        }, 1000);
+
+        const awayRewardsModal = document.getElementById('away-rewards-modal');
+        const awayRewardsList = document.getElementById('away-rewards-list');
+        const awayTimeInfo = document.getElementById('away-time-info');
+        const claimAwayRewardsBtn = document.getElementById('claim-away-rewards-button');
+        const closeAwayRewardsBtn = document.getElementById('close-away-rewards-btn');
+        
+        document.getElementById('collect-offline-rewards-btn').addEventListener('click', () => {
+            if (!player) return;
+            const now = Date.now();
+            const lastCollect = player.lastOfflineRewardCollectTime || now;
+            let elapsedSeconds = (now - lastCollect) / 1000;
+            if (elapsedSeconds < 1) return;
+            const MAX_SECONDS = 24 * 60 * 60;
+            const clampedSeconds = Math.min(elapsedSeconds, MAX_SECONDS);
+            const KILLS_PER_SECOND = 1 / 5;
+            const totalKills = Math.floor(clampedSeconds * KILLS_PER_SECOND);
+            if (totalKills <= 0) {
+                player.lastOfflineRewardCollectTime = Date.now();
+                saveGame();
+                return;
+            }
+            const xpPerKill = Math.max(1, player.level * 2);
+            const goldPerKill = Math.max(1, player.level * 1.5);
+            const goldBonus = 1 + (player.inventory.weapon.goldBonus || 0);
+            const xpBonus = 1 + (player.inventory.weapon.xpBonus || 0);
+            const goldGained = Math.floor(totalKills * goldPerKill * goldBonus);
+            const xpGained = Math.floor(totalKills * xpPerKill * xpBonus);
+            const soulsGained = totalKills;
+            awayTimeInfo.textContent = `While you were away for ${formatTimerDisplay(clampedSeconds)}:`;
+            awayRewardsList.innerHTML = '';
+            if(goldGained > 0) awayRewardsList.innerHTML += `<li><i class="fas fa-coins icon-gold"></i>+${goldGained.toLocaleString()} Gold</li>`;
+            if(xpGained > 0) awayRewardsList.innerHTML += `<li><i class="fas fa-star icon-xp"></i>+${xpGained.toLocaleString()} XP</li>`;
+            if(soulsGained > 0) awayRewardsList.innerHTML += `<li><i class="fas fa-ghost" style="color: #a371f7;"></i>+${soulsGained.toLocaleString()} Souls</li>`;
+            awayRewardsModal.classList.add('visible');
+            claimAwayRewardsBtn.onclick = () => {
+                SOUNDS.stageClear();
+                player.gold += goldGained;
+                gainXP(xpGained);
+                player.souls.current += soulsGained;
+                checkSoulLevelUp();
+                player.lastOfflineRewardCollectTime = Date.now();
+                saveGame();
+                updatePlayerXpBar();
+                awayRewardsModal.classList.remove('visible');
+            };
+        });
+        
+        closeAwayRewardsBtn.onclick = () => awayRewardsModal.classList.remove('visible');
+
+        document.getElementById('house-button').onclick = () => showScreen('world');
+        document.getElementById('world-back-button').onclick = () => showScreen('main');
+        const worldAutoButton = document.getElementById('world-auto-button');
+        worldAutoButton.onclick = () => {
+            isWorldAutoBattle = !isWorldAutoBattle;
+            worldAutoButton.classList.toggle('active', isWorldAutoBattle);
+        };
+        worldCanvas.addEventListener('touchstart', e => { e.preventDefault(); if (!player) return; const p = player.world; const rect = worldCanvas.getBoundingClientRect(); const touch = e.touches[0]; p.touchStartX = touch.clientX - rect.left; p.touchStartY = touch.clientY - rect.top; }, { passive: false });
+        worldCanvas.addEventListener('touchmove', e => { e.preventDefault(); if (!player || player.world.touchStartX === null) return; const p = player.world; const rect = worldCanvas.getBoundingClientRect(); const touch = e.touches[0]; const currentX = touch.clientX - rect.left; const currentY = touch.clientY - rect.top; const dx = currentX - p.touchStartX; const dy = currentY - p.touchStartY; const dist = Math.hypot(dx, dy); if (dist > 5) { p.moveDx = dx / dist; p.moveDy = dy / dist; } else { p.moveDx = 0; p.moveDy = 0; } }, { passive: false });
+        const stopMovement = (e) => { e.preventDefault(); if (!player) return; player.world.touchStartX = null; player.world.touchStartY = null; player.world.moveDx = 0; player.world.moveDy = 0; };
+        worldCanvas.addEventListener('touchend', stopMovement, { passive: false });
+        worldCanvas.addEventListener('touchcancel', stopMovement, { passive: false });
+        
+        startGameButton.addEventListener('click', () => {
+            unlockAudio();
+            SOUNDS.click();
+            bootScreen.classList.add('fade-out');
+            setTimeout(() => {
+                startGame();
+                isAppInitialized = true;
+                showScreen('main');
+            }, 700);
+        });
+        
+        const handleAppStateChange = (isActive) => {
+            if (!isAppInitialized) return;
+            if (isActive) { updateEnergyReplenishment(); } 
+            else { saveGame(); }
+        };
+
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+            Capacitor.Plugins.App.addListener('appStateChange', (state) => handleAppStateChange(state.isActive));
+        } else {
+            document.addEventListener('visibilitychange', () => handleAppStateChange(document.visibilityState === 'visible'));
+        }
+    };
+
+    if (window.Capacitor && Capacitor.isNativePlatform()) {
+        document.addEventListener('deviceready', initApp, false);
+    } else {
+        document.addEventListener('DOMContentLoaded', initApp, false);
+    }
+</script>
+</body>
+</html>
