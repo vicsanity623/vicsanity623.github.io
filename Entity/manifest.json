@@ -1,7 +1,7 @@
 {
-  "name": "Ecosystem Evolution Simulation",
-  "short_name": "EvoSim",
-  "description": "An interactive, browser-based simulation of ecosystem evolution with creatures driven by neural networks and social behaviors.",
+  "name": "mini-WoW-2D Adventure RPG",
+  "short_name": "Mini2D",
+  "description": "A straight up copy of Wow but in 2D top down style.",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#01040a",
