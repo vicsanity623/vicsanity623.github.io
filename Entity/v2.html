@@ -295,13 +295,55 @@
         .rep-bar-container { width: 120px; height: 16px; background: var(--color-bg-dark); border: 1px solid var(--color-border); }
         .rep-bar-fill { height: 100%; background-color: var(--color-health); }
 
+                /* --- NEW: Add this rule for the container --- */
+        .vendor-item-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px; /* Small gap between item and price */
+        }
+
         #vendor-content, #crafting-content { display: flex; flex-direction: column; gap: 10px; }
         .vendor-section, .crafting-section { border: 1px solid var(--color-border); padding: 8px; background: var(--color-bg-dark); }
         .vendor-section h3, .crafting-section h3 { margin: 0 0 5px 0; font-size: 1.1em; color: var(--color-text-quest); }
-        .vendor-grid, .crafting-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 5px; }
+        
+        /* FIX: Adjusted vendor grid to better space the new containers */
+        .vendor-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
+            gap: 10px; 
+            row-gap: 15px; /* More vertical space for the price below */
+        }
+        .crafting-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); 
+            gap: 5px; 
+        }
+
         .vendor-item-slot, .crafting-recipe-slot { width: 60px; height: 60px; background: var(--color-bg-medium); border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center; font-size: 28px; position: relative; cursor: pointer; }
         .vendor-item-slot:hover, .crafting-recipe-slot:hover { border-color: white; }
-        .vendor-item-price, .crafting-recipe-cost { position: absolute; bottom: 2px; left: 2px; font-size: 10px; color: var(--color-gold); text-shadow: 1px 1px 2px black; display: flex; align-items: center; }
+        
+        /* FIX: Vendor price is no longer absolutely positioned. It sits below the slot in the flex container. */
+        .vendor-item-price {
+            font-size: 11px;
+            color: var(--color-gold);
+            text-shadow: 1px 1px 2px black;
+            display: flex;
+            align-items: center;
+        }
+
+        /* The crafting recipe cost remains inside its slot, so its style is kept separate */
+        .crafting-recipe-cost { 
+            position: absolute; 
+            bottom: 2px; 
+            left: 2px; 
+            font-size: 10px; 
+            color: var(--color-gold); 
+            text-shadow: 1px 1px 2px black; 
+            display: flex; 
+            align-items: center; 
+        }
+
         .crafting-recipe-cost.unmet { color: red; }
         .craft-button { display: block; width: calc(100% - 16px); padding: 8px; margin: 8px; background-color: var(--color-bg-light); border: 1px solid var(--color-border); color: var(--color-text); cursor: pointer; text-align: center; }
         .craft-button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -511,7 +553,7 @@ const GameData = {
     SCENERY: {
         1: { id: 1, name: 'Tall Pine', icon: '\uf1bb', size: 90, color: '#2E7D32' },
         2: { id: 2, name: 'Medium Oak', icon: '\uf1bb', size: 70, color: '#4CAF50' },
-        3: { id: 3, name: 'Small Bush', icon: '\uf553', size: 40, color: '#689F38' },
+        3: { id: 3, name: 'Small Bush', icon: '\uf5bb', size: 40, color: '#689F38' },
         4: { id: 4, name: 'Spruce', icon: '\uf1bb', size: 80, color: '#1B5E20' },
         // --- NEW SCENERY ---
         5: { id: 5, name: 'Cave Wall', icon: '\uf1b2', size: 120, color: '#4a4238' },
@@ -552,13 +594,16 @@ const GameData = {
         24: { id: 24, name: "Tin Bar", icon: "fa-cubes", slot: "material", quality: "common", stackable: true, sellPrice: 120 },
         25: { id: 25, name: "Heavy Copper Armor", icon: "fa-shirt", slot: "chest", quality: "magic", stats: { armor: 12, stamina: 2 }, durability: 100, maxDurability: 100, sellPrice: 800 },
         26: { id: 26, name: "Potion of Swiftness", icon: "fa-flask-vial", slot: "consumable", quality: "magic", stackable: true, onUse: (player) => { player.addBuff({ id: 'swiftness', name: 'Swiftness', icon: 'fa-person-running', duration: 30000, onApply: p => p.speed *= 1.3, onExpire: p => p.speed /= 1.3, isDebuff: false }); }, sellPrice: 250 },
-        27: { id: 27, name: "Pickaxe", icon: "fa-pickaxe", slot: "tool", quality: "common", stackable: false, sellPrice: 100 },
+        27: { id: 27, name: "Pickaxe", icon: "fa-person-digging", slot: "tool", quality: "common", stackable: false, sellPrice: 100 },
         
         // --- NEW BOSS LOOT ---
         28: { id: 28, name: "Grolnok's Cleaver", icon: "fa-axe-battle", slot: "main-hand", quality: "epic",
             weaponDamage: { min: 18, max: 25 }, stats: { strength: 5, critChance: 2 },
             description: "The brutal weapon of the Goblin Overlord."
         },
+        
+        // --- NEW STARTER ITEM ---
+        29: { id: 29, name: "Chair", icon: "fa-chair", slot: "material", quality: "common", stackable: true, sellPrice: 75, description: "A simple, but sturdy chair. Good for sitting, or selling." },
 
         301: { id: 301, name: "Stormwind Tabard", icon: "fa-shirt", slot: "tabard", quality: "rare", description: "A symbol of your dedication to Stormwind. Increases reputation gain with the Stormwind Guard by 10%.", requiredFaction: { name: 'Stormwind Guard', tier: 'Friendly' } },
         302: { id: 302, name: "Guard's Heavy Blade", icon: "fa-gavel", slot: "main-hand", quality: "rare", weaponDamage: { min: 10, max: 15 }, stats: { strength: 3, stamina: 3 }, requiredFaction: { name: 'Stormwind Guard', tier: 'Honored' } },
@@ -621,9 +666,9 @@ const GameData = {
         'GENERAL_VENDOR': { name: "General Goods Vendor", icon: '\uf54e', color: '#c0c0c0', interactType: 'vendor', sells: [{itemId: 5, quantity: 5, price: 50}], buys: ['consumable', 'material'] },
         
         // --- MODIFIED TRAINERS TO TEACH MULTIPLE PROFESSIONS ---
-        'WOODWORKING_TRAINER': { name: "Master Woodworker", icon: '\uf5bb', color: '#8b4513', interactType: 'crafting_trainer', professions: ['Woodworking', 'Lumberjacking'] },
+        'WOODWORKING_TRAINER': { name: "Master Woodworker", icon: '\uf6f8', color: '#8b4513', interactType: 'crafting_trainer', professions: ['Woodworking', 'Lumberjacking'] },
         'BLACKSMITHING_TRAINER': { name: "Thorin the Smith", icon: '\uf6e3', color: '#d2b48c', interactType: 'crafting_trainer', professions: ['Blacksmithing', 'Mining'] },
-        'ALCHEMIST': { name: "Alchemist Fiona", icon: '\uf70c', color: '#9932cc', interactType: 'crafting_trainer', professions: ['Alchemy', 'Herbalism'] },
+        'ALCHEMIST': { name: "Alchemist Fiona", icon: '\uf5a7', color: '#9932cc', interactType: 'crafting_trainer', professions: ['Alchemy', 'Herbalism'] },
 
         'QUARTERMASTER': { name: "Stormwind Quartermaster", icon: '\uf4f7', color: '#0070dd', interactType: 'vendor', faction: 'Stormwind Guard', sells: [
             { itemId: 301, price: 5000 },
@@ -677,13 +722,13 @@ const GameData = {
     },
     RESOURCE_NODES: {
         // Tier 1 Resources (Skill 1+)
-        'PEACEBLOOM': { name: 'Peacebloom', icon: '\uf06c', color: '#adff2f', size: 20, itemId: 6, respawnTime: 30000, requiredSkill: 'Herbalism', requiredSkillLevel: 1 },
-        'COPPER_VEIN': { name: 'Copper Vein', icon: '\uf3a5', color: '#b87333', size: 24, itemId: 7, respawnTime: 60000, requiredSkill: 'Mining', requiredSkillLevel: 1 },
-        'OAK_LOGS': { name: 'Oak Tree', icon: '\uf1bb', color: '#8b4513', size: 28, itemId: 15, respawnTime: 75000, requiredSkill: 'Lumberjacking', requiredSkillLevel: 1 },
+        'PEACEBLOOM': { name: 'Peacebloom', icon: '\uf06c', color: '#adff2f', size: 20, itemId: 6, respawnTime: 30000, requiredSkill: 'Herbalism', requiredSkillLevel: 1, gatherTime: 1500 },
+        'COPPER_VEIN': { name: 'Copper Vein', icon: '\uf3a5', color: '#b87333', size: 24, itemId: 7, respawnTime: 60000, requiredSkill: 'Mining', requiredSkillLevel: 1, gatherTime: 2500 },
+        'OAK_LOGS': { name: 'Oak Tree', icon: '\uf1bb', color: '#8b4513', size: 28, itemId: 15, respawnTime: 75000, requiredSkill: 'Lumberjacking', requiredSkillLevel: 1, gatherTime: 3000 },
         
         // Tier 2 Resources (Skill 20+)
-        'SILVERLEAF': { name: 'Silverleaf', icon: '\uf4d8', color: '#c0c0c0', size: 22, itemId: 13, respawnTime: 45000, requiredSkill: 'Herbalism', requiredSkillLevel: 20 },
-        'TIN_VEIN': { name: 'Tin Vein', icon: '\uf3a5', color: '#a9a9a9', size: 26, itemId: 14, respawnTime: 90000, requiredSkill: 'Mining', requiredSkillLevel: 20 },
+        'SILVERLEAF': { name: 'Silverleaf', icon: '\uf4d8', color: '#c0c0c0', size: 22, itemId: 13, respawnTime: 45000, requiredSkill: 'Herbalism', requiredSkillLevel: 20, gatherTime: 1500 },
+        'TIN_VEIN': { name: 'Tin Vein', icon: '\uf3a5', color: '#a9a9a9', size: 26, itemId: 14, respawnTime: 90000, requiredSkill: 'Mining', requiredSkillLevel: 20, gatherTime: 4000 },
     },
     CRAFTING_RECIPES: {
         'wooden_staff': { id: 'wooden_staff', name: 'Rough Wooden Staff', icon: 'fa-staff-snake', itemId: 8, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000 },
@@ -696,16 +741,25 @@ const GameData = {
         'copper_mace': { id: 'copper_mace', name: 'Copper Mace', icon: 'fa-gavel', itemId: 21, profession: 'Blacksmithing', skillRequired: 10, materials: [{itemId: 18, quantity: 7}], time: 6000 },
         'minor_mana_potion': { id: 'minor_mana_potion', name: 'Minor Mana Potion', icon: 'fa-flask-vial', itemId: 22, profession: 'Alchemy', skillRequired: 10, materials: [{itemId: 6, quantity: 1}, {itemId: 12, quantity: 1}], time: 3000 },
         'reinforced_buckler': { id: 'reinforced_buckler', name: 'Reinforced Wooden Buckler', icon: 'fa-shield-halved', itemId: 23, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 10}, {itemId: 18, quantity: 1}], time: 7000 },
-        'pickaxe': { id: 'pickaxe', name: 'Pickaxe', icon: 'fa-pickaxe', itemId: 27, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000 },
-        // --- NEW TIER 2 RECIPES ---
+        
+        // --- FIX: Added the 'fa-pickaxe' icon to this recipe ---
+        'pickaxe': { id: 'pickaxe', name: 'Pickaxe', icon: 'fa-person-digging', itemId: 27, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000 },
+        
+        'chair': { id: 'chair', name: 'Chair', icon: 'fa-chair', itemId: 29, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 1}], time: 2000 },
+
         'tin_bar': { id: 'tin_bar', name: 'Tin Bar', icon: 'fa-cubes', itemId: 24, profession: 'Blacksmithing', skillRequired: 20, materials: [{itemId: 14, quantity: 2}], time: 2500 },
         'heavy_copper_armor': { id: 'heavy_copper_armor', name: 'Heavy Copper Armor', icon: 'fa-shirt', itemId: 25, profession: 'Blacksmithing', skillRequired: 25, materials: [{itemId: 18, quantity: 10}, {itemId: 24, quantity: 2}], time: 8000 },
         'potion_of_swiftness': { id: 'potion_of_swiftness', name: 'Potion of Swiftness', icon: 'fa-flask-vial', itemId: 26, profession: 'Alchemy', skillRequired: 20, materials: [{itemId: 13, quantity: 3}], time: 4000 },
     },
     SKILL_RECIPE_UNLOCKS: {
-        'Lumberjacking': [
+        // FIX: Lumberjacking no longer unlocks the pickaxe. We leave an empty array for future recipes.
+        'Lumberjacking': [], 
+        'Woodworking': [
+            { level: 1, recipeId: 'chair' },
+            // FIX: The Pickaxe is now unlocked at Woodworking level 2, which is much more intuitive.
             { level: 2, recipeId: 'pickaxe' }
-        ]},
+        ]
+    },
     PROFESSIONS: {
         'Herbalism': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 100 },
         'Mining': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 100 },
@@ -715,20 +769,21 @@ const GameData = {
         'Blacksmithing': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 50 },
         'Alchemy': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 50 },
     },
-        REGIONS: [
+    REGIONS: [
         {
             id: 'starting_zone', name: 'Whispering Woods', x: 20000, y: 20000, width: 60000, height: 60000,
             isRestZone: true,
             bgColor: "#182c18",
-            sceneryPatches: [ { type: [1, 2, 3, 4], density: 250, patchCenter: {x: 50000, y: 50000}, patchRadius: 10000 } ],
+            // --- FIX: Density tripled from 250 to 750 ---
+            sceneryPatches: [ { type: [1, 2, 3, 4], density: 750, patchCenter: {x: 50000, y: 50000}, patchRadius: 10000 } ],
             enemyPacks: [
                 { type: 'SPIDER', count: 25, packCenter: {x: 45000, y: 45000}, packRadius: 2000 },
                 { type: 'WOLF', count: 15, packCenter: {x: 55000, y: 55000}, packRadius: 1500 },
             ],
             resourcePatches: [
-                { type: 'PEACEBLOOM', count: 80, patchCenter: {x: 52000, y: 51000}, patchRadius: 4000 },
-                { type: 'COPPER_VEIN', count: 70, patchCenter: {x: 48000, y: 54000}, patchRadius: 3500 },
-                { type: 'OAK_LOGS', count: 60, patchCenter: {x: 55000, y: 48000}, patchRadius: 4500 },
+                { type: 'PEACEBLOOM', count: 160, patchCenter: {x: 52000, y: 51000}, patchRadius: 4000 },
+                { type: 'COPPER_VEIN', count: 140, patchCenter: {x: 48000, y: 54000}, patchRadius: 3500 },
+                { type: 'OAK_LOGS', count: 120, patchCenter: {x: 55000, y: 48000}, patchRadius: 4500 },
             ],
             npcs: [
                 { type: 'QuestGiver', name: "Old Man Willow", x: 50000, y: 49500, questIds: [1, 2, 3] },
@@ -754,12 +809,12 @@ const GameData = {
                 { type: 'GOBLIN_STALKER', count: 10, packCenter: {x: 83000, y: 60000}, packRadius: 3000 },
             ],
             resourcePatches: [ 
-                { type: 'TIN_VEIN', count: 60, patchCenter: {x: 87000, y: 55000}, patchRadius: 8000 },
-                { type: 'SILVERLEAF', count: 40, patchCenter: {x: 84000, y: 48000}, patchRadius: 6000 },
+                { type: 'TIN_VEIN', count: 120, patchCenter: {x: 87000, y: 55000}, patchRadius: 8000 }, // DOUBLED from 60
+                { type: 'SILVERLEAF', count: 80, patchCenter: {x: 84000, y: 48000}, patchRadius: 6000 }, // DOUBLED from 40
             ],
             npcs: [
                 { type: 'Portal', name: "Back to Town", x: 87000, y: 44900, target: { x: 50600, y: 50600 } },
-                { type: 'DungeonEntrance', name: "Goblin Cave", x: 87100, y: 45000, target: { x: 80500, y: 84500 } } // Adjusted entry point
+                { type: 'DungeonEntrance', name: "Goblin Cave", x: 87100, y: 45000, target: { x: 80500, y: 84500 } }
             ]
         },
         {
@@ -771,7 +826,7 @@ const GameData = {
                 { type: 'DARK_CASTER', count: 5, packCenter: {x: 88000, y: 15000}, packRadius: 1000 },
             ],
             resourcePatches: [ 
-                { type: 'COPPER_VEIN', count: 40, patchCenter: {x: 82000, y: 18000}, patchRadius: 4000 },
+                { type: 'COPPER_VEIN', count: 80, patchCenter: {x: 82000, y: 18000}, patchRadius: 4000 }, // DOUBLED from 40
             ],
             npcs: []
         },
@@ -781,28 +836,26 @@ const GameData = {
             bgColor: "#3b302c",
             sceneryPatches: [ { type: [5], density: 50, patchCenter: {x: 82500, y: 82500}, patchRadius: 2500 } ],
             enemyPacks: [
-                // Guards patrol the main cave area
                 { type: 'GOBLIN_GUARD', count: 8, packCenter: {x: 82500, y: 82500}, packRadius: 2000 },
-                // --- FIX: Moved the boss to a distinct, safe spawn point within the cave bounds ---
                 { type: 'GOBLIN_BOSS', count: 1, packCenter: {x: 84000, y: 81000}, packRadius: 100 },
             ],
             npcs: [
-                { type: 'DungeonEntrance', name: "Exit Cave", x: 80500, y: 84500, isExit: true } // Adjusted exit point
+                { type: 'DungeonEntrance', name: "Exit Cave", x: 80500, y: 84500, isExit: true }
             ]
         }
     ],
     // --- NEW CRAFTING STATIONS ---
     CRAFTING_STATIONS: {
         'WOODWORKING_BENCH': {
-            name: 'Woodworking Bench', icon: '\uf6e2', color: '#8B4513',
-            recipes: ['wooden_staff', 'wooden_shield', 'reinforced_staff', 'oak_shield', 'pickaxe'] // Added 'pickaxe'
+            name: 'Woodworking Bench', icon: '\uf6e3', color: '#8B4513',
+            recipes: ['chair', 'wooden_staff', 'wooden_shield', 'reinforced_staff', 'oak_shield', 'pickaxe']
         },
         'FORGE': {
             name: 'Forge', icon: '\uf6e3', color: '#d2691e',
             recipes: ['copper_bar', 'copper_shortsword', 'tin_bar', 'heavy_copper_armor']
         },
         'ALCHEMY_TABLE': {
-            name: 'Alchemy Table', icon: '\uf70c', color: '#9932cc',
+            name: 'Alchemy Table', icon: '\uf5a7', color: '#9932cc',
             recipes: ['weak_trolls_blood', 'minor_mana_potion', 'potion_of_swiftness']
         }
     },
@@ -864,7 +917,6 @@ class Game {
                     } else if (npc.type === 'DungeonEntrance') {
                         npcEntity = new DungeonEntrance(npc.x, npc.y, npc.name, npc.target, npc.isExit);
                     } 
-                    // --- ADD THIS CHECK ---
                     else if (npc.type === 'Portal') {
                         npcEntity = new Portal(npc.x, npc.y, npc.name, npc.target);
                     }
@@ -886,7 +938,7 @@ class Game {
                 regionData.resourcePatches.forEach(patch => {
                     for (let i = 0; i < patch.count; i++) {
                         const x = patch.patchCenter.x + (Math.random() - 0.5) * 2 * patch.patchRadius;
-                        const y = patch.patchCenter.y + (Math.random() - 0.5) * 2 * patch.packRadius;
+                        const y = patch.patchCenter.y + (Math.random() - 0.5) * 2 * patch.patchRadius;
                         this.entities.push(new ResourceNode(x, y, GameData.RESOURCE_NODES[patch.type]));
                     }
                 });
@@ -898,9 +950,20 @@ class Game {
                         const x = patch.patchCenter.x + (Math.random() - 0.5) * 2 * patch.patchRadius;
                         const y = patch.patchCenter.y + (Math.random() - 0.5) * 2 * patch.patchRadius;
                         const randomSceneryId = patch.type[Math.floor(Math.random() * patch.type.length)];
-                        const sceneryType = GameData.SCENERY[randomSceneryId];
-                        if (sceneryType) {
-                            this.entities.push(new Scenery(x, y, sceneryType));
+                        const baseSceneryType = GameData.SCENERY[randomSceneryId];
+                        
+                        // --- FIX: Logic to randomize tree height ---
+                        if (baseSceneryType) {
+                            // Create a copy so we don't modify the original GameData object
+                            const sceneryInstanceData = { ...baseSceneryType };
+
+                            // Only randomize the size for non-bushes (bush is ID 3)
+                            if (sceneryInstanceData.id !== 3) {
+                                const sizeMultiplier = 0.8 + Math.random() * 0.4; // Random size from 80% to 120%
+                                sceneryInstanceData.size = Math.round(sceneryInstanceData.size * sizeMultiplier);
+                            }
+                            
+                            this.entities.push(new Scenery(x, y, sceneryInstanceData));
                         }
                     }
                 });
@@ -933,7 +996,7 @@ class Game {
 
         if (this.input.mouse.clicked && !this.player.isAutoQuesting && !this.player.isGhost) {
             let clickedOnSomething = false; const clickWorldPos = { x: this.input.mouse.x + this.camera.x, y: this.input.mouse.y + this.camera.y };
-            const sortedEntities = [...this.entities].sort((a, b) => b.y - a.y); // Sort descending for click detection
+            const sortedEntities = [...this.entities].sort((a, b) => b.y - a.y);
             for (const entity of sortedEntities) {
                 if (entity !== this.player && distance(clickWorldPos, entity) < entity.size / 2) {
                     if (entity.isInteractable && distance(this.player, entity) < 100) { entity.interact(this.player); this.player.setTarget(entity); } else if (entity instanceof Enemy) { this.player.setTarget(entity); }
@@ -944,6 +1007,20 @@ class Game {
             this.input.mouse.clicked = false;
         }
         
+        // --- NEW: Handle hovering over resource nodes ---
+        const mouseWorldPos = { x: this.input.mouse.x + this.camera.x, y: this.input.mouse.y + this.camera.y };
+        let nodeHovered = false;
+        this.entities.forEach(entity => {
+            if (entity instanceof ResourceNode) {
+                if (!nodeHovered && distance(mouseWorldPos, entity) < entity.size / 2) {
+                    entity.isHovered = true;
+                    nodeHovered = true;
+                } else {
+                    entity.isHovered = false;
+                }
+            }
+        });
+
         this.player.update(deltaTime, this.world, this.entities);
         this.entities.forEach(entity => entity.update(deltaTime, this.world, this.entities, this.player));
 
@@ -1216,11 +1293,73 @@ class Player extends Character {
         this.isAutoQuesting = false; this.autoQuest = null; this.autoMoveTarget = null;
         this.questCooldowns = {};
 
+        // --- NEW: GATHERING STATE ---
+        this.isGathering = false;
+        this.gatheringTimer = 0;
+        this.gatheringTotalTime = 0;
+        this.gatheringTargetNode = null;
+
         this.addItem(1, 1); this.addItem(5, 3);
         this.recalculateStats();
         this.stats.health = this.stats.maxHealth;
         this.stats.mana = this.stats.maxMana;
     }
+
+    startGathering(node) {
+        if (this.isGathering || this.inCombatTimer > 0) return;
+        this.isGathering = true;
+        this.gatheringTargetNode = node;
+        this.gatheringTimer = 0;
+        this.gatheringTotalTime = node.type.gatherTime || 2000;
+        game.createFloatingText(`Gathering ${node.type.name}...`, this.x, this.y, 'white');
+    }
+
+    cancelGathering() {
+        if (!this.isGathering) return;
+        this.isGathering = false;
+        this.gatheringTimer = 0;
+        this.gatheringTotalTime = 0;
+        this.gatheringTargetNode = null;
+        game.createFloatingText("Gathering Interrupted", this.x, this.y, 'red');
+    }
+
+        completeGathering() {
+        if (!this.gatheringTargetNode) {
+            this.cancelGathering();
+            return;
+        }
+        const node = this.gatheringTargetNode;
+
+        node.depleted = true;
+        node.icon = '\uf2d3';
+        node.color = '#555';
+        
+        game.createFloatingText(`+1 ${node.type.name}`, this.x, this.y - 20, 'white');
+        this.gainProfessionXp(node.type.requiredSkill, 5, -40);
+        this.addXp(10, -60);
+        
+        this.addItem(node.type.itemId, 1);
+        
+        // --- NEW: Logic to learn Smelting upon first Copper gather ---
+        // GameData.ITEMS[7] is Copper Ore.
+        if (node.type.itemId === 7) {
+            this.addRecipe('copper_bar');
+        }
+
+        game.ui.updateInventory(this);
+        
+        setTimeout(() => {
+            node.depleted = false;
+            node.icon = node.type.icon;
+            node.color = node.type.color;
+        }, node.type.respawnTime);
+
+        this.isGathering = false;
+        this.gatheringTimer = 0;
+        this.gatheringTotalTime = 0;
+        this.gatheringTargetNode = null;
+    }
+
     autoSlotAbilities() {
         let nextSlot = 1; 
         this.spellbook.forEach(ability => {
@@ -1233,9 +1372,18 @@ class Player extends Character {
             }
         });
     }
+
     update(deltaTime) {
         super.update(deltaTime); 
         if (this.isDead && !this.isGhost) return;
+
+        if (this.isGathering) {
+            this.gatheringTimer += deltaTime;
+            if (this.gatheringTimer >= this.gatheringTotalTime) {
+                this.completeGathering();
+            }
+            return; 
+        }
 
         for (const id in this.cooldowns) { this.cooldowns[id] -= deltaTime; if (this.cooldowns[id] <= 0) delete this.cooldowns[id]; }
         for (const id in this.questCooldowns) { this.questCooldowns[id] -= deltaTime; if (this.questCooldowns[id] <= 0) delete this.questCooldowns[id]; }
@@ -1245,7 +1393,6 @@ class Player extends Character {
 
         this.updateAutoQuest(); 
 
-        // --- NEW: Find the current region BEFORE movement calculation ---
         const currentRegion = game.world.regions.find(r =>
             this.x >= r.x && this.x < r.x + r.width &&
             this.y >= r.y && this.y < r.y + r.height
@@ -1268,32 +1415,25 @@ class Player extends Character {
         }
         const isMoving = moveVector.x !== 0 || moveVector.y !== 0;
 
-        if (isMoving && currentRegion) { // Only move if we are in a valid region
-            let finalX = moveVector.x;
-            let finalY = moveVector.y;
-            if (finalX !== 0 && finalY !== 0) { 
-                finalX *= 0.7071;
-                finalY *= 0.7071;
+        if (isMoving) {
+            if (this.isGathering) {
+                this.cancelGathering();
             }
-            const currentSpeed = this.speed * (this.isGhost ? 1.5 : 1) * (deltaTime / 16.67);
-            
-            // --- NEW: Region Boundary Logic ---
-            // Calculate the potential new position
-            const newX = this.x + finalX * currentSpeed;
-            const newY = this.y + finalY * currentSpeed;
-
-            // Check if the new position is within the bounds of the current region
-            if (
-                newX > currentRegion.x &&
-                newX < currentRegion.x + currentRegion.width &&
-                newY > currentRegion.y &&
-                newY < currentRegion.y + currentRegion.height
-            ) {
-                // If it is, update the player's position
-                this.x = newX;
-                this.y = newY;
+            if (currentRegion) {
+                let finalX = moveVector.x;
+                let finalY = moveVector.y;
+                if (finalX !== 0 && finalY !== 0) { 
+                    finalX *= 0.7071;
+                    finalY *= 0.7071;
+                }
+                const currentSpeed = this.speed * (this.isGhost ? 1.5 : 1) * (deltaTime / 16.67);
+                const newX = this.x + finalX * currentSpeed;
+                const newY = this.y + finalY * currentSpeed;
+                if ( newX > currentRegion.x && newX < currentRegion.x + currentRegion.width && newY > currentRegion.y && newY < currentRegion.y + currentRegion.height ) {
+                    this.x = newX;
+                    this.y = newY;
+                }
             }
-            // --- The old world boundary check is no longer needed and has been removed ---
         }
 
         if (this.isGhost) {
@@ -1331,8 +1471,10 @@ class Player extends Character {
             this.restedXp = Math.min(this.restedXp, this.nextLevelXp * 1.5);
         }
     }
+    
     toggleAutoQuest(quest) { if (!quest) return; if (this.isAutoQuesting && this.autoQuest && this.autoQuest.id === quest.id) { this.isAutoQuesting = false; this.autoQuest = null; this.autoMoveTarget = null; this.setTarget(null); } else { if(this.isAutoQuesting) this.toggleAutoQuest(this.autoQuest); this.isAutoQuesting = true; this.autoQuest = quest; this.autoMoveTarget = null; } game.ui.updateQuestLog(this); }
     getBestAbilityRange() { let maxRange = 40; this.hotbar.forEach(slot => { if (slot && slot.type === 'ability' && slot.ref.range > maxRange) { maxRange = slot.ref.range; } }); return maxRange * 0.9; }
+    
     updateAutoQuest() {
         if (!this.isAutoQuesting || !this.autoQuest || this.isGhost) return;
         const isQuestComplete = this.autoQuest.progress.every(p => p.current >= p.count);
@@ -1351,9 +1493,19 @@ class Player extends Character {
             }
         }
     }
-    takeDamage(amount, type, source) { super.takeDamage(amount, type, source); if (!this.isDead) { this.inCombatTimer = 8000; this.fiveSecondRuleTimer = 500; } }
+
+    takeDamage(amount, type, source) { 
+        if (this.isGathering) this.cancelGathering();
+        super.takeDamage(amount, type, source); 
+        if (!this.isDead) { 
+            this.inCombatTimer = 8000; 
+            this.fiveSecondRuleTimer = 500; 
+        } 
+    }
+
     die(killer) { if (this.isDead) return; super.die(killer); if (this.isAutoQuesting) { this.toggleAutoQuest(this.autoQuest); } game.ui.showDeathScreen(); Object.values(this.equipment).forEach(item => { if (item) item.durability = Math.max(0, item.durability - 10); }); this.corpse = new PlayerCorpse(this.x, this.y); game.entities.push(this.corpse); }
     releaseSpirit() { if (!this.isDead || this.isGhost) return; this.isGhost = true; this.x = GRAVEYARD_POINT.x; this.y = GRAVEYARD_POINT.y; this.setTarget(null); game.ui.hideDeathScreen(); }
+    
     resurrectAtCorpse() {
         this.isDead = false;
         this.isGhost = false;
@@ -1367,27 +1519,49 @@ class Player extends Character {
         this.corpse = null;
         game.ui.updateAll(this);
     }
+
     resurrectAtHealer() { this.isDead = false; this.isGhost = false; this.x = this.x; this.y = this.y; this.addBuff({ id: 'res_sickness', name: 'Resurrection Sickness', icon: 'fa-skull', duration: 60000, isDebuff: true, stats: { strength: -10, agility: -10, stamina: -10, intellect: -10, spirit: -10 } }); Object.values(this.equipment).forEach(item => { if (item) item.durability = Math.max(0, item.durability - 15); }); this.recalculateStats(); this.stats.health = this.stats.maxHealth * 0.25; this.stats.mana = this.stats.maxMana * 0.25; game.ui.updateAll(this); }
+    
     getWeaponDamage() {
         const weapon = this.equipment['main-hand'];
         if (weapon && weapon.weaponDamage) {
             const { min, max } = weapon.weaponDamage;
-            // Calculate a random damage value within the weapon's range
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
-        // Return base unarmed damage if no weapon is equipped
-        return Math.floor(Math.random() * 2) + 1; // 1-2 damage
+        return Math.floor(Math.random() * 2) + 1;
     }
+
     autoAttack() { 
         if (!this.target) return; 
         ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8); 
-        // Use the new weapon damage for auto-attacks
         this.target.takeDamage(this.getWeaponDamage(), 'physical', this); 
         this.inCombatTimer = 8000; 
     }
+
     useHotbarSlot(index) { const slotItem = this.hotbar[index]; if (!slotItem || this.isGhost || this.isRooted) return; if(slotItem.type === 'ability') { const ability = slotItem.ref; if (this.cooldowns[ability.id] || !this.target || this.target.isDead) return; if(distance(this, this.target) > ability.range) { if(!this.isAutoQuesting) game.createFloatingText("Out of range", this.x, this.y, "yellow"); return; } if (this.stats.mana < ability.cost) { if(!this.isAutoQuesting) game.createFloatingText("Not enough mana", this.x, this.y, "blue"); return; } this.stats.mana -= ability.cost; ability.onUse(this, this.target); this.cooldowns[ability.id] = ability.cooldown; this.inCombatTimer = 8000; if(ability.cost > 0) this.fiveSecondRuleTimer = 500; game.ui.updatePlayerFrame(this); } else if (slotItem.type === 'item') { const item = slotItem.ref; if (item.slot === 'consumable' && item.onUse) { item.onUse(this); item.quantity--; if(item.quantity <= 0) { const invIndex = this.inventory.findIndex(i => i === item); if (invIndex > -1) this.inventory[invIndex] = null; this.hotbar[index] = null; } game.ui.updateInventory(this); game.ui.setupActionbar(this); } } }
+    
     setHotbarSlot(hotbarIndex, source, sourceIdentifier) { let sourceItem = null; let type = ''; if (source === 'inventory') { const idx = parseInt(sourceIdentifier); if (!isNaN(idx) && this.inventory[idx]) { sourceItem = this.inventory[idx]; type = 'item'; } } else if (source === 'spellbook') { const idx = parseInt(sourceIdentifier); if (!isNaN(idx) && this.spellbook[idx]) { sourceItem = this.spellbook[idx]; type = 'ability'; } } if (sourceItem) { this.hotbar[hotbarIndex] = { type, ref: sourceItem }; } else { this.hotbar[hotbarIndex] = null; } game.ui.setupActionbar(this); }
-    addXp(amount) { let bonusXp = 0; if (this.restedXp > 0) { bonusXp = Math.min(this.restedXp, amount); this.restedXp -= bonusXp; } const totalXp = amount + bonusXp; this.xp += totalXp; game.createFloatingText(`${amount} XP` + (bonusXp > 0 ? ` (+${bonusXp})` : ''), this.x, this.y - 20, bonusXp > 0 ? '#00bfff' : '#b636d1'); while(this.xp >= this.nextLevelXp && this.level < GameData.XP_TABLE.length -1) this.levelUp(); game.ui.updateXPBar(this); }
+    
+    addXp(amount, yOffset = -20) { 
+        let bonusXp = 0; 
+        if (this.restedXp > 0) { 
+            bonusXp = Math.min(this.restedXp, amount); 
+            this.restedXp -= bonusXp; 
+        } 
+        const totalXp = amount + bonusXp; 
+        this.xp += totalXp;
+
+        // FIX 1: Round the numbers to prevent decimals.
+        // FIX 2: Use the yOffset parameter to control vertical position.
+        const mainXpText = `${Math.round(amount)} XP`;
+        const bonusXpText = bonusXp > 0 ? ` (+${Math.round(bonusXp)})` : '';
+        
+        game.createFloatingText(mainXpText + bonusXpText, this.x, this.y + yOffset, bonusXp > 0 ? '#00bfff' : '#b636d1'); 
+
+        while(this.xp >= this.nextLevelXp && this.level < GameData.XP_TABLE.length -1) this.levelUp(); 
+        game.ui.updateXPBar(this); 
+    }
+    
     levelUp() {
         this.xp -= this.nextLevelXp;
         this.level++;
@@ -1410,6 +1584,7 @@ class Player extends Character {
         
         game.ui.updateAll(this);
     }
+
     recalculateStats() {
         const newStats = { ...this.baseStats };
         this.statBonuses = {};
@@ -1428,17 +1603,14 @@ class Player extends Character {
             newStats[stat] = (newStats[stat] || 0) + this.statBonuses[stat];
         }
 
-        // --- NEW: Calculate bonus damage from weapon ---
         let weaponDmgBonus = 0;
         const weapon = this.equipment['main-hand'];
         if (weapon && weapon.weaponDamage) {
-            // Add the average weapon damage to Attack Power
             weaponDmgBonus = (weapon.weaponDamage.min + weapon.weaponDamage.max) / 2;
         }
 
         newStats.maxHealth = (newStats.stamina || 0) * 10;
         newStats.maxMana = (newStats.intellect || 0) * 10;
-        // --- MODIFIED: Include weapon damage in Attack Power calculation ---
         newStats.attackPower = 5 + ((newStats.strength || 0) * 0.5) + weaponDmgBonus + (this.statBonuses.attackPower || 0);
         newStats.critChance = 0.05 + ((newStats.agility || 0) * 0.0025) + (this.statBonuses.critChance || 0);
         newStats.dodgeChance = 0.05 + ((newStats.agility || 0) * 0.0030) + (this.statBonuses.dodgeChance || 0);
@@ -1452,6 +1624,7 @@ class Player extends Character {
         this.stats.health = Math.min(oldHealth, this.stats.maxHealth);
         this.stats.mana = Math.min(oldMana, this.stats.maxMana);
     }
+
     learnTalent(talentId) { 
         if(this.talentPoints <= 0) return; 
         const talentTreeKey = this.race === 'Elf' ? 'ELF_MAGE' : 'HUMAN_WARRIOR';
@@ -1465,8 +1638,10 @@ class Player extends Character {
         this.recalculateStats(); 
         game.ui.updateAll(this); 
     }
+
     addAbilityToSpellbook(abilityId) { const abilityData = GameData.ABILITIES[abilityId]; if (abilityData && !this.spellbook.find(a => a.id === abilityId)) this.spellbook.push(abilityData); }
     addRecipe(recipeId) { const recipeData = GameData.CRAFTING_RECIPES[recipeId]; if (recipeData && !this.recipes.find(r => r.id === recipeId)) { this.recipes.push(recipeData); game.createFloatingText(`New Recipe: ${recipeData.name}!`, this.x, this.y - 80, 'cyan'); } }
+    
     addItem(itemId, quantity = 1) {
         const itemData = { ...GameData.ITEMS[itemId] };
         if (!itemData) return;
@@ -1503,10 +1678,13 @@ class Player extends Character {
             }
         }
     }
+
     removeItem(itemId, quantity = 1) { const itemIndex = this.inventory.findIndex(item => item && item.id === itemId && item.quantity >= quantity); if (itemIndex > -1) { const itemStack = this.inventory[itemIndex]; itemStack.quantity -= quantity; if (itemStack.quantity <= 0) { this.inventory[itemIndex] = null; this.hotbar.forEach((slot, idx) => { if (slot && slot.type === 'item' && slot.ref === itemStack) { this.hotbar[idx] = null; } }); } return true; } return false; }
+    
     hasItem(itemId) {
         return this.inventory.some(item => item && item.id === itemId);
     }
+    
     equipItem(inventoryIndex) {
         const item = this.inventory[inventoryIndex];
         if (!item || !item.slot || !this.equipment.hasOwnProperty(item.slot)) return;
@@ -1519,6 +1697,7 @@ class Player extends Character {
         game.ui.updateCharacterSheet(this);
         game.ui.updateInventory(this);
     }
+    
     unequipItem(slot) {
         const itemToUnequip = this.equipment[slot];
         if (!itemToUnequip) return;
@@ -1535,10 +1714,13 @@ class Player extends Character {
         game.ui.updateCharacterSheet(this);
         game.ui.updateInventory(this);
     }
+    
     addReputation(factionId, value) { if (!this.reputation[factionId]) this.reputation[factionId] = GameData.FACTIONS[factionId].base; this.reputation[factionId] += value; const factionData = GameData.FACTIONS[factionId]; if (factionData && factionData.values) { this.reputation[factionId] = Math.max(factionData.values[0], Math.min(this.reputation[factionId], factionData.values[factionData.values.length - 1])); } game.createFloatingText(`${value > 0 ? '+' : ''}${value} ${GameData.FACTIONS[factionId].name} Rep`, this.x, this.y-60, value > 0 ? 'lightgreen' : 'red'); }
     getRepairCost() { let totalCost = 0; Object.values(this.equipment).forEach(item => { if (item) { const damage = item.maxDurability - item.durability; totalCost += damage * 5; } }); return totalCost; }
     repairAllItems() { Object.values(this.equipment).forEach(item => { if (item) item.durability = item.maxDurability; }); }
+    
     addQuest(questId, giver) { if (this.questCooldowns[questId]) { game.createFloatingText("Quest on cooldown!", this.x, this.y, 'red'); return; } if(this.quests.find(q => q.id === questId)) return; const questData = GameData.QUESTS[questId]; const questState = { ...questData, progress: questData.objectives.map(o => ({ ...o, current: 0 })), giver: giver }; this.quests.push(questState); game.ui.updateQuestLog(); }
+    
     updateQuestProgress(type, targetId, amount = 1) {
         this.quests.forEach(quest => {
             quest.progress.forEach(obj => {
@@ -1552,6 +1734,7 @@ class Player extends Character {
             });
         });
     }
+    
     craftItem(recipeId) {
         const recipe = GameData.CRAFTING_RECIPES[recipeId]; if (!recipe) return false;
         const profession = this.professions[recipe.profession]; if (!profession || profession.level < recipe.skillRequired) { game.createFloatingText("Skill too low!", this.x, this.y, 'red'); return false; }
@@ -1560,20 +1743,37 @@ class Player extends Character {
         for (const mat of recipe.materials) { this.removeItem(mat.itemId, mat.quantity); }
         this.addItem(recipe.itemId, 1); game.createFloatingText(`Crafted: ${recipe.name}`, this.x, this.y, 'lightgreen');
         
-        // --- NEW: Update quest progress on craft ---
         this.updateQuestProgress('craft', recipe.itemId);
 
-        this.gainProfessionXp(recipe.profession, 10); game.ui.updateAll(this); return true;
+        // This awards 10 XP per craft. This works for the "Chair" recipe as requested.
+        this.gainProfessionXp(recipe.profession, 10); 
+        game.ui.updateAll(this); 
+        return true;
     }
-        gainProfessionXp(professionName, amount) {
+    checkRecipeUnlocksForLevel(professionName, level) {
+        const recipeUnlocks = GameData.SKILL_RECIPE_UNLOCKS[professionName];
+        if (recipeUnlocks) {
+            recipeUnlocks.forEach(unlock => {
+                if (unlock.level === level) {
+                    this.addRecipe(unlock.recipeId);
+                }
+            });
+        }
+    }
+        gainProfessionXp(professionName, amount, yOffset = -60) {
         const profession = this.professions[professionName]; if (!profession) return;
         const professionData = GameData.PROFESSIONS[professionName]; if (!professionData) return;
         if (profession.level >= professionData.maxLevel) return;
         
         profession.xp += amount; 
-        game.createFloatingText(`+${amount} ${professionName} XP`, this.x, this.y - 60, 'lightgray');
+
+        // FIX: Use the yOffset parameter for the vertical position
+        game.createFloatingText(`+${amount} ${professionName} XP`, this.x, this.y + yOffset, 'lightgray');
         
-        if (profession.level === 0) profession.level = 1;
+        if (profession.level === 0) {
+            profession.level = 1;
+            this.checkRecipeUnlocksForLevel(professionName, 1);
+        }
         
         while (profession.xp >= professionData.nextLevelXp && profession.level < professionData.maxLevel) { 
             profession.xp -= professionData.nextLevelXp; 
@@ -1581,7 +1781,6 @@ class Player extends Character {
             professionData.nextLevelXp += 50; 
             game.createFloatingText(`${professionName} Level Up!`, this.x, this.y - 100, 'gold');
 
-            // Check for newly unlocked quests at this skill level
             Object.values(GameData.QUESTS).forEach(quest => {
                 if (quest.requirements && !this.quests.find(q => q.id === quest.id)) {
                     quest.requirements.forEach(req => {
@@ -1597,20 +1796,33 @@ class Player extends Character {
                 }
             });
 
-            // --- NEW: Check for newly unlocked recipes at this skill level ---
-            const recipeUnlocks = GameData.SKILL_RECIPE_UNLOCKS[professionName];
-            if (recipeUnlocks) {
-                recipeUnlocks.forEach(unlock => {
-                    if (unlock.level === profession.level) {
-                        this.addRecipe(unlock.recipeId);
-                    }
-                });
-            }
+            this.checkRecipeUnlocksForLevel(professionName, profession.level);
         }
     }
     
     draw(ctx, camera, player) {
-        Entity.prototype.draw.call(this, ctx, camera, player);
+        super.draw(ctx, camera, player);
+
+        if (this.isGathering && this.gatheringTotalTime > 0) {
+            const drawX = this.x - camera.x;
+            const drawY = this.y - camera.y;
+            const radius = 25;
+            const progress = this.gatheringTimer / this.gatheringTotalTime;
+            const startAngle = -Math.PI / 2;
+            const endAngle = startAngle + (progress * 2 * Math.PI);
+
+            ctx.beginPath();
+            ctx.arc(drawX, drawY - 40, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(drawX, drawY - 40, radius, startAngle, endAngle);
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+        }
 
         if(this.isTargeted) {
             const drawX = this.x - camera.x;
@@ -1752,7 +1964,16 @@ class Scenery extends Entity {
 
 
 class ResourceNode extends Entity {
-    constructor(x, y, type) { super(x, y, type.size, type.color, type.icon); this.type = type; this.isInteractable = true; this.depleted = false; }
+    constructor(x, y, type) { 
+        super(x, y, type.size, type.color, type.icon); 
+        this.type = type; 
+        this.isInteractable = true; 
+        this.depleted = false; 
+        
+        // --- NEW: Add a property to track hover state ---
+        this.isHovered = false;
+    }
+    
     interact(player) {
         if (this.depleted || player.isGhost) return;
 
@@ -1763,28 +1984,26 @@ class ResourceNode extends Entity {
             return;
         }
 
-        // --- NEW: Check for required tool ---
         if (this.type.requiredSkill === 'Mining') {
-            if (!player.hasItem(27)) { // 27 is the ID for Pickaxe
+            if (!player.hasItem(27)) {
                 game.createFloatingText('Requires Pickaxe', player.x, player.y, 'red');
-                return; // Stop the interaction if the player doesn't have a pickaxe
+                return;
             }
         }
-        // You could add similar checks here for other tools, like a Lumber Axe or Skinning Knife.
-
+        
         if (profession.level === 0) {
             profession.level = 1;
             game.createFloatingText(`You learned ${this.type.requiredSkill}!`, player.x, player.y, 'gold');
         }
         
-        this.depleted = true; this.icon = '\uf2d3'; this.color = '#555';
-        player.addItem(this.type.itemId, 1); game.createFloatingText(`+1 ${this.type.name}`, player.x, player.y - 20, 'white');
-        player.gainProfessionXp(this.type.requiredSkill, 5); game.ui.updateInventory(player);
-        setTimeout(() => { this.depleted = false; this.icon = this.type.icon; this.color = this.type.color; }, this.type.respawnTime);
+        player.startGathering(this);
     }
+    
     draw(ctx, camera, player) { 
         super.draw(ctx, camera, player); 
-        if (!this.depleted) { 
+        
+        // --- FIX: Only draw the name if the node is hovered and not depleted ---
+        if (!this.depleted && this.isHovered) { 
             const drawX = this.x - camera.x;
             const drawY = this.y - camera.y;
             ctx.font = '12px Verdana'; 
@@ -1860,32 +2079,30 @@ class QuestGiver extends NPC {
 
         const npcTypeData = GameData.NPC_TYPES[this.npcType];
         
-        // --- UPGRADED TRAINING LOGIC ---
-        // Check if this NPC is a trainer and has professions to teach.
         if (npcTypeData && npcTypeData.interactType === 'crafting_trainer' && npcTypeData.professions) {
-            // Loop through all professions this NPC can teach.
             for (const professionName of npcTypeData.professions) {
                 const profession = player.professions[professionName];
-                // If the player hasn't learned this specific profession yet...
                 if (profession && profession.level === 0) {
-                    const doLearn = confirm(`Greetings. I can teach you the basics of ${professionName} for 5 gold. Would you like to learn?`);
+                    const doLearn = confirm(`Greetings. I can teach you the basics of ${professionName} for 5 silver. Would you like to learn?`);
                     if (doLearn) {
                         if (player.gold >= 500) {
                             player.gold -= 500;
                             profession.level = 1;
                             alert(`You have learned ${professionName}!`);
+                            
+                            // --- FIX: Check for level 1 recipes immediately upon learning ---
+                            player.checkRecipeUnlocksForLevel(professionName, 1);
+
                             game.ui.updateAll(player);
                         } else {
-                            alert("You don't have enough gold.");
+                            alert("You don't have enough coin.");
                         }
                     }
-                    // Stop the interaction here so we only offer one profession at a time.
                     return; 
                 }
             }
         }
 
-        // --- Existing Quest Logic (runs only if no training was offered) ---
         const availableQuestId = this.questIds.find(qId => this.getQuestStatusForId(player, qId) === 'available');
         const completableQuestId = this.questIds.find(qId => this.getQuestStatusForId(player, qId) === 'complete');
         const questId = completableQuestId || availableQuestId;
@@ -2491,33 +2708,63 @@ class UI {
         const playerInventoryGrid = $('#vendor-player-inventory');
         const vendorSellsGrid = $('#vendor-sells-grid');
         $('#vendor-player-gold').innerHTML = UI.formatCurrency(player.gold, true);
+
         playerInventoryGrid.innerHTML = '';
+        vendorSellsGrid.innerHTML = '';
+
+        // --- REBUILT LOGIC FOR PLAYER'S SELLABLE ITEMS ---
         player.inventory.forEach((item, index) => {
-            if (item && vendor.buys.includes(item.slot)) {
+            if (item && vendor.buys.includes(item.slot) && item.sellPrice) {
+                // 1. Create a container for the slot and its price
+                const container = document.createElement('div');
+                container.className = 'vendor-item-container';
+
+                // 2. Create the item slot itself
                 const slot = document.createElement('div');
-                slot.className = 'vendor-item-slot inventory-slot';
+                slot.className = 'vendor-item-slot'; // Removed 'inventory-slot' to avoid conflicting styles
                 slot.dataset.index = index;
                 slot.dataset.itemId = item.id;
                 slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`;
-                if (item.stackable && item.quantity > 1) slot.innerHTML += `<div class="item-count">${item.quantity}</div>`;
-                if (item.sellPrice) slot.innerHTML += `<div class="vendor-item-price">${UI.formatCurrency(item.sellPrice, true)}</div>`;
+
+                if (item.stackable && item.quantity > 1) {
+                    slot.innerHTML += `<div class="item-count">${item.quantity}</div>`;
+                }
+
                 slot.addEventListener('click', () => this.sellItemFromInventory(player, item, index, vendor));
-                playerInventoryGrid.appendChild(slot);
+
+                // 3. Create the separate price display
+                const priceDiv = document.createElement('div');
+                priceDiv.className = 'vendor-item-price';
+                priceDiv.innerHTML = UI.formatCurrency(item.sellPrice, true);
+
+                // 4. Append the slot and price to the container, then the container to the grid
+                container.appendChild(slot);
+                container.appendChild(priceDiv);
+                playerInventoryGrid.appendChild(container);
             }
         });
-        vendorSellsGrid.innerHTML = '';
+
+        // --- REBUILT LOGIC FOR VENDOR'S ITEMS FOR SALE ---
         if (vendor.sells) {
-            vendor.sells.forEach((itemDef, index) => {
+            vendor.sells.forEach((itemDef) => {
                 const itemData = GameData.ITEMS[itemDef.itemId];
                 if (itemData) {
+                    const container = document.createElement('div');
+                    container.className = 'vendor-item-container';
+
                     const slot = document.createElement('div');
                     slot.className = 'vendor-item-slot';
                     slot.dataset.itemId = itemData.id;
                     slot.innerHTML = `<i class="fas ${itemData.icon} quality-${itemData.quality}"></i>`;
-                    if (itemDef.quantity > 1) slot.innerHTML += `<div class="item-count">${itemDef.quantity}</div>`;
-                    slot.innerHTML += `<div class="vendor-item-price">${UI.formatCurrency(itemDef.price, true)}</div>`;
 
-                    // --- NEW: REPUTATION CHECK ---
+                    if (itemDef.quantity > 1) {
+                        slot.innerHTML += `<div class="item-count">${itemDef.quantity}</div>`;
+                    }
+                    
+                    const priceDiv = document.createElement('div');
+                    priceDiv.className = 'vendor-item-price';
+                    priceDiv.innerHTML = UI.formatCurrency(itemDef.price, true);
+
                     let canBuy = true;
                     if (itemData.requiredFaction) {
                         const playerRep = player.reputation[itemData.requiredFaction.name];
@@ -2525,7 +2772,7 @@ class UI {
                         const requiredTierIndex = factionData.tiers.indexOf(itemData.requiredFaction.tier);
                         if (!playerRep || playerRep.tierIndex < requiredTierIndex) {
                             canBuy = false;
-                            slot.classList.add('locked'); // Add a class for styling locked items
+                            slot.classList.add('locked');
                         }
                     }
 
@@ -2535,7 +2782,10 @@ class UI {
                             this.needsVendorUpdate = true;
                         });
                     }
-                    vendorSellsGrid.appendChild(slot);
+
+                    container.appendChild(slot);
+                    container.appendChild(priceDiv);
+                    vendorSellsGrid.appendChild(container);
                 }
             });
         }
