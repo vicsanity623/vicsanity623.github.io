@@ -399,6 +399,19 @@
             color: #ccc;
             padding-left: 10px;
         }
+        #stamina-bar {
+            position: absolute;
+            top: 95px; /* Positioned just below the player frame */
+            left: 20px;
+            width: 250px;
+            height: 8px;
+            display: none; /* Hidden by default */
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        #stamina-bar-fill {
+            background-color: #ffd700; /* A nice gold/yellow for stamina */
+            transition: width 0.1s linear; /* Smooths the depletion/refill */
+        }
     </style>
 </head>
 <body>
@@ -440,6 +453,10 @@
                     <div class="resource-bar" id="player-mana-bar"><div id="player-mana-fill" class="bar-fill"></div><div id="player-mana-text" class="bar-text">100 / 100</div></div>
                     <div class="buff-container" id="player-buffs"></div>
                 </div>
+            </div>
+
+            <div id="stamina-bar" class="resource-bar">
+                <div id="stamina-bar-fill" class="bar-fill"></div>
             </div>
             
             <div id="target-frame" class="unit-frame">
@@ -1072,20 +1089,25 @@ class Game {
                 if (entity !== this.player && distance(clickWorldPos, entity) < entity.size / 2) {
                     
                     if (entity instanceof Enemy) {
-                        // --- NEW CLICK-ATTACK LOGIC ---
                         if (entity === this.player.target && !entity.isDead) {
-                            // If we click the enemy that is already our target, attack it.
                             this.player.performClickAttack();
                         } else {
-                            // Otherwise, just set it as the new target.
                             this.player.setTarget(entity);
                         }
                         clickedOnSomething = true;
                         break;
                     } 
-                    else if (entity.isInteractable && distance(this.player, entity) < 100) {
-                        // This handles interacting with NPCs, houses, chests, etc.
-                        entity.interact(this.player); 
+                    // --- UPGRADED LOGIC FOR INTERACTABLES ---
+                    else if (entity.isInteractable) {
+                        // If it's a resource node AND we're out of range...
+                        if (entity instanceof ResourceNode && distance(this.player, entity) > 100) {
+                            // ...set it as our auto-move-interact target.
+                            this.player.autoMoveInteractTarget = entity;
+                        } else if (distance(this.player, entity) < 100) {
+                            // Otherwise, if we're in range, interact immediately.
+                            this.player.autoMoveInteractTarget = null; // Cancel any auto-move
+                            entity.interact(this.player); 
+                        }
                         this.player.setTarget(entity);
                         clickedOnSomething = true;
                         break;
@@ -1387,7 +1409,7 @@ class Player extends Character {
     constructor(x, y, input, name, race) {
         super(x, y, 30, '#ddd', '\uf007', name || 'Hero');
         this.race = race || 'Human';
-        this.input = input; this.speed = 3.5; this.xp = 0; this.restedXp = 0;
+        this.input = input; this.speed = 2.2; this.xp = 0; this.restedXp = 0;
         this.nextLevelXp = GameData.XP_TABLE[this.level]; this.gold = 5000;
         this.inventory = new Array(16).fill(null);
         this.equipment = { 'main-hand': null, 'off-hand': null, head: null, chest: null, tabard: null };
@@ -1401,6 +1423,13 @@ class Player extends Character {
         this.returnLocation = null;
         this.storage = new Array(99).fill(null);
         this.hasHouse = false;
+        this.maxStamina = 3500; // 3.5 seconds in milliseconds
+        this.stamina = this.maxStamina;
+        this.isSprinting = false;
+        this.staminaRegenDelayTimer = 0; // Timer for the 0.5s delay
+
+        this.globalClickCooldown = 0;
+        this.isGathering = false;
         
         this.addAbilityToSpellbook(1);
         if (this.race === 'Elf') {
@@ -1414,7 +1443,9 @@ class Player extends Character {
         this.isAutoQuesting = false; this.autoQuest = null; this.autoMoveTarget = null;
         this.questCooldowns = {};
         this.globalClickCooldown = 0;
-        
+        this.autoMoveInteractTarget = null;
+
+        this.maxStamina =3500;
 
         // --- NEW: GATHERING STATE ---
         this.isGathering = false;
@@ -1554,7 +1585,19 @@ class Player extends Character {
         this.isResting = currentRegion ? currentRegion.isRestZone : false;
 
         let moveVector = { x: 0, y: 0 };
-        if (!this.isRooted) {
+        if (this.autoMoveInteractTarget) {
+            if (distance(this, this.autoMoveInteractTarget) > 90) { // Move until within interaction range
+                const angle = Math.atan2(this.autoMoveInteractTarget.y - this.y, this.autoMoveInteractTarget.x - this.x);
+                moveVector.x = Math.cos(angle);
+                moveVector.y = Math.sin(angle);
+            } else {
+                // We've arrived! Interact and clear the target.
+                this.autoMoveInteractTarget.interact(this);
+                this.autoMoveInteractTarget = null;
+            }
+        } 
+        // --- FALLBACK TO REGULAR MOVEMENT ---
+        else if (!this.isRooted) {
             if (this.isAutoQuesting && this.autoMoveTarget) {
                 const angle = Math.atan2(this.autoMoveTarget.y - this.y, this.autoMoveTarget.x - this.x);
                 if (distance(this, this.autoMoveTarget) > 5) {
@@ -1567,7 +1610,76 @@ class Player extends Character {
                 moveVector = this.input.getMoveVector();
             }
         }
+        
         const isMoving = moveVector.x !== 0 || moveVector.y !== 0;
+
+        // --- CANCEL AUTO-MOVE IF PLAYER MOVES MANUALLY ---
+        if (isMoving && this.input.getMoveVector().x !== 0 || this.input.getMoveVector().y !== 0) {
+            this.autoMoveInteractTarget = null;
+        }
+
+        const canSprint = this.input.keys['shift'] && isMoving;
+
+        if (canSprint && this.stamina > 0) {
+            this.isSprinting = true;
+            this.stamina -= deltaTime; // Drain stamina
+            this.staminaRegenDelayTimer = 500; // Reset regen delay
+        } else {
+            this.isSprinting = false;
+        }
+
+        if (this.stamina <= 0) {
+            this.isSprinting = false; // Force stop if out of stamina
+        }
+        
+        // Stamina Regeneration Logic
+        if (!this.isSprinting && this.stamina < this.maxStamina) {
+            if (this.staminaRegenDelayTimer > 0) {
+                this.staminaRegenDelayTimer -= deltaTime;
+            } else {
+                // Refill stamina over 5 seconds (3x faster than depletion)
+                this.stamina += (this.maxStamina / 5000) * deltaTime;
+            }
+        }
+        this.stamina = Math.max(0, Math.min(this.stamina, this.maxStamina)); // Clamp value
+
+        // --- MOVEMENT LOGIC (with sprint multiplier) ---
+        if (isMoving && currentRegion) {
+            if (this.isGathering) this.cancelGathering();
+            
+            const sprintMultiplier = this.isSprinting ? 1.75 : 1; // 75% speed boost
+            const currentSpeed = this.speed * sprintMultiplier * (this.isGhost ? 1.5 : 1) * (deltaTime / 16.67);
+            
+            let finalX = moveVector.x;
+            let finalY = moveVector.y;
+            if (finalX !== 0 && finalY !== 0) { 
+                finalX *= 0.7071;
+                finalY *= 0.7071;
+            }
+            
+            const potentialNewX = this.x + finalX * currentSpeed;
+            const potentialNewY = this.y + finalY * currentSpeed;
+
+            const collidables = game.entities.filter(e => e.isCollidable);
+            const playerRadius = this.size / 4;
+
+            const isCollidingAt = (px, py) => {
+                for (const entity of collidables) {
+                    const halfSize = entity.size / 2;
+                    if (px + playerRadius > entity.x - halfSize && px - playerRadius < entity.x + halfSize && py + playerRadius > entity.y - halfSize && py - playerRadius < entity.y + halfSize) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            if (potentialNewX > currentRegion.x && potentialNewX < currentRegion.x + currentRegion.width && !isCollidingAt(potentialNewX, this.y)) {
+                this.x = potentialNewX;
+            }
+            if (potentialNewY > currentRegion.y && potentialNewY < currentRegion.y + currentRegion.height && !isCollidingAt(this.x, potentialNewY)) {
+                this.y = potentialNewY;
+            }
+        }
 
         // --- NEW COLLISION LOGIC ---
         if (isMoving && currentRegion) {
@@ -2530,10 +2642,6 @@ class UI {
     constructor(game) { 
         this.game = game; 
         this.minimapCanvas = $("#minimap-canvas"); 
-        
-        this.minimapCanvas.width = 150;
-        this.minimapCanvas.height = 150;
-        
         this.mCtx = this.minimapCanvas.getContext("2d");
         this.mapCanvas = $("#map-canvas"); 
         this.mapCtx = this.mapCanvas.getContext("2d"); 
@@ -2544,10 +2652,13 @@ class UI {
         this.mapCacheCtx = this.mapCacheCanvas.getContext('2d');
         this.mapNeedsRedraw = true;
 
+        this.minimapCanvas.width = 150;
+        this.minimapCanvas.height = 150;
+
         this.setupActionbar(game.player);
         if (game.isMobile) this.setupMobileActionButtons(game.player);
         this.setupTooltips();
-        this.setupDragAndDrop(game.player); // This line will now work correctly
+        this.setupDragAndDrop(game.player);
         window.addEventListener('resize', () => { this.mapNeedsRedraw = true; });
     }
 
@@ -2666,6 +2777,7 @@ class UI {
         if (!player.isDead) {
             this.updateTargetFrame(player.target);
             this.updateXPBar(player);
+            this.updateStaminaBar(player); // --- FIX: Call to updateStaminaBar is now in the correct update method ---
             this.updateCooldowns(player);
             if (this.game.isMobile) this.updateMobileCooldowns(player);
         } else {
@@ -2704,12 +2816,31 @@ class UI {
         }
     }
 
-    updateAll(player) { this.updatePlayerFrame(player); this.updateTargetFrame(player.target); this.updateCharacterSheet(player); this.updateInventory(player); this.updateXPBar(player); this.updateQuestLog(player); this.updateTalentWindow(player); this.updateSpellbook(player); this.updateReputationWindow(player); if (this.game.isMobile) this.setupMobileActionButtons(player); this.updateMap(player); }
+    updateAll(player) { 
+        this.updatePlayerFrame(player); 
+        this.updateTargetFrame(player.target); 
+        this.updateCharacterSheet(player); 
+        this.updateInventory(player); 
+        this.updateXPBar(player); 
+        this.updateQuestLog(player); 
+        this.updateTalentWindow(player); 
+        this.updateSpellbook(player); 
+        this.updateReputationWindow(player); 
+        if (this.game.isMobile) this.setupMobileActionButtons(player); 
+        this.updateMap(player); 
+        this.updateStorage(player);
+    }
+    
     updatePlayerFrame(player) { $('#player-name').textContent = player.name; $('#player-level').textContent = `Lvl ${player.level}`; $('#player-health-text').textContent = `${Math.ceil(player.stats.health)} / ${player.stats.maxHealth}`; $('#player-health-fill').style.width = `${(player.stats.health / player.stats.maxHealth) * 100}%`; $('#player-mana-bar').style.display = player.race === 'Elf' ? 'block' : 'none'; if (player.race === 'Elf') { $('#player-mana-text').textContent = `${Math.ceil(player.stats.mana)} / ${player.stats.maxMana}`; $('#player-mana-fill').style.width = `${(player.stats.mana / player.stats.maxMana) * 100}%`; } this.updateBuffs(player, 'player-buffs'); }
+    
     updateTargetFrame(target) { const frame = $('#target-frame'); if (target && target instanceof Character && !target.isDead) { frame.style.display = 'flex'; $('#target-portrait').innerHTML = `<i class="fas ${target.icon.substring(1)}"></i>`; $('#target-portrait').style.color = target.color; $('#target-name').textContent = target.name; $('#target-level').textContent = `Lvl ${target.level}`; $('#target-health-text').textContent = `${Math.ceil(target.stats.health)} / ${target.stats.maxHealth}`; $('#target-health-fill').style.width = `${(target.stats.health / target.stats.maxHealth) * 100}%`; this.updateBuffs(target, 'target-buffs'); } else if (target && !(target instanceof Character)) { frame.style.display = 'flex'; $('#target-portrait').innerHTML = `<i class="fas ${target.icon.substring(1)}"></i>`; $('#target-portrait').style.color = target.color; $('#target-name').textContent = target.name; $('#target-level').textContent = ''; $('#target-health-text').textContent = ''; $('#target-health-fill').style.width = `0%`; this.updateBuffs(target, 'target-buffs'); } else { frame.style.display = 'none'; } }
+    
     updateXPBar(player) { const xpPercent = (player.xp / player.nextLevelXp) * 100; const restedPercent = (player.restedXp / player.nextLevelXp) * 100; $('#xp-bar-fill').style.width = `${xpPercent}%`; $('#xp-bar-rested-fill').style.width = `${Math.min(100 - xpPercent, restedPercent)}%`; $('#xp-bar').title = `XP: ${player.xp} / ${player.nextLevelXp}\nRested: ${Math.floor(player.restedXp)}`; }
+    
     setupActionbar(player) { const bar = $('#action-bar'); bar.innerHTML = ''; for (let i = 0; i < 10; i++) { const slotItem = player.hotbar[i]; const slot = document.createElement('div'); slot.className = 'action-slot'; slot.dataset.index = i; slot.dataset.dropTarget = 'hotbar'; if (slotItem && slotItem.ref) { const ref = slotItem.ref; slot.innerHTML = `<i class="fas ${ref.icon} quality-${ref.quality || 'common'}"></i><div class="action-keybind">${(i+1)%10}</div>`; if(slotItem.type === 'ability') slot.innerHTML += `<div class="cooldown-overlay" data-ability-id="${ref.id}"></div>`; if(slotItem.type === 'item' && ref.quantity > 1) slot.innerHTML += `<div class="hotbar-item-count">${ref.quantity}</div>`; slot.addEventListener('click', () => player.useHotbarSlot(i)); } else { slot.innerHTML = `<div class="action-keybind">${(i+1)%10}</div>`; } bar.appendChild(slot); } if (this.game.isMobile) this.setupMobileActionButtons(player); }
+    
     updateCooldowns(player) { $$('.cooldown-overlay').forEach(overlay => { const id = overlay.dataset.abilityId; const hotbarItem = player.hotbar.find(h => h && h.type === 'ability' && h.ref.id == id); if(hotbarItem && player.cooldowns[id]) { const remaining = player.cooldowns[id]; const percentage = (remaining / hotbarItem.ref.cooldown) * 100; overlay.style.height = `${percentage}%`; overlay.textContent = (remaining / 1000).toFixed(1); } else { overlay.style.height = '0%'; overlay.textContent = ''; } }); }
+    
     drawMinimap(player, entities) {
         const size = 150;
         const range = 400;
@@ -2729,7 +2860,7 @@ class UI {
             const dy = entity.y - player.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            const isImportant = entity instanceof QuestGiver || entity instanceof GenericNPC || entity instanceof PlayerCorpse || entity instanceof CraftingStation;
+            const isImportant = entity instanceof QuestGiver || entity instanceof GenericNPC || entity instanceof PlayerCorpse || entity instanceof CraftingStation || entity instanceof PlayerHouse;
 
             if (dist > range && !isImportant) {
                 return;
@@ -2757,6 +2888,7 @@ class UI {
             else if (entity instanceof ResourceNode) color = entity.type.color;
             else if (entity instanceof PlayerCorpse) { color = '#ff4500'; radius = 4; }
             else if (entity instanceof CraftingStation) { color = entity.color; radius = 4; }
+            else if (entity instanceof PlayerHouse) { color = entity.color; radius = 5; }
             else if (entity instanceof Scenery) {
                 color = entity.type.color;
                 radius = entity.type.size / 20;
@@ -2768,6 +2900,22 @@ class UI {
             this.mCtx.fill();
         });
     }
+
+    updateStaminaBar(player) {
+        const bar = $('#stamina-bar');
+        const fill = $('#stamina-bar-fill');
+
+        if (player.isSprinting || (player.stamina < player.maxStamina && player.staminaRegenDelayTimer <= 0)) {
+            bar.style.display = 'block';
+            const percent = (player.stamina / player.maxStamina) * 100;
+            fill.style.width = `${percent}%`;
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    // --- FIX: The duplicate 'update' method has been REMOVED ---
+
     updateMap() {
         if (!game || !game.player || $('#map-window').style.display !== 'flex') {
             return;
