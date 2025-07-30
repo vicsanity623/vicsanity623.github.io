@@ -226,7 +226,7 @@
         }
         #character-sheet-container { display: flex; justify-content: space-between; gap: 10px; }
         #equipment-slots { display: flex; flex-direction: column; gap: 5px; }
-        .equipment-slot { width: 50px; height: 50px; background: var(--color-bg-dark); border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center; font-size: 24px; position: relative; }
+        .equipment-slot { width: 50px; height: 50px; background: var(--color-bg-dark); border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center; font-size: 24px; position: relative; margin-bottom: 12px; }
         .equipment-slot[draggable="true"] { cursor: grab; }
         .equipment-slot.drag-over { border-color: gold; box-shadow: 0 0 5px gold; }
         .equipment-slot-name { position: absolute; bottom: -15px; width: 100%; text-align: center; font-size: 10px; color: var(--color-text-muted); }
@@ -515,7 +515,7 @@ const GameData = {
         4: { id: 4, name: 'Spruce', icon: '\uf1bb', size: 80, color: '#1B5E20' },
     },
     ITEMS: {
-        // (Existing items 1-21 remain the same)
+        // (Existing items 1-26 remain the same)
         1: { id: 1, name: "Rusty Sword", icon: 'fa-gavel', slot: "main-hand", quality: "common", weaponDamage: { min: 3, max: 5 }, durability: 100, maxDurability: 100, sellPrice: 100 },
         2: { id: 2, name: "Worn Leather Vest", icon: "fa-vest-patches", slot: "chest", quality: "common", stats: { armor: 5 }, durability: 100, maxDurability: 100, sellPrice: 150 },
         3: { id: 3, name: "Spider Silk", icon: "fa-network-wired", slot: "material", quality: "common", stackable: true, sellPrice: 50 },
@@ -539,10 +539,23 @@ const GameData = {
         21: { id: 21, name: "Copper Mace", icon: "fa-gavel", slot: "main-hand", quality: "common", weaponDamage: { min: 5, max: 7 }, durability: 100, maxDurability: 100, sellPrice: 350 },
         22: { id: 22, name: "Minor Mana Potion", icon: "fa-flask-vial", slot: "consumable", quality: "common", stackable: true, onUse: (player) => { if(player.stats.mana < player.stats.maxMana) player.stats.mana = Math.min(player.stats.maxMana, player.stats.mana + 50); }, sellPrice: 40 },
         23: { id: 23, name: "Reinforced Wooden Buckler", icon: "fa-shield-halved", slot: "off-hand", quality: "magic", stats: { armor: 5, agility: 2 }, durability: 100, maxDurability: 100, sellPrice: 550 },
-        // --- NEW TIER 2 ITEMS ---
         24: { id: 24, name: "Tin Bar", icon: "fa-cubes", slot: "material", quality: "common", stackable: true, sellPrice: 120 },
         25: { id: 25, name: "Heavy Copper Armor", icon: "fa-shirt", slot: "chest", quality: "magic", stats: { armor: 12, stamina: 2 }, durability: 100, maxDurability: 100, sellPrice: 800 },
         26: { id: 26, name: "Potion of Swiftness", icon: "fa-flask-vial", slot: "consumable", quality: "magic", stackable: true, onUse: (player) => { player.addBuff({ id: 'swiftness', name: 'Swiftness', icon: 'fa-person-running', duration: 30000, onApply: p => p.speed *= 1.3, onExpire: p => p.speed /= 1.3, isDebuff: false }); }, sellPrice: 250 },
+        
+        // --- NEW FACTION ITEMS ---
+        301: { id: 301, name: "Stormwind Tabard", icon: "fa-shirt", slot: "tabard", quality: "rare",
+            description: "A symbol of your dedication to Stormwind. Increases reputation gain with the Stormwind Guard by 10%.",
+            requiredFaction: { name: 'Stormwind Guard', tier: 'Friendly' }
+        },
+        302: { id: 302, name: "Guard's Heavy Blade", icon: "fa-gavel", slot: "main-hand", quality: "rare",
+            weaponDamage: { min: 10, max: 15 }, stats: { strength: 3, stamina: 3 },
+            requiredFaction: { name: 'Stormwind Guard', tier: 'Honored' }
+        },
+        303: { id: 303, name: "Commander's Greathelm", icon: "fa-user-shield", slot: "head", quality: "epic",
+            stats: { armor: 15, stamina: 5, strength: 5 },
+            requiredFaction: { name: 'Stormwind Guard', tier: 'Exalted' }
+        },
 
         101: { id: 101, name: "Goblin-Forged Blade", icon: "fa-scythe", slot: "main-hand", quality: "rare", weaponDamage: { min: 8, max: 12 }, stats: { strength: 2 }, durability: 100, maxDurability: 100, sellPrice: 500 },
         102: { id: 102, name: "Enchanted Robes", icon: "fa-jedi", slot: "chest", quality: "magic", stats: { armor: 8, intellect: 3 }, durability: 100, maxDurability: 100, sellPrice: 400 },
@@ -574,21 +587,19 @@ const GameData = {
     },
     NPC_TYPES: {
         'BLACKSMITH': { name: "Barton the Blacksmith", icon: '\uf0e7', color: '#a9a9a9', interactType: 'repair' },
-        'SPIRIT_HEALER': { name: "Spirit Healer", icon: '\uf70e', color: '#a0c4ff', interactType: 'resurrect', interaction: (player) => {
-            if (player.isGhost) {
-                const doRes = confirm("Resurrect here? You will suffer Resurrection Sickness and your equipped items will lose durability.");
-                if(doRes) {
-                    player.resurrectAtHealer();
-                }
-            } else {
-                alert("The spirits can only help the dead.");
-            }
-        }},
+        'SPIRIT_HEALER': { name: "Spirit Healer", icon: '\uf70e', color: '#a0c4ff', interactType: 'resurrect', interaction: (player) => { if (player.isGhost) { const doRes = confirm("Resurrect here? You will suffer Resurrection Sickness and your equipped items will lose durability."); if(doRes) { player.resurrectAtHealer(); } } else { alert("The spirits can only help the dead."); } } },
         'GENERAL_VENDOR': { name: "General Goods Vendor", icon: '\uf54e', color: '#c0c0c0', interactType: 'vendor', sells: [{itemId: 5, quantity: 5, price: 50}], buys: ['consumable', 'material'] },
-        'WOODWORKING_TRAINER': { name: "Master Woodworker", icon: '\uf5bb', color: '#8b4513', interactType: 'crafting_trainer', profession: 'Woodworking' },
-        // --- NEW NPCS ---
-        'BLACKSMITHING_TRAINER': { name: "Thorin the Smith", icon: '\uf6e3', color: '#d2b48c', interactType: 'crafting_trainer', profession: 'Blacksmithing' },
-        'ALCHEMIST': { name: "Alchemist Fiona", icon: '\uf70c', color: '#9932cc', interactType: 'crafting_trainer', profession: 'Alchemy' },
+        
+        // --- MODIFIED TRAINERS TO TEACH MULTIPLE PROFESSIONS ---
+        'WOODWORKING_TRAINER': { name: "Master Woodworker", icon: '\uf5bb', color: '#8b4513', interactType: 'crafting_trainer', professions: ['Woodworking', 'Lumberjacking'] },
+        'BLACKSMITHING_TRAINER': { name: "Thorin the Smith", icon: '\uf6e3', color: '#d2b48c', interactType: 'crafting_trainer', professions: ['Blacksmithing', 'Mining'] },
+        'ALCHEMIST': { name: "Alchemist Fiona", icon: '\uf70c', color: '#9932cc', interactType: 'crafting_trainer', professions: ['Alchemy', 'Herbalism'] },
+
+        'QUARTERMASTER': { name: "Stormwind Quartermaster", icon: '\uf4f7', color: '#0070dd', interactType: 'vendor', faction: 'Stormwind Guard', sells: [
+            { itemId: 301, price: 5000 },
+            { itemId: 302, price: 25000 },
+            { itemId: 303, price: 100000 },
+        ], buys: [] },
     },
     QUESTS: { 
         // (Existing quests 1, 2, 3, 101, 102, 103, 104 remain the same)
@@ -626,6 +637,8 @@ const GameData = {
         'ELF_MAGE': [
             { id: 'rend1', name: 'Improved Rend', maxRank: 3, icon: 'fa-heart-crack', description: 'Increases the damage of your Rend ability by 15% per rank.', requires: null, apply: (p, r) => p.talentBonuses.rendDamageMultiplier = (p.talentBonuses.rendDamageMultiplier || 1) + 0.15 * r},
             { id: 'ef1', name: 'Eternal Flame', maxRank: 3, icon: 'fa-fire-flame-curved', description: 'Increases the damage of your Fireball ability by 15% per rank.', requires: null, apply: (p, r) => p.talentBonuses.fireballDamageMultiplier = (p.talentBonuses.fireballDamageMultiplier || 1) + 0.15 * r},
+            { id: 'str1', name: 'Toughness', maxRank: 5, icon: 'fa-hand-fist', description: 'Increases total Stamina by 2% per rank.', requires: null, apply: (p, r) => p.statBonuses.staminaBonus = (p.statBonuses.staminaBonus || 0) + 0.02 * r },
+            { id: 'crit1', name: 'Cruelty', maxRank: 5, icon: 'fa-gavel', description: 'Increases critical strike chance by 1% per rank.', requires: null, apply: (p, r) => p.stats.critChance = (p.baseStats.critChance || 0) + (1 * r) },
         ]
     },
     FACTIONS: {
@@ -689,12 +702,12 @@ const GameData = {
                 { type: 'GenericNPC', npcType: 'SPIRIT_HEALER', x: 48500, y: 48000 },
                 { type: 'QuestGiver', name: "Master Woodworker", npcType: 'WOODWORKING_TRAINER', x: 49000, y: 49500, questIds: [101, 104] },
                 { type: 'CraftingStation', stationType: 'WOODWORKING_BENCH', x: 49000, y: 49600 },
-                // --- MODIFIED: Added questId 201 ---
                 { type: 'QuestGiver', name: "Thorin the Smith", npcType: 'BLACKSMITHING_TRAINER', x: 49100, y: 50500, questIds: [102, 201] },
                 { type: 'CraftingStation', stationType: 'FORGE', x: 49100, y: 50600 },
-                // --- MODIFIED: Added questId 202 ---
                 { type: 'QuestGiver', name: "Alchemist Fiona", npcType: 'ALCHEMIST', x: 51000, y: 49500, questIds: [103, 202] },
                 { type: 'CraftingStation', stationType: 'ALCHEMY_TABLE', x: 51000, y: 49600 },
+                // --- ADD THIS NPC ---
+                { type: 'GenericNPC', npcType: 'QUARTERMASTER', x: 50500, y: 50500 },
             ]
         },
         // --- NEW REGION FOR TIER 2 RESOURCES ---
@@ -1122,7 +1135,7 @@ class Player extends Character {
         this.input = input; this.speed = 3.5; this.xp = 0; this.restedXp = 0;
         this.nextLevelXp = GameData.XP_TABLE[this.level]; this.gold = 5000;
         this.inventory = new Array(16).fill(null);
-        this.equipment = { 'main-hand': null, 'off-hand': null, 'chest': null };
+        this.equipment = { 'main-hand': null, 'off-hand': null, head: null, chest: null, tabard: null };
         this.baseStats = { ...this.baseStats }; this.statBonuses = {}; this.talentBonuses = {};
         this.talents = {}; this.talentPoints = 0;
         this.reputation = {}; Object.keys(GameData.FACTIONS).forEach(id => this.reputation[id] = GameData.FACTIONS[id].base);
@@ -1709,25 +1722,33 @@ class QuestGiver extends NPC {
         if (player.isGhost) return;
 
         const npcTypeData = GameData.NPC_TYPES[this.npcType];
-        if (npcTypeData && npcTypeData.interactType === 'crafting_trainer') {
-            const professionName = npcTypeData.profession;
-            const profession = player.professions[professionName];
-            if (profession && profession.level === 0) {
-                const doLearn = confirm(`Greetings. I can teach you the basics of ${professionName} for 5 gold. Would you like to learn?`);
-                if (doLearn) {
-                    if (player.gold >= 500) {
-                        player.gold -= 500;
-                        profession.level = 1;
-                        alert(`You have learned ${professionName}!`);
-                        game.ui.updateAll(player);
-                    } else {
-                        alert("You don't have enough gold.");
+        
+        // --- UPGRADED TRAINING LOGIC ---
+        // Check if this NPC is a trainer and has professions to teach.
+        if (npcTypeData && npcTypeData.interactType === 'crafting_trainer' && npcTypeData.professions) {
+            // Loop through all professions this NPC can teach.
+            for (const professionName of npcTypeData.professions) {
+                const profession = player.professions[professionName];
+                // If the player hasn't learned this specific profession yet...
+                if (profession && profession.level === 0) {
+                    const doLearn = confirm(`Greetings. I can teach you the basics of ${professionName} for 5 gold. Would you like to learn?`);
+                    if (doLearn) {
+                        if (player.gold >= 500) {
+                            player.gold -= 500;
+                            profession.level = 1;
+                            alert(`You have learned ${professionName}!`);
+                            game.ui.updateAll(player);
+                        } else {
+                            alert("You don't have enough gold.");
+                        }
                     }
+                    // Stop the interaction here so we only offer one profession at a time.
+                    return; 
                 }
-                return; 
             }
         }
 
+        // --- Existing Quest Logic (runs only if no training was offered) ---
         const availableQuestId = this.questIds.find(qId => this.getQuestStatusForId(player, qId) === 'available');
         const completableQuestId = this.questIds.find(qId => this.getQuestStatusForId(player, qId) === 'complete');
         const questId = completableQuestId || availableQuestId;
@@ -2142,7 +2163,7 @@ class UI {
         });
     }
     createFloatingText(text, worldX, worldY, color, camera, type = '') { const textElement = document.createElement('div'); textElement.className = `floating-text ${type}`; textElement.textContent = text; textElement.style.color = color; textElement.style.left = `${worldX - camera.x}px`; textElement.style.top = `${worldY - camera.y}px`; $('#floating-text-container').appendChild(textElement); setTimeout(() => textElement.remove(), 1500); }
-    updateCharacterSheet(player) {
+        updateCharacterSheet(player) {
         player.recalculateStats(); const content = $('#character-content');
         content.innerHTML = `<div id="character-sheet-container"><div id="equipment-slots"></div><div id="stats-column"></div></div>`;
         const statsCol = $('#stats-column'); let statsHtml = `<div class="stat-line"><span>Health</span><span>${Math.ceil(player.stats.health)} / ${player.stats.maxHealth}</span></div>`;
@@ -2151,10 +2172,30 @@ class UI {
         if (player.race === 'Elf') statsHtml += `<div class="stat-line"><span>Intellect</span><span>${Math.floor(player.stats.intellect)}</span></div>`;
         statsHtml += `<div class="stat-line"><span>Spirit</span><span>${Math.floor(player.stats.spirit)}</span></div><hr> <div class="stat-line"><span>Attack Power</span><span>${player.stats.attackPower.toFixed(1)}</span></div> <div class="stat-line"><span>Crit Chance</span><span>${(player.stats.critChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Dodge Chance</span><span>${(player.stats.dodgeChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Armor</span><span>${player.stats.armor}</span></div>`;
         statsCol.innerHTML = statsHtml;
-        const equipCol = $('#equipment-slots'); equipCol.innerHTML = '';
-        for (const slotName in player.equipment) { const slot = document.createElement('div'); slot.className = 'equipment-slot'; slot.dataset.slot = slotName; const item = player.equipment[slotName]; if (item) { slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`; slot.draggable = true; slot.dataset.source = 'equipment'; } slot.innerHTML += `<div class="equipment-slot-name">${slotName.replace('-', ' ')}</div>`; equipCol.appendChild(slot); }
         
-        // --- MODIFIED PROFESSIONS SECTION ---
+        const equipCol = $('#equipment-slots');
+        equipCol.innerHTML = '';
+
+        // --- FIX: Use a defined order for equipment slots instead of a for...in loop ---
+        const slotOrder = ['head', 'chest', 'tabard', 'main-hand', 'off-hand'];
+
+        slotOrder.forEach(slotName => {
+            // Ensure the player object actually has this slot before trying to render it.
+            if (player.equipment.hasOwnProperty(slotName)) {
+                const slot = document.createElement('div');
+                slot.className = 'equipment-slot';
+                slot.dataset.slot = slotName;
+                const item = player.equipment[slotName];
+                if (item) {
+                    slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`;
+                    slot.draggable = true;
+                    slot.dataset.source = 'equipment';
+                }
+                slot.innerHTML += `<div class="equipment-slot-name">${slotName.replace('-', ' ')}</div>`;
+                equipCol.appendChild(slot);
+            }
+        });
+        
         let professionsHtml = '<hr><h3>Professions</h3>';
         for (const profName in player.professions) {
             const prof = player.professions[profName];
@@ -2227,7 +2268,6 @@ class UI {
 
             let statsHtml = '';
             
-            // --- NEW: Display Weapon Damage ---
             if (itemRef.weaponDamage) {
                 statsHtml += `<div class="stats"><div>${itemRef.weaponDamage.min} - ${itemRef.weaponDamage.max} Damage</div></div>`;
             }
@@ -2248,6 +2288,11 @@ class UI {
                 statsHtml += '</ul></div>';
             }
             
+            // --- NEW: Show Faction Requirement ---
+            if (itemRef.requiredFaction) {
+                statsHtml += `<div class="stats" style="color: red;">Requires: ${itemRef.requiredFaction.name} - ${itemRef.requiredFaction.tier}</div>`;
+            }
+
             let description = itemRef.slot || (itemRef.range ? `Range: ${itemRef.range}` : itemRef.description || '');
             
             if (slot.matches('.talent')) {
@@ -2305,7 +2350,59 @@ class UI {
     sellItemFromInventory(player, item, index, vendor) { if (!item || !item.sellPrice || !vendor.buys.includes(item.slot)) { game.createFloatingText("Vendor doesn't buy that!", player.x, player.y, 'red'); return; } this.needsVendorUpdate = true; player.gold += item.sellPrice; player.removeItem(item.id, 1); game.createFloatingText(`+${UI.formatCurrency(item.sellPrice)}`, player.x, player.y, 'gold'); this.updateInventory(player); }
     buyItemFromVendor(player, itemData, price, quantity) { if (player.gold < price) { game.createFloatingText("Not enough gold!", player.x, player.y, 'red'); return; } if (player.inventory.filter(s => s === null).length === 0 && (!itemData.stackable || !player.inventory.some(i => i && i.id === itemData.id))) { game.createFloatingText("Inventory full!", player.x, player.y, 'red'); return; } this.needsVendorUpdate = true; player.gold -= price; player.addItem(itemData.id, quantity); game.createFloatingText(`-${UI.formatCurrency(price)}`, player.x, player.y, 'red'); game.createFloatingText(`+ ${itemData.name}`, player.x, player.y - 20, 'white'); this.updateInventory(player); }
     openCraftingWindow(player, station) { $('#crafting-window').style.display = 'flex'; this.updateCraftingWindow(player, station); player.setTarget(station); this.activeCraftingStation = station; this.selectedRecipe = null; $('#craft-button').removeEventListener('click', this.boundCraftingHandler); this.boundCraftingHandler = () => player.craftItem(this.selectedRecipe.id); $('#craft-button').addEventListener('click', this.boundCraftingHandler); }
-    updateVendorWindow(player, vendor) { const playerInventoryGrid = $('#vendor-player-inventory'); const vendorSellsGrid = $('#vendor-sells-grid'); $('#vendor-player-gold').innerHTML = UI.formatCurrency(player.gold, true); playerInventoryGrid.innerHTML = ''; player.inventory.forEach((item, index) => { if (item && vendor.buys.includes(item.slot)) { const slot = document.createElement('div'); slot.className = 'vendor-item-slot inventory-slot'; slot.dataset.index = index; slot.dataset.itemId = item.id; slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`; if(item.stackable && item.quantity > 1) slot.innerHTML += `<div class="item-count">${item.quantity}</div>`; if(item.sellPrice) slot.innerHTML += `<div class="vendor-item-price">${UI.formatCurrency(item.sellPrice, true)}</div>`; slot.addEventListener('click', () => this.sellItemFromInventory(player, item, index, vendor)); playerInventoryGrid.appendChild(slot); } }); vendorSellsGrid.innerHTML = ''; if (vendor.sells) { vendor.sells.forEach((itemDef, index) => { const itemData = GameData.ITEMS[itemDef.itemId]; if (itemData) { const slot = document.createElement('div'); slot.className = 'vendor-item-slot'; slot.dataset.itemId = itemData.id; slot.innerHTML = `<i class="fas ${itemData.icon} quality-${itemData.quality}"></i>`; if (itemDef.quantity > 1) slot.innerHTML += `<div class="item-count">${itemDef.quantity}</div>`; slot.innerHTML += `<div class="vendor-item-price">${UI.formatCurrency(itemDef.price, true)}</div>`; slot.addEventListener('click', () => { this.buyItemFromVendor(player, itemData, itemDef.price, itemDef.quantity); this.needsVendorUpdate = true; }); vendorSellsGrid.appendChild(slot); } }); } }
+    updateVendorWindow(player, vendor) {
+        const playerInventoryGrid = $('#vendor-player-inventory');
+        const vendorSellsGrid = $('#vendor-sells-grid');
+        $('#vendor-player-gold').innerHTML = UI.formatCurrency(player.gold, true);
+        playerInventoryGrid.innerHTML = '';
+        player.inventory.forEach((item, index) => {
+            if (item && vendor.buys.includes(item.slot)) {
+                const slot = document.createElement('div');
+                slot.className = 'vendor-item-slot inventory-slot';
+                slot.dataset.index = index;
+                slot.dataset.itemId = item.id;
+                slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`;
+                if (item.stackable && item.quantity > 1) slot.innerHTML += `<div class="item-count">${item.quantity}</div>`;
+                if (item.sellPrice) slot.innerHTML += `<div class="vendor-item-price">${UI.formatCurrency(item.sellPrice, true)}</div>`;
+                slot.addEventListener('click', () => this.sellItemFromInventory(player, item, index, vendor));
+                playerInventoryGrid.appendChild(slot);
+            }
+        });
+        vendorSellsGrid.innerHTML = '';
+        if (vendor.sells) {
+            vendor.sells.forEach((itemDef, index) => {
+                const itemData = GameData.ITEMS[itemDef.itemId];
+                if (itemData) {
+                    const slot = document.createElement('div');
+                    slot.className = 'vendor-item-slot';
+                    slot.dataset.itemId = itemData.id;
+                    slot.innerHTML = `<i class="fas ${itemData.icon} quality-${itemData.quality}"></i>`;
+                    if (itemDef.quantity > 1) slot.innerHTML += `<div class="item-count">${itemDef.quantity}</div>`;
+                    slot.innerHTML += `<div class="vendor-item-price">${UI.formatCurrency(itemDef.price, true)}</div>`;
+
+                    // --- NEW: REPUTATION CHECK ---
+                    let canBuy = true;
+                    if (itemData.requiredFaction) {
+                        const playerRep = player.reputation[itemData.requiredFaction.name];
+                        const factionData = GameData.FACTIONS[itemData.requiredFaction.name];
+                        const requiredTierIndex = factionData.tiers.indexOf(itemData.requiredFaction.tier);
+                        if (!playerRep || playerRep.tierIndex < requiredTierIndex) {
+                            canBuy = false;
+                            slot.classList.add('locked'); // Add a class for styling locked items
+                        }
+                    }
+
+                    if (canBuy) {
+                        slot.addEventListener('click', () => {
+                            this.buyItemFromVendor(player, itemData, itemDef.price, itemDef.quantity || 1);
+                            this.needsVendorUpdate = true;
+                        });
+                    }
+                    vendorSellsGrid.appendChild(slot);
+                }
+            });
+        }
+    }
     setupMobileActionButtons(player) { const container = $('#mobile-action-buttons'); container.innerHTML = ''; const numButtons = 3; for (let i = 0; i < numButtons; i++) { const slotItem = player.hotbar[i]; const button = document.createElement('div'); button.className = 'mobile-action-button'; if (slotItem) { const ref = slotItem.ref; button.innerHTML = `<i class="fas ${ref.icon}"></i><div class="cooldown-overlay" data-ability-id="${ref.id}"></div>`; button.addEventListener('touchstart', (e) => { e.preventDefault(); player.useHotbarSlot(i); }); } else { button.innerHTML = ``; } container.appendChild(button); } }
     updateMobileCooldowns(player) { $$('#mobile-action-buttons .cooldown-overlay').forEach((overlay, index) => { const id = overlay.dataset.abilityId; const hotbarItem = player.hotbar[index]; if(hotbarItem && player.cooldowns[id]) { const remaining = player.cooldowns[id]; const percentage = (remaining / hotbarItem.ref.cooldown) * 100; overlay.style.height = `${percentage}%`; overlay.textContent = (remaining / 1000).toFixed(1); } else { overlay.style.height = '0%'; overlay.textContent = ''; } }); }
     updateCraftingWindow(player, station) {
