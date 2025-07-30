@@ -555,8 +555,10 @@ const GameData = {
         2: { id: 2, name: 'Medium Oak', icon: '\uf1bb', size: 70, color: '#4CAF50' },
         3: { id: 3, name: 'Small Bush', icon: '\uf5bb', size: 40, color: '#689F38' },
         4: { id: 4, name: 'Spruce', icon: '\uf1bb', size: 80, color: '#1B5E20' },
-        // --- NEW SCENERY ---
         5: { id: 5, name: 'Cave Wall', icon: '\uf1b2', size: 120, color: '#4a4238' },
+        6: { id: 6, name: 'Grass Tuft', icon: '\uf4d8', size: 20, color: '#7CFC00' },
+        // --- NEW: Add the Small Cabin scenery ---
+        7: { id: 7, name: 'Small Cabin', icon: '\uf015', size: 90, color: '#8B4513', isCollidable: true },
     },
     GEAR_SETS: {
         'goblin_guard': {
@@ -604,6 +606,13 @@ const GameData = {
         
         // --- NEW STARTER ITEM ---
         29: { id: 29, name: "Chair", icon: "fa-chair", slot: "material", quality: "common", stackable: true, sellPrice: 75, description: "A simple, but sturdy chair. Good for sitting, or selling." },
+        30: { id: 30, name: "Simple Wooden Bow", icon: "fa-bow-arrow", slot: "main-hand", quality: "common", 
+            weaponDamage: { min: 7, max: 9 }, range: 300, 
+            durability: 100, maxDurability: 100, sellPrice: 400 
+        },
+        31: { id: 31, name: "Simple Wooden Arrow", icon: "fa-arrows", slot: "material", quality: "common", 
+            stackable: true, maxStack: 99, sellPrice: 5 
+        },
 
         301: { id: 301, name: "Stormwind Tabard", icon: "fa-shirt", slot: "tabard", quality: "rare", description: "A symbol of your dedication to Stormwind. Increases reputation gain with the Stormwind Guard by 10%.", requiredFaction: { name: 'Stormwind Guard', tier: 'Friendly' } },
         302: { id: 302, name: "Guard's Heavy Blade", icon: "fa-gavel", slot: "main-hand", quality: "rare", weaponDamage: { min: 10, max: 15 }, stats: { strength: 3, stamina: 3 }, requiredFaction: { name: 'Stormwind Guard', tier: 'Honored' } },
@@ -746,18 +755,31 @@ const GameData = {
         'pickaxe': { id: 'pickaxe', name: 'Pickaxe', icon: 'fa-person-digging', itemId: 27, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000 },
         
         'chair': { id: 'chair', name: 'Chair', icon: 'fa-chair', itemId: 29, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 1}], time: 2000 },
+        'simple_wooden_bow': { 
+            id: 'simple_wooden_bow', name: 'Simple Wooden Bow', icon: 'fa-bow-arrow', itemId: 30, 
+            profession: 'Woodworking', skillRequired: 3, 
+            materials: [{itemId: 15, quantity: 10}], time: 5000, 
+            playerXpGain: 25 // Gives 25 player XP upon crafting
+        },
+        'simple_wooden_arrow': { 
+            id: 'simple_wooden_arrow', name: 'Simple Wooden Arrow', icon: 'fa-arrows', itemId: 31, 
+            profession: 'Woodworking', skillRequired: 3, 
+            materials: [{itemId: 15, quantity: 1}], time: 2000,
+            xpGain: 5,   // Gives 5 Woodworking XP
+            yield: 10    // Yields 10 arrows per craft
+        },
 
         'tin_bar': { id: 'tin_bar', name: 'Tin Bar', icon: 'fa-cubes', itemId: 24, profession: 'Blacksmithing', skillRequired: 20, materials: [{itemId: 14, quantity: 2}], time: 2500 },
         'heavy_copper_armor': { id: 'heavy_copper_armor', name: 'Heavy Copper Armor', icon: 'fa-shirt', itemId: 25, profession: 'Blacksmithing', skillRequired: 25, materials: [{itemId: 18, quantity: 10}, {itemId: 24, quantity: 2}], time: 8000 },
         'potion_of_swiftness': { id: 'potion_of_swiftness', name: 'Potion of Swiftness', icon: 'fa-flask-vial', itemId: 26, profession: 'Alchemy', skillRequired: 20, materials: [{itemId: 13, quantity: 3}], time: 4000 },
     },
     SKILL_RECIPE_UNLOCKS: {
-        // FIX: Lumberjacking no longer unlocks the pickaxe. We leave an empty array for future recipes.
         'Lumberjacking': [], 
         'Woodworking': [
             { level: 1, recipeId: 'chair' },
-            // FIX: The Pickaxe is now unlocked at Woodworking level 2, which is much more intuitive.
-            { level: 2, recipeId: 'pickaxe' }
+            { level: 2, recipeId: 'pickaxe' },
+            // --- NEW: Unlock the bow recipe at Woodworking level 3 ---
+            { level: 3, recipeId: 'simple_wooden_bow' }
         ]
     },
     PROFESSIONS: {
@@ -774,11 +796,10 @@ const GameData = {
             id: 'starting_zone', name: 'Whispering Woods', x: 20000, y: 20000, width: 60000, height: 60000,
             isRestZone: true,
             bgColor: "#182c18",
-            // --- FIX: Density tripled from 250 to 750 ---
-            sceneryPatches: [ { type: [1, 2, 3, 4], density: 750, patchCenter: {x: 50000, y: 50000}, patchRadius: 10000 } ],
+            sceneryPatches: [ { type: [1, 2, 3, 4, 6], density: 3750, patchCenter: {x: 50000, y: 50000}, patchRadius: 10000 } ],
             enemyPacks: [
-                { type: 'SPIDER', count: 25, packCenter: {x: 45000, y: 45000}, packRadius: 2000 },
-                { type: 'WOLF', count: 15, packCenter: {x: 55000, y: 55000}, packRadius: 1500 },
+                { type: 'SPIDER', count: 50, packCenter: {x: 45000, y: 45000}, packRadius: 2000 },
+                { type: 'WOLF', count: 30, packCenter: {x: 55000, y: 55000}, packRadius: 1500 },
             ],
             resourcePatches: [
                 { type: 'PEACEBLOOM', count: 160, patchCenter: {x: 52000, y: 51000}, patchRadius: 4000 },
@@ -787,6 +808,8 @@ const GameData = {
             ],
             npcs: [
                 { type: 'QuestGiver', name: "Old Man Willow", x: 50000, y: 49500, questIds: [1, 2, 3] },
+                // --- NEW: Add the cabin as a specifically placed scenery object ---
+                { type: 'Scenery', sceneryId: 7, x: 50150, y: 49550 },
                 { type: 'GenericNPC', npcType: 'BLACKSMITH', x: 49000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'GENERAL_VENDOR', x: 51000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'SPIRIT_HEALER', x: 48500, y: 48000 },
@@ -805,12 +828,12 @@ const GameData = {
             bgColor: "#4a4238",
             sceneryPatches: [ { type: [1, 4], density: 80, patchCenter: {x: 87500, y: 60000}, patchRadius: 10000 } ],
             enemyPacks: [
-                { type: 'BEAR', count: 15, packCenter: {x: 85000, y: 50000}, packRadius: 5000 },
-                { type: 'GOBLIN_STALKER', count: 10, packCenter: {x: 83000, y: 60000}, packRadius: 3000 },
+                { type: 'BEAR', count: 30, packCenter: {x: 85000, y: 50000}, packRadius: 5000 },           // DOUBLED from 15
+                { type: 'GOBLIN_STALKER', count: 20, packCenter: {x: 83000, y: 60000}, packRadius: 3000 }, // DOUBLED from 10
             ],
             resourcePatches: [ 
-                { type: 'TIN_VEIN', count: 120, patchCenter: {x: 87000, y: 55000}, patchRadius: 8000 }, // DOUBLED from 60
-                { type: 'SILVERLEAF', count: 80, patchCenter: {x: 84000, y: 48000}, patchRadius: 6000 }, // DOUBLED from 40
+                { type: 'TIN_VEIN', count: 120, patchCenter: {x: 87000, y: 55000}, patchRadius: 8000 },
+                { type: 'SILVERLEAF', count: 80, patchCenter: {x: 84000, y: 48000}, patchRadius: 6000 },
             ],
             npcs: [
                 { type: 'Portal', name: "Back to Town", x: 87000, y: 44900, target: { x: 50600, y: 50600 } },
@@ -822,11 +845,11 @@ const GameData = {
             bgColor: "#3b302c",
             sceneryPatches: [ { type: [1, 4], density: 50, patchCenter: {x: 87500, y: 25000}, patchRadius: 7500 } ],
             enemyPacks: [
-                { type: 'GOBLIN', count: 15, packCenter: {x: 85000, y: 20000}, packRadius: 3000 },
-                { type: 'DARK_CASTER', count: 5, packCenter: {x: 88000, y: 15000}, packRadius: 1000 },
+                { type: 'GOBLIN', count: 30, packCenter: {x: 85000, y: 20000}, packRadius: 3000 },       // DOUBLED from 15
+                { type: 'DARK_CASTER', count: 10, packCenter: {x: 88000, y: 15000}, packRadius: 1000 }, // DOUBLED from 5
             ],
             resourcePatches: [ 
-                { type: 'COPPER_VEIN', count: 80, patchCenter: {x: 82000, y: 18000}, patchRadius: 4000 }, // DOUBLED from 40
+                { type: 'COPPER_VEIN', count: 80, patchCenter: {x: 82000, y: 18000}, patchRadius: 4000 },
             ],
             npcs: []
         },
@@ -836,8 +859,8 @@ const GameData = {
             bgColor: "#3b302c",
             sceneryPatches: [ { type: [5], density: 50, patchCenter: {x: 82500, y: 82500}, patchRadius: 2500 } ],
             enemyPacks: [
-                { type: 'GOBLIN_GUARD', count: 8, packCenter: {x: 82500, y: 82500}, packRadius: 2000 },
-                { type: 'GOBLIN_BOSS', count: 1, packCenter: {x: 84000, y: 81000}, packRadius: 100 },
+                { type: 'GOBLIN_GUARD', count: 16, packCenter: {x: 82500, y: 82500}, packRadius: 2000 }, // DOUBLED from 8
+                { type: 'GOBLIN_BOSS', count: 1, packCenter: {x: 84000, y: 81000}, packRadius: 100 },      // Boss count remains 1
             ],
             npcs: [
                 { type: 'DungeonEntrance', name: "Exit Cave", x: 80500, y: 84500, isExit: true }
@@ -920,6 +943,13 @@ class Game {
                     else if (npc.type === 'Portal') {
                         npcEntity = new Portal(npc.x, npc.y, npc.name, npc.target);
                     }
+                    // --- NEW: Add a case to handle specifically placed scenery ---
+                    else if (npc.type === 'Scenery') {
+                        const sceneryData = GameData.SCENERY[npc.sceneryId];
+                        if (sceneryData) {
+                            npcEntity = new Scenery(npc.x, npc.y, sceneryData);
+                        }
+                    }
                     if (npcEntity) this.entities.push(npcEntity);
                 });
             }
@@ -978,7 +1008,8 @@ class Game {
                 const y = game.camera.y + Math.random() * game.camera.height;
                 ParticleSystem.create(x, y, 'rgba(255, 255, 255, 0.03)', 1, 8, 0.1, { vx: (Math.random() - 0.5) * 0.2, vy: (Math.random() - 0.5) * 0.2 });
             }
-        }, 100);
+        // --- FIX: Interval reduced from 100 to 33 to triple the fog particle rate ---
+        }, 33);
 
         setInterval(() => {
             if (game && game.camera) {
@@ -986,7 +1017,8 @@ class Game {
                 const y = game.camera.y + Math.random() * game.camera.height;
                 ParticleSystem.create(x, y, 'yellow', 10, 1.5, 3, { vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4 });
             }
-        }, 4000 + Math.random() * 3000);
+        // --- FIX: Interval reduced from 4000-7000 to 1333-2333 to triple the insect swarm rate ---
+        }, 1333 + Math.random() * 1000);
     }
 
     gameLoop(timestamp) { const deltaTime = timestamp - this.lastTime; this.lastTime = timestamp; this.update(deltaTime); this.draw(); requestAnimationFrame((ts) => this.gameLoop(ts)); }
@@ -1415,26 +1447,51 @@ class Player extends Character {
         }
         const isMoving = moveVector.x !== 0 || moveVector.y !== 0;
 
-        if (isMoving) {
+        // --- NEW COLLISION LOGIC ---
+        if (isMoving && currentRegion) {
             if (this.isGathering) {
                 this.cancelGathering();
             }
-            if (currentRegion) {
-                let finalX = moveVector.x;
-                let finalY = moveVector.y;
-                if (finalX !== 0 && finalY !== 0) { 
-                    finalX *= 0.7071;
-                    finalY *= 0.7071;
+            
+            let finalX = moveVector.x;
+            let finalY = moveVector.y;
+            if (finalX !== 0 && finalY !== 0) { 
+                finalX *= 0.7071;
+                finalY *= 0.7071;
+            }
+            const currentSpeed = this.speed * (this.isGhost ? 1.5 : 1) * (deltaTime / 16.67);
+            
+            const potentialNewX = this.x + finalX * currentSpeed;
+            const potentialNewY = this.y + finalY * currentSpeed;
+
+            const collidables = game.entities.filter(e => e.isCollidable);
+            const playerRadius = this.size / 4; // Use a smaller radius for more forgiving collision
+
+            const isCollidingAt = (px, py) => {
+                for (const entity of collidables) {
+                    const halfSize = entity.size / 2;
+                    if (px + playerRadius > entity.x - halfSize &&
+                        px - playerRadius < entity.x + halfSize &&
+                        py + playerRadius > entity.y - halfSize &&
+                        py - playerRadius < entity.y + halfSize) {
+                        return true; // Collision detected
+                    }
                 }
-                const currentSpeed = this.speed * (this.isGhost ? 1.5 : 1) * (deltaTime / 16.67);
-                const newX = this.x + finalX * currentSpeed;
-                const newY = this.y + finalY * currentSpeed;
-                if ( newX > currentRegion.x && newX < currentRegion.x + currentRegion.width && newY > currentRegion.y && newY < currentRegion.y + currentRegion.height ) {
-                    this.x = newX;
-                    this.y = newY;
-                }
+                return false; // No collision
+            };
+
+            // Check X-axis movement
+            if (potentialNewX > currentRegion.x && potentialNewX < currentRegion.x + currentRegion.width && !isCollidingAt(potentialNewX, this.y)) {
+                this.x = potentialNewX;
+            }
+
+            // Check Y-axis movement
+            if (potentialNewY > currentRegion.y && potentialNewY < currentRegion.y + currentRegion.height && !isCollidingAt(this.x, potentialNewY)) {
+                this.y = potentialNewY;
             }
         }
+        // --- END NEW COLLISION LOGIC ---
+
 
         if (this.isGhost) {
             if (this.corpse && distance(this, this.corpse) < this.size) this.resurrectAtCorpse();
@@ -1740,13 +1797,31 @@ class Player extends Character {
         const profession = this.professions[recipe.profession]; if (!profession || profession.level < recipe.skillRequired) { game.createFloatingText("Skill too low!", this.x, this.y, 'red'); return false; }
         let hasMaterials = true; for (const mat of recipe.materials) { const playerMat = this.inventory.find(item => item && item.id === mat.itemId); if (!playerMat || playerMat.quantity < mat.quantity) { hasMaterials = false; game.createFloatingText("Missing materials!", this.x, this.y, 'red'); break; } }
         if (!hasMaterials) return false;
+
         for (const mat of recipe.materials) { this.removeItem(mat.itemId, mat.quantity); }
-        this.addItem(recipe.itemId, 1); game.createFloatingText(`Crafted: ${recipe.name}`, this.x, this.y, 'lightgreen');
+        
+        // --- UPGRADED LOGIC ---
+        const craftYield = recipe.yield || 1; // Use recipe yield, or default to 1
+        this.addItem(recipe.itemId, craftYield); 
+        game.createFloatingText(`Crafted: ${recipe.name}` + (craftYield > 1 ? ` (x${craftYield})` : ''), this.x, this.y, 'lightgreen');
+        
+        // Give player XP if the recipe defines it
+        if (recipe.playerXpGain) {
+            this.addXp(recipe.playerXpGain);
+        }
+
+        // Special logic: learn arrow recipe after crafting the bow
+        if (recipeId === 'simple_wooden_bow') {
+            this.addRecipe('simple_wooden_arrow');
+        }
         
         this.updateQuestProgress('craft', recipe.itemId);
 
-        // This awards 10 XP per craft. This works for the "Chair" recipe as requested.
-        this.gainProfessionXp(recipe.profession, 10); 
+        const profXpGain = recipe.xpGain !== undefined ? recipe.xpGain : 10; // Use recipe XP, or default to 10
+        if (profXpGain > 0) {
+            this.gainProfessionXp(recipe.profession, profXpGain); 
+        }
+
         game.ui.updateAll(this); 
         return true;
     }
@@ -1939,6 +2014,9 @@ class Scenery extends Entity {
         super(x, y, type.size, type.color, type.icon);
         this.type = type;
         this.isInteractable = false;
+        
+        // --- FIX: Ensure the isCollidable property is copied from the data to the object instance ---
+        this.isCollidable = type.isCollidable || false;
     }
     
     draw(ctx, camera, player) {
@@ -2247,7 +2325,15 @@ const ParticleSystem = {
 
 class InputHandler {
     constructor(isMobile) { this.keys = {}; this.mouse = { x: 0, y: 0, clicked: false }; this.isMobile = isMobile; isMobile ? this.setupMobileControls() : this.setupDesktopControls(); }
-    setupDesktopControls() { window.addEventListener('keydown', (e) => this.keys[e.key.toLowerCase()] = true); window.addEventListener('keyup', (e) => this.keys[e.key.toLowerCase()] = false); window.addEventListener('mousedown', (e) => { if(e.target.id === 'game-canvas') this.mouse.clicked = true; }); window.addEventListener('mousemove', (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; }); }
+    setupDesktopControls() { 
+        window.addEventListener('keydown', (e) => this.keys[e.key.toLowerCase()] = true); 
+        window.addEventListener('keyup', (e) => this.keys[e.key.toLowerCase()] = false); 
+        window.addEventListener('mousedown', (e) => { if(e.target.id === 'game-canvas') this.mouse.clicked = true; }); 
+        window.addEventListener('mousemove', (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; }); 
+        
+        // --- FIX: Add this event listener to clear keys when the window regains focus ---
+        window.addEventListener('focus', () => { this.keys = {}; });
+    }
     setupMobileControls() { const joystickArea = $('#joystick-area'); const joystickThumb = $('#joystick-thumb'); this.joystickVector = {x: 0, y: 0}; const handleTouch = (e) => { e.preventDefault(); const joystickRect = joystickArea.getBoundingClientRect(); const centerX = joystickRect.width / 2; const centerY = joystickRect.height / 2; const touch = e.touches[0]; let x = touch.clientX - joystickRect.left - centerX; let y = touch.clientY - joystickRect.top - centerY; const dist = Math.sqrt(x*x + y*y); const maxDist = centerX - joystickThumb.offsetWidth / 2; if (dist > maxDist) { x = (x / dist) * maxDist; y = (y / dist) * maxDist; } joystickThumb.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`; this.joystickVector = { x: x / maxDist, y: y / maxDist }; }; joystickArea.addEventListener('touchstart', handleTouch, { passive: false }); joystickArea.addEventListener('touchmove', handleTouch, { passive: false }); joystickArea.addEventListener('touchend', () => { joystickThumb.style.transform = `translate(-50%, -50%)`; this.joystickVector = { x: 0, y: 0 }; }); $('#game-canvas').addEventListener('touchstart', (e) => { const touch = e.touches[0]; if (touch.clientX > 200 && touch.clientY < window.innerHeight - 100) { this.mouse.x = touch.clientX; this.mouse.y = touch.clientY; this.mouse.clicked = true; } }); }
     getMoveVector() { if(this.isMobile) return this.joystickVector; let vector = { x: 0, y: 0 }; if (this.keys['w']) vector.y -= 1; if (this.keys['s']) vector.y += 1; if (this.keys['a']) vector.x -= 1; if (this.keys['d']) vector.x += 1; return vector; }
 }
