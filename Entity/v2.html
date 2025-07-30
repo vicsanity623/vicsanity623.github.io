@@ -651,13 +651,52 @@ const GameData = {
             const damage = (caster.getWeaponDamage() * 1.2) + (caster.stats.attackPower * 0.3); 
             target.takeDamage(damage, 'physical', caster); 
         }},
-        2: { id: 2, name: "Fireball", icon: "fa-fire-flame-curved", cost: 30, cooldown: 5000, range: 200, onUse: (caster, target) => { 
-            ParticleSystem.create(target.x, target.y, 'orange', 25, 0.2, 15); 
-            const baseDamage = (caster.stats.intellect * 2) + 10; 
-            const damage = baseDamage * (caster.talentBonuses.fireballDamageMultiplier || 1);
-            target.takeDamage(damage, 'magic', caster); 
-        }},
-        3: { id: 3, name: "Rend", icon: "fa-heart-crack", cost: 15, cooldown: 6000, range: 90, onUse: (caster, target) => { target.addBuff({ id: 'rend_dot', name: 'Rend', icon: 'fa-heart-crack', duration: 9000, tickRate: 3000, onTick: (t) => { const damage = caster.getAttackDamage() * 0.2; t.takeDamage(damage, 'physical', caster, true); game.createFloatingText(Math.round(damage), t.x, t.y, '#ff4500'); }, isDebuff: true }); }},
+        2: { 
+            id: 2, name: "Fireball", icon: "fa-fire-flame-curved", cost: 30, cooldown: 5000, range: 200, 
+            // --- UPDATED LOGIC ---
+            onUse: (caster, target) => { 
+                // Define the effect that happens ON HIT
+                const fireballEffect = (caster, target) => {
+                    ParticleSystem.create(target.x, target.y, 'orange', 25, 0.2, 15); 
+                    const baseDamage = (caster.stats.intellect * 2) + 10; 
+                    const damage = baseDamage * (caster.talentBonuses.fireballDamageMultiplier || 1);
+                    target.takeDamage(damage, 'magic', caster); 
+                };
+
+                // Create and spawn the projectile
+                const projectile = new Projectile(caster, target, 400, '\uf6d6', 'orange', 15, fireballEffect);
+                game.entities.push(projectile);
+            }
+        },
+        3: { id: 3, name: "Rend", icon: "fa-heart-crack", cost: 15, cooldown: 6000, range: 90, onUse: (caster, target) => { 
+            const rendEffectOnHit = (caster, target) => {
+                    // This is the original logic to apply the debuff
+                    target.addBuff({ 
+                        id: 'rend_dot', 
+                        name: 'Rend', 
+                        icon: 'fa-heart-crack', 
+                        duration: 9000, 
+                        tickRate: 3000, 
+                        isDebuff: true,
+                        // --- NEW: Add the radiating aura effect on each tick ---
+                        onTick: (t) => { 
+                            // Deal the damage
+                            const damage = caster.getAttackDamage() * 0.2; 
+                            t.takeDamage(damage, 'physical', caster, true); 
+                            game.createFloatingText(Math.round(damage), t.x, t.y, '#ff4500'); 
+                            
+                            // Create the visual "wave aura" pulse
+                            ParticleSystem.create(t.x, t.y, '#9a031e', 12, 0.4, 8, { vx: (Math.random() - 0.5) * 50, vy: (Math.random() - 0.5) * 50 });
+                        }
+                    });
+                };
+
+                // Create and spawn a new projectile for Rend
+                // We'll make it a fast, dark red "bolt"
+                const projectile = new Projectile(caster, target, 600, '\uf786', '#9a031e', 12, rendEffectOnHit);
+                game.entities.push(projectile);
+            }
+        }
     },
         ENEMY_TYPES: {
         'WOLF': { name: "Dire Wolf", icon: "\uf6f0", color: "#a9a9a9", size: 28, speed: 1.5, health: 80, attack: 5, aggroRadius: 150, attackRange: 40, attackSpeed: 2000, xp: 15, lootTable: [{itemId: 4, chance: 0.8, min: 1, max: 2}, {itemId: 9, chance: 0.5, min: 1, max: 1}, {gold: 50, chance: 1.0}], reputation: { faction: 'Wilderness', value: -10 } },
@@ -2144,6 +2183,45 @@ class Player extends Character {
         }
     }
 }
+
+class Projectile extends Entity {
+    constructor(caster, target, speed, icon, color, size, onHit) {
+        // Start the projectile at the caster's position
+        super(caster.x, caster.y, size, color, icon);
+        
+        this.caster = caster;
+        this.target = target;
+        this.speed = speed;
+        this.onHit = onHit; // The function to call upon impact
+        this.isInteractable = false;
+    }
+
+    update(deltaTime) {
+        // If the target is gone or dead, the projectile fizzles out.
+        if (!this.target || this.target.isDead) {
+            this.isDead = true;
+            return;
+        }
+
+        // Calculate the angle and distance to the target
+        const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+        const distanceToTarget = distance(this, this.target);
+
+        const moveDistance = this.speed * (deltaTime / 1000);
+
+        // Check if we will reach or pass the target this frame
+        if (distanceToTarget <= moveDistance) {
+            // We've hit the target!
+            this.onHit(this.caster, this.target); // Execute the hit effect
+            this.isDead = true; // Mark for deletion
+        } else {
+            // Move towards the target
+            this.x += Math.cos(angle) * moveDistance;
+            this.y += Math.sin(angle) * moveDistance;
+        }
+    }
+}
+
 class NPC extends Character {
     constructor(x, y, name, icon, color) { super(x, y, 28, color || '#00ff00', icon || '\uf0c0', name); this.isInteractable = true; }
     draw(ctx, camera, player) { 
