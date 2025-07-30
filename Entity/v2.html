@@ -542,7 +542,7 @@ const GameData = {
         24: { id: 24, name: "Tin Bar", icon: "fa-cubes", slot: "material", quality: "common", stackable: true, sellPrice: 120 },
         25: { id: 25, name: "Heavy Copper Armor", icon: "fa-shirt", slot: "chest", quality: "magic", stats: { armor: 12, stamina: 2 }, durability: 100, maxDurability: 100, sellPrice: 800 },
         26: { id: 26, name: "Potion of Swiftness", icon: "fa-flask-vial", slot: "consumable", quality: "magic", stackable: true, onUse: (player) => { player.addBuff({ id: 'swiftness', name: 'Swiftness', icon: 'fa-person-running', duration: 30000, onApply: p => p.speed *= 1.3, onExpire: p => p.speed /= 1.3, isDebuff: false }); }, sellPrice: 250 },
-        
+        27: { id: 27, name: "Pickaxe", icon: "fa-pickaxe", slot: "tool", quality: "common", stackable: false, sellPrice: 100 },
         // --- NEW FACTION ITEMS ---
         301: { id: 301, name: "Stormwind Tabard", icon: "fa-shirt", slot: "tabard", quality: "rare",
             description: "A symbol of your dedication to Stormwind. Increases reputation gain with the Stormwind Guard by 10%.",
@@ -666,11 +666,16 @@ const GameData = {
         'copper_mace': { id: 'copper_mace', name: 'Copper Mace', icon: 'fa-gavel', itemId: 21, profession: 'Blacksmithing', skillRequired: 10, materials: [{itemId: 18, quantity: 7}], time: 6000 },
         'minor_mana_potion': { id: 'minor_mana_potion', name: 'Minor Mana Potion', icon: 'fa-flask-vial', itemId: 22, profession: 'Alchemy', skillRequired: 10, materials: [{itemId: 6, quantity: 1}, {itemId: 12, quantity: 1}], time: 3000 },
         'reinforced_buckler': { id: 'reinforced_buckler', name: 'Reinforced Wooden Buckler', icon: 'fa-shield-halved', itemId: 23, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 10}, {itemId: 18, quantity: 1}], time: 7000 },
+        'pickaxe': { id: 'pickaxe', name: 'Pickaxe', icon: 'fa-pickaxe', itemId: 27, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000 },
         // --- NEW TIER 2 RECIPES ---
         'tin_bar': { id: 'tin_bar', name: 'Tin Bar', icon: 'fa-cubes', itemId: 24, profession: 'Blacksmithing', skillRequired: 20, materials: [{itemId: 14, quantity: 2}], time: 2500 },
         'heavy_copper_armor': { id: 'heavy_copper_armor', name: 'Heavy Copper Armor', icon: 'fa-shirt', itemId: 25, profession: 'Blacksmithing', skillRequired: 25, materials: [{itemId: 18, quantity: 10}, {itemId: 24, quantity: 2}], time: 8000 },
         'potion_of_swiftness': { id: 'potion_of_swiftness', name: 'Potion of Swiftness', icon: 'fa-flask-vial', itemId: 26, profession: 'Alchemy', skillRequired: 20, materials: [{itemId: 13, quantity: 3}], time: 4000 },
     },
+    SKILL_RECIPE_UNLOCKS: {
+        'Lumberjacking': [
+            { level: 2, recipeId: 'pickaxe' }
+        ]},
     PROFESSIONS: {
         'Herbalism': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 100 },
         'Mining': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 100 },
@@ -741,17 +746,17 @@ const GameData = {
     CRAFTING_STATIONS: {
         'WOODWORKING_BENCH': {
             name: 'Woodworking Bench', icon: '\uf6e2', color: '#8B4513',
-            recipes: ['wooden_staff', 'wooden_shield', 'reinforced_staff', 'oak_shield']
+            recipes: ['wooden_staff', 'wooden_shield', 'reinforced_staff', 'oak_shield', 'pickaxe'] // Added 'pickaxe'
         },
         'FORGE': {
             name: 'Forge', icon: '\uf6e3', color: '#d2691e',
-            recipes: ['copper_bar', 'copper_shortsword']
+            recipes: ['copper_bar', 'copper_shortsword', 'tin_bar', 'heavy_copper_armor']
         },
         'ALCHEMY_TABLE': {
             name: 'Alchemy Table', icon: '\uf70c', color: '#9932cc',
-            recipes: ['weak_trolls_blood']
+            recipes: ['weak_trolls_blood', 'minor_mana_potion', 'potion_of_swiftness']
         }
-    }
+    },
 };
 
 let game;
@@ -1430,6 +1435,9 @@ class Player extends Character {
         }
     }
     removeItem(itemId, quantity = 1) { const itemIndex = this.inventory.findIndex(item => item && item.id === itemId && item.quantity >= quantity); if (itemIndex > -1) { const itemStack = this.inventory[itemIndex]; itemStack.quantity -= quantity; if (itemStack.quantity <= 0) { this.inventory[itemIndex] = null; this.hotbar.forEach((slot, idx) => { if (slot && slot.type === 'item' && slot.ref === itemStack) { this.hotbar[idx] = null; } }); } return true; } return false; }
+    hasItem(itemId) {
+        return this.inventory.some(item => item && item.id === itemId);
+    }
     equipItem(inventoryIndex) {
         const item = this.inventory[inventoryIndex];
         if (!item || !item.slot || !this.equipment.hasOwnProperty(item.slot)) return;
@@ -1488,7 +1496,7 @@ class Player extends Character {
 
         this.gainProfessionXp(recipe.profession, 10); game.ui.updateAll(this); return true;
     }
-    gainProfessionXp(professionName, amount) {
+        gainProfessionXp(professionName, amount) {
         const profession = this.professions[professionName]; if (!profession) return;
         const professionData = GameData.PROFESSIONS[professionName]; if (!professionData) return;
         if (profession.level >= professionData.maxLevel) return;
@@ -1496,7 +1504,7 @@ class Player extends Character {
         profession.xp += amount; 
         game.createFloatingText(`+${amount} ${professionName} XP`, this.x, this.y - 60, 'lightgray');
         
-        if (profession.level === 0) profession.level = 1; // First skill up
+        if (profession.level === 0) profession.level = 1;
         
         while (profession.xp >= professionData.nextLevelXp && profession.level < professionData.maxLevel) { 
             profession.xp -= professionData.nextLevelXp; 
@@ -1504,30 +1512,31 @@ class Player extends Character {
             professionData.nextLevelXp += 50; 
             game.createFloatingText(`${professionName} Level Up!`, this.x, this.y - 100, 'gold');
 
-            // --- NEW: Check for newly unlocked quests at this skill level ---
+            // Check for newly unlocked quests at this skill level
             Object.values(GameData.QUESTS).forEach(quest => {
-                // Check if the quest has requirements and the player doesn't already have it.
                 if (quest.requirements && !this.quests.find(q => q.id === quest.id)) {
                     quest.requirements.forEach(req => {
-                        // Check if the requirement is for the profession that just leveled up to the exact required level.
                         if (req.type === 'profession' && req.name === professionName && profession.level === req.level) {
-                            
-                            // Find the NPC who gives this quest.
-                            let giverName = "a Quest Giver"; // Default name as a fallback.
+                            let giverName = "a Quest Giver";
                             for (const region of GameData.REGIONS) {
                                 const giver = region.npcs.find(npc => npc.questIds && npc.questIds.includes(quest.id));
-                                if (giver) {
-                                    giverName = giver.name;
-                                    break; // Stop searching once found.
-                                }
+                                if (giver) { giverName = giver.name; break; }
                             }
-                            
-                            // Create the alert text for the player!
                             game.createFloatingText(`New Quest Available! Check ${giverName}.`, this.x, this.y - 80, 'gold');
                         }
                     });
                 }
             });
+
+            // --- NEW: Check for newly unlocked recipes at this skill level ---
+            const recipeUnlocks = GameData.SKILL_RECIPE_UNLOCKS[professionName];
+            if (recipeUnlocks) {
+                recipeUnlocks.forEach(unlock => {
+                    if (unlock.level === profession.level) {
+                        this.addRecipe(unlock.recipeId);
+                    }
+                });
+            }
         }
     }
     
@@ -1629,11 +1638,19 @@ class ResourceNode extends Entity {
 
         const profession = player.professions[this.type.requiredSkill];
         
-        // --- NEW: Skill Level Check ---
         if (profession.level < this.type.requiredSkillLevel) {
             game.createFloatingText(`Requires ${this.type.requiredSkill} (${this.type.requiredSkillLevel})`, player.x, player.y, 'red');
             return;
         }
+
+        // --- NEW: Check for required tool ---
+        if (this.type.requiredSkill === 'Mining') {
+            if (!player.hasItem(27)) { // 27 is the ID for Pickaxe
+                game.createFloatingText('Requires Pickaxe', player.x, player.y, 'red');
+                return; // Stop the interaction if the player doesn't have a pickaxe
+            }
+        }
+        // You could add similar checks here for other tools, like a Lumber Axe or Skinning Knife.
 
         if (profession.level === 0) {
             profession.level = 1;
