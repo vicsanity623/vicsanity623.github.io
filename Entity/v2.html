@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Mini-WoW: The 2D Adventure</title>
+    <title>Mini-RPG: The 2D Adventure</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
@@ -345,7 +345,7 @@
 <body>
     <div id="main-menu" class="fullscreen-overlay">
         <div class="menu-box">
-            <h1>Mini-WoW</h1>
+            <h1>Mini-RPG</h1>
             <p>The 2D Adventure</p>
             <button id="continue-button" class="menu-button">Continue</button>
             <button id="new-char-button" class="menu-button">New Character</button>
@@ -498,7 +498,8 @@ const GameData = {
         3: { id: 3, name: 'Small Bush', icon: '\uf553', size: 40, color: '#689F38' },
         4: { id: 4, name: 'Spruce', icon: '\uf1bb', size: 80, color: '#1B5E20' },
     },
-        ITEMS: {
+    ITEMS: {
+        // (Existing items 1-21 remain the same)
         1: { id: 1, name: "Rusty Sword", icon: 'fa-gavel', slot: "main-hand", quality: "common", weaponDamage: { min: 3, max: 5 }, durability: 100, maxDurability: 100, sellPrice: 100 },
         2: { id: 2, name: "Worn Leather Vest", icon: "fa-vest-patches", slot: "chest", quality: "common", stats: { armor: 5 }, durability: 100, maxDurability: 100, sellPrice: 150 },
         3: { id: 3, name: "Spider Silk", icon: "fa-network-wired", slot: "material", quality: "common", stackable: true, sellPrice: 50 },
@@ -520,9 +521,12 @@ const GameData = {
         19: { id: 19, name: "Copper Shortsword", icon: "fa-sword", slot: "main-hand", quality: "common", weaponDamage: { min: 4, max: 6 }, durability: 100, maxDurability: 100, sellPrice: 300 },
         20: { id: 20, name: "Weak Troll's Blood Potion", icon: "fa-flask-vial", slot: "consumable", quality: "common", stackable: true, onUse: (player) => { player.addBuff({ id: 'troll_regen', name: 'Weak Regeneration', icon: 'fa-heart-pulse', duration: 60000, tickRate: 2000, onTick: (p) => p.heal(5), isDebuff: false }); }, sellPrice: 100 },
         21: { id: 21, name: "Copper Mace", icon: "fa-gavel", slot: "main-hand", quality: "common", weaponDamage: { min: 5, max: 7 }, durability: 100, maxDurability: 100, sellPrice: 350 },
-        // --- NEW ITEMS ---
         22: { id: 22, name: "Minor Mana Potion", icon: "fa-flask-vial", slot: "consumable", quality: "common", stackable: true, onUse: (player) => { if(player.stats.mana < player.stats.maxMana) player.stats.mana = Math.min(player.stats.maxMana, player.stats.mana + 50); }, sellPrice: 40 },
         23: { id: 23, name: "Reinforced Wooden Buckler", icon: "fa-shield-halved", slot: "off-hand", quality: "magic", stats: { armor: 5, agility: 2 }, durability: 100, maxDurability: 100, sellPrice: 550 },
+        // --- NEW TIER 2 ITEMS ---
+        24: { id: 24, name: "Tin Bar", icon: "fa-cubes", slot: "material", quality: "common", stackable: true, sellPrice: 120 },
+        25: { id: 25, name: "Heavy Copper Armor", icon: "fa-shirt", slot: "chest", quality: "magic", stats: { armor: 12, stamina: 2 }, durability: 100, maxDurability: 100, sellPrice: 800 },
+        26: { id: 26, name: "Potion of Swiftness", icon: "fa-flask-vial", slot: "consumable", quality: "magic", stackable: true, onUse: (player) => { player.addBuff({ id: 'swiftness', name: 'Swiftness', icon: 'fa-person-running', duration: 30000, onApply: p => p.speed *= 1.3, onExpire: p => p.speed /= 1.3, isDebuff: false }); }, sellPrice: 250 },
 
         101: { id: 101, name: "Goblin-Forged Blade", icon: "fa-scythe", slot: "main-hand", quality: "rare", weaponDamage: { min: 8, max: 12 }, stats: { strength: 2 }, durability: 100, maxDurability: 100, sellPrice: 500 },
         102: { id: 102, name: "Enchanted Robes", icon: "fa-jedi", slot: "chest", quality: "magic", stats: { armor: 8, intellect: 3 }, durability: 100, maxDurability: 100, sellPrice: 400 },
@@ -570,41 +574,30 @@ const GameData = {
         'BLACKSMITHING_TRAINER': { name: "Thorin the Smith", icon: '\uf6e3', color: '#d2b48c', interactType: 'crafting_trainer', profession: 'Blacksmithing' },
         'ALCHEMIST': { name: "Alchemist Fiona", icon: '\uf70c', color: '#9932cc', interactType: 'crafting_trainer', profession: 'Alchemy' },
     },
-        QUESTS: { 
+    QUESTS: { 
+        // (Existing quests 1, 2, 3, 101, 102, 103, 104 remain the same)
         1: { id: 1, title: "A Tangled Web", description: "The forest path is overrun with spiders. Clear out 5 of them so travelers can pass safely.", objectives: [{ type: 'kill', target: 'SPIDER', count: 5 }], rewards: { xp: 100, gold: 1000, items: [{id: 2, quantity: 1}], reputation: { faction: 'Stormwind Guard', value: 50 } }, repeatable: false },
         2: { id: 2, title: "Wolf Hunting", description: "The local farmers are losing livestock to dire wolves. Hunt 3 dire wolves.", objectives: [{ type: 'kill', target: 'WOLF', count: 3 }], rewards: { xp: 80, gold: 800, items: [{id: 4, quantity: 1}], reputation: { faction: 'Stormwind Guard', value: 40 } }, repeatable: true, cooldown: 3600000 },
         3: { id: 3, title: "Bear Necessities", description: "Grizzled Bears have become a threat. Thin their numbers by slaying 3 of them.", objectives: [{ type: 'kill', target: 'BEAR', count: 3 }], rewards: { xp: 150, gold: 1500 }, repeatable: true, cooldown: 1800000 },
-        101: { 
-            id: 101, title: "Advanced Woodworking", 
-            description: "You've shown promise, young artisan. To further your skills, craft 2 Rough Wooden Staves and 2 Sturdy Wooden Shields. Your dedication will be rewarded.",
-            requirements: [{ type: 'profession', name: 'Woodworking', level: 10 }],
-            objectives: [ { type: 'craft', itemId: 8, count: 2 }, { type: 'craft', itemId: 10, count: 2 } ],
-            rewards: { xp: 200, gold: 2000, recipes: ['reinforced_staff', 'oak_shield'] },
-            repeatable: false 
-        },
-        102: {
-            id: 102, title: "The Art of the Forge",
-            description: "You've proven adept at finding ore. Now, let's see if you can shape it. Smelt 10 Copper Bars and bring them to me. A true smith knows their materials.",
-            requirements: [{ type: 'profession', name: 'Mining', level: 10 }],
-            objectives: [ { type: 'gather', itemId: 18, count: 10 } ],
-            rewards: { xp: 250, gold: 2500, recipes: ['copper_mace'] },
+        101: { id: 101, title: "Advanced Woodworking", description: "You've shown promise, young artisan. To further your skills, craft 2 Rough Wooden Staves and 2 Sturdy Wooden Shields. Your dedication will be rewarded.", requirements: [{ type: 'profession', name: 'Woodworking', level: 10 }], objectives: [ { type: 'craft', itemId: 8, count: 2 }, { type: 'craft', itemId: 10, count: 2 } ], rewards: { xp: 200, gold: 2000, recipes: ['reinforced_staff', 'oak_shield'] }, repeatable: false },
+        102: { id: 102, title: "The Art of the Forge", description: "You've proven adept at finding ore. Now, let's see if you can shape it. Smelt 10 Copper Bars and bring them to me. A true smith knows their materials.", requirements: [{ type: 'profession', name: 'Mining', level: 10 }], objectives: [ { type: 'gather', itemId: 18, count: 10 } ], rewards: { xp: 250, gold: 2500, recipes: ['copper_mace'] }, repeatable: false },
+        103: { id: 103, title: "Budding Alchemist", description: "You have a feel for the flora of the woods. Bring me 10 Peacebloom so I can teach you how to unlock their latent power.", requirements: [{ type: 'profession', name: 'Herbalism', level: 10 }], objectives: [ { type: 'gather', itemId: 6, count: 10 } ], rewards: { xp: 200, gold: 1500, recipes: ['minor_mana_potion'] }, repeatable: false },
+        104: { id: 104, title: "A Sturdy Foundation", description: "A good shield starts with good wood. Your skill with an axe is growing. Bring me 15 Oak Wood, and I will show you a more advanced design.", requirements: [{ type: 'profession', name: 'Lumberjacking', level: 10 }], objectives: [ { type: 'gather', itemId: 15, count: 15 } ], rewards: { xp: 200, gold: 1500, recipes: ['reinforced_buckler'] }, repeatable: false },
+        // --- NEW TIER 2 QUESTS ---
+        201: {
+            id: 201, title: "Working with Tin",
+            description: "Copper is useful, but Tin is stronger. The foothills to the east are rich with it. Bring me 10 Tin Ore, and I will teach you how to smelt it.",
+            requirements: [{ type: 'profession', name: 'Mining', level: 20 }],
+            objectives: [ { type: 'gather', itemId: 14, count: 10 } ],
+            rewards: { xp: 400, gold: 3000, recipes: ['tin_bar', 'heavy_copper_armor'] },
             repeatable: false
         },
-        // --- NEW QUESTS ---
-        103: {
-            id: 103, title: "Budding Alchemist",
-            description: "You have a feel for the flora of the woods. Bring me 10 Peacebloom so I can teach you how to unlock their latent power.",
-            requirements: [{ type: 'profession', name: 'Herbalism', level: 10 }],
-            objectives: [ { type: 'gather', itemId: 6, count: 10 } ],
-            rewards: { xp: 200, gold: 1500, recipes: ['minor_mana_potion'] },
-            repeatable: false
-        },
-        104: {
-            id: 104, title: "A Sturdy Foundation",
-            description: "A good shield starts with good wood. Your skill with an axe is growing. Bring me 15 Oak Wood, and I will show you a more advanced design.",
-            requirements: [{ type: 'profession', name: 'Lumberjacking', level: 10 }],
-            objectives: [ { type: 'gather', itemId: 15, count: 15 } ],
-            rewards: { xp: 200, gold: 1500, recipes: ['reinforced_buckler'] },
+        202: {
+            id: 202, title: "The Elusive Silverleaf",
+            description: "Not all herbs are as common as Peacebloom. Silverleaf is more potent and grows in more secluded places. Gather 5 Silverleaf for me, and I'll teach you a recipe that harnesses its energy.",
+            requirements: [{ type: 'profession', name: 'Herbalism', level: 20 }],
+            objectives: [ { type: 'gather', itemId: 13, count: 5 } ],
+            rewards: { xp: 350, gold: 2500, recipes: ['potion_of_swiftness'] },
             repeatable: false
         },
     },
@@ -624,13 +617,16 @@ const GameData = {
         'Wilderness': { name: 'The Wilds', tiers: ['Ally', 'Neutral', 'Enemy'], base: 0, values: [0, 1000, -1000] },
     },
     RESOURCE_NODES: {
-        'PEACEBLOOM': { name: 'Peacebloom', icon: '\uf06c', color: '#adff2f', size: 20, itemId: 6, respawnTime: 30000, requiredSkill: 'Herbalism' },
-        'SILVERLEAF': { name: 'Silverleaf', icon: '\uf4d8', color: '#c0c0c0', size: 22, itemId: 13, respawnTime: 45000, requiredSkill: 'Herbalism' },
-        'COPPER_VEIN': { name: 'Copper Vein', icon: '\uf3a5', color: '#b87333', size: 24, itemId: 7, respawnTime: 60000, requiredSkill: 'Mining' },
-        'TIN_VEIN': { name: 'Tin Vein', icon: '\uf3a5', color: '#a9a9a9', size: 26, itemId: 14, respawnTime: 90000, requiredSkill: 'Mining' },
-        'OAK_LOGS': { name: 'Oak Tree', icon: '\uf1bb', color: '#8b4513', size: 28, itemId: 15, respawnTime: 75000, requiredSkill: 'Lumberjacking' },
+        // Tier 1 Resources (Skill 1+)
+        'PEACEBLOOM': { name: 'Peacebloom', icon: '\uf06c', color: '#adff2f', size: 20, itemId: 6, respawnTime: 30000, requiredSkill: 'Herbalism', requiredSkillLevel: 1 },
+        'COPPER_VEIN': { name: 'Copper Vein', icon: '\uf3a5', color: '#b87333', size: 24, itemId: 7, respawnTime: 60000, requiredSkill: 'Mining', requiredSkillLevel: 1 },
+        'OAK_LOGS': { name: 'Oak Tree', icon: '\uf1bb', color: '#8b4513', size: 28, itemId: 15, respawnTime: 75000, requiredSkill: 'Lumberjacking', requiredSkillLevel: 1 },
+        
+        // Tier 2 Resources (Skill 20+)
+        'SILVERLEAF': { name: 'Silverleaf', icon: '\uf4d8', color: '#c0c0c0', size: 22, itemId: 13, respawnTime: 45000, requiredSkill: 'Herbalism', requiredSkillLevel: 20 },
+        'TIN_VEIN': { name: 'Tin Vein', icon: '\uf3a5', color: '#a9a9a9', size: 26, itemId: 14, respawnTime: 90000, requiredSkill: 'Mining', requiredSkillLevel: 20 },
     },
-        CRAFTING_RECIPES: {
+    CRAFTING_RECIPES: {
         'wooden_staff': { id: 'wooden_staff', name: 'Rough Wooden Staff', icon: 'fa-staff-snake', itemId: 8, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000 },
         'wooden_shield': { id: 'wooden_shield', name: 'Sturdy Wooden Shield', icon: 'fa-shield', itemId: 10, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 3}, {itemId: 9, quantity: 2}], time: 4000 },
         'reinforced_staff': { id: 'reinforced_staff', name: 'Reinforced Staff', icon: 'fa-staff-snake', itemId: 16, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 8}, {itemId: 7, quantity: 2}], time: 5000 },
@@ -639,9 +635,12 @@ const GameData = {
         'copper_shortsword': { id: 'copper_shortsword', name: 'Copper Shortsword', icon: 'fa-sword', itemId: 19, profession: 'Blacksmithing', skillRequired: 5, materials: [{itemId: 18, quantity: 5}], time: 5000 },
         'weak_trolls_blood': { id: 'weak_trolls_blood', name: "Weak Troll's Blood Potion", icon: 'fa-flask-vial', itemId: 20, profession: 'Alchemy', skillRequired: 1, materials: [{itemId: 6, quantity: 2}, {itemId: 13, quantity: 1}], time: 3000 },
         'copper_mace': { id: 'copper_mace', name: 'Copper Mace', icon: 'fa-gavel', itemId: 21, profession: 'Blacksmithing', skillRequired: 10, materials: [{itemId: 18, quantity: 7}], time: 6000 },
-        // --- NEW RECIPES ---
         'minor_mana_potion': { id: 'minor_mana_potion', name: 'Minor Mana Potion', icon: 'fa-flask-vial', itemId: 22, profession: 'Alchemy', skillRequired: 10, materials: [{itemId: 6, quantity: 1}, {itemId: 12, quantity: 1}], time: 3000 },
         'reinforced_buckler': { id: 'reinforced_buckler', name: 'Reinforced Wooden Buckler', icon: 'fa-shield-halved', itemId: 23, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 10}, {itemId: 18, quantity: 1}], time: 7000 },
+        // --- NEW TIER 2 RECIPES ---
+        'tin_bar': { id: 'tin_bar', name: 'Tin Bar', icon: 'fa-cubes', itemId: 24, profession: 'Blacksmithing', skillRequired: 20, materials: [{itemId: 14, quantity: 2}], time: 2500 },
+        'heavy_copper_armor': { id: 'heavy_copper_armor', name: 'Heavy Copper Armor', icon: 'fa-shirt', itemId: 25, profession: 'Blacksmithing', skillRequired: 25, materials: [{itemId: 18, quantity: 10}, {itemId: 24, quantity: 2}], time: 8000 },
+        'potion_of_swiftness': { id: 'potion_of_swiftness', name: 'Potion of Swiftness', icon: 'fa-flask-vial', itemId: 26, profession: 'Alchemy', skillRequired: 20, materials: [{itemId: 13, quantity: 3}], time: 4000 },
     },
     PROFESSIONS: {
         'Herbalism': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 100 },
@@ -657,52 +656,55 @@ const GameData = {
             id: 'starting_zone', name: 'Whispering Woods', x: 20000, y: 20000, width: 60000, height: 60000,
             isRestZone: true,
             bgColor: "#182c18",
-            sceneryPatches: [
-                { type: [1, 2, 3, 4], density: 250, patchCenter: {x: 50000, y: 50000}, patchRadius: 10000 }
-            ],
+            sceneryPatches: [ { type: [1, 2, 3, 4], density: 250, patchCenter: {x: 50000, y: 50000}, patchRadius: 10000 } ],
             enemyPacks: [
                 { type: 'SPIDER', count: 25, packCenter: {x: 45000, y: 45000}, packRadius: 2000 },
                 { type: 'WOLF', count: 15, packCenter: {x: 55000, y: 55000}, packRadius: 1500 },
-                { type: 'BEAR', count: 10, packCenter: {x: 48000, y: 58000}, packRadius: 2500 },
-                { type: 'TREANT', count: 8, packCenter: {x: 60000, y: 45000}, packRadius: 1000 },
             ],
             resourcePatches: [
                 { type: 'PEACEBLOOM', count: 80, patchCenter: {x: 52000, y: 51000}, patchRadius: 4000 },
-                { type: 'SILVERLEAF', count: 40, patchCenter: {x: 46000, y: 46000}, patchRadius: 3000 },
                 { type: 'COPPER_VEIN', count: 70, patchCenter: {x: 48000, y: 54000}, patchRadius: 3500 },
                 { type: 'OAK_LOGS', count: 60, patchCenter: {x: 55000, y: 48000}, patchRadius: 4500 },
             ],
-                        npcs: [
+            npcs: [
                 { type: 'QuestGiver', name: "Old Man Willow", x: 50000, y: 49500, questIds: [1, 2, 3] },
                 { type: 'GenericNPC', npcType: 'BLACKSMITH', x: 49000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'GENERAL_VENDOR', x: 51000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'SPIRIT_HEALER', x: 48500, y: 48000 },
-                // --- MODIFIED: Added questId 104 ---
                 { type: 'QuestGiver', name: "Master Woodworker", npcType: 'WOODWORKING_TRAINER', x: 49000, y: 49500, questIds: [101, 104] },
                 { type: 'CraftingStation', stationType: 'WOODWORKING_BENCH', x: 49000, y: 49600 },
-                { type: 'QuestGiver', name: "Thorin the Smith", npcType: 'BLACKSMITHING_TRAINER', x: 49100, y: 50500, questIds: [102] },
+                // --- MODIFIED: Added questId 201 ---
+                { type: 'QuestGiver', name: "Thorin the Smith", npcType: 'BLACKSMITHING_TRAINER', x: 49100, y: 50500, questIds: [102, 201] },
                 { type: 'CraftingStation', stationType: 'FORGE', x: 49100, y: 50600 },
-                // --- MODIFIED: Added questId 103 ---
-                { type: 'QuestGiver', name: "Alchemist Fiona", npcType: 'ALCHEMIST', x: 51000, y: 49500, questIds: [103] },
+                // --- MODIFIED: Added questId 202 ---
+                { type: 'QuestGiver', name: "Alchemist Fiona", npcType: 'ALCHEMIST', x: 51000, y: 49500, questIds: [103, 202] },
                 { type: 'CraftingStation', stationType: 'ALCHEMY_TABLE', x: 51000, y: 49600 },
             ]
+        },
+        // --- NEW REGION FOR TIER 2 RESOURCES ---
+        {
+            id: 'foothills', name: 'Stonetalon Foothills', x: 80000, y: 40000, width: 15000, height: 40000,
+            bgColor: "#4a4238",
+            sceneryPatches: [ { type: [1, 4], density: 80, patchCenter: {x: 87500, y: 60000}, patchRadius: 10000 } ],
+            enemyPacks: [
+                { type: 'BEAR', count: 15, packCenter: {x: 85000, y: 50000}, packRadius: 5000 },
+                { type: 'GOBLIN_STALKER', count: 10, packCenter: {x: 83000, y: 60000}, packRadius: 3000 },
+            ],
+            resourcePatches: [ 
+                { type: 'TIN_VEIN', count: 60, patchCenter: {x: 87000, y: 55000}, patchRadius: 8000 },
+                { type: 'SILVERLEAF', count: 40, patchCenter: {x: 84000, y: 48000}, patchRadius: 6000 },
+            ],
         },
         {
             id: 'goblin_camp', name: 'Goblin Hideout', x: 80000, y: 10000, width: 15000, height: 30000,
             bgColor: "#3b302c",
-            sceneryPatches: [
-                { type: [1, 4], density: 50, patchCenter: {x: 87500, y: 25000}, patchRadius: 7500 }
-            ],
+            sceneryPatches: [ { type: [1, 4], density: 50, patchCenter: {x: 87500, y: 25000}, patchRadius: 7500 } ],
             enemyPacks: [
                 { type: 'GOBLIN', count: 15, packCenter: {x: 85000, y: 20000}, packRadius: 3000 },
                 { type: 'DARK_CASTER', count: 5, packCenter: {x: 88000, y: 15000}, packRadius: 1000 },
-                { type: 'GOBLIN_STALKER', count: 10, packCenter: {x: 83000, y: 25000}, packRadius: 2000 },
             ],
             resourcePatches: [ 
                 { type: 'COPPER_VEIN', count: 40, patchCenter: {x: 82000, y: 18000}, patchRadius: 4000 },
-                { type: 'TIN_VEIN', count: 50, patchCenter: {x: 87000, y: 23000}, patchRadius: 5000 },
-                { type: 'SILVERLEAF', count: 30, patchCenter: {x: 84000, y: 14000}, patchRadius: 3000 },
-                { type: 'OAK_LOGS', count: 40, patchCenter: {x: 81000, y: 26000}, patchRadius: 3500 },
             ],
         },
     ],
@@ -1595,8 +1597,17 @@ class ResourceNode extends Entity {
     constructor(x, y, type) { super(x, y, type.size, type.color, type.icon); this.type = type; this.isInteractable = true; this.depleted = false; }
     interact(player) {
         if (this.depleted || player.isGhost) return;
-        if (player.professions[this.type.requiredSkill].level === 0) {
-            player.professions[this.type.requiredSkill].level = 1;
+
+        const profession = player.professions[this.type.requiredSkill];
+        
+        // --- NEW: Skill Level Check ---
+        if (profession.level < this.type.requiredSkillLevel) {
+            game.createFloatingText(`Requires ${this.type.requiredSkill} (${this.type.requiredSkillLevel})`, player.x, player.y, 'red');
+            return;
+        }
+
+        if (profession.level === 0) {
+            profession.level = 1;
             game.createFloatingText(`You learned ${this.type.requiredSkill}!`, player.x, player.y, 'gold');
         }
         
