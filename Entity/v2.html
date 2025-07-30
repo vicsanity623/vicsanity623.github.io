@@ -1462,7 +1462,7 @@ class Player extends Character {
         this.returnLocation = null;
         this.storage = new Array(99).fill(null);
         this.hasHouse = false;
-        this.maxStamina = 3500; // 3.5 seconds in milliseconds
+        this.maxStamina = 6500; // 3.5 seconds in milliseconds
         this.stamina = this.maxStamina;
         this.isSprinting = false;
         this.staminaRegenDelayTimer = 0; // Timer for the 0.5s delay
@@ -1484,7 +1484,6 @@ class Player extends Character {
         this.globalClickCooldown = 0;
         this.autoMoveInteractTarget = null;
 
-        this.maxStamina =3500;
 
         // --- NEW: GATHERING STATE ---
         this.isGathering = false;
