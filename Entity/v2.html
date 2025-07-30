@@ -207,7 +207,23 @@
             width: 100%;
             height: 100%;
         }
-
+        .profession-line {
+            margin-bottom: 8px; /* Add some space between professions */
+        }
+        .profession-xp-bar {
+            width: 100%;
+            height: 5px;
+            background-color: var(--color-bg-dark);
+            border: 1px solid var(--color-border);
+            border-radius: 2px;
+            margin-top: 3px;
+        }
+        .profession-xp-bar-fill {
+            height: 100%;
+            background-color: var(--color-xp);
+            border-radius: 1px;
+            transition: width 0.3s ease-in-out;
+        }
         #character-sheet-container { display: flex; justify-content: space-between; gap: 10px; }
         #equipment-slots { display: flex; flex-direction: column; gap: 5px; }
         .equipment-slot { width: 50px; height: 50px; background: var(--color-bg-dark); border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center; font-size: 24px; position: relative; }
@@ -2137,7 +2153,28 @@ class UI {
         statsCol.innerHTML = statsHtml;
         const equipCol = $('#equipment-slots'); equipCol.innerHTML = '';
         for (const slotName in player.equipment) { const slot = document.createElement('div'); slot.className = 'equipment-slot'; slot.dataset.slot = slotName; const item = player.equipment[slotName]; if (item) { slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`; slot.draggable = true; slot.dataset.source = 'equipment'; } slot.innerHTML += `<div class="equipment-slot-name">${slotName.replace('-', ' ')}</div>`; equipCol.appendChild(slot); }
-        let professionsHtml = '<hr><h3>Professions</h3>'; for (const profName in player.professions) { const prof = player.professions[profName]; if(prof.level > 0) { const profData = GameData.PROFESSIONS[profName]; professionsHtml += `<div class="stat-line"><span>${profName}</span><span>${prof.level} / ${profData.maxLevel}</span></div>`; } } statsCol.innerHTML += professionsHtml;
+        
+        // --- MODIFIED PROFESSIONS SECTION ---
+        let professionsHtml = '<hr><h3>Professions</h3>';
+        for (const profName in player.professions) {
+            const prof = player.professions[profName];
+            if (prof.level > 0) {
+                const profData = GameData.PROFESSIONS[profName];
+                const xpPercent = profData.nextLevelXp > 0 ? (prof.xp / profData.nextLevelXp) * 100 : 0;
+                
+                professionsHtml += `
+                    <div class="profession-line">
+                        <div class="stat-line">
+                            <span>${profName}</span>
+                            <span>${prof.level} / ${profData.maxLevel}</span>
+                        </div>
+                        <div class="profession-xp-bar" title="XP: ${prof.xp} / ${profData.nextLevelXp}">
+                            <div class="profession-xp-bar-fill" style="width: ${xpPercent}%;"></div>
+                        </div>
+                    </div>`;
+            }
+        }
+        statsCol.innerHTML += professionsHtml;
     }
     updateInventory(player) { const grid = $('#inventory-grid'); grid.innerHTML = ''; player.inventory.forEach((item, index) => { const slot = document.createElement('div'); slot.className = 'inventory-slot'; slot.dataset.index = index; slot.dataset.source = 'inventory'; if (item) { slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`; if(item.stackable && item.quantity > 1) slot.innerHTML += `<div class="item-count">${item.quantity}</div>`; slot.dataset.itemId = item.id; slot.draggable = true; slot.addEventListener('click', (e) => { const currentVendor = game.entities.find(entity => entity.isTargeted && entity.interactType === 'vendor'); if (currentVendor) { this.sellItemFromInventory(player, item, index, currentVendor); } }); } grid.appendChild(slot); }); $('#currency').innerHTML = UI.formatCurrency(player.gold, true); }
     static formatCurrency(amount, useIcons = false) { const gold = Math.floor(amount / 10000); const silver = Math.floor((amount % 10000) / 100); const copper = amount % 100; if(useIcons) { return `<div class="currency-item">${gold} <div class="currency-icon gold"></div></div> <div class="currency-item">${silver} <div class="currency-icon silver"></div></div> <div class="currency-item">${copper} <div class="currency-icon copper"></div></div>`; } return `${gold}g ${silver}s ${copper}c`; }
