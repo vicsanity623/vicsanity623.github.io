@@ -557,8 +557,6 @@ const GameData = {
         4: { id: 4, name: 'Spruce', icon: '\uf1bb', size: 80, color: '#1B5E20' },
         5: { id: 5, name: 'Cave Wall', icon: '\uf1b2', size: 120, color: '#4a4238' },
         6: { id: 6, name: 'Grass Tuft', icon: '\uf4d8', size: 20, color: '#7CFC00' },
-        // --- NEW: Add the Small Cabin scenery ---
-        7: { id: 7, name: 'Small Cabin', icon: '\uf015', size: 90, color: '#8B4513', isCollidable: true },
     },
     GEAR_SETS: {
         'goblin_guard': {
@@ -809,7 +807,7 @@ const GameData = {
             npcs: [
                 { type: 'QuestGiver', name: "Old Man Willow", x: 50000, y: 49500, questIds: [1, 2, 3] },
                 // --- NEW: Add the cabin as a specifically placed scenery object ---
-                { type: 'Scenery', sceneryId: 7, x: 50150, y: 49550 },
+                { type: 'PlayerHouse', houseId: 'CABIN', x: 50150, y: 49550 },
                 { type: 'GenericNPC', npcType: 'BLACKSMITH', x: 49000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'GENERAL_VENDOR', x: 51000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'SPIRIT_HEALER', x: 48500, y: 48000 },
@@ -865,6 +863,20 @@ const GameData = {
             npcs: [
                 { type: 'DungeonEntrance', name: "Exit Cave", x: 80500, y: 84500, isExit: true }
             ]
+        },
+        {
+            id: 'player_house_interior', name: 'Your Cozy Home', x: 10000, y: 10000, 
+            // --- FIX: Made the interior much smaller for a room-like feel ---
+            width: 800, height: 600,
+            isDungeon: true,
+            bgColor: "#e6d5b8", 
+            sceneryPatches: [], 
+            enemyPacks: [],
+            resourcePatches: [],
+            npcs: [
+                // --- FIX: Updated the exit coordinates to be inside the new smaller room ---
+                { type: 'DungeonEntrance', name: "Exit", x: 10400, y: 10550, isExit: true }
+            ]
         }
     ],
     // --- NEW CRAFTING STATIONS ---
@@ -880,6 +892,14 @@ const GameData = {
         'ALCHEMY_TABLE': {
             name: 'Alchemy Table', icon: '\uf5a7', color: '#9932cc',
             recipes: ['weak_trolls_blood', 'minor_mana_potion', 'potion_of_swiftness']
+        }
+    },
+    PLAYER_HOUSE_DATA: {
+        'CABIN': { 
+            name: 'Abandoned Cabin', icon: '\uf015', size: 90, color: '#8B4513', 
+            isCollidable: true,
+            // --- FIX: Updated the target to a safe spot in the new smaller room ---
+            target: { x: 10400, y: 10300 }
         }
     },
 };
@@ -948,6 +968,12 @@ class Game {
                         const sceneryData = GameData.SCENERY[npc.sceneryId];
                         if (sceneryData) {
                             npcEntity = new Scenery(npc.x, npc.y, sceneryData);
+                        }
+                    }
+                    else if (npc.type === 'PlayerHouse') {
+                        const houseData = GameData.PLAYER_HOUSE_DATA[npc.houseId];
+                        if (houseData) {
+                            npcEntity = new PlayerHouse(npc.x, npc.y, houseData);
                         }
                     }
                     if (npcEntity) this.entities.push(npcEntity);
@@ -1119,6 +1145,7 @@ class Game {
                 reputation: { ...this.player.reputation },
                 professions: { ...this.player.professions },
                 questCooldowns: Object.entries(this.player.questCooldowns).reduce((acc, [id, timeLeft]) => { acc[id] = Date.now() + timeLeft; return acc; }, {}),
+                hasHouse: this.player.hasHouse
             }
         };
         localStorage.setItem('miniWowSaveData', JSON.stringify(saveData));
@@ -1133,6 +1160,7 @@ class Game {
             this.spawnEntities();
             
             this.player.name = pData.name; this.player.race = pData.race; this.player.x = pData.x; this.player.y = pData.y; this.player.level = pData.level; this.player.xp = pData.xp; this.player.restedXp = pData.restedXp; this.player.gold = pData.gold; this.player.baseStats = { ...pData.baseStats }; this.player.talents = { ...pData.talents }; this.player.talentPoints = pData.talentPoints; this.player.reputation = { ...pData.reputation }; this.player.professions = { ...pData.professions }; this.player.nextLevelXp = GameData.XP_TABLE[this.player.level] || 99999;
+            this.player.hasHouse = pData.hasHouse || false;
             this.player.inventory = pData.inventory.map(itemData => { if (!itemData) return null; const baseItem = { ...GameData.ITEMS[itemData.id] }; baseItem.quantity = itemData.quantity; if (itemData.durability !== undefined) baseItem.durability = itemData.durability; return baseItem; });
             this.player.equipment = {}; for (const slot in pData.equipment) { const itemData = pData.equipment[slot]; this.player.equipment[slot] = itemData ? { ...GameData.ITEMS[itemData.id], durability: itemData.durability } : null; }
             this.player.quests = []; pData.quests.forEach(qData => { const questTemplate = GameData.QUESTS[qData.id]; const questGiver = this.entities.find(e => e instanceof QuestGiver && e.questIds.includes(qData.id)); if (questTemplate && questGiver) { this.player.quests.push({ ...questTemplate, progress: questTemplate.objectives.map((o, i) => ({ ...o, current: qData.progress[i] || 0 })), giver: questGiver }); } }); if (pData.spellbook) {
@@ -1163,10 +1191,30 @@ class World {
         const currentRegion = this.regions.find(r => 
             camera.target.x >= r.x && camera.target.x < r.x + r.width &&
             camera.target.y >= r.y && camera.target.y < r.y + r.height
-        ) || { bgColor: this.bgColor };
+        );
 
-        this.ctx.fillStyle = currentRegion.bgColor;
-        this.ctx.fillRect(0, 0, camera.width, camera.height);
+        // --- NEW RENDERING LOGIC ---
+        if (currentRegion && currentRegion.isDungeon) {
+            // --- For Interiors (like the house or a cave) ---
+            // 1. Fill the entire background with black
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(0, 0, camera.width, camera.height);
+
+            // 2. Draw only the floor of the room, creating a border effect
+            const drawX = currentRegion.x - camera.x;
+            const drawY = currentRegion.y - camera.y;
+            this.ctx.fillStyle = currentRegion.bgColor;
+            this.ctx.fillRect(drawX, drawY, currentRegion.width, currentRegion.height);
+
+        } else if (currentRegion) {
+            // --- For the Overworld (original behavior) ---
+            this.ctx.fillStyle = currentRegion.bgColor;
+            this.ctx.fillRect(0, 0, camera.width, camera.height);
+        } else {
+            // Fallback for safety
+            this.ctx.fillStyle = this.bgColor;
+            this.ctx.fillRect(0, 0, camera.width, camera.height);
+        }
         
         this.ctx.restore();
     }
@@ -1324,6 +1372,7 @@ class Player extends Character {
         this.isGhost = false; this.corpse = null; this.isResting = false;
         this.isAutoQuesting = false; this.autoQuest = null; this.autoMoveTarget = null;
         this.questCooldowns = {};
+        this.hasHouse = false;
 
         // --- NEW: GATHERING STATE ---
         this.isGathering = false;
@@ -1941,6 +1990,49 @@ class CraftingStation extends Entity {
         ctx.fillText(this.name, drawX, drawY - this.size); 
     }
     interact(player) { if (player.isGhost) return; game.ui.openCraftingWindow(player, this); }
+}
+
+class PlayerHouse extends Entity {
+    constructor(x, y, type) {
+        super(x, y, type.size, type.color, type.icon);
+        this.type = type;
+        this.isInteractable = true;
+        this.isCollidable = type.isCollidable || false;
+    }
+
+    interact(player) {
+        if (player.isGhost) return;
+
+        if (!player.hasHouse) {
+            const doClaim = confirm("This house is abandoned and empty with the door wide open. Would you like to claim this house as your home?");
+            if (doClaim) {
+                player.hasHouse = true;
+                game.createFloatingText("You now have a home!", player.x, player.y, 'gold');
+                // Optional: Change the house color to show ownership
+                this.color = '#ffd700';
+            }
+        } else {
+            // Teleport logic (similar to DungeonEntrance)
+            game.createFloatingText("Entering your home...", player.x, player.y, 'white');
+            player.returnLocation = { x: player.x, y: player.y };
+            player.x = this.type.target.x;
+            player.y = this.type.target.y;
+        }
+    }
+
+    draw(ctx, camera, player) {
+        super.draw(ctx, camera, player);
+        const drawX = this.x - camera.x;
+        const drawY = this.y - camera.y;
+        
+        // Change the nameplate based on ownership
+        const nameText = player.hasHouse ? `${player.name}'s Home` : "Abandoned Cabin";
+        
+        ctx.font = '14px Verdana';
+        ctx.fillStyle = this.color;
+        ctx.textAlign = 'center';
+        ctx.fillText(nameText, drawX, drawY - this.size);
+    }
 }
 
 // --- CORRECTED CLASS ---
