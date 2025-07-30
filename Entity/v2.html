@@ -513,9 +513,19 @@ const GameData = {
         2: { id: 2, name: 'Medium Oak', icon: '\uf1bb', size: 70, color: '#4CAF50' },
         3: { id: 3, name: 'Small Bush', icon: '\uf553', size: 40, color: '#689F38' },
         4: { id: 4, name: 'Spruce', icon: '\uf1bb', size: 80, color: '#1B5E20' },
+        // --- NEW SCENERY ---
+        5: { id: 5, name: 'Cave Wall', icon: '\uf1b2', size: 120, color: '#4a4238' },
+    },
+    GEAR_SETS: {
+        'goblin_guard': {
+            name: "Goblin Guard's Battlegear",
+            bonuses: [
+                { count: 2, stats: { strength: 5, stamina: 5 }, description: "Set (2): +5 Strength, +5 Stamina" }
+            ]
+        }
     },
     ITEMS: {
-        // (Existing items 1-26 remain the same)
+        // (Existing items 1-27, 101-102, 301-303 remain the same)
         1: { id: 1, name: "Rusty Sword", icon: 'fa-gavel', slot: "main-hand", quality: "common", weaponDamage: { min: 3, max: 5 }, durability: 100, maxDurability: 100, sellPrice: 100 },
         2: { id: 2, name: "Worn Leather Vest", icon: "fa-vest-patches", slot: "chest", quality: "common", stats: { armor: 5 }, durability: 100, maxDurability: 100, sellPrice: 150 },
         3: { id: 3, name: "Spider Silk", icon: "fa-network-wired", slot: "material", quality: "common", stackable: true, sellPrice: 50 },
@@ -543,20 +553,16 @@ const GameData = {
         25: { id: 25, name: "Heavy Copper Armor", icon: "fa-shirt", slot: "chest", quality: "magic", stats: { armor: 12, stamina: 2 }, durability: 100, maxDurability: 100, sellPrice: 800 },
         26: { id: 26, name: "Potion of Swiftness", icon: "fa-flask-vial", slot: "consumable", quality: "magic", stackable: true, onUse: (player) => { player.addBuff({ id: 'swiftness', name: 'Swiftness', icon: 'fa-person-running', duration: 30000, onApply: p => p.speed *= 1.3, onExpire: p => p.speed /= 1.3, isDebuff: false }); }, sellPrice: 250 },
         27: { id: 27, name: "Pickaxe", icon: "fa-pickaxe", slot: "tool", quality: "common", stackable: false, sellPrice: 100 },
-        // --- NEW FACTION ITEMS ---
-        301: { id: 301, name: "Stormwind Tabard", icon: "fa-shirt", slot: "tabard", quality: "rare",
-            description: "A symbol of your dedication to Stormwind. Increases reputation gain with the Stormwind Guard by 10%.",
-            requiredFaction: { name: 'Stormwind Guard', tier: 'Friendly' }
-        },
-        302: { id: 302, name: "Guard's Heavy Blade", icon: "fa-gavel", slot: "main-hand", quality: "rare",
-            weaponDamage: { min: 10, max: 15 }, stats: { strength: 3, stamina: 3 },
-            requiredFaction: { name: 'Stormwind Guard', tier: 'Honored' }
-        },
-        303: { id: 303, name: "Commander's Greathelm", icon: "fa-user-shield", slot: "head", quality: "epic",
-            stats: { armor: 15, stamina: 5, strength: 5 },
-            requiredFaction: { name: 'Stormwind Guard', tier: 'Exalted' }
+        
+        // --- NEW BOSS LOOT ---
+        28: { id: 28, name: "Grolnok's Cleaver", icon: "fa-axe-battle", slot: "main-hand", quality: "epic",
+            weaponDamage: { min: 18, max: 25 }, stats: { strength: 5, critChance: 2 },
+            description: "The brutal weapon of the Goblin Overlord."
         },
 
+        301: { id: 301, name: "Stormwind Tabard", icon: "fa-shirt", slot: "tabard", quality: "rare", description: "A symbol of your dedication to Stormwind. Increases reputation gain with the Stormwind Guard by 10%.", requiredFaction: { name: 'Stormwind Guard', tier: 'Friendly' } },
+        302: { id: 302, name: "Guard's Heavy Blade", icon: "fa-gavel", slot: "main-hand", quality: "rare", weaponDamage: { min: 10, max: 15 }, stats: { strength: 3, stamina: 3 }, requiredFaction: { name: 'Stormwind Guard', tier: 'Honored' } },
+        303: { id: 303, name: "Commander's Greathelm", icon: "fa-user-shield", slot: "head", quality: "epic", stats: { armor: 15, stamina: 5, strength: 5 }, requiredFaction: { name: 'Stormwind Guard', tier: 'Exalted' } },
         101: { id: 101, name: "Goblin-Forged Blade", icon: "fa-scythe", slot: "main-hand", quality: "rare", weaponDamage: { min: 8, max: 12 }, stats: { strength: 2 }, durability: 100, maxDurability: 100, sellPrice: 500 },
         102: { id: 102, name: "Enchanted Robes", icon: "fa-jedi", slot: "chest", quality: "magic", stats: { armor: 8, intellect: 3 }, durability: 100, maxDurability: 100, sellPrice: 400 },
     },
@@ -576,7 +582,7 @@ const GameData = {
         }},
         3: { id: 3, name: "Rend", icon: "fa-heart-crack", cost: 15, cooldown: 6000, range: 90, onUse: (caster, target) => { target.addBuff({ id: 'rend_dot', name: 'Rend', icon: 'fa-heart-crack', duration: 9000, tickRate: 3000, onTick: (t) => { const damage = caster.getAttackDamage() * 0.2; t.takeDamage(damage, 'physical', caster, true); game.createFloatingText(Math.round(damage), t.x, t.y, '#ff4500'); }, isDebuff: true }); }},
     },
-    ENEMY_TYPES: {
+        ENEMY_TYPES: {
         'WOLF': { name: "Dire Wolf", icon: "\uf6f0", color: "#a9a9a9", size: 28, speed: 1.5, health: 80, attack: 5, aggroRadius: 150, attackRange: 40, attackSpeed: 2000, xp: 15, lootTable: [{itemId: 4, chance: 0.8, min: 1, max: 2}, {itemId: 9, chance: 0.5, min: 1, max: 1}, {gold: 50, chance: 1.0}], reputation: { faction: 'Wilderness', value: -10 } },
         'SPIDER': { name: "Forest Spider", icon: "\uf717", color: "#654321", size: 25, speed: 1.2, health: 60, attack: 4, aggroRadius: 120, attackRange: 35, attackSpeed: 1800, xp: 10, lootTable: [{itemId: 3, chance: 0.9, min: 1, max: 3}, {gold: 30, chance: 1.0}], reputation: { faction: 'Wilderness', value: -5 } },
         'GOBLIN': { name: "Goblin Thug", icon: "\uf7a0", color: "#2E8B57", size: 22, speed: 1.8, health: 120, attack: 8, aggroRadius: 180, attackRange: 45, attackSpeed: 2200, xp: 25, lootTable: [{itemId: 101, chance: 0.1}, {gold: 150, chance: 0.5}], reputation: { faction: 'Stormwind Guard', value: 5 } },
@@ -584,6 +590,30 @@ const GameData = {
         'BEAR': { name: "Grizzled Bear", icon: "\uf704", color: "#d3a483", size: 35, speed: 1.1, health: 200, attack: 12, aggroRadius: 140, attackRange: 45, attackSpeed: 2500, xp: 35, lootTable: [{itemId: 11, chance: 0.9, min: 1, max: 2}, {gold: 100, chance: 1.0}], reputation: { faction: 'Wilderness', value: -20 } },
         'TREANT': { name: "Treant Sapling", icon: "\uf1bb", color: "#66827a", size: 30, speed: 1.3, health: 110, attack: 7, aggroRadius: 160, attackRange: 150, attackSpeed: 2800, xp: 28, lootTable: [{itemId: 12, chance: 0.6}, {gold: 80, chance: 1.0}], onAttack: (caster, target) => { if (Math.random() < 0.25) { target.addBuff({id: 'entangling_roots', name: 'Entangling Roots', icon: 'fa-vine', duration: 5000, isDebuff: true, onApply: (t) => t.isRooted = true, onExpire: (t) => t.isRooted = false }); } }, reputation: { faction: 'Wilderness', value: -15 } },
         'GOBLIN_STALKER': { name: "Goblin Stalker", icon: "\uf6d5", color: "#9acd32", size: 20, speed: 2.2, health: 90, attack: 10, aggroRadius: 170, attackRange: 40, attackSpeed: 1600, xp: 30, lootTable: [{gold: 180, chance: 0.9}], reputation: { faction: 'Stormwind Guard', value: 7 } },
+        'GOBLIN_GUARD': { name: "Goblin Guard", icon: "\uf7a0", color: "#556B2F", size: 25, speed: 1.6, health: 250, attack: 15, aggroRadius: 200, attackRange: 45, attackSpeed: 2000, xp: 50, lootTable: [{gold: 300, chance: 1.0}], reputation: { faction: 'Stormwind Guard', value: 15 } },
+        
+        // --- VERIFIED AND CORRECTED BOSS DEFINITION ---
+        'GOBLIN_BOSS': { 
+            name: "Overlord Grolnok", icon: "\uf6a4", color: "#8B0000", size: 40, speed: 1.2, health: 1000, attack: 25, aggroRadius: 300, attackRange: 50, attackSpeed: 2500, xp: 200, 
+            lootTable: [
+                {itemId: 28, chance: 0.2},
+                {itemId: 29, chance: 0.5},
+                {itemId: 30, chance: 0.5},
+                {gold: 5000, chance: 1.0}
+            ], 
+            reputation: { faction: 'Stormwind Guard', value: 100 },
+            onAttack: (caster, target) => {
+                if (!caster.summonCooldown || Date.now() > caster.summonCooldown) {
+                    caster.summonCooldown = Date.now() + 10000;
+                    if (Math.random() < 0.5) {
+                        game.createFloatingText("Grolnok calls for help!", caster.x, caster.y - 40, 'orange');
+                        const spawnX = caster.x + (Math.random() > 0.5 ? 60 : -60);
+                        const spawnY = caster.y + (Math.random() > 0.5 ? 60 : -60);
+                        game.entities.push(new Enemy(spawnX, spawnY, GameData.ENEMY_TYPES['GOBLIN_GUARD']));
+                    }
+                }
+            }
+        },
     },
     NPC_TYPES: {
         'BLACKSMITH': { name: "Barton the Blacksmith", icon: '\uf0e7', color: '#a9a9a9', interactType: 'repair' },
@@ -685,7 +715,7 @@ const GameData = {
         'Blacksmithing': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 50 },
         'Alchemy': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 50 },
     },
-    REGIONS: [
+        REGIONS: [
         {
             id: 'starting_zone', name: 'Whispering Woods', x: 20000, y: 20000, width: 60000, height: 60000,
             isRestZone: true,
@@ -711,11 +741,10 @@ const GameData = {
                 { type: 'CraftingStation', stationType: 'FORGE', x: 49100, y: 50600 },
                 { type: 'QuestGiver', name: "Alchemist Fiona", npcType: 'ALCHEMIST', x: 51000, y: 49500, questIds: [103, 202] },
                 { type: 'CraftingStation', stationType: 'ALCHEMY_TABLE', x: 51000, y: 49600 },
-                // --- ADD THIS NPC ---
                 { type: 'GenericNPC', npcType: 'QUARTERMASTER', x: 50500, y: 50500 },
+                { type: 'Portal', name: "To the Stonetalon Foothills", x: 50600, y: 50600, target: { x: 87000, y: 44900 } }
             ]
         },
-        // --- NEW REGION FOR TIER 2 RESOURCES ---
         {
             id: 'foothills', name: 'Stonetalon Foothills', x: 80000, y: 40000, width: 15000, height: 40000,
             bgColor: "#4a4238",
@@ -728,6 +757,10 @@ const GameData = {
                 { type: 'TIN_VEIN', count: 60, patchCenter: {x: 87000, y: 55000}, patchRadius: 8000 },
                 { type: 'SILVERLEAF', count: 40, patchCenter: {x: 84000, y: 48000}, patchRadius: 6000 },
             ],
+            npcs: [
+                { type: 'Portal', name: "Back to Town", x: 87000, y: 44900, target: { x: 50600, y: 50600 } },
+                { type: 'DungeonEntrance', name: "Goblin Cave", x: 87100, y: 45000, target: { x: 80500, y: 84500 } } // Adjusted entry point
+            ]
         },
         {
             id: 'goblin_camp', name: 'Goblin Hideout', x: 80000, y: 10000, width: 15000, height: 30000,
@@ -740,7 +773,23 @@ const GameData = {
             resourcePatches: [ 
                 { type: 'COPPER_VEIN', count: 40, patchCenter: {x: 82000, y: 18000}, patchRadius: 4000 },
             ],
+            npcs: []
         },
+        {
+            id: 'goblin_cave', name: 'The Goblin Cave', x: 80000, y: 80000, width: 5000, height: 5000,
+            isDungeon: true,
+            bgColor: "#3b302c",
+            sceneryPatches: [ { type: [5], density: 50, patchCenter: {x: 82500, y: 82500}, patchRadius: 2500 } ],
+            enemyPacks: [
+                // Guards patrol the main cave area
+                { type: 'GOBLIN_GUARD', count: 8, packCenter: {x: 82500, y: 82500}, packRadius: 2000 },
+                // --- FIX: Moved the boss to a distinct, safe spawn point within the cave bounds ---
+                { type: 'GOBLIN_BOSS', count: 1, packCenter: {x: 84000, y: 81000}, packRadius: 100 },
+            ],
+            npcs: [
+                { type: 'DungeonEntrance', name: "Exit Cave", x: 80500, y: 84500, isExit: true } // Adjusted exit point
+            ]
+        }
     ],
     // --- NEW CRAFTING STATIONS ---
     CRAFTING_STATIONS: {
@@ -807,12 +856,17 @@ class Game {
                 regionData.npcs.forEach(npc => {
                     let npcEntity;
                     if (npc.type === 'QuestGiver') {
-                        // --- MODIFIED: Pass npc.npcType to the constructor ---
                         npcEntity = new QuestGiver(npc.x, npc.y, npc.name, npc.questIds, npc.npcType);
                     } else if (npc.type === 'GenericNPC') {
                         npcEntity = new GenericNPC(npc.x, npc.y, GameData.NPC_TYPES[npc.npcType]);
                     } else if (npc.type === 'CraftingStation') {
                         npcEntity = new CraftingStation(npc.x, npc.y, GameData.CRAFTING_STATIONS[npc.stationType]);
+                    } else if (npc.type === 'DungeonEntrance') {
+                        npcEntity = new DungeonEntrance(npc.x, npc.y, npc.name, npc.target, npc.isExit);
+                    } 
+                    // --- ADD THIS CHECK ---
+                    else if (npc.type === 'Portal') {
+                        npcEntity = new Portal(npc.x, npc.y, npc.name, npc.target);
                     }
                     if (npcEntity) this.entities.push(npcEntity);
                 });
@@ -832,7 +886,7 @@ class Game {
                 regionData.resourcePatches.forEach(patch => {
                     for (let i = 0; i < patch.count; i++) {
                         const x = patch.patchCenter.x + (Math.random() - 0.5) * 2 * patch.patchRadius;
-                        const y = patch.patchCenter.y + (Math.random() - 0.5) * 2 * patch.patchRadius;
+                        const y = patch.patchCenter.y + (Math.random() - 0.5) * 2 * patch.packRadius;
                         this.entities.push(new ResourceNode(x, y, GameData.RESOURCE_NODES[patch.type]));
                     }
                 });
@@ -1148,6 +1202,7 @@ class Player extends Character {
         this.recipes = [];
         this.hotbar = new Array(10).fill(null);
         this.spellbook = [];
+        this.returnLocation = null;
         
         this.addAbilityToSpellbook(1);
         if (this.race === 'Elf') {
@@ -1190,6 +1245,13 @@ class Player extends Character {
 
         this.updateAutoQuest(); 
 
+        // --- NEW: Find the current region BEFORE movement calculation ---
+        const currentRegion = game.world.regions.find(r =>
+            this.x >= r.x && this.x < r.x + r.width &&
+            this.y >= r.y && this.y < r.y + r.height
+        );
+        this.isResting = currentRegion ? currentRegion.isRestZone : false;
+
         let moveVector = { x: 0, y: 0 };
         if (!this.isRooted) {
             if (this.isAutoQuesting && this.autoMoveTarget) {
@@ -1206,7 +1268,7 @@ class Player extends Character {
         }
         const isMoving = moveVector.x !== 0 || moveVector.y !== 0;
 
-        if (isMoving) {
+        if (isMoving && currentRegion) { // Only move if we are in a valid region
             let finalX = moveVector.x;
             let finalY = moveVector.y;
             if (finalX !== 0 && finalY !== 0) { 
@@ -1214,10 +1276,24 @@ class Player extends Character {
                 finalY *= 0.7071;
             }
             const currentSpeed = this.speed * (this.isGhost ? 1.5 : 1) * (deltaTime / 16.67);
-            this.x += finalX * currentSpeed;
-            this.y += finalY * currentSpeed;
-            this.x = Math.max(this.size/2, Math.min(this.x, game.world.width - this.size/2));
-            this.y = Math.max(this.size/2, Math.min(this.y, game.world.height - this.size/2));
+            
+            // --- NEW: Region Boundary Logic ---
+            // Calculate the potential new position
+            const newX = this.x + finalX * currentSpeed;
+            const newY = this.y + finalY * currentSpeed;
+
+            // Check if the new position is within the bounds of the current region
+            if (
+                newX > currentRegion.x &&
+                newX < currentRegion.x + currentRegion.width &&
+                newY > currentRegion.y &&
+                newY < currentRegion.y + currentRegion.height
+            ) {
+                // If it is, update the player's position
+                this.x = newX;
+                this.y = newY;
+            }
+            // --- The old world boundary check is no longer needed and has been removed ---
         }
 
         if (this.isGhost) {
@@ -1240,13 +1316,6 @@ class Player extends Character {
         }
 
         const inCombat = this.inCombatTimer > 0;
-        
-        const currentRegion = game.world.regions.find(r =>
-            this.x >= r.x && this.x < r.x + r.width &&
-            this.y >= r.y && this.y < r.y + r.height
-        );
-        
-        this.isResting = currentRegion ? currentRegion.isRestZone : false;
         
         if (this.race === 'Elf') {
             if (!inCombat && this.stats.health < this.stats.maxHealth) {
@@ -1585,6 +1654,57 @@ class CraftingStation extends Entity {
         ctx.fillText(this.name, drawX, drawY - this.size); 
     }
     interact(player) { if (player.isGhost) return; game.ui.openCraftingWindow(player, this); }
+}
+
+// --- CORRECTED CLASS ---
+// Now extends NPC to inherit its drawing methods and other properties.
+class DungeonEntrance extends NPC {
+    constructor(x, y, name, target, isExit = false) {
+        const icon = isExit ? '\uf2f5' : '\uf6d3';
+        const color = '#ff8c00';
+        super(x, y, name, icon, color);
+        this.target = target;
+        this.isExit = isExit;
+    }
+
+    interact(player) {
+        if (this.isExit) {
+            if (player.returnLocation) {
+                // --- FIX: Get the region name BEFORE teleporting ---
+                // Use a fallback name just in case the player is somehow in the void.
+                const regionName = game.currentRegion ? game.currentRegion.name : "the dungeon";
+
+                // Now, teleport the player
+                player.x = player.returnLocation.x;
+                player.y = player.returnLocation.y;
+                player.returnLocation = null;
+
+                // Finally, create the floating text using the saved name
+                game.createFloatingText(`Leaving ${regionName}...`, player.x, player.y, 'white');
+            }
+        } else {
+            game.createFloatingText(`Entering ${this.name}...`, player.x, player.y, 'white');
+            player.returnLocation = { x: player.x, y: player.y };
+            player.x = this.target.x;
+            player.y = this.target.y;
+        }
+    }
+}
+
+class Portal extends NPC {
+    constructor(x, y, name, target) {
+        // Use a unique icon and a magical color for portals
+        super(x, y, name, '\uf6d9', '#9400d3');
+        this.target = target;
+    }
+
+    interact(player) {
+        if (player.isGhost) return;
+        
+        game.createFloatingText("Whoosh!", player.x, player.y, '#9400d3');
+        player.x = this.target.x;
+        player.y = this.target.y;
+    }
 }
 
 class PlayerCorpse extends Entity {
