@@ -498,7 +498,7 @@ const GameData = {
         3: { id: 3, name: 'Small Bush', icon: '\uf553', size: 40, color: '#689F38' },
         4: { id: 4, name: 'Spruce', icon: '\uf1bb', size: 80, color: '#1B5E20' },
     },
-    ITEMS: {
+        ITEMS: {
         1: { id: 1, name: "Rusty Sword", icon: 'fa-gavel', slot: "main-hand", quality: "common", weaponDamage: { min: 3, max: 5 }, durability: 100, maxDurability: 100, sellPrice: 100 },
         2: { id: 2, name: "Worn Leather Vest", icon: "fa-vest-patches", slot: "chest", quality: "common", stats: { armor: 5 }, durability: 100, maxDurability: 100, sellPrice: 150 },
         3: { id: 3, name: "Spider Silk", icon: "fa-network-wired", slot: "material", quality: "common", stackable: true, sellPrice: 50 },
@@ -514,14 +514,13 @@ const GameData = {
         13: { id: 13, name: "Silverleaf", icon: "fa-seedling", slot: "material", quality: "common", stackable: true, sellPrice: 50 },
         14: { id: 14, name: "Tin Ore", icon: "fa-gem", slot: "material", quality: "common", color: "#a9a9a9", stackable: true, sellPrice: 60 },
         15: { id: 15, name: "Oak Wood", icon: "fa-tree", slot: "material", quality: "common", stackable: true, sellPrice: 55 },
-        
-        // --- NEW ITEMS ---
         16: { id: 16, name: "Reinforced Staff", icon: "fa-staff-snake", slot: "main-hand", quality: "magic", weaponDamage: { min: 5, max: 8 }, stats: { intellect: 3 }, durability: 100, maxDurability: 100, sellPrice: 450 },
         17: { id: 17, name: "Oak Shield", icon: "fa-shield", slot: "off-hand", quality: "magic", stats: { armor: 6, stamina: 2 }, durability: 100, maxDurability: 100, sellPrice: 500 },
         18: { id: 18, name: "Copper Bar", icon: "fa-cubes", slot: "material", quality: "common", stackable: true, sellPrice: 65 },
         19: { id: 19, name: "Copper Shortsword", icon: "fa-sword", slot: "main-hand", quality: "common", weaponDamage: { min: 4, max: 6 }, durability: 100, maxDurability: 100, sellPrice: 300 },
         20: { id: 20, name: "Weak Troll's Blood Potion", icon: "fa-flask-vial", slot: "consumable", quality: "common", stackable: true, onUse: (player) => { player.addBuff({ id: 'troll_regen', name: 'Weak Regeneration', icon: 'fa-heart-pulse', duration: 60000, tickRate: 2000, onTick: (p) => p.heal(5), isDebuff: false }); }, sellPrice: 100 },
-
+        // --- NEW ITEM ---
+        21: { id: 21, name: "Copper Mace", icon: "fa-gavel", slot: "main-hand", quality: "common", weaponDamage: { min: 5, max: 7 }, durability: 100, maxDurability: 100, sellPrice: 350 },
 
         101: { id: 101, name: "Goblin-Forged Blade", icon: "fa-scythe", slot: "main-hand", quality: "rare", weaponDamage: { min: 8, max: 12 }, stats: { strength: 2 }, durability: 100, maxDurability: 100, sellPrice: 500 },
         102: { id: 102, name: "Enchanted Robes", icon: "fa-jedi", slot: "chest", quality: "magic", stats: { armor: 8, intellect: 3 }, durability: 100, maxDurability: 100, sellPrice: 400 },
@@ -573,7 +572,6 @@ const GameData = {
         1: { id: 1, title: "A Tangled Web", description: "The forest path is overrun with spiders. Clear out 5 of them so travelers can pass safely.", objectives: [{ type: 'kill', target: 'SPIDER', count: 5 }], rewards: { xp: 100, gold: 1000, items: [{id: 2, quantity: 1}], reputation: { faction: 'Stormwind Guard', value: 50 } }, repeatable: false },
         2: { id: 2, title: "Wolf Hunting", description: "The local farmers are losing livestock to dire wolves. Hunt 3 dire wolves.", objectives: [{ type: 'kill', target: 'WOLF', count: 3 }], rewards: { xp: 80, gold: 800, items: [{id: 4, quantity: 1}], reputation: { faction: 'Stormwind Guard', value: 40 } }, repeatable: true, cooldown: 3600000 },
         3: { id: 3, title: "Bear Necessities", description: "Grizzled Bears have become a threat. Thin their numbers by slaying 3 of them.", objectives: [{ type: 'kill', target: 'BEAR', count: 3 }], rewards: { xp: 150, gold: 1500 }, repeatable: true, cooldown: 1800000 },
-        // --- NEW PROFESSION QUEST ---
         101: { 
             id: 101, title: "Advanced Woodworking", 
             description: "You've shown promise, young artisan. To further your skills, craft 2 Rough Wooden Staves and 2 Sturdy Wooden Shields. Your dedication will be rewarded.",
@@ -588,6 +586,21 @@ const GameData = {
                 recipes: ['reinforced_staff', 'oak_shield']
             },
             repeatable: false 
+        },
+        // --- NEW PROFESSION QUEST ---
+        102: {
+            id: 102, title: "The Art of the Forge",
+            description: "You've proven adept at finding ore. Now, let's see if you can shape it. Smelt 10 Copper Bars and bring them to me. A true smith knows their materials.",
+            requirements: [{ type: 'profession', name: 'Mining', level: 10 }],
+            objectives: [
+                { type: 'gather', itemId: 18, count: 10 }
+            ],
+            rewards: {
+                xp: 250,
+                gold: 2500,
+                recipes: ['copper_mace']
+            },
+            repeatable: false
         },
     },
     XP_TABLE: [0, 100, 250, 500, 1000, 2000, 4000, 8000, 12000, 18000],
@@ -615,12 +628,13 @@ const GameData = {
     CRAFTING_RECIPES: {
         'wooden_staff': { id: 'wooden_staff', name: 'Rough Wooden Staff', icon: 'fa-staff-snake', itemId: 8, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000 },
         'wooden_shield': { id: 'wooden_shield', name: 'Sturdy Wooden Shield', icon: 'fa-shield', itemId: 10, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 3}, {itemId: 9, quantity: 2}], time: 4000 },
-        // --- NEW RECIPES ---
         'reinforced_staff': { id: 'reinforced_staff', name: 'Reinforced Staff', icon: 'fa-staff-snake', itemId: 16, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 8}, {itemId: 7, quantity: 2}], time: 5000 },
         'oak_shield': { id: 'oak_shield', name: 'Oak Shield', icon: 'fa-shield', itemId: 17, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 6}, {itemId: 9, quantity: 4}], time: 6000 },
         'copper_bar': { id: 'copper_bar', name: 'Copper Bar', icon: 'fa-cubes', itemId: 18, profession: 'Blacksmithing', skillRequired: 1, materials: [{itemId: 7, quantity: 2}], time: 2000 },
         'copper_shortsword': { id: 'copper_shortsword', name: 'Copper Shortsword', icon: 'fa-sword', itemId: 19, profession: 'Blacksmithing', skillRequired: 5, materials: [{itemId: 18, quantity: 5}], time: 5000 },
         'weak_trolls_blood': { id: 'weak_trolls_blood', name: "Weak Troll's Blood Potion", icon: 'fa-flask-vial', itemId: 20, profession: 'Alchemy', skillRequired: 1, materials: [{itemId: 6, quantity: 2}, {itemId: 13, quantity: 1}], time: 3000 },
+        // --- NEW RECIPE ---
+        'copper_mace': { id: 'copper_mace', name: 'Copper Mace', icon: 'fa-gavel', itemId: 21, profession: 'Blacksmithing', skillRequired: 10, materials: [{itemId: 18, quantity: 7}], time: 6000 },
     },
     PROFESSIONS: {
         'Herbalism': { level: 0, maxLevel: 100, xp: 0, nextLevelXp: 100 },
@@ -656,11 +670,10 @@ const GameData = {
                 { type: 'GenericNPC', npcType: 'BLACKSMITH', x: 49000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'GENERAL_VENDOR', x: 51000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'SPIRIT_HEALER', x: 48500, y: 48000 },
-                // --- MODIFIED NPC: Now a Quest Giver ---
                 { type: 'QuestGiver', name: "Master Woodworker", npcType: 'WOODWORKING_TRAINER', x: 49000, y: 49500, questIds: [101] },
                 { type: 'CraftingStation', stationType: 'WOODWORKING_BENCH', x: 49000, y: 49600 },
-                // --- NEW NPCS AND STATIONS ---
-                { type: 'QuestGiver', name: "Thorin the Smith", npcType: 'BLACKSMITHING_TRAINER', x: 49100, y: 50500, questIds: [] },
+                // --- MODIFIED: Added questId 102 ---
+                { type: 'QuestGiver', name: "Thorin the Smith", npcType: 'BLACKSMITHING_TRAINER', x: 49100, y: 50500, questIds: [102] },
                 { type: 'CraftingStation', stationType: 'FORGE', x: 49100, y: 50600 },
                 { type: 'QuestGiver', name: "Alchemist Fiona", npcType: 'ALCHEMIST', x: 51000, y: 49500, questIds: [] },
                 { type: 'CraftingStation', stationType: 'ALCHEMY_TABLE', x: 51000, y: 49600 },
@@ -1440,9 +1453,43 @@ class Player extends Character {
         const profession = this.professions[professionName]; if (!profession) return;
         const professionData = GameData.PROFESSIONS[professionName]; if (!professionData) return;
         if (profession.level >= professionData.maxLevel) return;
-        profession.xp += amount; game.createFloatingText(`+${amount} ${professionName} XP`, this.x, this.y - 60, 'lightgray');
+        
+        profession.xp += amount; 
+        game.createFloatingText(`+${amount} ${professionName} XP`, this.x, this.y - 60, 'lightgray');
+        
         if (profession.level === 0) profession.level = 1; // First skill up
-        while (profession.xp >= professionData.nextLevelXp && profession.level < professionData.maxLevel) { profession.xp -= professionData.nextLevelXp; profession.level++; professionData.nextLevelXp += 50; game.createFloatingText(`${professionName} Level Up!`, this.x, this.y - 100, 'gold'); }
+        
+        while (profession.xp >= professionData.nextLevelXp && profession.level < professionData.maxLevel) { 
+            profession.xp -= professionData.nextLevelXp; 
+            profession.level++; 
+            professionData.nextLevelXp += 50; 
+            game.createFloatingText(`${professionName} Level Up!`, this.x, this.y - 100, 'gold');
+
+            // --- NEW: Check for newly unlocked quests at this skill level ---
+            Object.values(GameData.QUESTS).forEach(quest => {
+                // Check if the quest has requirements and the player doesn't already have it.
+                if (quest.requirements && !this.quests.find(q => q.id === quest.id)) {
+                    quest.requirements.forEach(req => {
+                        // Check if the requirement is for the profession that just leveled up to the exact required level.
+                        if (req.type === 'profession' && req.name === professionName && profession.level === req.level) {
+                            
+                            // Find the NPC who gives this quest.
+                            let giverName = "a Quest Giver"; // Default name as a fallback.
+                            for (const region of GameData.REGIONS) {
+                                const giver = region.npcs.find(npc => npc.questIds && npc.questIds.includes(quest.id));
+                                if (giver) {
+                                    giverName = giver.name;
+                                    break; // Stop searching once found.
+                                }
+                            }
+                            
+                            // Create the alert text for the player!
+                            game.createFloatingText(`New Quest Available! Check ${giverName}.`, this.x, this.y - 80, 'gold');
+                        }
+                    });
+                }
+            });
+        }
     }
     
     draw(ctx, camera, player) {
