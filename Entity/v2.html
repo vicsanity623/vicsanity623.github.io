@@ -183,6 +183,7 @@
         .window-content { padding: 10px; max-height: 400px; overflow-y: auto; }
         #character-window { top: 150px; left: 100px; width: 450px; }
         #inventory-window { top: 150px; left: 500px; }
+        #storage-window { top: 150px; left: 860px; }
         #quest-log-window { top: 100px; right: 200px; }
         #talent-window { top: 200px; left: 150px; width: 450px; }
         #spellbook-window { top: 200px; left: 600px; width: 300px; }
@@ -232,10 +233,10 @@
         .equipment-slot-name { position: absolute; bottom: -15px; width: 100%; text-align: center; font-size: 10px; color: var(--color-text-muted); }
         #stats-column { flex-grow: 1; }
 
-        #inventory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
-        .inventory-slot { width: 60px; height: 60px; background: var(--color-bg-dark); border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center; font-size: 28px; position: relative; }
-        .inventory-slot[draggable="true"] { cursor: grab; }
-        .inventory-slot.drag-over { border-color: gold; box-shadow: 0 0 5px gold; }
+        #inventory-grid, #storage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        .inventory-slot, .storage-slot { width: 60px; height: 60px; background: var(--color-bg-dark); border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center; font-size: 28px; position: relative; }
+        .inventory-slot[draggable="true"], .storage-slot[draggable="true"] { cursor: grab; }
+        .inventory-slot.drag-over, .storage-slot.drag-over { border-color: gold; box-shadow: 0 0 5px gold; }
         .item-count { position: absolute; bottom: 2px; right: 2px; font-size: 12px; text-shadow: 1px 1px 1px black; }
         .quality-common { color: var(--color-text); }
         .quality-magic { color: var(--color-text-magic); }
@@ -522,10 +523,17 @@
                 </div>
             </div>
 
+            <div id="storage-window" class="window">
+                <div class="window-header"><span>Storage</span><i class="fas fa-times close-btn"></i></div>
+                <div class="window-content"><div id="storage-grid"></div></div>
+            </div>
+
             <div id="mobile-controls"><div id="joystick-area"><div id="joystick-thumb"></div></div></div>
             <div id="mobile-action-buttons"></div>
             <div id="system-menu">
                 <button class="sys-button" id="save-button" title="Save Game"><i class="fas fa-save"></i></button>
+                <button class="sys-button" data-window="storage-window" title="Open Storage"><i class="fas fa-box-archive"></i></button>
+                <button class="sys-button" data-window="character-window" title="Character (C)"><i class="fas fa-user-circle"></i></button>
                 <button class="sys-button" data-window="character-window" title="Character (C)"><i class="fas fa-user-circle"></i></button>
                 <button class="sys-button" data-window="inventory-window" title="Inventory (I)"><i class="fas fa-briefcase"></i></button>
                 <button class="sys-button" data-window="spellbook-window" title="Spellbook (P)"><i class="fas fa-book"></i></button>
@@ -874,7 +882,7 @@ const GameData = {
             enemyPacks: [],
             resourcePatches: [],
             npcs: [
-                // --- FIX: Updated the exit coordinates to be inside the new smaller room ---
+                { type: 'StorageContainer', x: 10100, y: 10100, icon: '\ue188', size: 50, color: '#a0522d' },
                 { type: 'DungeonEntrance', name: "Exit", x: 10400, y: 10550, isExit: true }
             ]
         }
@@ -976,6 +984,9 @@ class Game {
                             npcEntity = new PlayerHouse(npc.x, npc.y, houseData);
                         }
                     }
+                    else if (npc.type === 'StorageContainer') {
+                        npcEntity = new StorageContainer(npc.x, npc.y, npc.icon, npc.color, npc.size);
+                    }
                     if (npcEntity) this.entities.push(npcEntity);
                 });
             }
@@ -1053,19 +1064,39 @@ class Game {
         if (this.player.isRooted) this.input.joystickVector = {x: 0, y: 0};
 
         if (this.input.mouse.clicked && !this.player.isAutoQuesting && !this.player.isGhost) {
-            let clickedOnSomething = false; const clickWorldPos = { x: this.input.mouse.x + this.camera.x, y: this.input.mouse.y + this.camera.y };
+            let clickedOnSomething = false; 
+            const clickWorldPos = { x: this.input.mouse.x + this.camera.x, y: this.input.mouse.y + this.camera.y };
             const sortedEntities = [...this.entities].sort((a, b) => b.y - a.y);
+
             for (const entity of sortedEntities) {
                 if (entity !== this.player && distance(clickWorldPos, entity) < entity.size / 2) {
-                    if (entity.isInteractable && distance(this.player, entity) < 100) { entity.interact(this.player); this.player.setTarget(entity); } else if (entity instanceof Enemy) { this.player.setTarget(entity); }
-                    clickedOnSomething = true; break;
+                    
+                    if (entity instanceof Enemy) {
+                        // --- NEW CLICK-ATTACK LOGIC ---
+                        if (entity === this.player.target && !entity.isDead) {
+                            // If we click the enemy that is already our target, attack it.
+                            this.player.performClickAttack();
+                        } else {
+                            // Otherwise, just set it as the new target.
+                            this.player.setTarget(entity);
+                        }
+                        clickedOnSomething = true;
+                        break;
+                    } 
+                    else if (entity.isInteractable && distance(this.player, entity) < 100) {
+                        // This handles interacting with NPCs, houses, chests, etc.
+                        entity.interact(this.player); 
+                        this.player.setTarget(entity);
+                        clickedOnSomething = true;
+                        break;
+                    }
                 }
             }
+
             if (!clickedOnSomething) this.player.setTarget(null);
             this.input.mouse.clicked = false;
         }
         
-        // --- NEW: Handle hovering over resource nodes ---
         const mouseWorldPos = { x: this.input.mouse.x + this.camera.x, y: this.input.mouse.y + this.camera.y };
         let nodeHovered = false;
         this.entities.forEach(entity => {
@@ -1145,6 +1176,7 @@ class Game {
                 reputation: { ...this.player.reputation },
                 professions: { ...this.player.professions },
                 questCooldowns: Object.entries(this.player.questCooldowns).reduce((acc, [id, timeLeft]) => { acc[id] = Date.now() + timeLeft; return acc; }, {}),
+                storage: this.player.storage.map(item => item ? { id: item.id, quantity: item.quantity, durability: item.durability } : null),
                 hasHouse: this.player.hasHouse
             }
         };
@@ -1159,8 +1191,15 @@ class Game {
             const saveData = JSON.parse(savedJSON); const pData = saveData.player;
             this.spawnEntities();
             
-            this.player.name = pData.name; this.player.race = pData.race; this.player.x = pData.x; this.player.y = pData.y; this.player.level = pData.level; this.player.xp = pData.xp; this.player.restedXp = pData.restedXp; this.player.gold = pData.gold; this.player.baseStats = { ...pData.baseStats }; this.player.talents = { ...pData.talents }; this.player.talentPoints = pData.talentPoints; this.player.reputation = { ...pData.reputation }; this.player.professions = { ...pData.professions }; this.player.nextLevelXp = GameData.XP_TABLE[this.player.level] || 99999;
+            this.player.name = pData.name; this.player.race = pData.race; this.player.x = pData.x; this.player.y = pData.y; this.player.level = pData.level; this.player.xp = pData.xp; this.player.restedXp = pData.restedXp; this.player.gold = pData.gold; this.player.baseStats = { ...pData.baseStats }; this.player.talents = { ...pData.talents }; this.player.talentPoints = pData.talentPoints; this.player.reputation = { ...pData.reputation }; this.player.professions = { ...pData.professions }; this.player.nextLevelXp = GameData.XP_TABLE[this.player.level] || 99999; 
             this.player.hasHouse = pData.hasHouse || false;
+            this.player.storage = (pData.storage || new Array(99).fill(null)).map(itemData => {
+                 if (!itemData) return null;
+                 const baseItem = { ...GameData.ITEMS[itemData.id] };
+                 baseItem.quantity = itemData.quantity;
+                 if (itemData.durability !== undefined) baseItem.durability = itemData.durability;
+                 return baseItem;
+            });
             this.player.inventory = pData.inventory.map(itemData => { if (!itemData) return null; const baseItem = { ...GameData.ITEMS[itemData.id] }; baseItem.quantity = itemData.quantity; if (itemData.durability !== undefined) baseItem.durability = itemData.durability; return baseItem; });
             this.player.equipment = {}; for (const slot in pData.equipment) { const itemData = pData.equipment[slot]; this.player.equipment[slot] = itemData ? { ...GameData.ITEMS[itemData.id], durability: itemData.durability } : null; }
             this.player.quests = []; pData.quests.forEach(qData => { const questTemplate = GameData.QUESTS[qData.id]; const questGiver = this.entities.find(e => e instanceof QuestGiver && e.questIds.includes(qData.id)); if (questTemplate && questGiver) { this.player.quests.push({ ...questTemplate, progress: questTemplate.objectives.map((o, i) => ({ ...o, current: qData.progress[i] || 0 })), giver: questGiver }); } }); if (pData.spellbook) {
@@ -1360,6 +1399,8 @@ class Player extends Character {
         this.hotbar = new Array(10).fill(null);
         this.spellbook = [];
         this.returnLocation = null;
+        this.storage = new Array(99).fill(null);
+        this.hasHouse = false;
         
         this.addAbilityToSpellbook(1);
         if (this.race === 'Elf') {
@@ -1372,7 +1413,8 @@ class Player extends Character {
         this.isGhost = false; this.corpse = null; this.isResting = false;
         this.isAutoQuesting = false; this.autoQuest = null; this.autoMoveTarget = null;
         this.questCooldowns = {};
-        this.hasHouse = false;
+        this.globalClickCooldown = 0;
+        
 
         // --- NEW: GATHERING STATE ---
         this.isGathering = false;
@@ -1454,6 +1496,36 @@ class Player extends Character {
         });
     }
 
+    performClickAttack() {
+        if (this.globalClickCooldown > 0 || !this.target || this.target.isDead) return;
+
+        const weapon = this.equipment['main-hand'];
+        const meleeRange = 40; // Standard melee range
+
+        if (weapon && weapon.range) {
+            // Ranged Attack Logic (for future bows/staves)
+            if (distance(this, this.target) <= weapon.range) {
+                // For now, it's an instant hit. Later, we can spawn a projectile here.
+                this.target.takeDamage(this.getWeaponDamage(), 'physical', this);
+                ParticleSystem.create(this.target.x, this.target.y, 'white', 15, 0.2, 12);
+                this.globalClickCooldown = 1000; // 1 second cooldown
+                this.inCombatTimer = 8000;
+            } else {
+                game.createFloatingText("Out of range", this.x, this.y, "yellow");
+            }
+        } else {
+            // Melee Attack Logic
+            if (distance(this, this.target) <= meleeRange) {
+                this.target.takeDamage(this.getWeaponDamage(), 'physical', this);
+                ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8);
+                this.globalClickCooldown = 1000; // 1 second cooldown
+                this.inCombatTimer = 8000;
+            } else {
+                game.createFloatingText("Out of range", this.x, this.y, "yellow");
+            }
+        }
+    }
+
     update(deltaTime) {
         super.update(deltaTime); 
         if (this.isDead && !this.isGhost) return;
@@ -1469,6 +1541,7 @@ class Player extends Character {
         for (const id in this.cooldowns) { this.cooldowns[id] -= deltaTime; if (this.cooldowns[id] <= 0) delete this.cooldowns[id]; }
         for (const id in this.questCooldowns) { this.questCooldowns[id] -= deltaTime; if (this.questCooldowns[id] <= 0) delete this.questCooldowns[id]; }
         if (this.inCombatTimer > 0) { this.inCombatTimer -= deltaTime; if(this.inCombatTimer <= 0) this.inCombatTimer = 0; }
+        if (this.globalClickCooldown > 0) this.globalClickCooldown -= deltaTime;
         this.fiveSecondRuleTimer -= deltaTime;
         this.autoAttackTimer += deltaTime;
 
@@ -2035,6 +2108,30 @@ class PlayerHouse extends Entity {
     }
 }
 
+class StorageContainer extends Entity {
+    constructor(x, y, icon, color, size) {
+        super(x, y, size, color, icon);
+        this.name = "Storage Chest";
+        this.isInteractable = true;
+    }
+
+    interact(player) {
+        if (player.isGhost) return;
+        game.ui.openStorageWindow(player);
+        player.setTarget(this);
+    }
+
+    draw(ctx, camera, player) {
+        super.draw(ctx, camera, player);
+        const drawX = this.x - camera.x;
+        const drawY = this.y - camera.y;
+        ctx.font = '14px Verdana';
+        ctx.fillStyle = this.color;
+        ctx.textAlign = 'center';
+        ctx.fillText(this.name, drawX, drawY - this.size);
+    }
+}
+
 // --- CORRECTED CLASS ---
 // Now extends NPC to inherit its drawing methods and other properties.
 class DungeonEntrance extends NPC {
@@ -2450,9 +2547,120 @@ class UI {
         this.setupActionbar(game.player);
         if (game.isMobile) this.setupMobileActionButtons(game.player);
         this.setupTooltips();
-        this.setupDragAndDrop(game.player);
+        this.setupDragAndDrop(game.player); // This line will now work correctly
         window.addEventListener('resize', () => { this.mapNeedsRedraw = true; });
     }
+
+    // --- All UI Methods Must Be Inside This Class ---
+
+    openStorageWindow(player) {
+        $('#storage-window').style.display = 'flex';
+        this.updateStorage(player);
+    }
+
+    updateStorage(player) {
+        const grid = $('#storage-grid');
+        grid.innerHTML = '';
+        player.storage.forEach((item, index) => {
+            const slot = document.createElement('div');
+            slot.className = 'storage-slot';
+            slot.dataset.index = index;
+            slot.dataset.source = 'storage';
+            if (item) {
+                slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`;
+                if (item.stackable && item.quantity > 1) slot.innerHTML += `<div class="item-count">${item.quantity}</div>`;
+                slot.dataset.itemId = item.id;
+                slot.draggable = true;
+            }
+            grid.appendChild(slot);
+        });
+    }
+
+    setupDragAndDrop(player) {
+        let draggedItem = null;
+        let sourceArray = null;
+        let sourceIndex = -1;
+
+        document.body.addEventListener('dragstart', (e) => {
+            const slot = e.target.closest('[draggable="true"]');
+            if (!slot) return;
+
+            const sourceType = slot.dataset.source;
+            const index = parseInt(slot.dataset.index || slot.dataset.slot);
+            
+            sourceArray = null;
+            if (sourceType === 'inventory') sourceArray = player.inventory;
+            else if (sourceType === 'storage') sourceArray = player.storage;
+            else if (sourceType === 'spellbook') { 
+                draggedItem = { type: 'ability', ref: player.spellbook[index] };
+                e.dataTransfer.setData('text/plain', `spellbook,${index}`);
+                return;
+            } else if (sourceType === 'equipment') {
+                sourceArray = player.equipment;
+                sourceIndex = slot.dataset.slot;
+                draggedItem = sourceArray[sourceIndex];
+                e.dataTransfer.setData('text/plain', `equipment,${sourceIndex}`);
+                return;
+            }
+
+            if (sourceArray && sourceArray[index]) {
+                sourceIndex = index;
+                draggedItem = sourceArray[index];
+                e.dataTransfer.setData('text/plain', `${sourceType},${index}`);
+            }
+        });
+
+        document.body.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const targetSlot = e.target.closest('.action-slot, .equipment-slot, .inventory-slot, .storage-slot');
+            $$('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            if (targetSlot) {
+                targetSlot.classList.add('drag-over');
+            }
+        });
+
+        document.body.addEventListener('dragleave', (e) => {
+            e.target.closest('.drag-over')?.classList.remove('drag-over');
+        });
+
+        document.body.addEventListener('drop', (e) => {
+            e.preventDefault();
+            $$('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            const targetSlot = e.target.closest('.action-slot, .equipment-slot, .inventory-slot, .storage-slot');
+            if (!targetSlot || !draggedItem) return;
+
+            const [sourceType, sourceIdentifier] = e.dataTransfer.getData('text/plain').split(',');
+
+            if (targetSlot.matches('.action-slot')) {
+                player.setHotbarSlot(targetSlot.dataset.index, sourceType, sourceIdentifier);
+            } else if (targetSlot.matches('.equipment-slot') && draggedItem.slot === targetSlot.dataset.slot) {
+                player.equipItem(parseInt(sourceIdentifier));
+            } else if (targetSlot.matches('.inventory-slot')) {
+                const targetIndex = parseInt(targetSlot.dataset.index);
+                if (sourceType === 'inventory') {
+                    [player.inventory[sourceIndex], player.inventory[targetIndex]] = [player.inventory[targetIndex], player.inventory[sourceIndex]];
+                } else if (sourceType === 'storage') {
+                    [player.storage[sourceIndex], player.inventory[targetIndex]] = [player.inventory[targetIndex], player.storage[sourceIndex]];
+                } else if (sourceType === 'equipment') {
+                    player.unequipItem(sourceIdentifier);
+                }
+            } else if (targetSlot.matches('.storage-slot')) {
+                const targetIndex = parseInt(targetSlot.dataset.index);
+                if (sourceType === 'storage') {
+                    [player.storage[sourceIndex], player.storage[targetIndex]] = [player.storage[targetIndex], player.storage[sourceIndex]];
+                } else if (sourceType === 'inventory') {
+                    [player.inventory[sourceIndex], player.storage[targetIndex]] = [player.storage[targetIndex], player.inventory[sourceIndex]];
+                }
+            }
+
+            this.updateInventory(player);
+            this.updateStorage(player);
+            this.updateCharacterSheet(player);
+            this.setupActionbar(player);
+            draggedItem = null;
+        });
+    }
+
     update(player, deltaTime) {
         this.updatePlayerFrame(player);
         if (!player.isDead) {
@@ -2495,6 +2703,7 @@ class UI {
             this.updateMap();
         }
     }
+
     updateAll(player) { this.updatePlayerFrame(player); this.updateTargetFrame(player.target); this.updateCharacterSheet(player); this.updateInventory(player); this.updateXPBar(player); this.updateQuestLog(player); this.updateTalentWindow(player); this.updateSpellbook(player); this.updateReputationWindow(player); if (this.game.isMobile) this.setupMobileActionButtons(player); this.updateMap(player); }
     updatePlayerFrame(player) { $('#player-name').textContent = player.name; $('#player-level').textContent = `Lvl ${player.level}`; $('#player-health-text').textContent = `${Math.ceil(player.stats.health)} / ${player.stats.maxHealth}`; $('#player-health-fill').style.width = `${(player.stats.health / player.stats.maxHealth) * 100}%`; $('#player-mana-bar').style.display = player.race === 'Elf' ? 'block' : 'none'; if (player.race === 'Elf') { $('#player-mana-text').textContent = `${Math.ceil(player.stats.mana)} / ${player.stats.maxMana}`; $('#player-mana-fill').style.width = `${(player.stats.mana / player.stats.maxMana) * 100}%`; } this.updateBuffs(player, 'player-buffs'); }
     updateTargetFrame(target) { const frame = $('#target-frame'); if (target && target instanceof Character && !target.isDead) { frame.style.display = 'flex'; $('#target-portrait').innerHTML = `<i class="fas ${target.icon.substring(1)}"></i>`; $('#target-portrait').style.color = target.color; $('#target-name').textContent = target.name; $('#target-level').textContent = `Lvl ${target.level}`; $('#target-health-text').textContent = `${Math.ceil(target.stats.health)} / ${target.stats.maxHealth}`; $('#target-health-fill').style.width = `${(target.stats.health / target.stats.maxHealth) * 100}%`; this.updateBuffs(target, 'target-buffs'); } else if (target && !(target instanceof Character)) { frame.style.display = 'flex'; $('#target-portrait').innerHTML = `<i class="fas ${target.icon.substring(1)}"></i>`; $('#target-portrait').style.color = target.color; $('#target-name').textContent = target.name; $('#target-level').textContent = ''; $('#target-health-text').textContent = ''; $('#target-health-fill').style.width = `0%`; this.updateBuffs(target, 'target-buffs'); } else { frame.style.display = 'none'; } }
@@ -2582,7 +2791,6 @@ class UI {
         }
         this.drawDynamicMapElements();
     }
-
     drawStaticMapToCache() {
         const regions = GameData.REGIONS;
         const cacheCanvas = this.mapCacheCanvas;
@@ -2637,7 +2845,6 @@ class UI {
             cacheCtx.shadowBlur = 0;
         });
     }
-
     drawDynamicMapElements() {
         const player = game.player;
         const entities = game.entities;
@@ -2695,7 +2902,7 @@ class UI {
         });
     }
     createFloatingText(text, worldX, worldY, color, camera, type = '') { const textElement = document.createElement('div'); textElement.className = `floating-text ${type}`; textElement.textContent = text; textElement.style.color = color; textElement.style.left = `${worldX - camera.x}px`; textElement.style.top = `${worldY - camera.y}px`; $('#floating-text-container').appendChild(textElement); setTimeout(() => textElement.remove(), 1500); }
-        updateCharacterSheet(player) {
+    updateCharacterSheet(player) {
         player.recalculateStats(); const content = $('#character-content');
         content.innerHTML = `<div id="character-sheet-container"><div id="equipment-slots"></div><div id="stats-column"></div></div>`;
         const statsCol = $('#stats-column'); let statsHtml = `<div class="stat-line"><span>Health</span><span>${Math.ceil(player.stats.health)} / ${player.stats.maxHealth}</span></div>`;
@@ -2708,11 +2915,9 @@ class UI {
         const equipCol = $('#equipment-slots');
         equipCol.innerHTML = '';
 
-        // --- FIX: Use a defined order for equipment slots instead of a for...in loop ---
         const slotOrder = ['head', 'chest', 'tabard', 'main-hand', 'off-hand'];
 
         slotOrder.forEach(slotName => {
-            // Ensure the player object actually has this slot before trying to render it.
             if (player.equipment.hasOwnProperty(slotName)) {
                 const slot = document.createElement('div');
                 slot.className = 'equipment-slot';
@@ -2751,7 +2956,6 @@ class UI {
     }
     updateInventory(player) { const grid = $('#inventory-grid'); grid.innerHTML = ''; player.inventory.forEach((item, index) => { const slot = document.createElement('div'); slot.className = 'inventory-slot'; slot.dataset.index = index; slot.dataset.source = 'inventory'; if (item) { slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`; if(item.stackable && item.quantity > 1) slot.innerHTML += `<div class="item-count">${item.quantity}</div>`; slot.dataset.itemId = item.id; slot.draggable = true; slot.addEventListener('click', (e) => { const currentVendor = game.entities.find(entity => entity.isTargeted && entity.interactType === 'vendor'); if (currentVendor) { this.sellItemFromInventory(player, item, index, currentVendor); } }); } grid.appendChild(slot); }); $('#currency').innerHTML = UI.formatCurrency(player.gold, true); }
     static formatCurrency(amount, useIcons = false) { const gold = Math.floor(amount / 10000); const silver = Math.floor((amount % 10000) / 100); const copper = amount % 100; if(useIcons) { return `<div class="currency-item">${gold} <div class="currency-icon gold"></div></div> <div class="currency-item">${silver} <div class="currency-icon silver"></div></div> <div class="currency-item">${copper} <div class="currency-icon copper"></div></div>`; } return `${gold}g ${silver}s ${copper}c`; }
-    setupDragAndDrop(player) { document.body.addEventListener('dragstart', (e) => { const slot = e.target.closest('[draggable="true"]'); if (slot) { e.dataTransfer.setData('text/plain', `${slot.dataset.source},${slot.dataset.index || slot.dataset.slot}`); e.dataTransfer.effectAllowed = 'move'; } }); document.body.addEventListener('dragover', (e) => { e.preventDefault(); const targetSlot = e.target.closest('.action-slot, .equipment-slot, .inventory-slot'); if (targetSlot) { $$('.drag-over').forEach(el => el.classList.remove('drag-over')); targetSlot.classList.add('drag-over'); } }); document.body.addEventListener('dragleave', (e) => { const targetSlot = e.target.closest('.action-slot, .equipment-slot, .inventory-slot'); if(targetSlot) targetSlot.classList.remove('drag-over'); }); document.body.addEventListener('drop', (e) => { e.preventDefault(); $$('.drag-over').forEach(el => el.classList.remove('drag-over')); const targetSlot = e.target.closest('.action-slot, .equipment-slot, .inventory-slot'); if (!targetSlot) return; const [sourceType, sourceIdentifier] = e.dataTransfer.getData('text/plain').split(','); if (targetSlot.matches('.equipment-slot')) { if (sourceType === 'inventory') { player.equipItem(parseInt(sourceIdentifier)); } } else if (targetSlot.matches('.inventory-slot')) { if (sourceType === 'equipment') { player.unequipItem(sourceIdentifier); } } else if (targetSlot.matches('.action-slot')) { const hotbarIndex = targetSlot.dataset.index; player.setHotbarSlot(hotbarIndex, sourceType, sourceIdentifier); } }); }
     updateQuestLog(player = this.game.player) {
         const content = $('#quest-log-content'); content.innerHTML = ''; if (player.quests.length === 0) { content.innerHTML = 'You have no active quests.'; }
         player.quests.forEach(quest => { const item = document.createElement('div'); item.className = 'quest-item'; const details = document.createElement('div'); let objectivesHtml = ''; quest.progress.forEach(obj => { if (obj.type === 'kill') { objectivesHtml += `<div class="quest-objective">- ${obj.target} slain: ${obj.current} / ${obj.count}</div>`; } else if (obj.type === 'gather') { objectivesHtml += `<div class="quest-objective">- ${obj.target} gathered: ${player.inventory.filter(i => i && i.name.toUpperCase() === obj.target).reduce((sum, i) => sum + i.quantity, 0)} / ${obj.count}</div>`; } }); details.innerHTML = `<div class="quest-title">${quest.title}</div>${objectivesHtml}`; const button = document.createElement('button'); button.className = 'auto-quest-btn'; if (player.isAutoQuesting && player.autoQuest && player.autoQuest.id === quest.id) { button.textContent = 'Stop'; button.classList.add('active'); } else { button.textContent = 'Auto'; } button.addEventListener('click', (e) => { e.stopPropagation(); player.toggleAutoQuest(quest); }); item.appendChild(details); item.appendChild(button); content.appendChild(item); });
@@ -2820,7 +3024,6 @@ class UI {
                 statsHtml += '</ul></div>';
             }
             
-            // --- NEW: Show Faction Requirement ---
             if (itemRef.requiredFaction) {
                 statsHtml += `<div class="stats" style="color: red;">Requires: ${itemRef.requiredFaction.name} - ${itemRef.requiredFaction.tier}</div>`;
             }
@@ -2890,16 +3093,13 @@ class UI {
         playerInventoryGrid.innerHTML = '';
         vendorSellsGrid.innerHTML = '';
 
-        // --- REBUILT LOGIC FOR PLAYER'S SELLABLE ITEMS ---
         player.inventory.forEach((item, index) => {
             if (item && vendor.buys.includes(item.slot) && item.sellPrice) {
-                // 1. Create a container for the slot and its price
                 const container = document.createElement('div');
                 container.className = 'vendor-item-container';
 
-                // 2. Create the item slot itself
                 const slot = document.createElement('div');
-                slot.className = 'vendor-item-slot'; // Removed 'inventory-slot' to avoid conflicting styles
+                slot.className = 'vendor-item-slot';
                 slot.dataset.index = index;
                 slot.dataset.itemId = item.id;
                 slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`;
@@ -2910,19 +3110,16 @@ class UI {
 
                 slot.addEventListener('click', () => this.sellItemFromInventory(player, item, index, vendor));
 
-                // 3. Create the separate price display
                 const priceDiv = document.createElement('div');
                 priceDiv.className = 'vendor-item-price';
                 priceDiv.innerHTML = UI.formatCurrency(item.sellPrice, true);
 
-                // 4. Append the slot and price to the container, then the container to the grid
                 container.appendChild(slot);
                 container.appendChild(priceDiv);
                 playerInventoryGrid.appendChild(container);
             }
         });
 
-        // --- REBUILT LOGIC FOR VENDOR'S ITEMS FOR SALE ---
         if (vendor.sells) {
             vendor.sells.forEach((itemDef) => {
                 const itemData = GameData.ITEMS[itemDef.itemId];
