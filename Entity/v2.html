@@ -1391,10 +1391,14 @@ class Game {
             this.player.hotbar = pData.hotbar.map(slotData => { if (!slotData) return null; if (slotData.type === 'ability') { return { type: 'ability', ref: GameData.ABILITIES[slotData.id] }; } if (slotData.type === 'item' && slotData.invIndex !== undefined) { const item = this.player.inventory[slotData.invIndex]; return item ? { type: 'item', ref: item } : null; } return null; });
             this.player.questCooldowns = {}; for(const id in pData.questCooldowns) { const endTime = pData.questCooldowns[id]; const timeLeft = endTime - Date.now(); if (timeLeft > 0) this.player.questCooldowns[id] = timeLeft; }
             
-            this.player.recalculateStats();if (this.player.activePetId) {
+            this.player.recalculateStats();
+            if (this.player.activePetId) {
                 const petIdToActivate = this.player.activePetId;
-                this.player.activePetId = null; // Clear it first to prevent double-dismiss
-                this.player.setActivePet(petIdToActivate);
+                this.player.activePetId = null;
+                const newPet = this.player.setActivePet(petIdToActivate);
+                if (newPet) {
+                    this.entities.push(newPet); // Add the pet to the entity list safely
+                }
             }
             this.player.stats.health = pData.stats.health;
             this.player.stats.mana = pData.stats.mana;
@@ -2152,11 +2156,15 @@ class Player extends Character {
             this.activePetId = petId;
             const petData = GameData.PETS[petId];
             this.activePetInstance = new Pet(this.x - 30, this.y - 30, this, petData);
-            game.entities.push(this.activePetInstance);
         }
         
         this.recalculateStats();
-        game.ui.updateCharacterSheet(this);
+        
+        // --- FIX: This line is removed to prevent the timing error during game load ---
+        // game.ui.updateCharacterSheet(this); 
+
+        // Return the newly created pet instance so the calling function can handle it
+        return this.activePetInstance;
     }
 
     feedPet(itemId) {
@@ -3520,7 +3528,11 @@ class UI {
         petSlot.onclick = () => {
             const firstOwnedPet = Object.keys(player.pets)[0];
             if (firstOwnedPet) {
-                player.setActivePet(player.activePetId === firstOwnedPet ? null : firstOwnedPet);
+                const newPet = player.setActivePet(player.activePetId === firstOwnedPet ? null : firstOwnedPet);
+                // If a new pet was created (i.e., not dismissed), add it to the game world
+                if (newPet) {
+                    game.entities.push(newPet);
+                }
             }
         };
         equipCol.appendChild(petSlot);
