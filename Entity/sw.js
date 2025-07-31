@@ -1,6 +1,6 @@
 // A unique name for the cache, with a version number.
 // Change the version number when you update the app's core files.
-const CACHE_NAME = 'ecosim-cache-v1.0.3';
+const CACHE_NAME = 'ecosim-cache-v1.0.4';
 
 // A list of all the files that make up the "app shell".
 // This is the minimum needed for the app to load and run offline.
