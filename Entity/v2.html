@@ -656,6 +656,14 @@ const GameData = {
               description: "A strange, surprisingly warm egg. Use: Teaches you how to summon a Goblin Whelp companion.",
               onUse: (player) => { player.addPet('goblin_whelp'); }
         },
+        33: { id: 33, name: "Broodmother's Fang", icon: "fa-tooth", slot: "main-hand", quality: "rare",
+              weaponDamage: { min: 8, max: 12 }, stats: { agility: 3 },
+              description: "A razor-sharp fang dripping with potent venom." 
+        },
+        34: { id: 34, name: "Chitinous Leggings", icon: "fa-socks", slot: "legs", quality: "magic",
+              stats: { armor: 10, agility: 2 },
+              description: "Sturdy leg armor crafted from spider chitin."
+        },
 
         301: { id: 301, name: "Stormwind Tabard", icon: "fa-shirt", slot: "tabard", quality: "rare", description: "A symbol of your dedication to Stormwind. Increases reputation gain with the Stormwind Guard by 10%.", requiredFaction: { name: 'Stormwind Guard', tier: 'Friendly' } },
         302: { id: 302, name: "Guard's Heavy Blade", icon: "fa-gavel", slot: "main-hand", quality: "rare", weaponDamage: { min: 10, max: 15 }, stats: { strength: 3, stamina: 3 }, requiredFaction: { name: 'Stormwind Guard', tier: 'Honored' } },
@@ -747,6 +755,37 @@ const GameData = {
                         const spawnX = caster.x + (Math.random() > 0.5 ? 60 : -60);
                         const spawnY = caster.y + (Math.random() > 0.5 ? 60 : -60);
                         game.entities.push(new Enemy(spawnX, spawnY, GameData.ENEMY_TYPES['GOBLIN_GUARD']));
+                    }
+                }
+            }
+        },
+        'VENOMFANG_LURKER': { 
+            name: "Venomfang Lurker", icon: "\uf717", color: "#3c1a42", size: 28, speed: 1.4, 
+            health: 150, attack: 10, aggroRadius: 160, attackRange: 40, attackSpeed: 2000, xp: 40, 
+            lootTable: [
+                {itemId: 3, chance: 0.9, min: 2, max: 4}, // More Spider Silk
+                {gold: 200, chance: 1.0}
+            ], 
+            reputation: { faction: 'Wilderness', value: -15 } 
+        },
+        'SPIDER_BOSS': { 
+            name: "Arachna, the Broodmother", icon: "\uf717", color: "#6e0d60", size: 45, speed: 1.1, 
+            health: 800, attack: 20, aggroRadius: 250, attackRange: 45, attackSpeed: 2200, xp: 150, 
+            lootTable: [
+                {itemId: 33, chance: 0.5}, // Broodmother's Fang
+                {itemId: 34, chance: 1.0}, // Chitinous Leggings (guaranteed drop)
+                {gold: 3000, chance: 1.0}
+            ], 
+            reputation: { faction: 'Wilderness', value: -75 },
+            onAttack: (caster, target) => { // Boss ability: summon smaller spiders
+                if (!caster.summonCooldown || Date.now() > caster.summonCooldown) {
+                    caster.summonCooldown = Date.now() + 12000;
+                    if (Math.random() < 0.6) {
+                        game.createFloatingText("Arachna summons her brood!", caster.x, caster.y - 40, 'purple');
+                        const spawnX = caster.x + (Math.random() > 0.5 ? 50 : -50);
+                        const spawnY = caster.y + (Math.random() > 0.5 ? 50 : -50);
+                        // Summons a regular Forest Spider
+                        game.entities.push(new Enemy(spawnX, spawnY, GameData.ENEMY_TYPES['SPIDER']));
                     }
                 }
             }
@@ -881,18 +920,19 @@ const GameData = {
             bgColor: "#182c18",
             sceneryPatches: [ { type: [1, 2, 3, 4, 6], density: 3750, patchCenter: {x: 50000, y: 50000}, patchRadius: 10000 } ],
             enemyPacks: [
-                { type: 'SPIDER', count: 50, packCenter: {x: 45000, y: 45000}, packRadius: 2000 },
-                { type: 'WOLF', count: 30, packCenter: {x: 55000, y: 55000}, packRadius: 1500 },
+                { type: 'SPIDER', count: 500, packCenter: {x: 45000, y: 45000}, packRadius: 4000 }, // 10x from 50
+                { type: 'WOLF', count: 300, packCenter: {x: 55000, y: 55000}, packRadius: 3000 },     // 10x from 30
             ],
             resourcePatches: [
-                { type: 'PEACEBLOOM', count: 160, patchCenter: {x: 52000, y: 51000}, patchRadius: 4000 },
-                { type: 'COPPER_VEIN', count: 140, patchCenter: {x: 48000, y: 54000}, patchRadius: 3500 },
-                { type: 'OAK_LOGS', count: 120, patchCenter: {x: 55000, y: 48000}, patchRadius: 4500 },
+                { type: 'PEACEBLOOM', count: 600, patchCenter: {x: 52000, y: 51000}, patchRadius: 4000 }, // 10x from 160
+                { type: 'COPPER_VEIN', count: 400, patchCenter: {x: 48000, y: 54000}, patchRadius: 3500 }, // 10x from 140
+                { type: 'OAK_LOGS', count: 450, patchCenter: {x: 55000, y: 48000}, patchRadius: 4500 },     // 10x from 120
             ],
             npcs: [
                 { type: 'QuestGiver', name: "Old Man Willow", x: 50000, y: 49500, questIds: [1, 2, 3] },
                 // --- NEW: Add the cabin as a specifically placed scenery object ---
                 { type: 'PlayerHouse', houseId: 'CABIN', x: 50150, y: 49550 },
+                { type: 'DungeonEntrance', name: "Spider Lair", x: 44000, y: 44000, target: { x: 20500, y: 84500 } },
                 { type: 'GenericNPC', npcType: 'BLACKSMITH', x: 49000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'GENERAL_VENDOR', x: 51000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'SPIRIT_HEALER', x: 48500, y: 48000 },
@@ -911,12 +951,12 @@ const GameData = {
             bgColor: "#4a4238",
             sceneryPatches: [ { type: [1, 4], density: 80, patchCenter: {x: 87500, y: 60000}, patchRadius: 10000 } ],
             enemyPacks: [
-                { type: 'BEAR', count: 30, packCenter: {x: 85000, y: 50000}, packRadius: 5000 },           // DOUBLED from 15
-                { type: 'GOBLIN_STALKER', count: 20, packCenter: {x: 83000, y: 60000}, packRadius: 3000 }, // DOUBLED from 10
+                { type: 'BEAR', count: 300, packCenter: {x: 85000, y: 50000}, packRadius: 10000 },           // 10x from 30
+                { type: 'GOBLIN_STALKER', count: 200, packCenter: {x: 83000, y: 60000}, packRadius: 6000 }, // 10x from 20
             ],
             resourcePatches: [ 
-                { type: 'TIN_VEIN', count: 120, patchCenter: {x: 87000, y: 55000}, patchRadius: 8000 },
-                { type: 'SILVERLEAF', count: 80, patchCenter: {x: 84000, y: 48000}, patchRadius: 6000 },
+                { type: 'TIN_VEIN', count: 1200, patchCenter: {x: 87000, y: 55000}, patchRadius: 8000 },    // 10x from 120
+                { type: 'SILVERLEAF', count: 800, patchCenter: {x: 84000, y: 48000}, patchRadius: 6000 },   // 10x from 80
             ],
             npcs: [
                 { type: 'Portal', name: "Back to Town", x: 87000, y: 44900, target: { x: 50600, y: 50600 } },
@@ -928,11 +968,11 @@ const GameData = {
             bgColor: "#3b302c",
             sceneryPatches: [ { type: [1, 4], density: 50, patchCenter: {x: 87500, y: 25000}, patchRadius: 7500 } ],
             enemyPacks: [
-                { type: 'GOBLIN', count: 30, packCenter: {x: 85000, y: 20000}, packRadius: 3000 },       // DOUBLED from 15
-                { type: 'DARK_CASTER', count: 10, packCenter: {x: 88000, y: 15000}, packRadius: 1000 }, // DOUBLED from 5
+                { type: 'GOBLIN', count: 300, packCenter: {x: 85000, y: 20000}, packRadius: 6000 },       // 10x from 30
+                { type: 'DARK_CASTER', count: 100, packCenter: {x: 88000, y: 15000}, packRadius: 2000 }, // 10x from 10
             ],
             resourcePatches: [ 
-                { type: 'COPPER_VEIN', count: 80, patchCenter: {x: 82000, y: 18000}, patchRadius: 4000 },
+                { type: 'COPPER_VEIN', count: 800, patchCenter: {x: 82000, y: 18000}, patchRadius: 4000 }, // 10x from 80
             ],
             npcs: []
         },
@@ -942,8 +982,8 @@ const GameData = {
             bgColor: "#3b302c",
             sceneryPatches: [ { type: [5], density: 50, patchCenter: {x: 82500, y: 82500}, patchRadius: 2500 } ],
             enemyPacks: [
-                { type: 'GOBLIN_GUARD', count: 16, packCenter: {x: 82500, y: 82500}, packRadius: 2000 }, // DOUBLED from 8
-                { type: 'GOBLIN_BOSS', count: 1, packCenter: {x: 84000, y: 81000}, packRadius: 100 },      // Boss count remains 1
+                { type: 'GOBLIN_GUARD', count: 160, packCenter: {x: 82500, y: 82500}, packRadius: 4000 }, // 10x from 16
+                { type: 'GOBLIN_BOSS', count: 1, packCenter: {x: 84000, y: 81000}, packRadius: 100 },      // Boss count UNCHANGED
             ],
             npcs: [
                 { type: 'DungeonEntrance', name: "Exit Cave", x: 80500, y: 84500, isExit: true }
@@ -961,6 +1001,20 @@ const GameData = {
             npcs: [
                 { type: 'StorageContainer', x: 10100, y: 10100, icon: '\ue188', size: 50, color: '#a0522d' },
                 { type: 'DungeonEntrance', name: "Exit", x: 10400, y: 10550, isExit: true }
+            ]
+        },
+        {
+            id: 'spider_lair', name: 'The Spider Lair', x: 20000, y: 80000, width: 5000, height: 5000,
+            isDungeon: true,
+            bgColor: "#2a1d2c",
+            sceneryPatches: [ { type: [5], density: 40, patchCenter: {x: 22500, y: 82500}, patchRadius: 2500 } ],
+            enemyPacks: [
+                { type: 'VENOMFANG_LURKER', count: 120, packCenter: {x: 22500, y: 82500}, packRadius: 2000 }, // 10x from 12
+                { type: 'SPIDER_BOSS', count: 1, packCenter: {x: 24000, y: 81000}, packRadius: 100 },         // Boss count UNCHANGED
+            ],
+            npcs: [
+                // The exit portal
+                { type: 'DungeonEntrance', name: "Exit Lair", x: 20500, y: 84500, isExit: true }
             ]
         }
     ],
@@ -1107,8 +1161,8 @@ class Game {
             if (regionData.resourcePatches) {
                 regionData.resourcePatches.forEach(patch => {
                     for (let i = 0; i < patch.count; i++) {
-                        const x = patch.patchCenter.x + (Math.random() - 0.5) * 2 * patch.patchRadius;
-                        const y = patch.patchCenter.y + (Math.random() - 0.5) * 2 * patch.patchRadius;
+                        const x = patch.patchCenter.x + (Math.random() - 0.5) * 4 * patch.patchRadius;
+                        const y = patch.patchCenter.y + (Math.random() - 0.5) * 4 * patch.patchRadius;
                         this.entities.push(new ResourceNode(x, y, GameData.RESOURCE_NODES[patch.type]));
                     }
                 });
@@ -2956,7 +3010,7 @@ class UI {
 
         document.body.addEventListener('dragover', (e) => {
             e.preventDefault();
-            const targetSlot = e.target.closest('.action-slot, .equipment-slot, .inventory-slot, .storage-slot');
+            const targetSlot = e.target.closest('.action-slot, .equipment-slot, .inventory-slot, .storage-slot, #pet-slot');
             $$('.drag-over').forEach(el => el.classList.remove('drag-over'));
             if (targetSlot) {
                 targetSlot.classList.add('drag-over');
@@ -2970,18 +3024,21 @@ class UI {
         document.body.addEventListener('drop', (e) => {
             e.preventDefault();
             $$('.drag-over').forEach(el => el.classList.remove('drag-over'));
-            const targetSlot = e.target.closest('.action-slot, .equipment-slot, .inventory-slot, .storage-slot');
+            const targetSlot = e.target.closest('.action-slot, .equipment-slot, .inventory-slot, .storage-slot, #pet-slot');
             if (!targetSlot || !draggedItem) return;
 
             const [sourceType, sourceIdentifier] = e.dataTransfer.getData('text/plain').split(',');
-            if (targetSlot.matches('.pet-slot')) {
+
+            if (targetSlot.matches('#pet-slot')) {
+                const sourceIndex = parseInt(sourceIdentifier);
                 if (sourceType === 'inventory' && player.inventory[sourceIndex]) {
                     player.feedPet(player.inventory[sourceIndex].id);
                 }
-            } else if (targetSlot.matches('.action-slot'))
-            if (targetSlot.matches('.action-slot')) {
+            } else if (targetSlot.matches('.action-slot')) {
                 player.setHotbarSlot(targetSlot.dataset.index, sourceType, sourceIdentifier);
-            } else if (targetSlot.matches('.equipment-slot') && draggedItem.slot === targetSlot.dataset.slot) {
+            } 
+            // --- FIX: Removed the incorrect '.ref' from the condition ---
+            else if (targetSlot.matches('.equipment-slot') && draggedItem.slot === targetSlot.dataset.slot) {
                 player.equipItem(parseInt(sourceIdentifier));
             } else if (targetSlot.matches('.inventory-slot')) {
                 const targetIndex = parseInt(targetSlot.dataset.index);
