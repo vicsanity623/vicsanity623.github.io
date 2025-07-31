@@ -738,7 +738,7 @@ const GameData = {
         
         // --- VERIFIED AND CORRECTED BOSS DEFINITION ---
         'GOBLIN_BOSS': { 
-            name: "Overlord Grolnok", icon: "\uf6a4", color: "#8B0000", size: 40, speed: 1.2, health: 1000, attack: 25, aggroRadius: 300, attackRange: 50, attackSpeed: 2500, xp: 200, 
+            name: "Overlord Grolnok", icon: "\uf6a4", color: "#8B0000", size: 40, speed: 1.2, health: 100, attack: 5, aggroRadius: 300, attackRange: 50, attackSpeed: 2500, xp: 200, 
             lootTable: [
                 {itemId: 28, chance: 0.2},
                 {itemId: 29, chance: 0.5},
@@ -982,7 +982,7 @@ const GameData = {
             bgColor: "#3b302c",
             sceneryPatches: [ { type: [5], density: 50, patchCenter: {x: 82500, y: 82500}, patchRadius: 2500 } ],
             enemyPacks: [
-                { type: 'GOBLIN_GUARD', count: 160, packCenter: {x: 82500, y: 82500}, packRadius: 4000 }, // 10x from 16
+                { type: 'GOBLIN_GUARD', count: 10, packCenter: {x: 82500, y: 82500}, packRadius: 100 }, // 10x from 16
                 { type: 'GOBLIN_BOSS', count: 1, packCenter: {x: 84000, y: 81000}, packRadius: 100 },      // Boss count UNCHANGED
             ],
             npcs: [
@@ -1085,7 +1085,8 @@ class Game {
         
         if (playerOptions) { 
             this.player = new Player(RESPAWN_POINT.x, RESPAWN_POINT.y, this.input, playerOptions.name, playerOptions.race);
-            this.player.autoSlotAbilities(); 
+            this.player.autoSlotAbilities();
+            this.player.addItem(32, 1); // Goblin Whelp Egg for testing 
         } else { 
             this.player = new Player(RESPAWN_POINT.x, RESPAWN_POINT.y, this.input, 'Hero', 'Human'); 
         }
@@ -1477,6 +1478,14 @@ class Pet extends Entity {
             this.y += Math.sin(angle) * moveSpeed;
         }
     }
+    draw(ctx, camera) {
+        // Set the font to Font Awesome before drawing
+        ctx.font = `900 ${this.size}px "Font Awesome 6 Free"`;
+        
+        // Call the original drawing logic from the parent Entity class
+        super.draw(ctx, camera);
+    }
+
 }
 class Character extends Entity {
     constructor(x, y, size, color, icon, name) {
