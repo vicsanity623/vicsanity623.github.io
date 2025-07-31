@@ -412,6 +412,22 @@
             background-color: #ffd700; /* A nice gold/yellow for stamina */
             transition: width 0.1s linear; /* Smooths the depletion/refill */
         }
+        #pet-info-panel {
+            padding: 10px;
+            margin-top: 10px;
+            border-top: 1px solid var(--color-border);
+        }
+        .pet-xp-bar {
+            width: 100%;
+            height: 10px;
+            background-color: var(--color-bg-dark);
+            border: 1px solid var(--color-border);
+            margin-top: 5px;
+        }
+        .pet-xp-bar-fill {
+            height: 100%;
+            background-color: magenta;
+        }
     </style>
 </head>
 <body>
@@ -636,6 +652,10 @@ const GameData = {
         31: { id: 31, name: "Simple Wooden Arrow", icon: "fa-arrows", slot: "material", quality: "common", 
             stackable: true, maxStack: 99, sellPrice: 5 
         },
+        32: { id: 32, name: "Goblin Whelp Egg", icon: "fa-egg", slot: "consumable", quality: "epic",
+              description: "A strange, surprisingly warm egg. Use: Teaches you how to summon a Goblin Whelp companion.",
+              onUse: (player) => { player.addPet('goblin_whelp'); }
+        },
 
         301: { id: 301, name: "Stormwind Tabard", icon: "fa-shirt", slot: "tabard", quality: "rare", description: "A symbol of your dedication to Stormwind. Increases reputation gain with the Stormwind Guard by 10%.", requiredFaction: { name: 'Stormwind Guard', tier: 'Friendly' } },
         302: { id: 302, name: "Guard's Heavy Blade", icon: "fa-gavel", slot: "main-hand", quality: "rare", weaponDamage: { min: 10, max: 15 }, stats: { strength: 3, stamina: 3 }, requiredFaction: { name: 'Stormwind Guard', tier: 'Honored' } },
@@ -715,6 +735,7 @@ const GameData = {
                 {itemId: 28, chance: 0.2},
                 {itemId: 29, chance: 0.5},
                 {itemId: 30, chance: 0.5},
+                {itemId: 32, chance: 1.0},
                 {gold: 5000, chance: 1.0}
             ], 
             reputation: { faction: 'Stormwind Guard', value: 100 },
@@ -964,6 +985,32 @@ const GameData = {
             isCollidable: true,
             // --- FIX: Updated the target to a safe spot in the new smaller room ---
             target: { x: 10400, y: 10300 }
+        }
+    },
+    PETS: {
+        'goblin_whelp': {
+            name: "Goblin Whelp",
+            icon: '\uf7a0', // Goblin icon
+            color: '#9acd32', // A lime green color
+            size: 18,
+            favoriteFoods: {
+                3: 10,  // Spider Silk (ID 3) gives 10 XP
+                4: 15,  // Wolf Fang (ID 4) gives 15 XP
+                11: 25, // Bear Flank (ID 11) gives 25 XP
+            },
+            xpPerLevel: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000], // XP needed for each level
+            statsByLevel: [
+                { stats: { stamina: 1 } }, // Level 1
+                { stats: { stamina: 2 } }, // Level 2
+                { stats: { stamina: 3 } }, // Level 3
+                { stats: { stamina: 4 } }, // Level 4
+                { stats: { stamina: 5 } }, // Level 5
+                { stats: { stamina: 6, strength: 1 } }, // Level 6
+                { stats: { stamina: 7, strength: 2 } }, // Level 7
+                { stats: { stamina: 8, strength: 3 } }, // Level 8
+                { stats: { stamina: 9, strength: 4 } }, // Level 9
+                { stats: { stamina: 10, strength: 5 } },// Level 10
+            ]
         }
     },
 };
@@ -1238,7 +1285,9 @@ class Game {
                 professions: { ...this.player.professions },
                 questCooldowns: Object.entries(this.player.questCooldowns).reduce((acc, [id, timeLeft]) => { acc[id] = Date.now() + timeLeft; return acc; }, {}),
                 storage: this.player.storage.map(item => item ? { id: item.id, quantity: item.quantity, durability: item.durability } : null),
-                hasHouse: this.player.hasHouse
+                hasHouse: this.player.hasHouse,
+                pets: this.player.pets,
+                activePetId: this.player.activePetId
             }
         };
         localStorage.setItem('miniWowSaveData', JSON.stringify(saveData));
@@ -1252,7 +1301,7 @@ class Game {
             const saveData = JSON.parse(savedJSON); const pData = saveData.player;
             this.spawnEntities();
             
-            this.player.name = pData.name; this.player.race = pData.race; this.player.x = pData.x; this.player.y = pData.y; this.player.level = pData.level; this.player.xp = pData.xp; this.player.restedXp = pData.restedXp; this.player.gold = pData.gold; this.player.baseStats = { ...pData.baseStats }; this.player.talents = { ...pData.talents }; this.player.talentPoints = pData.talentPoints; this.player.reputation = { ...pData.reputation }; this.player.professions = { ...pData.professions }; this.player.nextLevelXp = GameData.XP_TABLE[this.player.level] || 99999; 
+            this.player.name = pData.name; this.player.race = pData.race; this.player.x = pData.x; this.player.y = pData.y; this.player.level = pData.level; this.player.xp = pData.xp; this.player.restedXp = pData.restedXp; this.player.gold = pData.gold; this.player.baseStats = { ...pData.baseStats }; this.player.talents = { ...pData.talents }; this.player.talentPoints = pData.talentPoints; this.player.reputation = { ...pData.reputation }; this.player.professions = { ...pData.professions }; this.player.pets = pData.pets || {}; this.player.activePetId = pData.activePetId || null; this.player.nextLevelXp = GameData.XP_TABLE[this.player.level] || 99999; 
             this.player.hasHouse = pData.hasHouse || false;
             this.player.storage = (pData.storage || new Array(99).fill(null)).map(itemData => {
                  if (!itemData) return null;
@@ -1271,7 +1320,11 @@ class Game {
             this.player.hotbar = pData.hotbar.map(slotData => { if (!slotData) return null; if (slotData.type === 'ability') { return { type: 'ability', ref: GameData.ABILITIES[slotData.id] }; } if (slotData.type === 'item' && slotData.invIndex !== undefined) { const item = this.player.inventory[slotData.invIndex]; return item ? { type: 'item', ref: item } : null; } return null; });
             this.player.questCooldowns = {}; for(const id in pData.questCooldowns) { const endTime = pData.questCooldowns[id]; const timeLeft = endTime - Date.now(); if (timeLeft > 0) this.player.questCooldowns[id] = timeLeft; }
             
-            this.player.recalculateStats();
+            this.player.recalculateStats();if (this.player.activePetId) {
+                const petIdToActivate = this.player.activePetId;
+                this.player.activePetId = null; // Clear it first to prevent double-dismiss
+                this.player.setActivePet(petIdToActivate);
+            }
             this.player.stats.health = pData.stats.health;
             this.player.stats.mana = pData.stats.mana;
             this.ui.setupActionbar(this.player);
@@ -1349,6 +1402,27 @@ class Entity {
     }
     
     update(deltaTime, world, entities) {}
+}
+class Pet extends Entity {
+    constructor(x, y, owner, petData) {
+        super(x, y, petData.size, petData.color, petData.icon);
+        this.owner = owner;
+        this.petData = petData;
+        this.leashDistance = 60; // How far the pet can be before it starts moving
+    }
+
+    update(deltaTime) {
+        const distanceToOwner = distance(this, this.owner);
+
+        // If owner is too far away, move towards them
+        if (distanceToOwner > this.leashDistance) {
+            const angle = Math.atan2(this.owner.y - this.y, this.owner.x - this.x);
+            // Move at the owner's speed, slightly slower
+            const moveSpeed = (this.owner.speed * 0.9) * (deltaTime / 16.67); 
+            this.x += Math.cos(angle) * moveSpeed;
+            this.y += Math.sin(angle) * moveSpeed;
+        }
+    }
 }
 class Character extends Entity {
     constructor(x, y, size, color, icon, name) {
@@ -1466,6 +1540,9 @@ class Player extends Character {
         this.stamina = this.maxStamina;
         this.isSprinting = false;
         this.staminaRegenDelayTimer = 0; // Timer for the 0.5s delay
+        this.pets = {}; // Stores data for all owned pets { id: { level, xp } }
+        this.activePetId = null; // The ID of the currently summoned pet
+        this.activePetInstance = null; // The actual Pet object in the world
 
         this.globalClickCooldown = 0;
         this.isGathering = false;
@@ -1914,9 +1991,88 @@ class Player extends Character {
         game.ui.updateAll(this);
     }
 
+    addPet(petId) {
+        if (this.pets[petId]) {
+            game.createFloatingText("You already know how to summon this companion.", this.x, this.y, 'yellow');
+            return;
+        }
+        this.pets[petId] = { level: 1, xp: 0 };
+        game.createFloatingText(`You have a new companion: ${GameData.PETS[petId].name}!`, this.x, this.y, 'gold');
+        game.ui.updateAll(this);
+    }
+
+    setActivePet(petId) {
+        // Dismiss current pet if there is one
+        if (this.activePetInstance) {
+            this.activePetInstance.isDead = true;
+            this.activePetInstance = null;
+        }
+
+        // If we are trying to set the same pet, it means we are dismissing it
+        if (this.activePetId === petId) {
+            this.activePetId = null;
+        } else if (petId && this.pets[petId]) {
+            // Summon the new pet
+            this.activePetId = petId;
+            const petData = GameData.PETS[petId];
+            this.activePetInstance = new Pet(this.x - 30, this.y - 30, this, petData);
+            game.entities.push(this.activePetInstance);
+        }
+        
+        this.recalculateStats();
+        game.ui.updateCharacterSheet(this);
+    }
+
+    feedPet(itemId) {
+        if (!this.activePetId) return;
+
+        const petData = GameData.PETS[this.activePetId];
+        const xpGain = petData.favoriteFoods[itemId];
+
+        if (xpGain) {
+            const petStore = this.pets[this.activePetId];
+            if (petStore.level >= petData.statsByLevel.length) {
+                game.createFloatingText("Your pet is full and cannot level up further.", this.x, this.y, 'yellow');
+                return;
+            }
+
+            this.removeItem(itemId, 1);
+            petStore.xp += xpGain;
+            game.createFloatingText(`+${xpGain} Pet XP`, this.x, this.y, 'magenta');
+            
+            this.levelUpPetIfReady();
+            game.ui.updateAll(this);
+        } else {
+            game.createFloatingText("Your pet doesn't want to eat that.", this.x, this.y, 'red');
+        }
+    }
+
+    levelUpPetIfReady() {
+        if (!this.activePetId) return;
+        const petStore = this.pets[this.activePetId];
+        const petData = GameData.PETS[this.activePetId];
+        const nextLevelXp = petData.xpPerLevel[petStore.level - 1];
+
+        if (nextLevelXp && petStore.xp >= nextLevelXp) {
+            petStore.level++;
+            petStore.xp -= nextLevelXp;
+            game.createFloatingText(`${petData.name} grew to Level ${petStore.level}!`, this.x, this.y - 20, 'gold');
+            this.recalculateStats();
+        }
+    }
+
     recalculateStats() {
         const newStats = { ...this.baseStats };
         this.statBonuses = {};
+
+        if (this.activePetId && this.pets[this.activePetId]) {
+            const petStore = this.pets[this.activePetId];
+            const petData = GameData.PETS[this.activePetId];
+            const petLevelStats = petData.statsByLevel[petStore.level - 1].stats;
+            for (const stat in petLevelStats) {
+                this.stats[stat] += petLevelStats[stat];
+            }
+        }
 
         Object.values(this.equipment).forEach(item => {
             if (item && item.stats) {
@@ -2818,7 +2974,11 @@ class UI {
             if (!targetSlot || !draggedItem) return;
 
             const [sourceType, sourceIdentifier] = e.dataTransfer.getData('text/plain').split(',');
-
+            if (targetSlot.matches('.pet-slot')) {
+                if (sourceType === 'inventory' && player.inventory[sourceIndex]) {
+                    player.feedPet(player.inventory[sourceIndex].id);
+                }
+            } else if (targetSlot.matches('.action-slot'))
             if (targetSlot.matches('.action-slot')) {
                 player.setHotbarSlot(targetSlot.dataset.index, sourceType, sourceIdentifier);
             } else if (targetSlot.matches('.equipment-slot') && draggedItem.slot === targetSlot.dataset.slot) {
@@ -3128,18 +3288,19 @@ class UI {
     }
     createFloatingText(text, worldX, worldY, color, camera, type = '') { const textElement = document.createElement('div'); textElement.className = `floating-text ${type}`; textElement.textContent = text; textElement.style.color = color; textElement.style.left = `${worldX - camera.x}px`; textElement.style.top = `${worldY - camera.y}px`; $('#floating-text-container').appendChild(textElement); setTimeout(() => textElement.remove(), 1500); }
     updateCharacterSheet(player) {
-        player.recalculateStats(); const content = $('#character-content');
-        content.innerHTML = `<div id="character-sheet-container"><div id="equipment-slots"></div><div id="stats-column"></div></div>`;
-        const statsCol = $('#stats-column'); let statsHtml = `<div class="stat-line"><span>Health</span><span>${Math.ceil(player.stats.health)} / ${player.stats.maxHealth}</span></div>`;
-        if (player.race === 'Elf') statsHtml += `<div class="stat-line"><span>Mana</span><span>${Math.ceil(player.stats.mana)} / ${player.stats.maxMana}</span></div>`;
-        statsHtml += `<hr><div class="stat-line"><span>Strength</span><span>${Math.floor(player.stats.strength)}</span></div> <div class="stat-line"><span>Agility</span><span>${Math.floor(player.stats.agility)}</span></div> <div class="stat-line"><span>Stamina</span><span>${Math.floor(player.stats.stamina)}</span></div>`;
-        if (player.race === 'Elf') statsHtml += `<div class="stat-line"><span>Intellect</span><span>${Math.floor(player.stats.intellect)}</span></div>`;
-        statsHtml += `<div class="stat-line"><span>Spirit</span><span>${Math.floor(player.stats.spirit)}</span></div><hr> <div class="stat-line"><span>Attack Power</span><span>${player.stats.attackPower.toFixed(1)}</span></div> <div class="stat-line"><span>Crit Chance</span><span>${(player.stats.critChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Dodge Chance</span><span>${(player.stats.dodgeChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Armor</span><span>${player.stats.armor}</span></div>`;
-        statsCol.innerHTML = statsHtml;
+        player.recalculateStats();
+        const content = $('#character-content');
         
-        const equipCol = $('#equipment-slots');
-        equipCol.innerHTML = '';
+        // --- FIX: Build the structure step-by-step instead of one giant string ---
+        content.innerHTML = `
+            <div id="character-sheet-container">
+                <div id="equipment-column"></div>
+                <div id="stats-column"></div>
+            </div>
+        `;
 
+        // --- PART 1: Populate the Equipment Column (Left Side) ---
+        const equipCol = $('#equipment-column');
         const slotOrder = ['head', 'chest', 'tabard', 'main-hand', 'off-hand'];
 
         slotOrder.forEach(slotName => {
@@ -3157,27 +3318,67 @@ class UI {
                 equipCol.appendChild(slot);
             }
         });
+
+        // Add the Pet Slot to the equipment column
+        const petSlot = document.createElement('div');
+        petSlot.id = 'pet-slot';
+        petSlot.className = 'equipment-slot';
+        petSlot.dataset.slot = 'pet';
         
+        const activePetData = player.activePetId ? GameData.PETS[player.activePetId] : null;
+        if (activePetData) {
+            petSlot.innerHTML = `<i class="fas ${activePetData.icon}"></i><div class="equipment-slot-name">Pet</div>`;
+        } else {
+            petSlot.innerHTML = `<div class="equipment-slot-name">Pet</div>`;
+        }
+        petSlot.onclick = () => {
+            const firstOwnedPet = Object.keys(player.pets)[0];
+            if (firstOwnedPet) {
+                player.setActivePet(player.activePetId === firstOwnedPet ? null : firstOwnedPet);
+            }
+        };
+        equipCol.appendChild(petSlot);
+
+
+        // --- PART 2: Populate the Stats Column (Right Side) ---
+        const statsCol = $('#stats-column');
+        let statsHtml = `<div class="stat-line"><span>Health</span><span>${Math.ceil(player.stats.health)} / ${player.stats.maxHealth}</span></div>`;
+        if (player.race === 'Elf') statsHtml += `<div class="stat-line"><span>Mana</span><span>${Math.ceil(player.stats.mana)} / ${player.stats.maxMana}</span></div>`;
+        statsHtml += `<hr><div class="stat-line"><span>Strength</span><span>${Math.floor(player.stats.strength)}</span></div> <div class="stat-line"><span>Agility</span><span>${Math.floor(player.stats.agility)}</span></div> <div class="stat-line"><span>Stamina</span><span>${Math.floor(player.stats.stamina)}</span></div>`;
+        if (player.race === 'Elf') statsHtml += `<div class="stat-line"><span>Intellect</span><span>${Math.floor(player.stats.intellect)}</span></div>`;
+        statsHtml += `<div class="stat-line"><span>Spirit</span><span>${Math.floor(player.stats.spirit)}</span></div><hr> <div class="stat-line"><span>Attack Power</span><span>${player.stats.attackPower.toFixed(1)}</span></div> <div class="stat-line"><span>Crit Chance</span><span>${(player.stats.critChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Dodge Chance</span><span>${(player.stats.dodgeChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Armor</span><span>${player.stats.armor}</span></div>`;
+        
+        // Add Professions to the stats column
         let professionsHtml = '<hr><h3>Professions</h3>';
         for (const profName in player.professions) {
             const prof = player.professions[profName];
             if (prof.level > 0) {
                 const profData = GameData.PROFESSIONS[profName];
                 const xpPercent = profData.nextLevelXp > 0 ? (prof.xp / profData.nextLevelXp) * 100 : 0;
-                
-                professionsHtml += `
-                    <div class="profession-line">
-                        <div class="stat-line">
-                            <span>${profName}</span>
-                            <span>${prof.level} / ${profData.maxLevel}</span>
-                        </div>
-                        <div class="profession-xp-bar" title="XP: ${prof.xp} / ${profData.nextLevelXp}">
-                            <div class="profession-xp-bar-fill" style="width: ${xpPercent}%;"></div>
-                        </div>
-                    </div>`;
+                professionsHtml += `<div class="profession-line"><div class="stat-line"><span>${profName}</span><span>${prof.level} / ${profData.maxLevel}</span></div><div class="profession-xp-bar" title="XP: ${prof.xp} / ${profData.nextLevelXp}"><div class="profession-xp-bar-fill" style="width: ${xpPercent}%;"></div></div></div>`;
             }
         }
-        statsCol.innerHTML += professionsHtml;
+        statsCol.innerHTML = statsHtml + professionsHtml;
+
+        // Add the Pet Info Panel to the stats column
+        if (player.activePetId) {
+            const petStore = player.pets[player.activePetId];
+            const petData = GameData.PETS[player.activePetId];
+            const nextLevelXp = petData.xpPerLevel[petStore.level - 1] || 'Max';
+            const xpPercent = nextLevelXp !== 'Max' ? (petStore.xp / nextLevelXp) * 100 : 100;
+
+            const petPanel = document.createElement('div');
+            petPanel.id = 'pet-info-panel';
+            petPanel.innerHTML = `
+                <hr><h3>Pet Companion</h3>
+                <div class="stat-line"><span>${petData.name}</span><span>Level ${petStore.level}</span></div>
+                <div class="pet-xp-bar" title="XP: ${petStore.xp} / ${nextLevelXp}">
+                    <div class="pet-xp-bar-fill" style="width: ${xpPercent}%;"></div>
+                </div>
+                <small>Favorite Foods: ${Object.keys(petData.favoriteFoods).map(id => GameData.ITEMS[id].name).join(', ')}</small>
+            `;
+            statsCol.appendChild(petPanel);
+        }
     }
     updateInventory(player) { const grid = $('#inventory-grid'); grid.innerHTML = ''; player.inventory.forEach((item, index) => { const slot = document.createElement('div'); slot.className = 'inventory-slot'; slot.dataset.index = index; slot.dataset.source = 'inventory'; if (item) { slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`; if(item.stackable && item.quantity > 1) slot.innerHTML += `<div class="item-count">${item.quantity}</div>`; slot.dataset.itemId = item.id; slot.draggable = true; slot.addEventListener('click', (e) => { const currentVendor = game.entities.find(entity => entity.isTargeted && entity.interactType === 'vendor'); if (currentVendor) { this.sellItemFromInventory(player, item, index, currentVendor); } }); } grid.appendChild(slot); }); $('#currency').innerHTML = UI.formatCurrency(player.gold, true); }
     static formatCurrency(amount, useIcons = false) { const gold = Math.floor(amount / 10000); const silver = Math.floor((amount % 10000) / 100); const copper = amount % 100; if(useIcons) { return `<div class="currency-item">${gold} <div class="currency-icon gold"></div></div> <div class="currency-item">${silver} <div class="currency-icon silver"></div></div> <div class="currency-item">${copper} <div class="currency-icon copper"></div></div>`; } return `${gold}g ${silver}s ${copper}c`; }
