@@ -646,7 +646,8 @@ const GameData = {
         // --- NEW STARTER ITEM ---
         29: { id: 29, name: "Chair", icon: "fa-chair", slot: "material", quality: "common", stackable: true, sellPrice: 75, description: "A simple, but sturdy chair. Good for sitting, or selling." },
         30: { id: 30, name: "Simple Wooden Bow", icon: "fa-crosshairs", slot: "main-hand", quality: "common", 
-            weaponDamage: { min: 7, max: 9 }, range: 1500, 
+            weaponDamage: { min: 7, max: 9 }, range: 1500,
+            attackSpeed: 2000, 
             durability: 100, maxDurability: 100, sellPrice: 400 
         },
         31: { id: 31, name: "Simple Wooden Arrow", icon: "fa-arrows", slot: "material", quality: "common", 
@@ -1752,7 +1753,7 @@ class Player extends Character {
                 const arrowProjectile = new Projectile(this, this.target, 500, '\uf140', '#CD853F', 12, onArrowHit, true); // true enables the trail
                 game.entities.push(arrowProjectile);
 
-                this.globalClickCooldown = 1500; // Increase cooldown slightly for bows
+                this.globalClickCooldown = weapon.attackSpeed || 1500; 
                 this.inCombatTimer = 8000;
                 game.ui.updateCharacterSheet(this);
             } else {
@@ -1763,7 +1764,7 @@ class Player extends Character {
             if (distance(this, this.target) <= meleeRange) {
                 this.target.takeDamage(this.getWeaponDamage(), 'physical', this);
                 ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8);
-                this.globalClickCooldown = 1000; // 1 second cooldown
+                this.globalClickCooldown = this.attackSpeed || 1000;
                 this.inCombatTimer = 8000;
             } else {
                 game.createFloatingText("Out of range", this.x, this.y, "yellow");
