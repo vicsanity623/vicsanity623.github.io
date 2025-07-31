@@ -653,8 +653,10 @@ const GameData = {
             stackable: true, maxStack: 99, sellPrice: 5 
         },
         32: { id: 32, name: "Goblin Whelp Egg", icon: "fa-egg", slot: "consumable", quality: "epic",
-              description: "A strange, surprisingly warm egg. Use: Teaches you how to summon a Goblin Whelp companion.",
-              onUse: (player) => { player.addPet('goblin_whelp'); }
+              description: "A strange, surprisingly warm egg. Use: Teaches you how to summon a Goblin Whelp companion. Can also be fed to a max-level Goblin Whelp to unlock its potential.",
+              onUse: (player) => { player.addPet('goblin_whelp'); },
+              // --- NEW: Add this property ---
+              petId: 'goblin_whelp'
         },
         33: { id: 33, name: "Broodmother's Fang", icon: "fa-tooth", slot: "main-hand", quality: "rare",
               weaponDamage: { min: 8, max: 12 }, stats: { agility: 3 },
@@ -1041,18 +1043,20 @@ const GameData = {
             target: { x: 10400, y: 10300 }
         }
     },
-    PETS: {
+        PETS: {
         'goblin_whelp': {
             name: "Goblin Whelp",
-            icon: '\uf7a0', // Goblin icon
-            color: '#9acd32', // A lime green color
+            icon: '\uf7a0',
+            color: '#9acd32',
             size: 18,
+            maxLevel: 10, // The initial level cap
             favoriteFoods: {
-                3: 10,  // Spider Silk (ID 3) gives 10 XP
-                4: 15,  // Wolf Fang (ID 4) gives 15 XP
-                11: 25, // Bear Flank (ID 11) gives 25 XP
+                3: 10,  // Spider Silk
+                4: 15,  // Wolf Fang
+                11: 25, // Bear Flank
             },
-            xpPerLevel: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000], // XP needed for each level
+            // --- EXPANDED to 20 levels ---
+            xpPerLevel: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900],
             statsByLevel: [
                 { stats: { stamina: 1 } }, // Level 1
                 { stats: { stamina: 2 } }, // Level 2
@@ -1064,6 +1068,17 @@ const GameData = {
                 { stats: { stamina: 8, strength: 3 } }, // Level 8
                 { stats: { stamina: 9, strength: 4 } }, // Level 9
                 { stats: { stamina: 10, strength: 5 } },// Level 10
+                // --- NEW BREAKTHROUGH LEVELS ---
+                { stats: { stamina: 12, strength: 6 } },// Level 11
+                { stats: { stamina: 14, strength: 7 } },// Level 12
+                { stats: { stamina: 16, strength: 8 } },// Level 13
+                { stats: { stamina: 18, strength: 9 } },// Level 14
+                { stats: { stamina: 20, strength: 10 } },// Level 15 (Your specified bonus)
+                { stats: { stamina: 23, strength: 11 } },// Level 16
+                { stats: { stamina: 26, strength: 12 } },// Level 17
+                { stats: { stamina: 29, strength: 13 } },// Level 18
+                { stats: { stamina: 32, strength: 14 } },// Level 19
+                { stats: { stamina: 35, strength: 15 } },// Level 20 (Your specified bonus)
             ]
         }
     },
@@ -1086,7 +1101,7 @@ class Game {
         if (playerOptions) { 
             this.player = new Player(RESPAWN_POINT.x, RESPAWN_POINT.y, this.input, playerOptions.name, playerOptions.race);
             this.player.autoSlotAbilities();
-            this.player.addItem(32, 1); // Goblin Whelp Egg for testing 
+            this.player.addItem(32, 2); // Goblin Whelp Egg for testing 
         } else { 
             this.player = new Player(RESPAWN_POINT.x, RESPAWN_POINT.y, this.input, 'Hero', 'Human'); 
         }
@@ -2114,8 +2129,10 @@ class Player extends Character {
             game.createFloatingText("You already know how to summon this companion.", this.x, this.y, 'yellow');
             return;
         }
-        this.pets[petId] = { level: 1, xp: 0 };
-        game.createFloatingText(`You have a new companion: ${GameData.PETS[petId].name}!`, this.x, this.y, 'gold');
+        const petData = GameData.PETS[petId];
+        // --- NEW: Store the initial maxLevel ---
+        this.pets[petId] = { level: 1, xp: 0, maxLevel: petData.maxLevel };
+        game.createFloatingText(`You have a new companion: ${petData.name}!`, this.x, this.y, 'gold');
         game.ui.updateAll(this);
     }
 
@@ -2146,6 +2163,27 @@ class Player extends Character {
 
         const petData = GameData.PETS[this.activePetId];
         const xpGain = petData.favoriteFoods[itemId];
+        const petStore = this.pets[this.activePetId];
+        const itemData = GameData.ITEMS[itemId];
+
+        if (itemData.petId) {
+            if (itemData.petId === this.activePetId) {
+                // We are feeding the correct egg to the correct pet
+                if (petStore.level >= petStore.maxLevel) {
+                    // Breakthrough condition met!
+                    this.removeItem(itemId, 1);
+                    petStore.maxLevel = 20; // The new cap
+                    game.createFloatingText("BREAKTHROUGH!", this.x, this.y, 'lime');
+                    game.createFloatingText(`${petData.name}'s level cap increased to 20!`, this.x, this.y - 20, 'gold');
+                    game.ui.updateAll(this);
+                } else {
+                    game.createFloatingText("Your pet must be max level to consume this.", this.x, this.y, 'red');
+                }
+            } else {
+                game.createFloatingText("This pet doesn't want to eat that egg.", this.x, this.y, 'red');
+            }
+            return; // Stop the function here for egg feeding
+        }
 
         if (xpGain) {
             const petStore = this.pets[this.activePetId];
@@ -2169,6 +2207,10 @@ class Player extends Character {
         if (!this.activePetId) return;
         const petStore = this.pets[this.activePetId];
         const petData = GameData.PETS[this.activePetId];
+
+        // --- FIX: Check against the dynamic maxLevel, not the array length ---
+        if (petStore.level >= petStore.maxLevel) return;
+
         const nextLevelXp = petData.xpPerLevel[petStore.level - 1];
 
         if (nextLevelXp && petStore.xp >= nextLevelXp) {
