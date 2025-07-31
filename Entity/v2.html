@@ -645,8 +645,8 @@ const GameData = {
         
         // --- NEW STARTER ITEM ---
         29: { id: 29, name: "Chair", icon: "fa-chair", slot: "material", quality: "common", stackable: true, sellPrice: 75, description: "A simple, but sturdy chair. Good for sitting, or selling." },
-        30: { id: 30, name: "Simple Wooden Bow", icon: "fa-bow-arrow", slot: "main-hand", quality: "common", 
-            weaponDamage: { min: 7, max: 9 }, range: 300, 
+        30: { id: 30, name: "Simple Wooden Bow", icon: "fa-crosshairs", slot: "main-hand", quality: "common", 
+            weaponDamage: { min: 7, max: 9 }, range: 1500, 
             durability: 100, maxDurability: 100, sellPrice: 400 
         },
         31: { id: 31, name: "Simple Wooden Arrow", icon: "fa-arrows", slot: "material", quality: "common", 
@@ -878,7 +878,7 @@ const GameData = {
         
         'chair': { id: 'chair', name: 'Chair', icon: 'fa-chair', itemId: 29, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 1}], time: 2000 },
         'simple_wooden_bow': { 
-            id: 'simple_wooden_bow', name: 'Simple Wooden Bow', icon: 'fa-bow-arrow', itemId: 30, 
+            id: 'simple_wooden_bow', name: 'Simple Wooden Bow', icon: 'fa-crosshairs', itemId: 30, 
             profession: 'Woodworking', skillRequired: 3, 
             materials: [{itemId: 15, quantity: 10}], time: 5000, 
             playerXpGain: 25 // Gives 25 player XP upon crafting
@@ -887,7 +887,7 @@ const GameData = {
             id: 'simple_wooden_arrow', name: 'Simple Wooden Arrow', icon: 'fa-arrows', itemId: 31, 
             profession: 'Woodworking', skillRequired: 3, 
             materials: [{itemId: 15, quantity: 1}], time: 2000,
-            xpGain: 5,   // Gives 5 Woodworking XP
+            xpGain: 15,   // Gives 5 Woodworking XP
             yield: 10    // Yields 10 arrows per craft
         },
 
@@ -1579,8 +1579,10 @@ class Player extends Character {
         this.input = input; this.speed = 2.2; this.xp = 0; this.restedXp = 0;
         this.nextLevelXp = GameData.XP_TABLE[this.level]; this.gold = 5000;
         this.inventory = new Array(16).fill(null);
-        this.equipment = { 'main-hand': null, 'off-hand': null, head: null, chest: null, tabard: null };
+        this.equipment = { head: null, chest: null, tabard: null, 'main-hand': null, 'off-hand': null, ammo: null };
+        this.buffs = [];
         this.baseStats = { ...this.baseStats }; this.statBonuses = {}; this.talentBonuses = {};
+        
         this.talents = {}; this.talentPoints = 0;
         this.reputation = {}; Object.keys(GameData.FACTIONS).forEach(id => this.reputation[id] = GameData.FACTIONS[id].base);
         this.professions = { Herbalism: { level: 0, xp: 0 }, Mining: { level: 0, xp: 0 }, Woodworking: { level: 0, xp: 0 }, Lumberjacking: { level: 0, xp: 0 }, Blacksmithing: { level: 0, xp: 0 }, Alchemy: { level: 0, xp: 0 } };
@@ -1703,13 +1705,32 @@ class Player extends Character {
         const meleeRange = 40; // Standard melee range
 
         if (weapon && weapon.range) {
-            // Ranged Attack Logic (for future bows/staves)
+            // Ranged Attack Logic
             if (distance(this, this.target) <= weapon.range) {
-                // For now, it's an instant hit. Later, we can spawn a projectile here.
-                this.target.takeDamage(this.getWeaponDamage(), 'physical', this);
-                ParticleSystem.create(this.target.x, this.target.y, 'white', 15, 0.2, 12);
-                this.globalClickCooldown = 1000; // 1 second cooldown
+                const ammo = this.equipment.ammo;
+                if (!ammo || ammo.quantity <= 0) {
+                    game.createFloatingText("Out of arrows!", this.x, this.y, "red");
+                    return;
+                }
+                ammo.quantity--;
+                if (ammo.quantity <= 0) {
+                    this.equipment.ammo = null;
+                }
+
+                // --- NEW: Spawn an arrow projectile ---
+                const onArrowHit = (caster, target) => {
+                    target.takeDamage(caster.getWeaponDamage(), 'physical', caster);
+                    // Small impact particle
+                    ParticleSystem.create(target.x, target.y, 'rgba(200, 200, 200, 0.5)', 5, 0.1, 8);
+                };
+                
+                // icon \uf140 is a simple arrow/chevron
+                const arrowProjectile = new Projectile(this, this.target, 500, '\uf140', '#CD853F', 12, onArrowHit, true); // true enables the trail
+                game.entities.push(arrowProjectile);
+
+                this.globalClickCooldown = 1500; // Increase cooldown slightly for bows
                 this.inCombatTimer = 8000;
+                game.ui.updateCharacterSheet(this);
             } else {
                 game.createFloatingText("Out of range", this.x, this.y, "yellow");
             }
@@ -1907,10 +1928,15 @@ class Player extends Character {
                     }
                 }
             }
-            if(this.target && this.target instanceof Enemy && !this.target.isDead && distance(this, this.target) <= 40) {
-                if (this.autoAttackTimer >= this.attackSpeed) {
-                    this.autoAttack();
-                    this.autoAttackTimer = 0;
+            if (this.target && this.target instanceof Enemy && !this.target.isDead) {
+                const weapon = this.equipment['main-hand'];
+                const attackRange = weapon?.range || 40; // Use weapon range, or default to 40 for melee
+
+                if (distance(this, this.target) <= attackRange) {
+                    if (this.autoAttackTimer >= this.attackSpeed) {
+                        this.autoAttack();
+                        this.autoAttackTimer = 0;
+                    }
                 }
             }
         }
@@ -1991,11 +2017,40 @@ class Player extends Character {
         return Math.floor(Math.random() * 2) + 1;
     }
 
-    autoAttack() { 
-        if (!this.target) return; 
-        ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8); 
-        this.target.takeDamage(this.getWeaponDamage(), 'physical', this); 
-        this.inCombatTimer = 8000; 
+    autoAttack() {
+        if (!this.target || this.target.isDead) return;
+
+        const weapon = this.equipment['main-hand'];
+        this.inCombatTimer = 8000;
+
+        // --- NEW: Smart attack logic ---
+        if (weapon && weapon.range) {
+            // RANGED AUTO-ATTACK
+            const ammo = this.equipment.ammo;
+            if (!ammo || ammo.quantity <= 0) {
+                game.createFloatingText("Out of arrows!", this.x, this.y, "red");
+                return;
+            }
+            ammo.quantity--;
+            if (ammo.quantity <= 0) {
+                this.equipment.ammo = null;
+            }
+
+            const onArrowHit = (caster, target) => {
+                target.takeDamage(caster.getWeaponDamage(), 'physical', caster);
+                ParticleSystem.create(target.x, target.y, 'rgba(200, 200, 200, 0.5)', 5, 0.1, 8);
+            };
+            
+            const arrowProjectile = new Projectile(this, this.target, 500, '\uf140', '#CD853F', 12, onArrowHit, true);
+            game.entities.push(arrowProjectile);
+            game.ui.updateCharacterSheet(this);
+
+        } else {
+            // MELEE AUTO-ATTACK (Original Logic)
+            const damage = this.getAttackDamage();
+            this.target.takeDamage(damage, 'physical', this);
+            ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8);
+        }
     }
 
     useHotbarSlot(index) { const slotItem = this.hotbar[index]; if (!slotItem || this.isGhost || this.isRooted) return; if(slotItem.type === 'ability') { const ability = slotItem.ref; if (this.cooldowns[ability.id] || !this.target || this.target.isDead) return; if(distance(this, this.target) > ability.range) { if(!this.isAutoQuesting) game.createFloatingText("Out of range", this.x, this.y, "yellow"); return; } if (this.stats.mana < ability.cost) { if(!this.isAutoQuesting) game.createFloatingText("Not enough mana", this.x, this.y, "blue"); return; } this.stats.mana -= ability.cost; ability.onUse(this, this.target); this.cooldowns[ability.id] = ability.cooldown; this.inCombatTimer = 8000; if(ability.cost > 0) this.fiveSecondRuleTimer = 500; game.ui.updatePlayerFrame(this); } else if (slotItem.type === 'item') { const item = slotItem.ref; if (item.slot === 'consumable' && item.onUse) { item.onUse(this); item.quantity--; if(item.quantity <= 0) { const invIndex = this.inventory.findIndex(i => i === item); if (invIndex > -1) this.inventory[invIndex] = null; this.hotbar[index] = null; } game.ui.updateInventory(this); game.ui.setupActionbar(this); } } }
@@ -2226,6 +2281,16 @@ class Player extends Character {
     
     equipItem(inventoryIndex) {
         const item = this.inventory[inventoryIndex];
+        if (item.slot === 'material' && this.equipment.ammo === null) {
+            // Check if the item is an arrow type (we can be more specific later if needed)
+            if (item.name.toLowerCase().includes('arrow')) {
+                this.equipment.ammo = item;
+                this.inventory[inventoryIndex] = null;
+                this.recalculateStats();
+                game.ui.updateAll(this);
+                return;
+            }
+        }
         if (!item || !item.slot || !this.equipment.hasOwnProperty(item.slot)) return;
         const currentlyEquipped = this.equipment[item.slot];
         this.equipment[item.slot] = item;
@@ -2394,15 +2459,18 @@ class Player extends Character {
 }
 
 class Projectile extends Entity {
-    constructor(caster, target, speed, icon, color, size, onHit) {
-        // Start the projectile at the caster's position
+    constructor(caster, target, speed, icon, color, size, onHit, trail = false) {
+        // --- FIX: Removed the incorrect 'trail' variable from the super() call ---
         super(caster.x, caster.y, size, color, icon);
         
         this.caster = caster;
         this.target = target;
         this.speed = speed;
-        this.onHit = onHit; // The function to call upon impact
+        this.onHit = onHit;
         this.isInteractable = false;
+        
+        this.hasTrail = trail;
+        this.trailCooldown = 0;
     }
 
     update(deltaTime) {
@@ -2412,19 +2480,23 @@ class Projectile extends Entity {
             return;
         }
 
-        // Calculate the angle and distance to the target
+        if (this.hasTrail) {
+            this.trailCooldown -= deltaTime;
+            if (this.trailCooldown <= 0) {
+                // Create a smaller, fading particle behind the projectile
+                ParticleSystem.create(this.x, this.y, this.color, 1, this.size * 0.5, 0.2, { vx: 0, vy: 0 });
+                this.trailCooldown = 25; // New trail particle every 25ms
+            }
+        }
+
         const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
         const distanceToTarget = distance(this, this.target);
-
         const moveDistance = this.speed * (deltaTime / 1000);
 
-        // Check if we will reach or pass the target this frame
         if (distanceToTarget <= moveDistance) {
-            // We've hit the target!
-            this.onHit(this.caster, this.target); // Execute the hit effect
-            this.isDead = true; // Mark for deletion
+            this.onHit(this.caster, this.target);
+            this.isDead = true;
         } else {
-            // Move towards the target
             this.x += Math.cos(angle) * moveDistance;
             this.y += Math.sin(angle) * moveDistance;
         }
@@ -3038,7 +3110,7 @@ class UI {
                 player.setHotbarSlot(targetSlot.dataset.index, sourceType, sourceIdentifier);
             } 
             // --- FIX: Removed the incorrect '.ref' from the condition ---
-            else if (targetSlot.matches('.equipment-slot') && draggedItem.slot === targetSlot.dataset.slot) {
+            else if (targetSlot.matches('.equipment-slot') && (draggedItem.slot === targetSlot.dataset.slot || (draggedItem.slot === 'material' && targetSlot.dataset.slot === 'ammo'))) {
                 player.equipItem(parseInt(sourceIdentifier));
             } else if (targetSlot.matches('.inventory-slot')) {
                 const targetIndex = parseInt(targetSlot.dataset.index);
@@ -3348,7 +3420,6 @@ class UI {
         player.recalculateStats();
         const content = $('#character-content');
         
-        // --- FIX: Build the structure step-by-step instead of one giant string ---
         content.innerHTML = `
             <div id="character-sheet-container">
                 <div id="equipment-column"></div>
@@ -3356,9 +3427,8 @@ class UI {
             </div>
         `;
 
-        // --- PART 1: Populate the Equipment Column (Left Side) ---
         const equipCol = $('#equipment-column');
-        const slotOrder = ['head', 'chest', 'tabard', 'main-hand', 'off-hand'];
+        const slotOrder = ['head', 'chest', 'tabard', 'main-hand', 'off-hand', 'ammo'];
 
         slotOrder.forEach(slotName => {
             if (player.equipment.hasOwnProperty(slotName)) {
@@ -3366,8 +3436,15 @@ class UI {
                 slot.className = 'equipment-slot';
                 slot.dataset.slot = slotName;
                 const item = player.equipment[slotName];
+
                 if (item) {
                     slot.innerHTML = `<i class="fas ${item.icon} quality-${item.quality}"></i>`;
+                    
+                    // --- FIX: Add this block to display the stack count for ammo ---
+                    if (item.stackable && item.quantity > 0) {
+                        slot.innerHTML += `<div class="item-count">${item.quantity}</div>`;
+                    }
+                    
                     slot.draggable = true;
                     slot.dataset.source = 'equipment';
                 }
@@ -3396,8 +3473,6 @@ class UI {
         };
         equipCol.appendChild(petSlot);
 
-
-        // --- PART 2: Populate the Stats Column (Right Side) ---
         const statsCol = $('#stats-column');
         let statsHtml = `<div class="stat-line"><span>Health</span><span>${Math.ceil(player.stats.health)} / ${player.stats.maxHealth}</span></div>`;
         if (player.race === 'Elf') statsHtml += `<div class="stat-line"><span>Mana</span><span>${Math.ceil(player.stats.mana)} / ${player.stats.maxMana}</span></div>`;
@@ -3405,7 +3480,6 @@ class UI {
         if (player.race === 'Elf') statsHtml += `<div class="stat-line"><span>Intellect</span><span>${Math.floor(player.stats.intellect)}</span></div>`;
         statsHtml += `<div class="stat-line"><span>Spirit</span><span>${Math.floor(player.stats.spirit)}</span></div><hr> <div class="stat-line"><span>Attack Power</span><span>${player.stats.attackPower.toFixed(1)}</span></div> <div class="stat-line"><span>Crit Chance</span><span>${(player.stats.critChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Dodge Chance</span><span>${(player.stats.dodgeChance * 100).toFixed(2)}%</span></div> <div class="stat-line"><span>Armor</span><span>${player.stats.armor}</span></div>`;
         
-        // Add Professions to the stats column
         let professionsHtml = '<hr><h3>Professions</h3>';
         for (const profName in player.professions) {
             const prof = player.professions[profName];
@@ -3417,7 +3491,6 @@ class UI {
         }
         statsCol.innerHTML = statsHtml + professionsHtml;
 
-        // Add the Pet Info Panel to the stats column
         if (player.activePetId) {
             const petStore = player.pets[player.activePetId];
             const petData = GameData.PETS[player.activePetId];
