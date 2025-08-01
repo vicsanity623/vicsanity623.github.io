@@ -226,6 +226,14 @@
             transition: width 0.3s ease-in-out;
         }
         #character-sheet-container { display: flex; justify-content: space-between; gap: 10px; }
+         #character-window .window-content {
+            max-height: none; /* Removes the fixed height limit */
+            overflow-y: visible; /* Hides the scrollbar */
+        }
+        #vendor-window .window-content {
+            max-height: none;
+            overflow-y: visible;
+        }
         #equipment-slots { display: flex; flex-direction: column; gap: 5px; }
         .equipment-slot { width: 50px; height: 50px; background: var(--color-bg-dark); border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center; font-size: 24px; position: relative; margin-bottom: 12px; }
         .equipment-slot[draggable="true"] { cursor: grab; }
@@ -537,7 +545,7 @@
                         <h3>Vendor Sells</h3>
                         <div id="vendor-sells-grid" class="vendor-grid"></div>
                     </div>
-                    <div class="currency-container" style="text-align: right; margin-top: 10px;">Your Gold: <span id="vendor-player-gold"></span></div>
+                    <div class="currency-container" style="text-align: right; margin-top: 10px;"><span id="vendor-gold-display" style="margin-right: 20px;"></span>Your Gold: <span id="vendor-player-gold"></span></div>
                 </div>
             </div>
             
@@ -566,7 +574,6 @@
             <div id="system-menu">
                 <button class="sys-button" id="save-button" title="Save Game"><i class="fas fa-save"></i></button>
                 <button class="sys-button" data-window="storage-window" title="Open Storage"><i class="fas fa-box-archive"></i></button>
-                <button class="sys-button" data-window="character-window" title="Character (C)"><i class="fas fa-user-circle"></i></button>
                 <button class="sys-button" data-window="character-window" title="Character (C)"><i class="fas fa-user-circle"></i></button>
                 <button class="sys-button" data-window="inventory-window" title="Inventory (I)"><i class="fas fa-briefcase"></i></button>
                 <button class="sys-button" data-window="spellbook-window" title="Spellbook (P)"><i class="fas fa-book"></i></button>
@@ -678,12 +685,19 @@ const GameData = {
         1: { id: 1, name: "Slash", icon: "fa-burst", cost: 0, cooldown: 3000, range: 90, 
             description: "A swift attack that deals 120% of weapon damage plus a bonus from your Attack Power.",
             onUse: (caster, target) => { 
-            ParticleSystem.create(target.x, target.y, 'red', 15, 0.1, 10); 
-            const damage = (caster.getWeaponDamage() * 1.2) + (caster.stats.attackPower * 0.3); 
-            target.takeDamage(damage, 'physical', caster); 
-        }},
+                ParticleSystem.create(target.x, target.y, 'red', 15, 0.1, 10); 
+                
+                // --- FIX: Perform the damage roll BEFORE calculating the final damage ---
+                const damageRange = caster.getWeaponDamage();
+                const baseWeaponDamage = Math.floor(Math.random() * (damageRange.max - damageRange.min + 1)) + damageRange.min;
+
+                const finalDamage = (baseWeaponDamage * 1.2) + (caster.stats.attackPower * 0.3); 
+                
+                target.takeDamage(Math.round(finalDamage), 'physical', caster); 
+            }
+        },
         2: { 
-            id: 2, name: "Fireball", icon: "fa-fire-flame-curved", cost: 30, cooldown: 5000, range: 200, 
+            id: 2, name: "Fireball", icon: "fa-fire-flame-curved", cost: 10, cooldown: 2000, range: 200, 
             // --- UPDATED LOGIC ---
             onUse: (caster, target) => { 
                 // Define the effect that happens ON HIT
@@ -699,49 +713,69 @@ const GameData = {
                 game.entities.push(projectile);
             }
         },
-        3: { id: 3, name: "Rend", icon: "fa-heart-crack", cost: 15, cooldown: 6000, range: 90, onUse: (caster, target) => { 
-            const rendEffectOnHit = (caster, target) => {
-                    // This is the original logic to apply the debuff
+        3: { 
+            id: 3, name: "Rend", icon: "fa-skull", cost: 15, cooldown: 6000, range: 90, 
+            description: "Wounds the target, causing them to bleed for a small amount of physical damage over 9 seconds.",
+            onUse: (caster, target) => { 
+                const rendEffectOnHit = (caster, target) => {
                     target.addBuff({ 
-                        id: 'rend_dot', 
-                        name: 'Rend', 
-                        icon: 'fa-heart-crack', 
-                        duration: 9000, 
-                        tickRate: 3000, 
-                        isDebuff: true,
-                        // --- NEW: Add the radiating aura effect on each tick ---
+                        id: 'rend_dot', name: 'Rend', icon: 'fa-skull', 
+                        duration: 9000, tickRate: 3000, isDebuff: true,
                         onTick: (t) => { 
-                            // Deal the damage
-                            const damage = caster.getAttackDamage() * 0.2; 
+                            const damageRange = caster.getWeaponDamage();
+                            const baseWeaponDamage = Math.floor(Math.random() * (damageRange.max - damageRange.min + 1)) + damageRange.min;
+                            const damage = baseWeaponDamage * 0.2; 
                             t.takeDamage(damage, 'physical', caster, true); 
                             game.createFloatingText(Math.round(damage), t.x, t.y, '#ff4500'); 
-                            
-                            // Create the visual "wave aura" pulse
                             ParticleSystem.create(t.x, t.y, '#9a031e', 12, 0.4, 8, { vx: (Math.random() - 0.5) * 50, vy: (Math.random() - 0.5) * 50 });
                         }
                     });
                 };
-
-                // Create and spawn a new projectile for Rend
-                // We'll make it a fast, dark red "bolt"
                 const projectile = new Projectile(caster, target, 600, '\uf786', '#9a031e', 12, rendEffectOnHit);
                 game.entities.push(projectile);
             }
-        }
+        },
+        4: { 
+            id: 4, name: "Shoot", icon: "fa-crosshairs", cost: 0, cooldown: 1000, range: 400, 
+            description: "A quick shot that deals 100% ranged weapon damage.",
+            onUse: (caster, target) => { /* ... Future implementation ... */ }
+        },
+        5: { 
+            id: 5, name: "Blast", icon: "fa-circle-radiation", cost: 20, cooldown: 10000, 
+            // Range 0 signifies a self-centered AoE that doesn't require a target
+            range: 0, 
+            description: "Unleash a wave of arcane energy, dealing magic damage to all enemies within 100 yards.",
+            onUse: (caster) => { 
+                const AOE_RADIUS = 100;
+                
+                // Visual effect for the explosion
+                ParticleSystem.create(caster.x, caster.y, '#87ceeb', 50, 0.8, 12);
+                
+                // Calculate damage once
+                const damage = (caster.stats.intellect * 2.5) + 15; // Slightly stronger than Fireball
+                
+                // Find and damage all enemies within the radius
+                game.entities.forEach(entity => {
+                    if (entity instanceof Enemy && !entity.isDead && distance(caster, entity) <= AOE_RADIUS) {
+                        entity.takeDamage(damage, 'magic', caster);
+                    }
+                });
+            }
+        },
     },
-        ENEMY_TYPES: {
-        'WOLF': { name: "Dire Wolf", icon: "\uf6f0", color: "#a9a9a9", size: 28, speed: 1.5, health: 80, attack: 5, aggroRadius: 150, attackRange: 40, attackSpeed: 2000, xp: 15, lootTable: [{itemId: 4, chance: 0.8, min: 1, max: 2}, {itemId: 9, chance: 0.5, min: 1, max: 1}, {gold: 50, chance: 1.0}], reputation: { faction: 'Wilderness', value: -10 } },
-        'SPIDER': { name: "Forest Spider", icon: "\uf717", color: "#654321", size: 25, speed: 1.2, health: 60, attack: 4, aggroRadius: 120, attackRange: 35, attackSpeed: 1800, xp: 10, lootTable: [{itemId: 3, chance: 0.9, min: 1, max: 3}, {gold: 30, chance: 1.0}], reputation: { faction: 'Wilderness', value: -5 } },
-        'GOBLIN': { name: "Goblin Thug", icon: "\uf7a0", color: "#2E8B57", size: 22, speed: 1.8, health: 120, attack: 8, aggroRadius: 180, attackRange: 45, attackSpeed: 2200, xp: 25, lootTable: [{itemId: 101, chance: 0.1}, {gold: 150, chance: 0.5}], reputation: { faction: 'Stormwind Guard', value: 5 } },
-        'DARK_CASTER': { name: "Dark Caster", icon: "\uf718", color: "#8A2BE2", size: 24, speed: 1.4, health: 100, attack: 5, aggroRadius: 220, attackRange: 200, attackSpeed: 3000, xp: 30, lootTable: [{gold: 200, chance: 0.8}], onAttack: (caster, target) => { target.addBuff({id: 'curse_of_weakness', name: 'Curse of Weakness', icon: 'fa-skull', duration: 15000, isDebuff: true, stats: { attack: -5 }})}, reputation: { faction: 'Stormwind Guard', value: 10 } },
-        'BEAR': { name: "Grizzled Bear", icon: "\uf704", color: "#d3a483", size: 35, speed: 1.1, health: 200, attack: 12, aggroRadius: 140, attackRange: 45, attackSpeed: 2500, xp: 35, lootTable: [{itemId: 11, chance: 0.9, min: 1, max: 2}, {gold: 100, chance: 1.0}], reputation: { faction: 'Wilderness', value: -20 } },
-        'TREANT': { name: "Treant Sapling", icon: "\uf1bb", color: "#66827a", size: 30, speed: 1.3, health: 110, attack: 7, aggroRadius: 160, attackRange: 150, attackSpeed: 2800, xp: 28, lootTable: [{itemId: 12, chance: 0.6}, {gold: 80, chance: 1.0}], onAttack: (caster, target) => { if (Math.random() < 0.25) { target.addBuff({id: 'entangling_roots', name: 'Entangling Roots', icon: 'fa-vine', duration: 5000, isDebuff: true, onApply: (t) => t.isRooted = true, onExpire: (t) => t.isRooted = false }); } }, reputation: { faction: 'Wilderness', value: -15 } },
-        'GOBLIN_STALKER': { name: "Goblin Stalker", icon: "\uf6d5", color: "#9acd32", size: 20, speed: 2.2, health: 90, attack: 10, aggroRadius: 170, attackRange: 40, attackSpeed: 1600, xp: 30, lootTable: [{gold: 180, chance: 0.9}], reputation: { faction: 'Stormwind Guard', value: 7 } },
-        'GOBLIN_GUARD': { name: "Goblin Guard", icon: "\uf7a0", color: "#556B2F", size: 25, speed: 1.6, health: 250, attack: 15, aggroRadius: 200, attackRange: 45, attackSpeed: 2000, xp: 50, lootTable: [{gold: 300, chance: 1.0}], reputation: { faction: 'Stormwind Guard', value: 15 } },
+    ENEMY_TYPES: {
+        'WOLF': { name: "Dire Wolf", level: 3,icon: "\uf6f0", color: "#a9a9a9", size: 28, speed: 1.5, health: 80, attack: 5, aggroRadius: 150, attackRange: 40, attackSpeed: 2000, xp: 15, lootTable: [{itemId: 4, chance: 0.8, min: 1, max: 2}, {itemId: 9, chance: 0.5, min: 1, max: 1}, {gold: 50, chance: 1.0}], reputation: { faction: 'Wilderness', value: -10 } },
+        'SPIDER': { name: "Forest Spider", level: 2, icon: "\uf717", color: "#654321", size: 25, speed: 1.2, health: 60, attack: 4, aggroRadius: 120, attackRange: 35, attackSpeed: 1800, xp: 10, lootTable: [{itemId: 3, chance: 0.9, min: 1, max: 3}, {gold: 30, chance: 1.0}], reputation: { faction: 'Wilderness', value: -5 } },
+        'GOBLIN': { name: "Goblin Thug", level: 6, icon: "\uf7a0", color: "#2E8B57", size: 22, speed: 1.8, health: 120, attack: 8, aggroRadius: 180, attackRange: 45, attackSpeed: 2200, xp: 25, lootTable: [{itemId: 101, chance: 0.1}, {gold: 150, chance: 0.5}], reputation: { faction: 'Stormwind Guard', value: 5 } },
+        'DARK_CASTER': { name: "Dark Caster", level: 7, icon: "\uf718", color: "#8A2BE2", size: 24, speed: 1.4, health: 100, attack: 5, aggroRadius: 220, attackRange: 200, attackSpeed: 3000, xp: 30, lootTable: [{gold: 200, chance: 0.8}], onAttack: (caster, target) => { target.addBuff({id: 'curse_of_weakness', name: 'Curse of Weakness', icon: 'fa-skull', duration: 15000, isDebuff: true, stats: { attack: -5 }})}, reputation: { faction: 'Stormwind Guard', value: 10 } },
+        'BEAR': { name: "Grizzled Bear", level: 8, icon: "\uf704", color: "#d3a483", size: 35, speed: 1.1, health: 200, attack: 12, aggroRadius: 140, attackRange: 45, attackSpeed: 2500, xp: 35, lootTable: [{itemId: 11, chance: 0.9, min: 1, max: 2}, {gold: 100, chance: 1.0}], reputation: { faction: 'Wilderness', value: -20 } },
+        'TREANT': { name: "Treant Sapling", level: 5, icon: "\uf1bb", color: "#66827a", size: 30, speed: 1.3, health: 110, attack: 7, aggroRadius: 160, attackRange: 150, attackSpeed: 2800, xp: 28, lootTable: [{itemId: 12, chance: 0.6}, {gold: 80, chance: 1.0}], onAttack: (caster, target) => { if (Math.random() < 0.25) { target.addBuff({id: 'entangling_roots', name: 'Entangling Roots', icon: 'fa-vine', duration: 5000, isDebuff: true, onApply: (t) => t.isRooted = true, onExpire: (t) => t.isRooted = false }); } }, reputation: { faction: 'Wilderness', value: -15 } },
+        'GOBLIN_STALKER': { name: "Goblin Stalker", level: 9, icon: "\uf6d5", color: "#9acd32", size: 20, speed: 2.2, health: 90, attack: 10, aggroRadius: 170, attackRange: 40, attackSpeed: 1600, xp: 30, lootTable: [{gold: 180, chance: 0.9}], reputation: { faction: 'Stormwind Guard', value: 7 } },
+        'GOBLIN_GUARD': { name: "Goblin Guard", level: 10, icon: "\uf7a0", color: "#556B2F", size: 25, speed: 1.6, health: 250, attack: 15, aggroRadius: 200, attackRange: 45, attackSpeed: 2000, xp: 50, lootTable: [{gold: 300, chance: 1.0}], reputation: { faction: 'Stormwind Guard', value: 15 } },
         
         // --- VERIFIED AND CORRECTED BOSS DEFINITION ---
         'GOBLIN_BOSS': { 
-            name: "Overlord Grolnok", icon: "\uf6a4", color: "#8B0000", size: 40, speed: 1.2, health: 100, attack: 5, aggroRadius: 300, attackRange: 50, attackSpeed: 2500, xp: 200, 
+            name: "Overlord Grolnok", level: 12, icon: "\uf6a4", color: "#8B0000", size: 40, speed: 1.2, health: 100, attack: 5, aggroRadius: 300, attackRange: 50, attackSpeed: 2500, xp: 200, 
             lootTable: [
                 {itemId: 28, chance: 0.2},
                 {itemId: 29, chance: 0.5},
@@ -763,7 +797,7 @@ const GameData = {
             }
         },
         'VENOMFANG_LURKER': { 
-            name: "Venomfang Lurker", icon: "\uf717", color: "#3c1a42", size: 28, speed: 1.4, 
+            name: "Venomfang Lurker", level: 4, icon: "\uf717", color: "#3c1a42", size: 28, speed: 1.4, 
             health: 150, attack: 10, aggroRadius: 160, attackRange: 40, attackSpeed: 2000, xp: 40, 
             lootTable: [
                 {itemId: 3, chance: 0.9, min: 2, max: 4}, // More Spider Silk
@@ -772,7 +806,7 @@ const GameData = {
             reputation: { faction: 'Wilderness', value: -15 } 
         },
         'SPIDER_BOSS': { 
-            name: "Arachna, the Broodmother", icon: "\uf717", color: "#6e0d60", size: 45, speed: 1.1, 
+            name: "Arachna, the Broodmother", level: 6, icon: "\uf717", color: "#6e0d60", size: 45, speed: 1.1, 
             health: 800, attack: 20, aggroRadius: 250, attackRange: 45, attackSpeed: 2200, xp: 150, 
             lootTable: [
                 {itemId: 33, chance: 0.5}, // Broodmother's Fang
@@ -797,9 +831,16 @@ const GameData = {
     NPC_TYPES: {
         'BLACKSMITH': { name: "Barton the Blacksmith", icon: '\uf0e7', color: '#a9a9a9', interactType: 'repair' },
         'SPIRIT_HEALER': { name: "Spirit Healer", icon: '\uf70e', color: '#a0c4ff', interactType: 'resurrect', interaction: (player) => { if (player.isGhost) { const doRes = confirm("Resurrect here? You will suffer Resurrection Sickness and your equipped items will lose durability."); if(doRes) { player.resurrectAtHealer(); } } else { alert("The spirits can only help the dead."); } } },
-        'GENERAL_VENDOR': { name: "General Goods Vendor", icon: '\uf54e', color: '#c0c0c0', interactType: 'vendor', sells: [{itemId: 5, quantity: 5, price: 50}], buys: ['consumable', 'material'] },
         
-        // --- MODIFIED TRAINERS TO TEACH MULTIPLE PROFESSIONS ---
+        // --- THIS IS THE VENDOR TO FIX ---
+        'GENERAL_VENDOR': { 
+            name: "General Goods Vendor", icon: '\uf54e', color: '#c0c0c0', interactType: 'vendor', 
+            // FIX: Add 'main-hand' to this array
+            buys: ['consumable', 'material', 'main-hand', 'off-hand', 'head', 'chest', 'tabard'],
+            startingGold: 100099,
+            sells: [{itemId: 5, quantity: 5, price: 50}] 
+        },
+
         'WOODWORKING_TRAINER': { name: "Master Woodworker", icon: '\uf6f8', color: '#8b4513', interactType: 'crafting_trainer', professions: ['Woodworking', 'Lumberjacking'] },
         'BLACKSMITHING_TRAINER': { name: "Thorin the Smith", icon: '\uf6e3', color: '#d2b48c', interactType: 'crafting_trainer', professions: ['Blacksmithing', 'Mining'] },
         'ALCHEMIST': { name: "Alchemist Fiona", icon: '\uf5a7', color: '#9932cc', interactType: 'crafting_trainer', professions: ['Alchemy', 'Herbalism'] },
@@ -856,47 +897,50 @@ const GameData = {
     },
     RESOURCE_NODES: {
         // Tier 1 Resources (Skill 1+)
-        'PEACEBLOOM': { name: 'Peacebloom', icon: '\uf06c', color: '#adff2f', size: 20, itemId: 6, respawnTime: 30000, requiredSkill: 'Herbalism', requiredSkillLevel: 1, gatherTime: 1500 },
-        'COPPER_VEIN': { name: 'Copper Vein', icon: '\uf3a5', color: '#b87333', size: 24, itemId: 7, respawnTime: 60000, requiredSkill: 'Mining', requiredSkillLevel: 1, gatherTime: 2500 },
-        'OAK_LOGS': { name: 'Oak Tree', icon: '\uf1bb', color: '#8b4513', size: 28, itemId: 15, respawnTime: 75000, requiredSkill: 'Lumberjacking', requiredSkillLevel: 1, gatherTime: 3000 },
+        'PEACEBLOOM': { name: 'Peacebloom', icon: '\uf06c', color: '#adff2f', size: 20, itemId: 6, respawnTime: 30000, requiredSkill: 'Herbalism', requiredSkillLevel: 1, gatherTime: 1500, yield: 1 },
+        'COPPER_VEIN': { name: 'Copper Vein', icon: '\uf3a5', color: '#b87333', size: 24, itemId: 7, respawnTime: 60000, requiredSkill: 'Mining', requiredSkillLevel: 1, gatherTime: 2500, yield: 1 },
+        
+        // --- FIX: Added yield: 2 to this node ---
+        'OAK_LOGS': { name: 'Oak Tree', icon: '\uf1bb', color: '#8b4513', size: 28, itemId: 15, respawnTime: 75000, requiredSkill: 'Lumberjacking', requiredSkillLevel: 1, gatherTime: 3000, yield: 2 },
         
         // Tier 2 Resources (Skill 20+)
-        'SILVERLEAF': { name: 'Silverleaf', icon: '\uf4d8', color: '#c0c0c0', size: 22, itemId: 13, respawnTime: 45000, requiredSkill: 'Herbalism', requiredSkillLevel: 20, gatherTime: 1500 },
-        'TIN_VEIN': { name: 'Tin Vein', icon: '\uf3a5', color: '#a9a9a9', size: 26, itemId: 14, respawnTime: 90000, requiredSkill: 'Mining', requiredSkillLevel: 20, gatherTime: 4000 },
+        'SILVERLEAF': { name: 'Silverleaf', icon: '\uf4d8', color: '#c0c0c0', size: 22, itemId: 13, respawnTime: 45000, requiredSkill: 'Herbalism', requiredSkillLevel: 20, gatherTime: 1500, yield: 1 },
+        'TIN_VEIN': { name: 'Tin Vein', icon: '\uf3a5', color: '#a9a9a9', size: 26, itemId: 14, respawnTime: 90000, requiredSkill: 'Mining', requiredSkillLevel: 20, gatherTime: 4000, yield: 1 },
     },
     CRAFTING_RECIPES: {
-        'wooden_staff': { id: 'wooden_staff', name: 'Rough Wooden Staff', icon: 'fa-staff-snake', itemId: 8, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000 },
-        'wooden_shield': { id: 'wooden_shield', name: 'Sturdy Wooden Shield', icon: 'fa-shield', itemId: 10, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 3}, {itemId: 9, quantity: 2}], time: 4000 },
-        'reinforced_staff': { id: 'reinforced_staff', name: 'Reinforced Staff', icon: 'fa-staff-snake', itemId: 16, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 8}, {itemId: 7, quantity: 2}], time: 5000 },
-        'oak_shield': { id: 'oak_shield', name: 'Oak Shield', icon: 'fa-shield', itemId: 17, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 6}, {itemId: 9, quantity: 4}], time: 6000 },
-        'copper_bar': { id: 'copper_bar', name: 'Copper Bar', icon: 'fa-cubes', itemId: 18, profession: 'Blacksmithing', skillRequired: 1, materials: [{itemId: 7, quantity: 2}], time: 2000 },
-        'copper_shortsword': { id: 'copper_shortsword', name: 'Copper Shortsword', icon: 'fa-sword', itemId: 19, profession: 'Blacksmithing', skillRequired: 5, materials: [{itemId: 18, quantity: 5}], time: 5000 },
-        'weak_trolls_blood': { id: 'weak_trolls_blood', name: "Weak Troll's Blood Potion", icon: 'fa-flask-vial', itemId: 20, profession: 'Alchemy', skillRequired: 1, materials: [{itemId: 6, quantity: 2}, {itemId: 13, quantity: 1}], time: 3000 },
-        'copper_mace': { id: 'copper_mace', name: 'Copper Mace', icon: 'fa-gavel', itemId: 21, profession: 'Blacksmithing', skillRequired: 10, materials: [{itemId: 18, quantity: 7}], time: 6000 },
-        'minor_mana_potion': { id: 'minor_mana_potion', name: 'Minor Mana Potion', icon: 'fa-flask-vial', itemId: 22, profession: 'Alchemy', skillRequired: 10, materials: [{itemId: 6, quantity: 1}, {itemId: 12, quantity: 1}], time: 3000 },
-        'reinforced_buckler': { id: 'reinforced_buckler', name: 'Reinforced Wooden Buckler', icon: 'fa-shield-halved', itemId: 23, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 10}, {itemId: 18, quantity: 1}], time: 7000 },
+        'wooden_staff': { id: 'wooden_staff', name: 'Rough Wooden Staff', icon: 'fa-staff-snake', itemId: 8, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000, playerXpGain: 10 },
+        'wooden_shield': { id: 'wooden_shield', name: 'Sturdy Wooden Shield', icon: 'fa-shield', itemId: 10, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 3}, {itemId: 9, quantity: 2}], time: 4000, playerXpGain: 10 },
+        'reinforced_staff': { id: 'reinforced_staff', name: 'Reinforced Staff', icon: 'fa-staff-snake', itemId: 16, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 8}, {itemId: 7, quantity: 2}], time: 5000, playerXpGain: 20 },
+        'oak_shield': { id: 'oak_shield', name: 'Oak Shield', icon: 'fa-shield', itemId: 17, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 6}, {itemId: 9, quantity: 4}], time: 6000, playerXpGain: 20 },
+        'copper_bar': { id: 'copper_bar', name: 'Copper Bar', icon: 'fa-cubes', itemId: 18, profession: 'Blacksmithing', skillRequired: 1, materials: [{itemId: 7, quantity: 2}], time: 2000, playerXpGain: 20 },
+        'copper_shortsword': { id: 'copper_shortsword', name: 'Copper Shortsword', icon: 'fa-sword', itemId: 19, profession: 'Blacksmithing', skillRequired: 5, materials: [{itemId: 18, quantity: 5}], time: 5000, playerXpGain: 30 },
+        'weak_trolls_blood': { id: 'weak_trolls_blood', name: "Weak Troll's Blood Potion", icon: 'fa-flask-vial', itemId: 20, profession: 'Alchemy', skillRequired: 1, materials: [{itemId: 6, quantity: 2}, {itemId: 13, quantity: 1}], time: 3000, playerXpGain: 50 },
+        'copper_mace': { id: 'copper_mace', name: 'Copper Mace', icon: 'fa-gavel', itemId: 21, profession: 'Blacksmithing', skillRequired: 10, materials: [{itemId: 18, quantity: 7}], time: 6000, playerXpGain: 50 },
+        'minor_mana_potion': { id: 'minor_mana_potion', name: 'Minor Mana Potion', icon: 'fa-flask-vial', itemId: 22, profession: 'Alchemy', skillRequired: 10, materials: [{itemId: 6, quantity: 1}, {itemId: 12, quantity: 1}], time: 3000, playerXpGain: 100 },
+        'reinforced_buckler': { id: 'reinforced_buckler', name: 'Reinforced Wooden Buckler', icon: 'fa-shield-halved', itemId: 23, profession: 'Woodworking', skillRequired: 10, materials: [{itemId: 15, quantity: 10}, {itemId: 18, quantity: 1}], time: 7000, playerXpGain: 50 },
         
         // --- FIX: Added the 'fa-pickaxe' icon to this recipe ---
-        'pickaxe': { id: 'pickaxe', name: 'Pickaxe', icon: 'fa-person-digging', itemId: 27, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000 },
+        'pickaxe': { id: 'pickaxe', name: 'Pickaxe', icon: 'fa-person-digging', itemId: 27, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000, playerXpGain: 50 },
         
-        'chair': { id: 'chair', name: 'Chair', icon: 'fa-chair', itemId: 29, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 1}], time: 2000 },
+        'chair': { id: 'chair', name: 'Chair', icon: 'fa-chair', itemId: 29, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 1}], time: 2000, playerXpGain: 10 },
         'simple_wooden_bow': { 
             id: 'simple_wooden_bow', name: 'Simple Wooden Bow', icon: 'fa-crosshairs', itemId: 30, 
             profession: 'Woodworking', skillRequired: 3, 
             materials: [{itemId: 15, quantity: 10}], time: 5000, 
-            playerXpGain: 25 // Gives 25 player XP upon crafting
+            playerXpGain: 25,
         },
         'simple_wooden_arrow': { 
             id: 'simple_wooden_arrow', name: 'Simple Wooden Arrow', icon: 'fa-arrows', itemId: 31, 
             profession: 'Woodworking', skillRequired: 3, 
             materials: [{itemId: 15, quantity: 1}], time: 2000,
             xpGain: 15,   // Gives 5 Woodworking XP
-            yield: 10    // Yields 10 arrows per craft
+            yield: 10,    // Yields 10 arrows per craft
+            playerXpGain: 20 
         },
 
-        'tin_bar': { id: 'tin_bar', name: 'Tin Bar', icon: 'fa-cubes', itemId: 24, profession: 'Blacksmithing', skillRequired: 20, materials: [{itemId: 14, quantity: 2}], time: 2500 },
-        'heavy_copper_armor': { id: 'heavy_copper_armor', name: 'Heavy Copper Armor', icon: 'fa-shirt', itemId: 25, profession: 'Blacksmithing', skillRequired: 25, materials: [{itemId: 18, quantity: 10}, {itemId: 24, quantity: 2}], time: 8000 },
-        'potion_of_swiftness': { id: 'potion_of_swiftness', name: 'Potion of Swiftness', icon: 'fa-flask-vial', itemId: 26, profession: 'Alchemy', skillRequired: 20, materials: [{itemId: 13, quantity: 3}], time: 4000 },
+        'tin_bar': { id: 'tin_bar', name: 'Tin Bar', icon: 'fa-cubes', itemId: 24, profession: 'Blacksmithing', skillRequired: 20, materials: [{itemId: 14, quantity: 2}], time: 2500, playerXpGain: 50 },
+        'heavy_copper_armor': { id: 'heavy_copper_armor', name: 'Heavy Copper Armor', icon: 'fa-shirt', itemId: 25, profession: 'Blacksmithing', skillRequired: 25, materials: [{itemId: 18, quantity: 10}, {itemId: 24, quantity: 2}], time: 8000, playerXpGain: 50 },
+        'potion_of_swiftness': { id: 'potion_of_swiftness', name: 'Potion of Swiftness', icon: 'fa-flask-vial', itemId: 26, profession: 'Alchemy', skillRequired: 20, materials: [{itemId: 13, quantity: 3}], time: 4000, playerXpGain: 50 },
     },
     SKILL_RECIPE_UNLOCKS: {
         'Lumberjacking': [], 
@@ -923,8 +967,11 @@ const GameData = {
             bgColor: "#182c18",
             sceneryPatches: [ { type: [1, 2, 3, 4, 6], density: 3750, patchCenter: {x: 50000, y: 50000}, patchRadius: 10000 } ],
             enemyPacks: [
-                { type: 'SPIDER', count: 500, packCenter: {x: 45000, y: 45000}, packRadius: 4000 }, // 10x from 50
-                { type: 'WOLF', count: 300, packCenter: {x: 55000, y: 55000}, packRadius: 3000 },     // 10x from 30
+                { type: 'SPIDER', count: 200, levelMin: 1, levelMax: 5, packCenter: {x: 50000, y: 50000}, packRadius: 4000 },
+                { type: 'WOLF', count: 150, levelMin: 10, levelMax: 20, packCenter: {x: 35000, y: 35000}, packRadius: 8000 }, // Top-left
+                { type: 'BEAR', count: 150, levelMin: 10, levelMax: 20, packCenter: {x: 65000, y: 35000}, packRadius: 8000 }, // Top-right
+                { type: 'TREANT', count: 150, levelMin: 10, levelMax: 20, packCenter: {x: 35000, y: 65000}, packRadius: 8000 }, // Bottom-left
+                { type: 'GOBLIN_STALKER', count: 150, levelMin: 10, levelMax: 20, packCenter: {x: 65000, y: 65000}, packRadius: 8000 }, // Bottom-right
             ],
             resourcePatches: [
                 { type: 'PEACEBLOOM', count: 600, patchCenter: {x: 52000, y: 51000}, patchRadius: 4000 }, // 10x from 160
@@ -935,6 +982,7 @@ const GameData = {
                 { type: 'QuestGiver', name: "Old Man Willow", x: 50000, y: 49500, questIds: [1, 2, 3] },
                 // --- NEW: Add the cabin as a specifically placed scenery object ---
                 { type: 'PlayerHouse', houseId: 'CABIN', x: 50150, y: 49550 },
+                { type: 'Portal', name: "To the Goblin Hideout", x: 50300, y: 49400, target: { x: 87500, y: 29000 } },
                 { type: 'DungeonEntrance', name: "Spider Lair", x: 44000, y: 44000, target: { x: 20500, y: 84500 } },
                 { type: 'GenericNPC', npcType: 'BLACKSMITH', x: 49000, y: 50500 },
                 { type: 'GenericNPC', npcType: 'GENERAL_VENDOR', x: 51000, y: 50500 },
@@ -954,8 +1002,8 @@ const GameData = {
             bgColor: "#4a4238",
             sceneryPatches: [ { type: [1, 4], density: 80, patchCenter: {x: 87500, y: 60000}, patchRadius: 10000 } ],
             enemyPacks: [
-                { type: 'BEAR', count: 300, packCenter: {x: 85000, y: 50000}, packRadius: 10000 },           // 10x from 30
-                { type: 'GOBLIN_STALKER', count: 200, packCenter: {x: 83000, y: 60000}, packRadius: 6000 }, // 10x from 20
+                { type: 'GOBLIN', count: 250, levelMin: 40, levelMax: 50, packCenter: {x: 85000, y: 50000}, packRadius: 10000 },
+                { type: 'DARK_CASTER', count: 100, levelMin: 50, levelMax: 60, packCenter: {x: 83000, y: 60000}, packRadius: 6000 },
             ],
             resourcePatches: [ 
                 { type: 'TIN_VEIN', count: 1200, patchCenter: {x: 87000, y: 55000}, patchRadius: 8000 },    // 10x from 120
@@ -971,13 +1019,15 @@ const GameData = {
             bgColor: "#3b302c",
             sceneryPatches: [ { type: [1, 4], density: 50, patchCenter: {x: 87500, y: 25000}, patchRadius: 7500 } ],
             enemyPacks: [
-                { type: 'GOBLIN', count: 300, packCenter: {x: 85000, y: 20000}, packRadius: 6000 },       // 10x from 30
-                { type: 'DARK_CASTER', count: 100, packCenter: {x: 88000, y: 15000}, packRadius: 2000 }, // 10x from 10
+                { type: 'GOBLIN', count: 300, levelMin: 40, levelMax: 50, packCenter: {x: 85000, y: 20000}, packRadius: 6000 },
+                { type: 'DARK_CASTER', count: 100, levelMin: 45, levelMax: 55, packCenter: {x: 88000, y: 15000}, packRadius: 2000 },
             ],
             resourcePatches: [ 
                 { type: 'COPPER_VEIN', count: 800, patchCenter: {x: 82000, y: 18000}, patchRadius: 4000 }, // 10x from 80
             ],
-            npcs: []
+            npcs: [
+                { type: 'Portal', name: "Back to the Woods", x: 87500, y: 29000, target: { x: 50300, y: 49400 } }
+            ]
         },
         {
             id: 'goblin_cave', name: 'The Goblin Cave', x: 80000, y: 80000, width: 5000, height: 5000,
@@ -985,8 +1035,8 @@ const GameData = {
             bgColor: "#3b302c",
             sceneryPatches: [ { type: [5], density: 50, patchCenter: {x: 82500, y: 82500}, patchRadius: 2500 } ],
             enemyPacks: [
-                { type: 'GOBLIN_GUARD', count: 10, packCenter: {x: 82500, y: 82500}, packRadius: 100 }, // 10x from 16
-                { type: 'GOBLIN_BOSS', count: 1, packCenter: {x: 84000, y: 81000}, packRadius: 100 },      // Boss count UNCHANGED
+                { type: 'GOBLIN_GUARD', count: 50, levelMin: 35, levelMax: 40, packCenter: {x: 82500, y: 82500}, packRadius: 4000 },
+                { type: 'GOBLIN_BOSS', count: 1, levelMin: 40, levelMax: 40, packCenter: {x: 84000, y: 81000}, packRadius: 100 },
             ],
             npcs: [
                 { type: 'DungeonEntrance', name: "Exit Cave", x: 80500, y: 84500, isExit: true }
@@ -1012,8 +1062,8 @@ const GameData = {
             bgColor: "#2a1d2c",
             sceneryPatches: [ { type: [5], density: 40, patchCenter: {x: 22500, y: 82500}, patchRadius: 2500 } ],
             enemyPacks: [
-                { type: 'VENOMFANG_LURKER', count: 120, packCenter: {x: 22500, y: 82500}, packRadius: 2000 }, // 10x from 12
-                { type: 'SPIDER_BOSS', count: 1, packCenter: {x: 24000, y: 81000}, packRadius: 100 },         // Boss count UNCHANGED
+                { type: 'VENOMFANG_LURKER', count: 60, levelMin: 25, levelMax: 35, packCenter: {x: 22500, y: 82500}, packRadius: 2000 },
+                { type: 'SPIDER_BOSS', count: 1, levelMin: 35, levelMax: 35, packCenter: {x: 24000, y: 81000}, packRadius: 100 },
             ],
             npcs: [
                 // The exit portal
@@ -1168,9 +1218,29 @@ class Game {
             if (regionData.enemyPacks) {
                 regionData.enemyPacks.forEach(pack => {
                     for (let i = 0; i < pack.count; i++) {
-                        const x = pack.packCenter.x + (Math.random() - 0.5) * 2 * pack.packRadius;
-                        const y = pack.packCenter.y + (Math.random() - 0.5) * 2 * pack.packRadius;
-                        this.entities.push(new Enemy(x, y, GameData.ENEMY_TYPES[pack.type]));
+                        // --- THIS IS THE BLOCK TO REPLACE ---
+                        let x = pack.packCenter.x + (Math.random() - 0.5) * 2 * pack.packRadius;
+                        let y = pack.packCenter.y + (Math.random() - 0.5) * 2 * pack.packRadius;
+                        
+                        // --- NEW: Safe Zone Logic ---
+                        const SAFE_ZONE_RADIUS = 1300;
+                        const distFromOrigin = distance({x, y}, RESPAWN_POINT);
+
+                        if (distFromOrigin < SAFE_ZONE_RADIUS) {
+                            // This spawn is inside the safe zone. Let's push it out.
+                            const angle = Math.atan2(y - RESPAWN_POINT.y, x - RESPAWN_POINT.x);
+                            x = RESPAWN_POINT.x + Math.cos(angle) * SAFE_ZONE_RADIUS;
+                            y = RESPAWN_POINT.y + Math.sin(angle) * SAFE_ZONE_RADIUS;
+                        }
+                        // --- END of Safe Zone Logic ---
+
+                        let level = null;
+                        if (pack.levelMin && pack.levelMax) {
+                            level = Math.floor(Math.random() * (pack.levelMax - pack.levelMin + 1)) + pack.levelMin;
+                        }
+                        
+                        this.entities.push(new Enemy(x, y, GameData.ENEMY_TYPES[pack.type], level));
+                        // --- END OF REPLACEMENT BLOCK ---
                     }
                 });
             }
@@ -1318,15 +1388,42 @@ class Game {
     createFloatingText(text, x, y, color, type = '') { this.ui.createFloatingText(text, x, y, color, this.camera, type); }
         setupUIInteractions() {
         if (this.isMobile) $("#mobile-controls").style.display = "block";
-        $$('.sys-button').forEach(btn => btn.addEventListener('click', () => { const windowId = btn.dataset.window; if (windowId) { const win = $(`#${windowId}`); win.style.display = win.style.display === 'flex' ? 'none' : 'flex'; this.ui.updateAll(this.player); } }));
-        $('#save-button').addEventListener('click', () => { this.saveGame(); this.createFloatingText("Game Saved!", this.player.x, this.player.y, 'gold'); });
-        $$('.close-btn').forEach(btn => btn.addEventListener('click', (e) => { e.target.closest('.window').style.display = 'none'; this.ui.tooltip.style.display = 'none'; }));
+        
+        $$('.sys-button').forEach(btn => btn.addEventListener('click', () => { 
+            const windowId = btn.dataset.window; 
+            if (windowId) { 
+                const win = $(`#${windowId}`); 
+                win.style.display = win.style.display === 'flex' ? 'none' : 'flex'; 
+                this.ui.updateAll(this.player); 
+            } 
+        }));
+        
+        $('#save-button').addEventListener('click', () => { 
+            this.saveGame(); 
+            this.createFloatingText("Game Saved!", this.player.x, this.player.y, 'gold'); 
+        });
+
+        // --- MODIFY THIS BLOCK ---
+        $$('.close-btn').forEach(btn => btn.addEventListener('click', (e) => { 
+            const windowElement = e.target.closest('.window');
+            windowElement.style.display = 'none'; 
+            this.ui.tooltip.style.display = 'none';
+            
+            // --- FIX: Add this check to remove the listener when the crafting window is closed ---
+            if (windowElement.id === 'crafting-window' && this.ui.boundCraftingHandler) {
+                $('#craft-button').removeEventListener('click', this.ui.boundCraftingHandler);
+                this.ui.boundCraftingHandler = null; // Clean up the reference
+            }
+        }));
+
         $$('.window').forEach(win => this.ui.makeDraggable(win));
         window.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; const keyMap = {c: '#character-window', i: '#inventory-window', l: '#quest-log-window', n: '#talent-window', p: '#spellbook-window', u: '#reputation-window', m: '#map-window'}; if(keyMap[e.key.toLowerCase()]){ const win = $(keyMap[e.key.toLowerCase()]); win.style.display = win.style.display === 'flex' ? 'none' : 'flex'; this.ui.updateAll(this.player); } });
         $('#release-spirit-button').addEventListener('click', () => this.player.releaseSpirit());
-        window.addEventListener('mouseleave', () => { this.ui.tooltip.style.display = 'none'; });
+        
+        window.addEventListener('mouseleave', () => { 
+            this.ui.tooltip.style.display = 'none'; 
+        });
 
-        // --- NEW: HIDE TOOLTIP ON ANY CLICK ---
         window.addEventListener('mousedown', () => {
             if (this.ui && this.ui.tooltip) {
                 this.ui.tooltip.style.display = 'none';
@@ -1345,7 +1442,18 @@ class Game {
                 baseStats: { ...this.player.baseStats },
                 stats: { health: this.player.stats.health, mana: this.player.stats.mana },
                 inventory: this.player.inventory.map(item => item ? { id: item.id, quantity: item.quantity, durability: item.durability } : null),
-                equipment: Object.entries(this.player.equipment).reduce((acc, [slot, item]) => { acc[slot] = item ? { id: item.id, durability: item.durability } : null; return acc; }, {}),
+                equipment: Object.entries(this.player.equipment).reduce((acc, [slot, item]) => {
+                    if (!item) {
+                        acc[slot] = null;
+                    } else {
+                        acc[slot] = { id: item.id, durability: item.durability };
+                        // --- FIX: Also save quantity if the item is stackable ---
+                        if (item.stackable) {
+                            acc[slot].quantity = item.quantity;
+                        }
+                    }
+                    return acc;
+                }, {}),
                 hotbar: this.player.hotbar.map(slot => { if (!slot) return null; if (slot.type === 'ability') { return { type: 'ability', id: slot.ref.id }; } if (slot.type === 'item') { const invIndex = this.player.inventory.indexOf(slot.ref); return invIndex > -1 ? { type: 'item', invIndex: invIndex } : null; } return null; }),
                 quests: this.player.quests.map(q => ({ id: q.id, progress: q.progress.map(p => p.current) })),
                 recipes: this.player.recipes.map(r => r.id),
@@ -1382,7 +1490,19 @@ class Game {
                  return baseItem;
             });
             this.player.inventory = pData.inventory.map(itemData => { if (!itemData) return null; const baseItem = { ...GameData.ITEMS[itemData.id] }; baseItem.quantity = itemData.quantity; if (itemData.durability !== undefined) baseItem.durability = itemData.durability; return baseItem; });
-            this.player.equipment = {}; for (const slot in pData.equipment) { const itemData = pData.equipment[slot]; this.player.equipment[slot] = itemData ? { ...GameData.ITEMS[itemData.id], durability: itemData.durability } : null; }
+            this.player.equipment = {};
+            for (const slot in pData.equipment) {
+                const itemData = pData.equipment[slot];
+                if (itemData) {
+                    const baseItem = { ...GameData.ITEMS[itemData.id] };
+                    // --- FIX: Apply durability AND quantity from save data ---
+                    if (itemData.durability !== undefined) baseItem.durability = itemData.durability;
+                    if (itemData.quantity !== undefined) baseItem.quantity = itemData.quantity;
+                    this.player.equipment[slot] = baseItem;
+                } else {
+                    this.player.equipment[slot] = null;
+                }
+            }
             this.player.quests = []; pData.quests.forEach(qData => { const questTemplate = GameData.QUESTS[qData.id]; const questGiver = this.entities.find(e => e instanceof QuestGiver && e.questIds.includes(qData.id)); if (questTemplate && questGiver) { this.player.quests.push({ ...questTemplate, progress: questTemplate.objectives.map((o, i) => ({ ...o, current: qData.progress[i] || 0 })), giver: questGiver }); } }); if (pData.spellbook) {
                 this.player.spellbook = pData.spellbook.map(id => GameData.ABILITIES[id]);
             }
@@ -1547,16 +1667,44 @@ class Character extends Entity {
         this.buffs.push({ ...buff, tickTimer: 0 });
         if (buff.stats) this.recalculateStats();
     }
-    takeDamage(amount, type, source, isDot = false) {
+        takeDamage(amount, type, source, isDot = false) {
         if (this.isDead) return;
         if (type === 'physical' && !isDot && Math.random() < this.stats.dodgeChance) { game.createFloatingText('Dodge', this.x, this.y, '#fff', 'miss'); return; }
+        
         let isCrit = false;
-        if (!isDot && source && source.stats.critChance && Math.random() < source.stats.critChance) { amount *= 2; isCrit = true; }
-        let finalAmount = amount; if(type === 'physical') { const mitigation = 1 - (this.stats.armor / (this.stats.armor + 400 + 85 * this.level)); finalAmount = Math.max(1, amount * mitigation); }
-        finalAmount = Math.round(finalAmount); this.stats.health = Math.max(0, this.stats.health - finalAmount);
-        if (this instanceof Player) { game.ui.updatePlayerFrame(this); this.fiveSecondRuleTimer = 500; }
-        if(source) { const currentThreat = this.threatTable.get(source) || 0; this.threatTable.set(source, currentThreat + finalAmount * (isCrit ? 1.5 : 1)); }
-        const color = type === 'physical' ? '#fff' : '#87ceeb'; game.createFloatingText(finalAmount, this.x, this.y, color, isCrit ? 'crit' : '');
+        // --- FIX: Add a check to ensure the source and its critChance exist ---
+        if (!isDot && source && source.stats && source.stats.critChance && Math.random() < source.stats.critChance) {
+            amount *= 2;
+            isCrit = true;
+        }
+
+        let finalAmount = amount;
+        if(type === 'physical') {
+            const mitigation = 1 - (this.stats.armor / (this.stats.armor + 400 + 85 * this.level));
+            finalAmount = Math.max(1, amount * mitigation);
+        }
+        
+        // --- ADDED SAFETY: Check if finalAmount is a valid number before proceeding ---
+        if (isNaN(finalAmount)) {
+            console.error("Damage calculation resulted in NaN!", {amount, type, source});
+            finalAmount = 1; // Default to 1 damage to prevent breaking the game
+        }
+
+        finalAmount = Math.round(finalAmount);
+        this.stats.health = Math.max(0, this.stats.health - finalAmount);
+        
+        if (this instanceof Player) {
+            game.ui.updatePlayerFrame(this);
+            this.fiveSecondRuleTimer = 500;
+        }
+        if(source) {
+            const currentThreat = this.threatTable.get(source) || 0;
+            this.threatTable.set(source, currentThreat + finalAmount * (isCrit ? 1.5 : 1));
+        }
+        
+        const color = type === 'physical' ? '#fff' : '#87ceeb';
+        game.createFloatingText(finalAmount, this.x, this.y, color, isCrit ? 'crit' : '');
+        
         if (this.stats.health <= 0) this.die(source);
     }
     heal(amount, source) {
@@ -1602,58 +1750,82 @@ class Character extends Entity {
 }
 
 class Player extends Character {
-    constructor(x, y, input, name, race) {
+        constructor(x, y, input, name, race) {
         super(x, y, 30, '#ddd', '\uf007', name || 'Hero');
         this.race = race || 'Human';
-        this.input = input; this.speed = 2.2; this.xp = 0; this.restedXp = 0;
-        this.nextLevelXp = GameData.XP_TABLE[this.level]; this.gold = 5000;
+        this.input = input;
+        this.speed = 2.2;
+        this.xp = 0;
+        this.restedXp = 0;
+        this.nextLevelXp = GameData.XP_TABLE[this.level];
+        this.gold = 5000;
         this.inventory = new Array(16).fill(null);
         this.equipment = { head: null, chest: null, tabard: null, 'main-hand': null, 'off-hand': null, ammo: null };
         this.buffs = [];
-        this.baseStats = { ...this.baseStats }; this.statBonuses = {}; this.talentBonuses = {};
+        this.baseStats = { ...this.baseStats };
+        this.statBonuses = {};
+        this.talentBonuses = {};
+        this.talents = {};
+        this.talentPoints = 0;
+        this.reputation = {};
+        Object.keys(GameData.FACTIONS).forEach(id => this.reputation[id] = GameData.FACTIONS[id].base);
         
-        this.talents = {}; this.talentPoints = 0;
-        this.reputation = {}; Object.keys(GameData.FACTIONS).forEach(id => this.reputation[id] = GameData.FACTIONS[id].base);
-        this.professions = { Herbalism: { level: 0, xp: 0 }, Mining: { level: 0, xp: 0 }, Woodworking: { level: 0, xp: 0 }, Lumberjacking: { level: 0, xp: 0 }, Blacksmithing: { level: 0, xp: 0 }, Alchemy: { level: 0, xp: 0 } };
+        this.professions = {};
+        for (const profName in GameData.PROFESSIONS) {
+            const profTemplate = GameData.PROFESSIONS[profName];
+            this.professions[profName] = {
+                level: 0,
+                xp: 0,
+                nextLevelXp: profTemplate.nextLevelXp 
+            };
+        }
+        
         this.recipes = [];
         this.hotbar = new Array(10).fill(null);
         this.spellbook = [];
+
+        // --- FIX: Correctly assign abilities based on Race/Class ---
+        if (this.race === 'Human') { // Warrior
+            this.addAbilityToSpellbook(1); // Slash
+            this.addAbilityToSpellbook(3); // Rend
+        } else if (this.race === 'Elf') { // Mage
+            this.addAbilityToSpellbook(2); // Fireball
+            this.addAbilityToSpellbook(5); // Blast
+        }
+        // --- END OF FIX ---
+
         this.returnLocation = null;
         this.storage = new Array(99).fill(null);
         this.hasHouse = false;
-        this.maxStamina = 6500; // 3.5 seconds in milliseconds
+        this.maxStamina = 6500;
         this.stamina = this.maxStamina;
         this.isSprinting = false;
-        this.staminaRegenDelayTimer = 0; // Timer for the 0.5s delay
-        this.pets = {}; // Stores data for all owned pets { id: { level, xp } }
-        this.activePetId = null; // The ID of the currently summoned pet
-        this.activePetInstance = null; // The actual Pet object in the world
-
+        this.staminaRegenDelayTimer = 0;
+        this.pets = {};
+        this.activePetId = null;
+        this.activePetInstance = null;
         this.globalClickCooldown = 0;
         this.isGathering = false;
-        
-        this.addAbilityToSpellbook(1);
-        if (this.race === 'Elf') {
-            this.addAbilityToSpellbook(2);
-            this.addAbilityToSpellbook(3);
-        }
-        
-        this.cooldowns = {}; this.quests = []; this.autoAttackTimer = 0; this.attackSpeed = 2000;
-        this.inCombatTimer = 0; this.fiveSecondRuleTimer = 0;
-        this.isGhost = false; this.corpse = null; this.isResting = false;
-        this.isAutoQuesting = false; this.autoQuest = null; this.autoMoveTarget = null;
+        this.cooldowns = {};
+        this.quests = [];
+        this.autoAttackTimer = 0;
+        this.attackSpeed = 2000;
+        this.inCombatTimer = 0;
+        this.fiveSecondRuleTimer = 0;
+        this.isGhost = false;
+        this.corpse = null;
+        this.isResting = false;
+        this.isAutoQuesting = false;
+        this.autoQuest = null;
+        this.autoMoveTarget = null;
         this.questCooldowns = {};
-        this.globalClickCooldown = 0;
         this.autoMoveInteractTarget = null;
-
-
-        // --- NEW: GATHERING STATE ---
-        this.isGathering = false;
         this.gatheringTimer = 0;
         this.gatheringTotalTime = 0;
         this.gatheringTargetNode = null;
 
-        this.addItem(1, 1); this.addItem(5, 3);
+        this.addItem(1, 1);
+        this.addItem(5, 3);
         this.recalculateStats();
         this.stats.health = this.stats.maxHealth;
         this.stats.mana = this.stats.maxMana;
@@ -1677,7 +1849,7 @@ class Player extends Character {
         game.createFloatingText("Gathering Interrupted", this.x, this.y, 'red');
     }
 
-        completeGathering() {
+    completeGathering() {
         if (!this.gatheringTargetNode) {
             this.cancelGathering();
             return;
@@ -1685,22 +1857,24 @@ class Player extends Character {
         const node = this.gatheringTargetNode;
 
         node.depleted = true;
-        node.icon = '\uf2d3';
+        node.icon = '\uf2d3'; // A depleted/empty icon
         node.color = '#555';
         
-        game.createFloatingText(`+1 ${node.type.name}`, this.x, this.y - 20, 'white');
+        // --- FIX: Use the new 'yield' property from GameData ---
+        const gatherAmount = node.type.yield || 1; // Default to 1 if yield is not defined
+
+        game.createFloatingText(`+${gatherAmount} ${node.type.name}`, this.x, this.y - 20, 'white');
         this.gainProfessionXp(node.type.requiredSkill, 5, -40);
         this.addXp(10, -60);
         
-        this.addItem(node.type.itemId, 1);
+        // --- FIX: Pass the dynamic amount to addItem ---
+        this.addItem(node.type.itemId, gatherAmount);
         
-        // --- NEW: Logic to learn Smelting upon first Copper gather ---
-        // GameData.ITEMS[7] is Copper Ore.
         if (node.type.itemId === 7) {
             this.addRecipe('copper_bar');
         }
 
-        game.ui.updateInventory(this);
+        game.ui.updateAll(this);
         
         setTimeout(() => {
             node.depleted = false;
@@ -1731,10 +1905,9 @@ class Player extends Character {
         if (this.globalClickCooldown > 0 || !this.target || this.target.isDead) return;
 
         const weapon = this.equipment['main-hand'];
-        const meleeRange = 40; // Standard melee range
-
+        
         if (weapon && weapon.range) {
-            // Ranged Attack Logic
+            // RANGED ATTACK LOGIC (This part is correct and remains the same)
             if (distance(this, this.target) <= weapon.range) {
                 const ammo = this.equipment.ammo;
                 if (!ammo || ammo.quantity <= 0) {
@@ -1746,29 +1919,34 @@ class Player extends Character {
                     this.equipment.ammo = null;
                 }
 
-                // --- NEW: Spawn an arrow projectile ---
                 const onArrowHit = (caster, target) => {
-                    target.takeDamage(caster.getWeaponDamage(), 'physical', caster);
-                    // Small impact particle
+                    const damageRange = caster.getWeaponDamage();
+                    const finalDamage = Math.floor(Math.random() * (damageRange.max - damageRange.min + 1)) + damageRange.min;
+                    target.takeDamage(finalDamage, 'physical', caster);
                     ParticleSystem.create(target.x, target.y, 'rgba(200, 200, 200, 0.5)', 5, 0.1, 8);
                 };
                 
-                // icon \uf140 is a simple arrow/chevron
-                const arrowProjectile = new Projectile(this, this.target, 500, '\uf140', '#CD853F', 12, onArrowHit, true); // true enables the trail
+                const arrowProjectile = new Projectile(this, this.target, 500, '\uf140', '#CD853F', 12, onArrowHit, true);
                 game.entities.push(arrowProjectile);
 
                 this.globalClickCooldown = weapon.attackSpeed || 1500; 
                 this.inCombatTimer = 8000;
-                game.ui.updateCharacterSheet(this);
-            } else {
+                game.ui.updateAll(this);
+            } else { 
                 game.createFloatingText("Out of range", this.x, this.y, "yellow");
             }
         } else {
-            // Melee Attack Logic
-            if (distance(this, this.target) <= meleeRange) {
-                this.target.takeDamage(this.getWeaponDamage(), 'physical', this);
+            // MELEE ATTACK LOGIC (This part is now fixed)
+            if (distance(this, this.target) <= 40) {
+                const damageRange = this.getWeaponDamage();
+                const finalDamage = Math.floor(Math.random() * (damageRange.max - damageRange.min + 1)) + damageRange.min;
+                this.target.takeDamage(finalDamage, 'physical', this);
+
                 ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8);
-                this.globalClickCooldown = this.attackSpeed || 1000;
+                
+                // --- FIX: Use the weapon's attackSpeed or a default, NOT this.attackSpeed ---
+                this.globalClickCooldown = weapon?.attackSpeed || 2000; // Use weapon's speed, or default to 2s
+                
                 this.inCombatTimer = 8000;
             } else {
                 game.createFloatingText("Out of range", this.x, this.y, "yellow");
@@ -1805,17 +1983,15 @@ class Player extends Character {
 
         let moveVector = { x: 0, y: 0 };
         if (this.autoMoveInteractTarget) {
-            if (distance(this, this.autoMoveInteractTarget) > 90) { // Move until within interaction range
+            if (distance(this, this.autoMoveInteractTarget) > 90) {
                 const angle = Math.atan2(this.autoMoveInteractTarget.y - this.y, this.autoMoveInteractTarget.x - this.x);
                 moveVector.x = Math.cos(angle);
                 moveVector.y = Math.sin(angle);
             } else {
-                // We've arrived! Interact and clear the target.
                 this.autoMoveInteractTarget.interact(this);
                 this.autoMoveInteractTarget = null;
             }
         } 
-        // --- FALLBACK TO REGULAR MOVEMENT ---
         else if (!this.isRooted) {
             if (this.isAutoQuesting && this.autoMoveTarget) {
                 const angle = Math.atan2(this.autoMoveTarget.y - this.y, this.autoMoveTarget.x - this.x);
@@ -1832,8 +2008,7 @@ class Player extends Character {
         
         const isMoving = moveVector.x !== 0 || moveVector.y !== 0;
 
-        // --- CANCEL AUTO-MOVE IF PLAYER MOVES MANUALLY ---
-        if (isMoving && this.input.getMoveVector().x !== 0 || this.input.getMoveVector().y !== 0) {
+        if (isMoving && (this.input.getMoveVector().x !== 0 || this.input.getMoveVector().y !== 0)) {
             this.autoMoveInteractTarget = null;
         }
 
@@ -1862,11 +2037,10 @@ class Player extends Character {
         }
         this.stamina = Math.max(0, Math.min(this.stamina, this.maxStamina)); // Clamp value
 
-        // --- MOVEMENT LOGIC (with sprint multiplier) ---
         if (isMoving && currentRegion) {
             if (this.isGathering) this.cancelGathering();
             
-            const sprintMultiplier = this.isSprinting ? 1.75 : 1; // 75% speed boost
+            const sprintMultiplier = this.isSprinting ? 1.75 : 1;
             const currentSpeed = this.speed * sprintMultiplier * (this.isGhost ? 1.5 : 1) * (deltaTime / 16.67);
             
             let finalX = moveVector.x;
@@ -1899,51 +2073,6 @@ class Player extends Character {
                 this.y = potentialNewY;
             }
         }
-
-        // --- NEW COLLISION LOGIC ---
-        if (isMoving && currentRegion) {
-            if (this.isGathering) {
-                this.cancelGathering();
-            }
-            
-            let finalX = moveVector.x;
-            let finalY = moveVector.y;
-            if (finalX !== 0 && finalY !== 0) { 
-                finalX *= 0.7071;
-                finalY *= 0.7071;
-            }
-            const currentSpeed = this.speed * (this.isGhost ? 1.5 : 1) * (deltaTime / 16.67);
-            
-            const potentialNewX = this.x + finalX * currentSpeed;
-            const potentialNewY = this.y + finalY * currentSpeed;
-
-            const collidables = game.entities.filter(e => e.isCollidable);
-            const playerRadius = this.size / 4; // Use a smaller radius for more forgiving collision
-
-            const isCollidingAt = (px, py) => {
-                for (const entity of collidables) {
-                    const halfSize = entity.size / 2;
-                    if (px + playerRadius > entity.x - halfSize &&
-                        px - playerRadius < entity.x + halfSize &&
-                        py + playerRadius > entity.y - halfSize &&
-                        py - playerRadius < entity.y + halfSize) {
-                        return true; // Collision detected
-                    }
-                }
-                return false; // No collision
-            };
-
-            // Check X-axis movement
-            if (potentialNewX > currentRegion.x && potentialNewX < currentRegion.x + currentRegion.width && !isCollidingAt(potentialNewX, this.y)) {
-                this.x = potentialNewX;
-            }
-
-            // Check Y-axis movement
-            if (potentialNewY > currentRegion.y && potentialNewY < currentRegion.y + currentRegion.height && !isCollidingAt(this.x, potentialNewY)) {
-                this.y = potentialNewY;
-            }
-        }
-        // --- END NEW COLLISION LOGIC ---
 
 
         if (this.isGhost) {
@@ -1992,18 +2121,106 @@ class Player extends Character {
     
     updateAutoQuest() {
         if (!this.isAutoQuesting || !this.autoQuest || this.isGhost) return;
+        
         const isQuestComplete = this.autoQuest.progress.every(p => p.current >= p.count);
-        if (isQuestComplete) { const giver = this.autoQuest.giver; if (giver) { this.autoMoveTarget = giver; if (distance(this, giver) < 100) { this.autoMoveTarget = null; giver.interact(this, true); } } } else {
-            const objective = this.autoQuest.progress.find(p => p.current < p.count); if (!objective) { this.toggleAutoQuest(this.autoQuest); return; }
+        
+        if (isQuestComplete) {
+            const giver = this.autoQuest.giver;
+            if (giver) {
+                this.autoMoveTarget = giver;
+                if (distance(this, giver) < 100) {
+                    this.autoMoveTarget = null;
+                    giver.interact(this, true);
+                }
+            }
+        } else {
+            const objective = this.autoQuest.progress.find(p => p.current < p.count);
+            if (!objective) {
+                this.toggleAutoQuest(this.autoQuest);
+                return;
+            }
+
             if (objective.type === 'kill') {
-                const targetMobType = objective.target; const currentTargetIsValid = this.target && this.target instanceof Enemy && !this.target.isDead && this.target.type.name.split(' ')[1].toUpperCase() === targetMobType; if (this.target && this.target.isDead) this.setTarget(null);
-                if (this.target && currentTargetIsValid) { const bestRange = this.getBestAbilityRange(); this.autoMoveTarget = this.target; if (distance(this, this.target) <= bestRange) { this.autoMoveTarget = null; for (let i = 0; i < this.hotbar.length; i++) { const slotItem = this.hotbar[i]; if (slotItem && slotItem.type === 'ability') { const ability = slotItem.ref; if (!this.cooldowns[ability.id] && this.stats.mana >= ability.cost && distance(this, this.target) <= ability.range) { this.useHotbarSlot(i); break; } } } } } else {
-                    this.autoMoveTarget = null; let closestMob = null; let minDistance = Infinity; for (const entity of game.entities) { if (entity instanceof Enemy && !entity.isDead && entity.type.name.split(' ')[1].toUpperCase() === targetMobType) { const d = distance(this, entity); if (d < minDistance) { minDistance = d; closestMob = entity; } } } if (closestMob) { this.setTarget(closestMob); this.autoMoveTarget = closestMob; } else { if (!this.autoMoveTarget) { this.autoMoveTarget = { x: this.x + (Math.random() * 800 - 400), y: this.y + (Math.random() * 800 - 400) }; } }
+                const targetMobType = objective.target;
+                const currentTargetIsValid = this.target && this.target instanceof Enemy && !this.target.isDead && this.target.type.name.split(' ')[1].toUpperCase() === targetMobType;
+                
+                if (this.target && this.target.isDead) this.setTarget(null);
+
+                if (this.target && currentTargetIsValid) {
+                    const bestRange = this.getBestAbilityRange();
+                    this.autoMoveTarget = this.target;
+                    
+                    if (distance(this, this.target) <= bestRange) {
+                        this.autoMoveTarget = null;
+                        for (let i = 0; i < this.hotbar.length; i++) {
+                            const slotItem = this.hotbar[i];
+                            if (slotItem && slotItem.type === 'ability') {
+                                const ability = slotItem.ref;
+                                
+                                // --- FIX: The redundant distance check is removed here ---
+                                if (!this.cooldowns[ability.id] && this.stats.mana >= ability.cost) {
+                                    this.useHotbarSlot(i);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    this.autoMoveTarget = null;
+                    let closestMob = null;
+                    let minDistance = Infinity;
+                    for (const entity of game.entities) {
+                        if (entity instanceof Enemy && !entity.isDead && entity.type.name.split(' ')[1].toUpperCase() === targetMobType) {
+                            const d = distance(this, entity);
+                            if (d < minDistance) {
+                                minDistance = d;
+                                closestMob = entity;
+                            }
+                        }
+                    }
+                    if (closestMob) {
+                        this.setTarget(closestMob);
+                        this.autoMoveTarget = closestMob;
+                    } else {
+                        if (!this.autoMoveTarget) {
+                            this.autoMoveTarget = { x: this.x + (Math.random() * 800 - 400), y: this.y + (Math.random() * 800 - 400) };
+                        }
+                    }
                 }
             } else if (objective.type === 'gather') {
-                const targetResourceNode = objective.target; const currentTargetIsValid = this.target && this.target instanceof ResourceNode && !this.target.depleted && this.target.type.name.toUpperCase() === targetResourceNode; if (this.target && this.target.depleted) this.setTarget(null);
-                if (this.target && currentTargetIsValid) { this.autoMoveTarget = this.target; if (distance(this, this.target) < 100) { this.autoMoveTarget = null; this.target.interact(this); this.setTarget(null); } } else {
-                    this.autoMoveTarget = null; let closestNode = null; let minDistance = Infinity; for (const entity of game.entities) { if (entity instanceof ResourceNode && !entity.depleted && entity.type.name.toUpperCase() === targetResourceNode) { const d = distance(this, entity); if (d < minDistance) { minDistance = d; closestNode = entity; } } } if (closestNode) { this.setTarget(closestNode); this.autoMoveTarget = closestNode; } else { if (!this.autoMoveTarget) { this.autoMoveTarget = { x: this.x + (Math.random() * 800 - 400), y: this.y + (Math.random() * 800 - 400) }; } }
+                const targetResourceNode = objective.target;
+                const currentTargetIsValid = this.target && this.target instanceof ResourceNode && !this.target.depleted && this.target.type.name.toUpperCase() === targetResourceNode;
+                
+                if (this.target && this.target.depleted) this.setTarget(null);
+                
+                if (this.target && currentTargetIsValid) {
+                    this.autoMoveTarget = this.target;
+                    if (distance(this, this.target) < 100) {
+                        this.autoMoveTarget = null;
+                        this.target.interact(this);
+                        this.setTarget(null);
+                    }
+                } else {
+                    this.autoMoveTarget = null;
+                    let closestNode = null;
+                    let minDistance = Infinity;
+                    for (const entity of game.entities) {
+                        if (entity instanceof ResourceNode && !entity.depleted && entity.type.name.toUpperCase() === targetResourceNode) {
+                            const d = distance(this, entity);
+                            if (d < minDistance) {
+                                minDistance = d;
+                                closestNode = entity;
+                            }
+                        }
+                    }
+                    if (closestNode) {
+                        this.setTarget(closestNode);
+                        this.autoMoveTarget = closestNode;
+                    } else {
+                        if (!this.autoMoveTarget) {
+                            this.autoMoveTarget = { x: this.x + (Math.random() * 800 - 400), y: this.y + (Math.random() * 800 - 400) };
+                        }
+                    }
                 }
             }
         }
@@ -2039,11 +2256,30 @@ class Player extends Character {
     
     getWeaponDamage() {
         const weapon = this.equipment['main-hand'];
-        if (weapon && weapon.weaponDamage) {
-            const { min, max } = weapon.weaponDamage;
-            return Math.floor(Math.random() * (max - min + 1)) + min;
+        if (!weapon || !weapon.weaponDamage) {
+            return { min: 1, max: 2 }; // Unarmed damage
         }
-        return Math.floor(Math.random() * 2) + 1;
+
+        let minDamage = weapon.weaponDamage.min;
+        let maxDamage = weapon.weaponDamage.max;
+
+        // --- NEW: Smart scaling logic ---
+        if (weapon.range) {
+            // RANGED WEAPON: Scale with Agility
+            // Let's make every 2 points of Agility add 1 damage.
+            const agilityBonus = this.stats.agility / 2;
+            minDamage += agilityBonus;
+            maxDamage += agilityBonus;
+        } else {
+            // MELEE WEAPON: Scale with Attack Power (from Strength)
+            // The existing formula: AP / 14 * weapon_speed
+            const weaponSpeed = weapon.attackSpeed ? (weapon.attackSpeed / 1000) : 2.0; // Default speed of 2.0 if not defined
+            const apBonus = (this.stats.attackPower / 14) * weaponSpeed;
+            minDamage += apBonus;
+            maxDamage += apBonus;
+        }
+
+        return { min: minDamage, max: maxDamage };
     }
 
     autoAttack() {
@@ -2066,23 +2302,66 @@ class Player extends Character {
             }
 
             const onArrowHit = (caster, target) => {
-                target.takeDamage(caster.getWeaponDamage(), 'physical', caster);
+                // --- FIX: Calculate the final damage number here ---
+                const damageRange = caster.getWeaponDamage();
+                const finalDamage = Math.floor(Math.random() * (damageRange.max - damageRange.min + 1)) + damageRange.min;
+                
+                target.takeDamage(finalDamage, 'physical', caster);
                 ParticleSystem.create(target.x, target.y, 'rgba(200, 200, 200, 0.5)', 5, 0.1, 8);
             };
             
             const arrowProjectile = new Projectile(this, this.target, 500, '\uf140', '#CD853F', 12, onArrowHit, true);
             game.entities.push(arrowProjectile);
-            game.ui.updateCharacterSheet(this);
+            game.ui.updateAll(this);
 
         } else {
-            // MELEE AUTO-ATTACK (Original Logic)
-            const damage = this.getAttackDamage();
-            this.target.takeDamage(damage, 'physical', this);
+            // MELEE AUTO-ATTACK
+            // --- FIX: Also apply the damage roll to melee attacks ---
+            const damageRange = this.getWeaponDamage();
+            const finalDamage = Math.floor(Math.random() * (damageRange.max - damageRange.min + 1)) + damageRange.min;
+            this.target.takeDamage(finalDamage, 'physical', this);
+            
             ParticleSystem.create(this.target.x, this.target.y, 'white', 10, 0.1, 8);
         }
     }
 
-    useHotbarSlot(index) { const slotItem = this.hotbar[index]; if (!slotItem || this.isGhost || this.isRooted) return; if(slotItem.type === 'ability') { const ability = slotItem.ref; if (this.cooldowns[ability.id] || !this.target || this.target.isDead) return; if(distance(this, this.target) > ability.range) { if(!this.isAutoQuesting) game.createFloatingText("Out of range", this.x, this.y, "yellow"); return; } if (this.stats.mana < ability.cost) { if(!this.isAutoQuesting) game.createFloatingText("Not enough mana", this.x, this.y, "blue"); return; } this.stats.mana -= ability.cost; ability.onUse(this, this.target); this.cooldowns[ability.id] = ability.cooldown; this.inCombatTimer = 8000; if(ability.cost > 0) this.fiveSecondRuleTimer = 500; game.ui.updatePlayerFrame(this); } else if (slotItem.type === 'item') { const item = slotItem.ref; if (item.slot === 'consumable' && item.onUse) { item.onUse(this); item.quantity--; if(item.quantity <= 0) { const invIndex = this.inventory.findIndex(i => i === item); if (invIndex > -1) this.inventory[invIndex] = null; this.hotbar[index] = null; } game.ui.updateInventory(this); game.ui.setupActionbar(this); } } }
+    useHotbarSlot(index) {
+        const slotItem = this.hotbar[index];
+        if (!slotItem || this.isGhost || this.isRooted) return;
+
+        if (slotItem.type === 'ability') {
+            const ability = slotItem.ref;
+            
+            // Basic checks that apply to all abilities
+            if (this.cooldowns[ability.id]) return;
+            if (this.stats.mana < ability.cost) {
+                if (!this.isAutoQuesting) game.createFloatingText("Not enough mana", this.x, this.y, "blue");
+                return;
+            }
+            
+            // --- NEW: Logic to handle targeted vs. non-targeted spells ---
+            if (ability.range > 0) { // This is a targeted ability
+                if (!this.target || this.target.isDead) return; // Needs a valid target
+                if (distance(this, this.target) > ability.range) {
+                    if (!this.isAutoQuesting) game.createFloatingText("Out of range", this.x, this.y, "yellow");
+                    return;
+                }
+                // If all checks pass, use the ability on the target
+                ability.onUse(this, this.target);
+
+            } else { // This is a self-cast or AoE ability (range is 0 or undefined)
+                ability.onUse(this); // Use the ability, passing only the caster
+            }
+            // --- END OF NEW LOGIC ---
+
+            this.stats.mana -= ability.cost;
+            this.cooldowns[ability.id] = ability.cooldown;
+            this.inCombatTimer = 8000;
+            if (ability.cost > 0) this.fiveSecondRuleTimer = 500;
+            game.ui.updatePlayerFrame(this);
+
+        } else if (slotItem.type === 'item') { 
+            const item = slotItem.ref; if (item.slot === 'consumable' && item.onUse) { item.onUse(this); item.quantity--; if(item.quantity <= 0) { const invIndex = this.inventory.findIndex(i => i === item); if (invIndex > -1) this.inventory[invIndex] = null; this.hotbar[index] = null; } game.ui.updateInventory(this); game.ui.setupActionbar(this); } } }
     
     setHotbarSlot(hotbarIndex, source, sourceIdentifier) { let sourceItem = null; let type = ''; if (source === 'inventory') { const idx = parseInt(sourceIdentifier); if (!isNaN(idx) && this.inventory[idx]) { sourceItem = this.inventory[idx]; type = 'item'; } } else if (source === 'spellbook') { const idx = parseInt(sourceIdentifier); if (!isNaN(idx) && this.spellbook[idx]) { sourceItem = this.spellbook[idx]; type = 'ability'; } } if (sourceItem) { this.hotbar[hotbarIndex] = { type, ref: sourceItem }; } else { this.hotbar[hotbarIndex] = null; } game.ui.setupActionbar(this); }
     
@@ -2296,12 +2575,21 @@ class Player extends Character {
     addAbilityToSpellbook(abilityId) { const abilityData = GameData.ABILITIES[abilityId]; if (abilityData && !this.spellbook.find(a => a.id === abilityId)) this.spellbook.push(abilityData); }
     addRecipe(recipeId) { const recipeData = GameData.CRAFTING_RECIPES[recipeId]; if (recipeData && !this.recipes.find(r => r.id === recipeId)) { this.recipes.push(recipeData); game.createFloatingText(`New Recipe: ${recipeData.name}!`, this.x, this.y - 80, 'cyan'); } }
     
-    addItem(itemId, quantity = 1) {
+        addItem(itemId, quantity = 1) {
         const itemData = { ...GameData.ITEMS[itemId] };
         if (!itemData) return;
 
         let itemAdded = false;
-        if (itemData.stackable) {
+
+        // --- NEW: Priority check for the ammo slot ---
+        if (itemData.stackable && this.equipment.ammo && this.equipment.ammo.id === itemId) {
+            this.equipment.ammo.quantity += quantity;
+            itemAdded = true;
+            // We still might want to call an update here to refresh the UI
+        }
+
+        // --- Original logic for inventory stacking (runs if not added to ammo slot) ---
+        if (!itemAdded && itemData.stackable) {
             const existingStack = this.inventory.find(item => item && item.id === itemId);
             if (existingStack) {
                 existingStack.quantity += quantity;
@@ -2309,6 +2597,7 @@ class Player extends Character {
             }
         }
         
+        // --- Original logic for adding to an empty slot ---
         if (!itemAdded) {
             const emptySlotIndex = this.inventory.findIndex(slot => slot === null);
             if (emptySlotIndex !== -1) {
@@ -2319,17 +2608,23 @@ class Player extends Character {
 
         if (!itemAdded) {
             if (game) game.createFloatingText("Inventory Full", this.x, this.y, 'red');
-            return;
+            return; // Exit early if the item couldn't be added
         }
 
+        // --- Special logic for auto-slotting potions ---
         if (itemId === 5) { 
             if (!this.hotbar[0]) {
                 const potionStack = this.inventory.find(i => i && i.id === 5);
                 if (potionStack) {
                     this.hotbar[0] = { type: 'item', ref: potionStack };
-                    if (game && game.ui) game.ui.setupActionbar(this);
+                    // No need for a specific update here, as the final updateAll will catch it
                 }
             }
+        }
+        
+        // --- IMPORTANT: Ensure the UI is always updated after any item change ---
+        if (game && game.ui) {
+            game.ui.updateAll(this);
         }
     }
 
@@ -2399,33 +2694,51 @@ class Player extends Character {
         });
     }
     
-    craftItem(recipeId) {
-        const recipe = GameData.CRAFTING_RECIPES[recipeId]; if (!recipe) return false;
-        const profession = this.professions[recipe.profession]; if (!profession || profession.level < recipe.skillRequired) { game.createFloatingText("Skill too low!", this.x, this.y, 'red'); return false; }
-        let hasMaterials = true; for (const mat of recipe.materials) { const playerMat = this.inventory.find(item => item && item.id === mat.itemId); if (!playerMat || playerMat.quantity < mat.quantity) { hasMaterials = false; game.createFloatingText("Missing materials!", this.x, this.y, 'red'); break; } }
+        craftItem(recipeId) {
+        const recipe = GameData.CRAFTING_RECIPES[recipeId];
+        if (!recipe) return false;
+
+        const profession = this.professions[recipe.profession];
+        if (!profession || profession.level < recipe.skillRequired) {
+            game.createFloatingText("Skill too low!", this.x, this.y, 'red');
+            return false;
+        }
+        
+        let hasMaterials = true;
+        for (const mat of recipe.materials) {
+            const playerMat = this.inventory.find(item => item && item.id === mat.itemId);
+            if (!playerMat || playerMat.quantity < mat.quantity) {
+                hasMaterials = false;
+                game.createFloatingText("Missing materials!", this.x, this.y, 'red');
+                break;
+            }
+        }
         if (!hasMaterials) return false;
 
-        for (const mat of recipe.materials) { this.removeItem(mat.itemId, mat.quantity); }
+        for (const mat of recipe.materials) {
+            this.removeItem(mat.itemId, mat.quantity);
+        }
         
-        // --- UPGRADED LOGIC ---
-        const craftYield = recipe.yield || 1; // Use recipe yield, or default to 1
+        const craftYield = recipe.yield || 1;
         this.addItem(recipe.itemId, craftYield); 
         game.createFloatingText(`Crafted: ${recipe.name}` + (craftYield > 1 ? ` (x${craftYield})` : ''), this.x, this.y, 'lightgreen');
         
-        // Give player XP if the recipe defines it
+        // --- FIX: This block is now updated to award player XP ---
         if (recipe.playerXpGain) {
-            this.addXp(recipe.playerXpGain);
+            // We use a different y-offset to stack it neatly with the profession XP text
+            this.addXp(recipe.playerXpGain, -20);
         }
+        // --- END OF FIX ---
 
-        // Special logic: learn arrow recipe after crafting the bow
         if (recipeId === 'simple_wooden_bow') {
             this.addRecipe('simple_wooden_arrow');
         }
         
         this.updateQuestProgress('craft', recipe.itemId);
 
-        const profXpGain = recipe.xpGain !== undefined ? recipe.xpGain : 10; // Use recipe XP, or default to 10
+        const profXpGain = recipe.xpGain !== undefined ? recipe.xpGain : 10;
         if (profXpGain > 0) {
+            // We use the default y-offset for profession XP
             this.gainProfessionXp(recipe.profession, profXpGain); 
         }
 
@@ -2457,10 +2770,12 @@ class Player extends Character {
             this.checkRecipeUnlocksForLevel(professionName, 1);
         }
         
-        while (profession.xp >= professionData.nextLevelXp && profession.level < professionData.maxLevel) { 
-            profession.xp -= professionData.nextLevelXp; 
+        while (profession.xp >= profession.nextLevelXp && profession.level < professionData.maxLevel) { 
+            profession.xp -= profession.nextLevelXp; 
             profession.level++; 
-            professionData.nextLevelXp += 50; 
+            // --- FIX: Modify the player's 'nextLevelXp', not the template's ---
+            profession.nextLevelXp += 50; 
+            
             game.createFloatingText(`${professionName} Level Up!`, this.x, this.y - 100, 'gold');
 
             Object.values(GameData.QUESTS).forEach(quest => {
@@ -2578,8 +2893,46 @@ class NPC extends Character {
 }
 
 class GenericNPC extends NPC {
-    constructor(x, y, type) { super(x, y, type.name, type.icon, type.color); this.interactType = type.interactType; this.sells = type.sells; this.buys = type.buys; this.baseInteraction = type.interaction; this.profession = type.profession; }
-    interact(player) { if (player.isGhost) return; if (this.interactType === 'vendor') { game.ui.openVendorWindow(player, this); } else if (this.interactType === 'crafting_trainer') { if (this.baseInteraction) { this.baseInteraction(player); } } else { if (this.baseInteraction) { this.baseInteraction(player); } else { alert(`Hello, ${player.name}. I am ${this.name}.`); } } }
+    constructor(x, y, type) {
+        super(x, y, type.name, type.icon, type.color);
+        this.interactType = type.interactType;
+        this.sells = type.sells;
+        this.buys = type.buys;
+        this.baseInteraction = type.interaction;
+        this.profession = type.profession;
+        
+        // --- NEW: Gold and Gold Regeneration Logic ---
+        this.gold = type.startingGold || 0;
+        this.maxGold = type.startingGold || 0;
+        // 5 hours = 18,000 seconds. Regen rate = maxGold / 18000
+        this.goldRegenRate = this.maxGold / 18000; 
+    }
+    
+    // --- NEW: Add an update method for gold regeneration ---
+    update(deltaTime) {
+        super.update(deltaTime);
+        if (this.gold < this.maxGold) {
+            this.gold += this.goldRegenRate * (deltaTime / 1000);
+            this.gold = Math.min(this.gold, this.maxGold);
+        }
+    }
+
+    interact(player) {
+        if (player.isGhost) return;
+        if (this.interactType === 'vendor') {
+            game.ui.openVendorWindow(player, this);
+        } else if (this.interactType === 'crafting_trainer') {
+            if (this.baseInteraction) {
+                this.baseInteraction(player);
+            }
+        } else {
+            if (this.baseInteraction) {
+                this.baseInteraction(player);
+            } else {
+                alert(`Hello, ${player.name}. I am ${this.name}.`);
+            }
+        }
+    }
 }
 
 class CraftingStation extends Entity {
@@ -2969,13 +3322,27 @@ class QuestGiver extends NPC {
     }
 }
 class Enemy extends Character {
-    constructor(x, y, type) { 
+    constructor(x, y, type, levelOverride = null) { 
         super(x, y, type.size, type.color, type.icon, type.name); 
         this.type = type; 
+        
+        this.level = levelOverride || type.level || 1;
+
+        const baseHealth = type.health || 50;
+        const baseAttack = type.attack || 5;
+
+        const healthMultiplier = Math.pow(1.15, this.level - 1);
+        const attackMultiplier = Math.pow(1.15, this.level - 1);
+        
+        this.stats.health = this.stats.maxHealth = Math.round(baseHealth * healthMultiplier);
+        this.stats.attackPower = Math.round(baseAttack * attackMultiplier);
+        
+        const baseXP = type.xp || 10;
+        // --- FIX: Store the scaled XP in a new property on the instance, not the template ---
+        this.xpValue = Math.round(baseXP * Math.pow(1.1, this.level - 1));
+
         this.state = 'patrol'; 
         this.patrolTarget = { x: x + (Math.random()*200-100), y: y + (Math.random()*200-100) }; 
-        this.stats.health = this.stats.maxHealth = type.health; 
-        this.stats.attackPower = type.attack; 
         this.attackSpeed = type.attackSpeed; 
         this.autoAttackTimer = 0; 
         this.spawnPoint = {x, y}; 
@@ -2985,7 +3352,9 @@ class Enemy extends Character {
     die(killer) { 
         super.die();
         if (killer instanceof Player) {
-            killer.addXp(this.type.xp);
+            // --- FIX: Use the instance's calculated xpValue, not the template's ---
+            killer.addXp(this.xpValue);
+            
             killer.updateQuestProgress('kill', this.type.name.split(" ")[1].toUpperCase());
             if(this.type.reputation) killer.addReputation(this.type.reputation.faction, this.type.reputation.value);
             this.type.lootTable.forEach(item => { if(Math.random() < item.chance) { if(item.gold) { killer.gold += item.gold; game.createFloatingText(`+${UI.formatCurrency(item.gold)}`, this.x, this.y, 'gold'); } if(item.itemId) { const quantity = item.min ? Math.floor(Math.random() * (item.max - item.min + 1)) + item.min : 1; killer.addItem(item.itemId, quantity); const itemData = GameData.ITEMS[item.itemId]; game.createFloatingText(`+ ${itemData.name}`, this.x, this.y - 20, `var(--color-text-${itemData.quality})`); } } });
@@ -3475,7 +3844,39 @@ class UI {
             }
         });
     }
-    createFloatingText(text, worldX, worldY, color, camera, type = '') { const textElement = document.createElement('div'); textElement.className = `floating-text ${type}`; textElement.textContent = text; textElement.style.color = color; textElement.style.left = `${worldX - camera.x}px`; textElement.style.top = `${worldY - camera.y}px`; $('#floating-text-container').appendChild(textElement); setTimeout(() => textElement.remove(), 1500); }
+    createFloatingText(text, worldX, worldY, color, camera, type = '') {
+        const textElement = document.createElement('div');
+        textElement.className = `floating-text ${type}`;
+        textElement.textContent = text;
+        textElement.style.color = color;
+        
+        // --- NEW DYNAMIC STACKING LOGIC ---
+        let finalY = worldY - camera.y;
+        const screenX = worldX - camera.x;
+        const allFloatingTexts = $$('#floating-text-container .floating-text');
+        const verticalSpacing = 20; // How many pixels to move up to avoid overlap
+
+        let isOverlapping;
+        do {
+            isOverlapping = false;
+            for (const existingText of allFloatingTexts) {
+                const existingY = existingText.offsetTop;
+                // Check if our new text's Y position is too close to an existing one
+                if (Math.abs(finalY - existingY) < verticalSpacing) {
+                    finalY -= verticalSpacing; // Move our text up
+                    isOverlapping = true;
+                    break; // Restart the check with the new Y position
+                }
+            }
+        } while (isOverlapping);
+        // --- END OF NEW LOGIC ---
+
+        textElement.style.left = `${screenX}px`;
+        textElement.style.top = `${finalY}px`; // Use the final, non-overlapping Y position
+
+        $('#floating-text-container').appendChild(textElement);
+        setTimeout(() => textElement.remove(), 1500);
+    }
     updateCharacterSheet(player) {
         player.recalculateStats();
         const content = $('#character-content');
@@ -3548,9 +3949,9 @@ class UI {
         for (const profName in player.professions) {
             const prof = player.professions[profName];
             if (prof.level > 0) {
-                const profData = GameData.PROFESSIONS[profName];
-                const xpPercent = profData.nextLevelXp > 0 ? (prof.xp / profData.nextLevelXp) * 100 : 0;
-                professionsHtml += `<div class="profession-line"><div class="stat-line"><span>${profName}</span><span>${prof.level} / ${profData.maxLevel}</span></div><div class="profession-xp-bar" title="XP: ${prof.xp} / ${profData.nextLevelXp}"><div class="profession-xp-bar-fill" style="width: ${xpPercent}%;"></div></div></div>`;
+                const profData = GameData.PROFESSIONS[profName]; 
+                const xpPercent = prof.nextLevelXp > 0 ? (prof.xp / prof.nextLevelXp) * 100 : 0;
+                professionsHtml += `<div class="profession-line"><div class="stat-line"><span>${profName}</span><span>${prof.level} / ${profData.maxLevel}</span></div><div class="profession-xp-bar" title="XP: ${prof.xp} / ${prof.nextLevelXp}"><div class="profession-xp-bar-fill" style="width: ${xpPercent}%;"></div></div></div>`;
             }
         }
         statsCol.innerHTML = statsHtml + professionsHtml;
@@ -3702,13 +4103,100 @@ class UI {
     updateReputationWindow(player) { const content = $('#reputation-content'); content.innerHTML = ''; for (const factionId in GameData.FACTIONS) { const faction = GameData.FACTIONS[factionId]; const playerRep = player.reputation[factionId] || faction.base; let currentTier = faction.tiers[0]; for (let i = 0; i < faction.tiers.length; i++) { if (playerRep >= faction.values[i]) { currentTier = faction.tiers[i]; } else { break; } } let nextTierValue = ''; const currentTierIndex = faction.tiers.indexOf(currentTier); if (currentTierIndex < faction.tiers.length - 1) { nextTierValue = ` / ${faction.values[currentTierIndex + 1]}`; } content.innerHTML += `<div class="reputation-line"><span>${faction.name} (${currentTier})</span><span>${playerRep}${nextTierValue}</span></div>`; } }
     updateBuffs(character, containerId) { const container = $(`#${containerId}`); container.innerHTML = ''; if(!character || !character.buffs) return; character.buffs.forEach(buff => { const div = document.createElement('div'); div.className = 'buff-icon'; if (buff.isDebuff) div.classList.add('debuff'); div.dataset.buffId = buff.id; div.innerHTML = `<i class="fas ${buff.icon}"></i><div class="buff-duration">${(buff.duration/1000).toFixed(0)}</div>`; container.appendChild(div); }); }
     openVendorWindow(player, vendor) { this.needsVendorUpdate = true; $('#vendor-window').style.display = 'flex'; player.setTarget(vendor); }
-    sellItemFromInventory(player, item, index, vendor) { if (!item || !item.sellPrice || !vendor.buys.includes(item.slot)) { game.createFloatingText("Vendor doesn't buy that!", player.x, player.y, 'red'); return; } this.needsVendorUpdate = true; player.gold += item.sellPrice; player.removeItem(item.id, 1); game.createFloatingText(`+${UI.formatCurrency(item.sellPrice)}`, player.x, player.y, 'gold'); this.updateInventory(player); }
-    buyItemFromVendor(player, itemData, price, quantity) { if (player.gold < price) { game.createFloatingText("Not enough gold!", player.x, player.y, 'red'); return; } if (player.inventory.filter(s => s === null).length === 0 && (!itemData.stackable || !player.inventory.some(i => i && i.id === itemData.id))) { game.createFloatingText("Inventory full!", player.x, player.y, 'red'); return; } this.needsVendorUpdate = true; player.gold -= price; player.addItem(itemData.id, quantity); game.createFloatingText(`-${UI.formatCurrency(price)}`, player.x, player.y, 'red'); game.createFloatingText(`+ ${itemData.name}`, player.x, player.y - 20, 'white'); this.updateInventory(player); }
-    openCraftingWindow(player, station) { $('#crafting-window').style.display = 'flex'; this.updateCraftingWindow(player, station); player.setTarget(station); this.activeCraftingStation = station; this.selectedRecipe = null; $('#craft-button').removeEventListener('click', this.boundCraftingHandler); this.boundCraftingHandler = () => player.craftItem(this.selectedRecipe.id); $('#craft-button').addEventListener('click', this.boundCraftingHandler); }
+    sellItemFromInventory(player, item, index, vendor) {
+        if (!item || !item.sellPrice || !vendor.buys.includes(item.slot)) {
+            game.createFloatingText("Vendor doesn't buy that!", player.x, player.y, 'red');
+            return;
+        }
+
+        if (vendor.gold < item.sellPrice) {
+            game.createFloatingText("Vendor doesn't have enough gold!", player.x, player.y, 'red');
+            return;
+        }
+
+        // --- CORE FIX STARTS HERE ---
+        
+        // 1. Update gold for both parties first
+        player.gold += item.sellPrice;
+        vendor.gold -= item.sellPrice;
+        
+        game.createFloatingText(`+${UI.formatCurrency(item.sellPrice)}`, player.x, player.y, 'gold');
+
+        // 2. Directly remove the item from the specified inventory index
+        if (item.stackable && item.quantity > 1) {
+            // If it's a stack, just decrease the quantity
+            item.quantity--;
+        } else {
+            // If it's a single item or the last in a stack, remove it completely
+            player.inventory[index] = null;
+        }
+        
+        // --- This flag is no longer strictly needed but is good practice ---
+        this.needsVendorUpdate = true;
+        
+        // --- Finally, update all relevant UI windows ---
+        game.ui.updateAll(player);
+    }
+    buyItemFromVendor(player, itemData, price, quantity) {
+        if (player.gold < price) {
+            game.createFloatingText("Not enough gold!", player.x, player.y, 'red');
+            return;
+        }
+        if (player.inventory.filter(s => s === null).length === 0 && (!itemData.stackable || !player.inventory.some(i => i && i.id === itemData.id))) {
+            game.createFloatingText("Inventory full!", player.x, player.y, 'red');
+            return;
+        }
+
+        this.needsVendorUpdate = true;
+        
+        // Find the vendor the player is interacting with
+        const currentVendor = game.entities.find(e => e.isTargeted && e.interactType === 'vendor');
+
+        // --- CORE FIX IS HERE ---
+        player.gold -= price;
+        // Add gold to the vendor if they exist
+        if (currentVendor) {
+            currentVendor.gold += price;
+        }
+        // --- END OF FIX ---
+
+        player.addItem(itemData.id, quantity);
+        game.createFloatingText(`-${UI.formatCurrency(price)}`, player.x, player.y, 'red');
+        game.createFloatingText(`+ ${itemData.name}`, player.x, player.y - 20, 'white');
+        
+        // Use updateAll to ensure the vendor's gold display refreshes
+        this.updateAll(player); 
+    }
+    openCraftingWindow(player, station) {
+        $('#crafting-window').style.display = 'flex';
+        this.updateCraftingWindow(player, station);
+        player.setTarget(station);
+        this.activeCraftingStation = station;
+        this.selectedRecipe = null;
+        
+        // Remove any old listener to prevent duplicates
+        $('#craft-button').removeEventListener('click', this.boundCraftingHandler);
+        
+        // --- FIX: Create a new handler with a safety check inside it ---
+        this.boundCraftingHandler = () => {
+            // Check if a recipe is selected at the moment of the click
+            if (this.selectedRecipe) {
+                player.craftItem(this.selectedRecipe.id);
+            } else {
+                console.error("Craft button clicked, but no recipe is selected.");
+                // Optionally, give the player feedback
+                game.createFloatingText("Select a recipe to craft!", player.x, player.y, 'red');
+            }
+        };
+
+        $('#craft-button').addEventListener('click', this.boundCraftingHandler);
+    }
     updateVendorWindow(player, vendor) {
         const playerInventoryGrid = $('#vendor-player-inventory');
         const vendorSellsGrid = $('#vendor-sells-grid');
         $('#vendor-player-gold').innerHTML = UI.formatCurrency(player.gold, true);
+        const vendorGoldDisplay = $('#vendor-gold-display');
+        vendorGoldDisplay.innerHTML = `Vendor Gold: ${UI.formatCurrency(Math.floor(vendor.gold), true)}`;
 
         playerInventoryGrid.innerHTML = '';
         vendorSellsGrid.innerHTML = '';
@@ -3788,14 +4276,32 @@ class UI {
     setupMobileActionButtons(player) { const container = $('#mobile-action-buttons'); container.innerHTML = ''; const numButtons = 3; for (let i = 0; i < numButtons; i++) { const slotItem = player.hotbar[i]; const button = document.createElement('div'); button.className = 'mobile-action-button'; if (slotItem) { const ref = slotItem.ref; button.innerHTML = `<i class="fas ${ref.icon}"></i><div class="cooldown-overlay" data-ability-id="${ref.id}"></div>`; button.addEventListener('touchstart', (e) => { e.preventDefault(); player.useHotbarSlot(i); }); } else { button.innerHTML = ``; } container.appendChild(button); } }
     updateMobileCooldowns(player) { $$('#mobile-action-buttons .cooldown-overlay').forEach((overlay, index) => { const id = overlay.dataset.abilityId; const hotbarItem = player.hotbar[index]; if(hotbarItem && player.cooldowns[id]) { const remaining = player.cooldowns[id]; const percentage = (remaining / hotbarItem.ref.cooldown) * 100; overlay.style.height = `${percentage}%`; overlay.textContent = (remaining / 1000).toFixed(1); } else { overlay.style.height = '0%'; overlay.textContent = ''; } }); }
     updateCraftingWindow(player, station) {
-        const recipesGrid = $('#crafting-recipes-grid'); const materialsDisplay = $('#crafting-materials-display'); const craftButton = $('#craft-button'); recipesGrid.innerHTML = ''; materialsDisplay.innerHTML = ''; craftButton.disabled = true;
+        const recipesGrid = $('#crafting-recipes-grid');
+        const materialsDisplay = $('#crafting-materials-display');
+        const craftButton = $('#craft-button');
+        recipesGrid.innerHTML = '';
+        materialsDisplay.innerHTML = '';
+        craftButton.disabled = true;
+
         const availableRecipes = player.recipes.filter(r => station.recipes.includes(r.id));
-        if (availableRecipes.length === 0) { recipesGrid.innerHTML = '<p>You have no recipes for this station.</p>'; return; }
+        if (availableRecipes.length === 0) {
+            recipesGrid.innerHTML = '<p>You have no recipes for this station.</p>';
+            return;
+        }
         availableRecipes.forEach(recipe => { const slot = document.createElement('div'); slot.className = 'crafting-recipe-slot'; slot.dataset.recipeId = recipe.id; slot.innerHTML = `<i class="fas ${recipe.icon} quality-${recipe.quality || 'common'}"></i>`; slot.innerHTML += `<div class="crafting-recipe-cost">${recipe.name}</div>`; if(this.selectedRecipe && this.selectedRecipe.id === recipe.id) { slot.style.borderColor = 'gold'; } slot.addEventListener('click', () => { this.selectedRecipe = recipe; this.needsCraftingUpdate = true; }); recipesGrid.appendChild(slot); });
         if (this.selectedRecipe) {
             materialsDisplay.innerHTML = `<h3>${this.selectedRecipe.name} Requirements:</h3><ul>`; let canCraft = true;
-            const profession = player.professions[this.selectedRecipe.profession]; const hasSkill = profession && profession.level >= this.selectedRecipe.skillRequired; if(!hasSkill) canCraft = false;
-            for (const mat of this.selectedRecipe.materials) { const playerMat = player.inventory.find(item => item && item.id === mat.itemId); const hasEnough = playerMat && playerMat.quantity >= mat.quantity; const matData = GameData.ITEMS[mat.itemId]; materialsDisplay.innerHTML += `<li style="color: ${hasEnough ? 'lightgreen' : 'red'};">${mat.quantity}x ${matData.name} (${playerMat ? playerMat.quantity : 0} owned)</li>`; if (!hasEnough) canCraft = false; }
+            const profession = player.professions[this.selectedRecipe.profession];
+            const hasSkill = profession && profession.level >= this.selectedRecipe.skillRequired;
+            if (!hasSkill) canCraft = false;
+
+            for (const mat of this.selectedRecipe.materials) {
+                const playerMat = player.inventory.find(item => item && item.id === mat.itemId);
+                const hasEnough = playerMat && playerMat.quantity >= mat.quantity;
+                const matData = GameData.ITEMS[mat.itemId];
+                materialsDisplay.innerHTML += `<li style="color: ${hasEnough ? 'lightgreen' : 'red'};">${mat.quantity}x ${matData.name} (${playerMat ? playerMat.quantity : 0} owned)</li>`;
+                if (!hasEnough) canCraft = false;
+            }
             materialsDisplay.innerHTML += `<li style="color: ${hasSkill ? 'lightgreen' : 'red'};">Requires ${this.selectedRecipe.profession} (${this.selectedRecipe.skillRequired})</li>`;
             materialsDisplay.innerHTML += '</ul>'; craftButton.disabled = !canCraft; craftButton.textContent = `Craft ${this.selectedRecipe.name}`;
         }
