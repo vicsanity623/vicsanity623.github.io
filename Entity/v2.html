@@ -2509,19 +2509,23 @@ class Player extends Character {
         }
     }
 
-    recalculateStats() {
+        recalculateStats() {
+        // --- This is the VERY TOP of your recalculateStats method ---
         const newStats = { ...this.baseStats };
         this.statBonuses = {};
 
+        // --- FIX: The pet stat logic is now here and adds to statBonuses ---
         if (this.activePetId && this.pets[this.activePetId]) {
             const petStore = this.pets[this.activePetId];
             const petData = GameData.PETS[this.activePetId];
             const petLevelStats = petData.statsByLevel[petStore.level - 1].stats;
             for (const stat in petLevelStats) {
-                this.stats[stat] += petLevelStats[stat];
+                // This correctly adds the pet's stats to the main bonus pool
+                this.statBonuses[stat] = (this.statBonuses[stat] || 0) + petLevelStats[stat];
             }
         }
-
+        
+        // This is the original equipment loop, which is correct
         Object.values(this.equipment).forEach(item => {
             if (item && item.stats) {
                 for (const stat in item.stats) {
@@ -2529,13 +2533,21 @@ class Player extends Character {
                 }
             }
         });
+        
+        // This is the original buff loop, which is also correct
+        this.buffs.forEach(buff => {
+            if (buff.stats) {
+                for (const stat in buff.stats) {
+                    this.statBonuses[stat] = (this.statBonuses[stat] || 0) + buff.stats[stat];
+                }
+            }
+        });
 
-        super.recalculateStats();
-
+        // The rest of the calculation will now correctly include the pet's stats
         for (const stat in this.statBonuses) {
             newStats[stat] = (newStats[stat] || 0) + this.statBonuses[stat];
         }
-
+        
         let weaponDmgBonus = 0;
         const weapon = this.equipment['main-hand'];
         if (weapon && weapon.weaponDamage) {
@@ -2548,6 +2560,8 @@ class Player extends Character {
         newStats.critChance = 0.05 + ((newStats.agility || 0) * 0.0025) + (this.statBonuses.critChance || 0);
         newStats.dodgeChance = 0.05 + ((newStats.agility || 0) * 0.0030) + (this.statBonuses.dodgeChance || 0);
         newStats.armor = (newStats.armor || 0) + (this.statBonuses.armor || 0);
+        
+        // 4. Preserve current health/mana percentages
 
         const oldHealth = this.stats ? this.stats.health : newStats.maxHealth;
         const oldMana = this.stats ? this.stats.mana : newStats.maxMana;
