@@ -1,10 +1,85 @@
-{
-  "name": "mini-WoW-2D Adventure RPG",
-  "short_name": "Mini2D",
-  "description": "A straight up copy of Wow but in 2D top down style.",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#01040a",
-  "theme_color": "#00ffff",
-  "orientation": "any",
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- The viewport meta tag is crucial for responsive design and often for PWA behavior -->
+    <!-- maximum-scale=1.0, user-scalable=no are often used in games to prevent accidental zooming -->
+
+    <title>mini-WoW-2D Adventure RPG</title>
+
+    <!-- Link to your manifest.json -->
+    <!-- Ensure the 'href' path is correct relative to this HTML file -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- !!! IMPORTANT APPLE-SPECIFIC META TAGS FOR IOS FULL-SCREEN MODE !!! -->
+    <!-- This meta tag enables the web app to run in full-screen mode on iOS when added to the home screen. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <!-- This meta tag controls the appearance of the iOS status bar. -->
+    <!-- 'black-translucent' makes the status bar text white and your content appear beneath it. -->
+    <!-- This often requires you to add padding-top to your <body> or main content to prevent UI elements from being hidden under the status bar. -->
+    <!-- Alternatives: 'default' or 'black' (both show black text on a solid bar). -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- This meta tag sets the name displayed under the app icon on the iOS home screen. -->
+    <meta name="apple-mobile-web-app-title" content="Mini2D">
+
+    <!-- Optional: Apple Touch Icon for a custom icon on the iOS home screen. -->
+    <!-- This should be a high-resolution PNG icon (e.g., 180x180px) for best results. -->
+    <link rel="apple-touch-icon" href="path/to/your/apple-touch-icon.png">
+    <!-- Example: <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png"> -->
+    <!-- You might also want to provide multiple sizes for different devices. -->
+
+    <!-- Favicon for desktop browsers and other platforms -->
+    <link rel="icon" type="image/png" href="path/to/your/favicon-32x32.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="path/to/your/favicon-16x16.png" sizes="16x16">
+
+    <!-- Your existing CSS files go here -->
+    <link rel="stylesheet" href="path/to/your/styles.css">
+    <!-- Example: <link rel="stylesheet" href="style.css"> -->
+
+    <!-- Your JavaScript files (if any) that need to load early can go here -->
+    <!-- For best performance, most scripts are often deferred or placed at the end of <body> -->
+</head>
+<body>
+    <!-- Your entire game UI and content goes here -->
+    <!-- For example, your #bottom-ui-container and game canvas -->
+
+    <div id="bottom-ui-container">
+        <div id="action-bar"></div>
+        <div id="xp-bar">
+            <div id="xp-bar-text"></div> <!-- The XP text element -->
+            <div id="u">
+                <div id="xp-bar-rested-fill"></div>
+                <div id="xp-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Example game canvas or main game container -->
+    <div id="game-container">
+        <!-- Your canvas, game elements, etc. -->
+    </div>
+
+    <!-- Your JavaScript files (deferred or main game logic) go here -->
+    <script src="path/to/your/game.js"></script>
+    <!-- Example: <script src="game.js"></script> -->
+    <!-- Example: <script src="ui.js"></script> -->
+    <!-- Example: <script src="data.js"></script> -->
+    <!-- Example: <script src="player.js"></script> -->
+
+    <!-- Service Worker Registration Script -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js') // Ensure path to sw.js is correct
+                    .then(registration => {
+                        console.log('Service Worker registered successfully:', registration);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
