@@ -174,24 +174,59 @@
         .hotbar-item-count { position: absolute; bottom: 2px; right: 2px; font-size: 14px; color: white; text-shadow: 1px 1px 2px black; }
         .cooldown-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 0; background-color: var(--color-cooldown); pointer-events: none; display: flex; justify-content: center; align-items: center; font-size: 18px; color: white; overflow: hidden; }
 
-        #xp-bar { position: relative; bottom: 0; left: 0; transform: none; width: 80vw; max-width: 544px; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid var(--color-border); pointer-events: none; display: flex; }
+        #xp-bar {
+    position: relative; /* This is already correct and crucial */
+    bottom: 0;
+    left: 0;
+    transform: none;
+    width: 80vw;
+    max-width: 544px;
+    height: 8px;
+    background-color: rgba(0,0,0,0.5); /* This background is what the fills might be behind */
+    border: 1px solid var(--color-border);
+    pointer-events: none;
+    display: flex;
+    /* No z-index here unless necessary for its parent */
+}
 
-		  #xp-bar-text {
+/* Add styles for the 'u' div to ensure its contents stack correctly */
+#u {
+    position: relative; /* Make 'u' a positioned element */
+    z-index: 1;         /* Ensure 'u' and its children are above #xp-bar's background */
+    width: 100%;        /* Make sure 'u' takes up the full width available from #xp-bar */
+    height: 100%;       /* Make sure 'u' takes up the full height of #xp-bar */
+    display: flex;      /* Keep 'u' as a flex container for its children fills */
+}
+
+#xp-bar-fill {
+    width: 0%;
+    height: 100%;
+    background-color: var(--color-xp);
+    transition: width 0.5s ease-in-out;
+    /* No z-index needed here if 'u' has z-index: 1 */
+}
+
+#xp-bar-rested-fill {
+    width: 0%;
+    height: 100%;
+    background-color: var(--color-xp-rested);
+    transition: width 0.5s ease-in-out;
+    /* No z-index needed here if 'u' has z-index: 1 */
+}
+
+#xp-bar-text {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%); /* Centers the text */
-    color: white; /* Choose a visible color */
-    font-size: 7px; /* Adjust to fit your 8px bar height */
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 7px;
     font-weight: bold;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8); /* Improves readability */
-    pointer-events: none; /* Allows clicks/hovers to pass through */
-    z-index: 10; /* Ensures text is on top of the fills */
-    white-space: nowrap; /* Prevents text from wrapping */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    z-index: 10;          /* This is higher than 'u', so text is on top */
+    white-space: nowrap;
 }
-
-        #xp-bar-fill { width: 0%; height: 100%; background-color: var(--color-xp); transition: width 0.5s ease-in-out; }
-        #xp-bar-rested-fill { width: 0%; height: 100%; background-color: var(--color-xp-rested); transition: width 0.5s ease-in-out; }
 
         #minimap { position: absolute; top: 20px; right: 20px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid var(--color-border); background-color: var(--color-bg-dark); overflow: hidden; pointer-events: all; }
         #minimap-canvas { width: 100%; height: 100%; }
