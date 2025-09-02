@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
+     crossorigin="anonymous">
+     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
     <title>Mini-RPG: The 2D Adventure</title>
@@ -172,6 +175,21 @@
         .cooldown-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 0; background-color: var(--color-cooldown); pointer-events: none; display: flex; justify-content: center; align-items: center; font-size: 18px; color: white; overflow: hidden; }
 
         #xp-bar { position: relative; bottom: 0; left: 0; transform: none; width: 80vw; max-width: 544px; height: 8px; background-color: rgba(0,0,0,0.5); border: 1px solid var(--color-border); pointer-events: none; display: flex; }
+
+		  #xp-bar-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Centers the text */
+    color: white; /* Choose a visible color */
+    font-size: 7px; /* Adjust to fit your 8px bar height */
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8); /* Improves readability */
+    pointer-events: none; /* Allows clicks/hovers to pass through */
+    z-index: 10; /* Ensures text is on top of the fills */
+    white-space: nowrap; /* Prevents text from wrapping */
+}
+
         #xp-bar-fill { width: 0%; height: 100%; background-color: var(--color-xp); transition: width 0.5s ease-in-out; }
         #xp-bar-rested-fill { width: 0%; height: 100%; background-color: var(--color-xp-rested); transition: width 0.5s ease-in-out; }
 
@@ -496,7 +514,13 @@
             
             <div id="bottom-ui-container">
                 <div id="action-bar"></div>
-                <div id="xp-bar"><div id="xp-bar-rested-fill"></div><div id="xp-bar-fill"></div></div>
+                <div id="xp-bar">
+							<div id="xp-bar-text">
+							</div>
+								<div id="u"><div id="xp-bar-rested-fill"></div>
+								<div id="xp-bar-fill"></div>
+							</div>
+					  </div>
             </div>
             
             <div id="minimap"><canvas id="minimap-canvas"></canvas></div>
@@ -697,7 +721,7 @@ const GameData = {
             }
         },
         2: { 
-            id: 2, name: "Fireball", icon: "fa-fire-flame-curved", cost: 10, cooldown: 2000, range: 200, 
+            id: 2, name: "Fireball", icon: "fa-fire-flame-curved", cost: 10, cooldown: 2000, range: 400, 
             // --- UPDATED LOGIC ---
             onUse: (caster, target) => { 
                 // Define the effect that happens ON HIT
@@ -714,7 +738,7 @@ const GameData = {
             }
         },
         3: { 
-            id: 3, name: "Rend", icon: "fa-skull", cost: 15, cooldown: 6000, range: 90, 
+            id: 3, name: "Rend", icon: "fa-skull", cost: 15, cooldown: 6000, range: 390, 
             description: "Wounds the target, causing them to bleed for a small amount of physical damage over 9 seconds.",
             onUse: (caster, target) => { 
                 const rendEffectOnHit = (caster, target) => {
@@ -743,7 +767,7 @@ const GameData = {
         5: { 
             id: 5, name: "Blast", icon: "fa-circle-radiation", cost: 20, cooldown: 10000, 
             // Range 0 signifies a self-centered AoE that doesn't require a target
-            range: 0, 
+            range: 400, 
             description: "Unleash a wave of arcane energy, dealing magic damage to all enemies within 100 yards.",
             onUse: (caster) => { 
                 const AOE_RADIUS = 100;
@@ -765,7 +789,7 @@ const GameData = {
     },
     ENEMY_TYPES: {
         'WOLF': { name: "Dire Wolf", level: 3,icon: "\uf6f0", color: "#a9a9a9", size: 28, speed: 1.5, health: 80, attack: 5, aggroRadius: 150, attackRange: 40, attackSpeed: 2000, xp: 15, lootTable: [{itemId: 4, chance: 0.8, min: 1, max: 2}, {itemId: 9, chance: 0.5, min: 1, max: 1}, {gold: 50, chance: 1.0}], reputation: { faction: 'Wilderness', value: -10 } },
-        'SPIDER': { name: "Forest Spider", level: 2, icon: "\uf717", color: "#654321", size: 25, speed: 1.2, health: 60, attack: 4, aggroRadius: 120, attackRange: 35, attackSpeed: 1800, xp: 10, lootTable: [{itemId: 3, chance: 0.9, min: 1, max: 3}, {gold: 30, chance: 1.0}], reputation: { faction: 'Wilderness', value: -5 } },
+        'SPIDER': { name: "Forest Spider", level: 2, icon: "\uf717", color: "#654321", size: 25, speed: 1.2, health: 60, attack: 4, aggroRadius: 120, attackRange: 35, attackSpeed: 1800, xp: 10, lootTable: [{itemId: 3, chance: 0.9, min: 3, max: 7}, {gold: 30, chance: 1.0}], reputation: { faction: 'Wilderness', value: -5 } },
         'GOBLIN': { name: "Goblin Thug", level: 6, icon: "\uf7a0", color: "#2E8B57", size: 22, speed: 1.8, health: 120, attack: 8, aggroRadius: 180, attackRange: 45, attackSpeed: 2200, xp: 25, lootTable: [{itemId: 101, chance: 0.1}, {gold: 150, chance: 0.5}], reputation: { faction: 'Stormwind Guard', value: 5 } },
         'DARK_CASTER': { name: "Dark Caster", level: 7, icon: "\uf718", color: "#8A2BE2", size: 24, speed: 1.4, health: 100, attack: 5, aggroRadius: 220, attackRange: 200, attackSpeed: 3000, xp: 30, lootTable: [{gold: 200, chance: 0.8}], onAttack: (caster, target) => { target.addBuff({id: 'curse_of_weakness', name: 'Curse of Weakness', icon: 'fa-skull', duration: 15000, isDebuff: true, stats: { attack: -5 }})}, reputation: { faction: 'Stormwind Guard', value: 10 } },
         'BEAR': { name: "Grizzled Bear", level: 8, icon: "\uf704", color: "#d3a483", size: 35, speed: 1.1, health: 200, attack: 12, aggroRadius: 140, attackRange: 45, attackSpeed: 2500, xp: 35, lootTable: [{itemId: 11, chance: 0.9, min: 1, max: 2}, {gold: 100, chance: 1.0}], reputation: { faction: 'Wilderness', value: -20 } },
@@ -856,7 +880,7 @@ const GameData = {
         1: { id: 1, title: "A Tangled Web", description: "The forest path is overrun with spiders. Clear out 5 of them so travelers can pass safely.", objectives: [{ type: 'kill', target: 'SPIDER', count: 5 }], rewards: { xp: 100, gold: 1000, items: [{id: 2, quantity: 1}], reputation: { faction: 'Stormwind Guard', value: 50 } }, repeatable: false },
         2: { id: 2, title: "Wolf Hunting", description: "The local farmers are losing livestock to dire wolves. Hunt 3 dire wolves.", objectives: [{ type: 'kill', target: 'WOLF', count: 3 }], rewards: { xp: 80, gold: 800, items: [{id: 4, quantity: 1}], reputation: { faction: 'Stormwind Guard', value: 40 } }, repeatable: true, cooldown: 3600000 },
         3: { id: 3, title: "Bear Necessities", description: "Grizzled Bears have become a threat. Thin their numbers by slaying 3 of them.", objectives: [{ type: 'kill', target: 'BEAR', count: 3 }], rewards: { xp: 150, gold: 1500 }, repeatable: true, cooldown: 1800000 },
-        101: { id: 101, title: "Advanced Woodworking", description: "You've shown promise, young artisan. To further your skills, craft 2 Rough Wooden Staves and 2 Sturdy Wooden Shields. Your dedication will be rewarded.", requirements: [{ type: 'profession', name: 'Woodworking', level: 10 }], objectives: [ { type: 'craft', itemId: 8, count: 2 }, { type: 'craft', itemId: 10, count: 2 } ], rewards: { xp: 200, gold: 2000, recipes: ['reinforced_staff', 'oak_shield'] }, repeatable: false },
+        101: { id: 101, title: "Advanced Woodworking", description: "You've shown promise, young artisan. To further your skills, craft 2 Rough Wooden Staves and 2 Sturdy Wooden Shields. Your dedication will be rewarded.", requirements: [{ type: 'profession', name: 'Woodworking', level: 5 }], objectives: [ { type: 'craft', itemId: 8, count: 2 }, { type: 'craft', itemId: 10, count: 2 } ], rewards: { xp: 200, gold: 2000, recipes: ['reinforced_staff', 'oak_shield'] }, repeatable: false },
         102: { id: 102, title: "The Art of the Forge", description: "You've proven adept at finding ore. Now, let's see if you can shape it. Smelt 10 Copper Bars and bring them to me. A true smith knows their materials.", requirements: [{ type: 'profession', name: 'Mining', level: 10 }], objectives: [ { type: 'gather', itemId: 18, count: 10 } ], rewards: { xp: 250, gold: 2500, recipes: ['copper_mace'] }, repeatable: false },
         103: { id: 103, title: "Budding Alchemist", description: "You have a feel for the flora of the woods. Bring me 10 Peacebloom so I can teach you how to unlock their latent power.", requirements: [{ type: 'profession', name: 'Herbalism', level: 10 }], objectives: [ { type: 'gather', itemId: 6, count: 10 } ], rewards: { xp: 200, gold: 1500, recipes: ['minor_mana_potion'] }, repeatable: false },
         104: { id: 104, title: "A Sturdy Foundation", description: "A good shield starts with good wood. Your skill with an axe is growing. Bring me 15 Oak Wood, and I will show you a more advanced design.", requirements: [{ type: 'profession', name: 'Lumberjacking', level: 10 }], objectives: [ { type: 'gather', itemId: 15, count: 15 } ], rewards: { xp: 200, gold: 1500, recipes: ['reinforced_buckler'] }, repeatable: false },
@@ -897,15 +921,15 @@ const GameData = {
     },
     RESOURCE_NODES: {
         // Tier 1 Resources (Skill 1+)
-        'PEACEBLOOM': { name: 'Peacebloom', icon: '\uf06c', color: '#adff2f', size: 20, itemId: 6, respawnTime: 30000, requiredSkill: 'Herbalism', requiredSkillLevel: 1, gatherTime: 1500, yield: 1 },
-        'COPPER_VEIN': { name: 'Copper Vein', icon: '\uf3a5', color: '#b87333', size: 24, itemId: 7, respawnTime: 60000, requiredSkill: 'Mining', requiredSkillLevel: 1, gatherTime: 2500, yield: 1 },
+        'PEACEBLOOM': { name: 'Peacebloom', icon: '\uf06c', color: '#adff2f', size: 20, itemId: 6, respawnTime: 30000, requiredSkill: 'Herbalism', requiredSkillLevel: 1, gatherTime: 1500, yield: 3 },
+        'COPPER_VEIN': { name: 'Copper Vein', icon: '\uf3a5', color: '#b87333', size: 24, itemId: 7, respawnTime: 60000, requiredSkill: 'Mining', requiredSkillLevel: 1, gatherTime: 2500, yield: 2 },
         
         // --- FIX: Added yield: 2 to this node ---
         'OAK_LOGS': { name: 'Oak Tree', icon: '\uf1bb', color: '#8b4513', size: 28, itemId: 15, respawnTime: 75000, requiredSkill: 'Lumberjacking', requiredSkillLevel: 1, gatherTime: 3000, yield: 2 },
         
         // Tier 2 Resources (Skill 20+)
-        'SILVERLEAF': { name: 'Silverleaf', icon: '\uf4d8', color: '#c0c0c0', size: 22, itemId: 13, respawnTime: 45000, requiredSkill: 'Herbalism', requiredSkillLevel: 20, gatherTime: 1500, yield: 1 },
-        'TIN_VEIN': { name: 'Tin Vein', icon: '\uf3a5', color: '#a9a9a9', size: 26, itemId: 14, respawnTime: 90000, requiredSkill: 'Mining', requiredSkillLevel: 20, gatherTime: 4000, yield: 1 },
+        'SILVERLEAF': { name: 'Silverleaf', icon: '\uf4d8', color: '#c0c0c0', size: 22, itemId: 13, respawnTime: 45000, requiredSkill: 'Herbalism', requiredSkillLevel: 20, gatherTime: 1500, yield: 2 },
+        'TIN_VEIN': { name: 'Tin Vein', icon: '\uf3a5', color: '#a9a9a9', size: 26, itemId: 14, respawnTime: 90000, requiredSkill: 'Mining', requiredSkillLevel: 20, gatherTime: 4000, yield: 3 },
     },
     CRAFTING_RECIPES: {
         'wooden_staff': { id: 'wooden_staff', name: 'Rough Wooden Staff', icon: 'fa-staff-snake', itemId: 8, profession: 'Woodworking', skillRequired: 1, materials: [{itemId: 15, quantity: 5}], time: 3000, playerXpGain: 10 },
@@ -974,9 +998,9 @@ const GameData = {
                 { type: 'GOBLIN_STALKER', count: 150, levelMin: 10, levelMax: 20, packCenter: {x: 65000, y: 65000}, packRadius: 8000 }, // Bottom-right
             ],
             resourcePatches: [
-                { type: 'PEACEBLOOM', count: 600, patchCenter: {x: 52000, y: 51000}, patchRadius: 4000 }, // 10x from 160
-                { type: 'COPPER_VEIN', count: 400, patchCenter: {x: 48000, y: 54000}, patchRadius: 3500 }, // 10x from 140
-                { type: 'OAK_LOGS', count: 450, patchCenter: {x: 55000, y: 48000}, patchRadius: 4500 },     // 10x from 120
+                { type: 'PEACEBLOOM', count: 1600, patchCenter: {x: 52000, y: 51000}, patchRadius: 4000 }, // 10x from 160
+                { type: 'COPPER_VEIN', count: 800, patchCenter: {x: 48000, y: 54000}, patchRadius: 3500 }, // 10x from 140
+                { type: 'OAK_LOGS', count: 1450, patchCenter: {x: 55000, y: 48000}, patchRadius: 4500 },     // 10x from 120
             ],
             npcs: [
                 { type: 'QuestGiver', name: "Old Man Willow", x: 50000, y: 49500, questIds: [1, 2, 3] },
@@ -1754,7 +1778,7 @@ class Player extends Character {
         super(x, y, 30, '#ddd', '\uf007', name || 'Hero');
         this.race = race || 'Human';
         this.input = input;
-        this.speed = 2.2;
+        this.speed = 3.2;
         this.xp = 0;
         this.restedXp = 0;
         this.nextLevelXp = GameData.XP_TABLE[this.level];
@@ -2509,19 +2533,23 @@ class Player extends Character {
         }
     }
 
-    recalculateStats() {
+        recalculateStats() {
+        // --- This is the VERY TOP of your recalculateStats method ---
         const newStats = { ...this.baseStats };
         this.statBonuses = {};
 
+        // --- FIX: The pet stat logic is now here and adds to statBonuses ---
         if (this.activePetId && this.pets[this.activePetId]) {
             const petStore = this.pets[this.activePetId];
             const petData = GameData.PETS[this.activePetId];
             const petLevelStats = petData.statsByLevel[petStore.level - 1].stats;
             for (const stat in petLevelStats) {
-                this.stats[stat] += petLevelStats[stat];
+                // This correctly adds the pet's stats to the main bonus pool
+                this.statBonuses[stat] = (this.statBonuses[stat] || 0) + petLevelStats[stat];
             }
         }
-
+        
+        // This is the original equipment loop, which is correct
         Object.values(this.equipment).forEach(item => {
             if (item && item.stats) {
                 for (const stat in item.stats) {
@@ -2529,13 +2557,21 @@ class Player extends Character {
                 }
             }
         });
+        
+        // This is the original buff loop, which is also correct
+        this.buffs.forEach(buff => {
+            if (buff.stats) {
+                for (const stat in buff.stats) {
+                    this.statBonuses[stat] = (this.statBonuses[stat] || 0) + buff.stats[stat];
+                }
+            }
+        });
 
-        super.recalculateStats();
-
+        // The rest of the calculation will now correctly include the pet's stats
         for (const stat in this.statBonuses) {
             newStats[stat] = (newStats[stat] || 0) + this.statBonuses[stat];
         }
-
+        
         let weaponDmgBonus = 0;
         const weapon = this.equipment['main-hand'];
         if (weapon && weapon.weaponDamage) {
@@ -2548,6 +2584,8 @@ class Player extends Character {
         newStats.critChance = 0.05 + ((newStats.agility || 0) * 0.0025) + (this.statBonuses.critChance || 0);
         newStats.dodgeChance = 0.05 + ((newStats.agility || 0) * 0.0030) + (this.statBonuses.dodgeChance || 0);
         newStats.armor = (newStats.armor || 0) + (this.statBonuses.armor || 0);
+        
+        // 4. Preserve current health/mana percentages
 
         const oldHealth = this.stats ? this.stats.health : newStats.maxHealth;
         const oldMana = this.stats ? this.stats.mana : newStats.maxMana;
@@ -3630,7 +3668,22 @@ class UI {
     
     updateTargetFrame(target) { const frame = $('#target-frame'); if (target && target instanceof Character && !target.isDead) { frame.style.display = 'flex'; $('#target-portrait').innerHTML = `<i class="fas ${target.icon.substring(1)}"></i>`; $('#target-portrait').style.color = target.color; $('#target-name').textContent = target.name; $('#target-level').textContent = `Lvl ${target.level}`; $('#target-health-text').textContent = `${Math.ceil(target.stats.health)} / ${target.stats.maxHealth}`; $('#target-health-fill').style.width = `${(target.stats.health / target.stats.maxHealth) * 100}%`; this.updateBuffs(target, 'target-buffs'); } else if (target && !(target instanceof Character)) { frame.style.display = 'flex'; $('#target-portrait').innerHTML = `<i class="fas ${target.icon.substring(1)}"></i>`; $('#target-portrait').style.color = target.color; $('#target-name').textContent = target.name; $('#target-level').textContent = ''; $('#target-health-text').textContent = ''; $('#target-health-fill').style.width = `0%`; this.updateBuffs(target, 'target-buffs'); } else { frame.style.display = 'none'; } }
     
-    updateXPBar(player) { const xpPercent = (player.xp / player.nextLevelXp) * 100; const restedPercent = (player.restedXp / player.nextLevelXp) * 100; $('#xp-bar-fill').style.width = `${xpPercent}%`; $('#xp-bar-rested-fill').style.width = `${Math.min(100 - xpPercent, restedPercent)}%`; $('#xp-bar').title = `XP: ${player.xp} / ${player.nextLevelXp}\nRested: ${Math.floor(player.restedXp)}`; }
+    updateXPBar(player) {
+    const xpPercent = (player.xp / player.nextLevelXp) * 100;
+    const restedPercent = (player.restedXp / player.nextLevelXp) * 100;
+
+    $('#xp-bar-fill').style.width = `${xpPercent}%`;
+    $('#xp-bar-rested-fill').style.width = `${Math.min(100 - xpPercent, restedPercent)}%`;
+
+    // NEW: Update the text content of the #xp-bar-text div
+    const xpBarTextElement = $('#xp-bar-text'); // Assuming '$' is a shorthand for document.querySelector
+    if (xpBarTextElement) {
+        xpBarTextElement.textContent = `${player.xp} / ${player.nextLevelXp}`;
+    }
+
+    // Your existing title update for hover
+    $('#xp-bar').title = `XP: ${player.xp} / ${player.nextLevelXp}\nRested: ${Math.floor(player.restedXp)}`;
+}
     
     setupActionbar(player) { const bar = $('#action-bar'); bar.innerHTML = ''; for (let i = 0; i < 10; i++) { const slotItem = player.hotbar[i]; const slot = document.createElement('div'); slot.className = 'action-slot'; slot.dataset.index = i; slot.dataset.dropTarget = 'hotbar'; if (slotItem && slotItem.ref) { const ref = slotItem.ref; slot.innerHTML = `<i class="fas ${ref.icon} quality-${ref.quality || 'common'}"></i><div class="action-keybind">${(i+1)%10}</div>`; if(slotItem.type === 'ability') slot.innerHTML += `<div class="cooldown-overlay" data-ability-id="${ref.id}"></div>`; if(slotItem.type === 'item' && ref.quantity > 1) slot.innerHTML += `<div class="hotbar-item-count">${ref.quantity}</div>`; slot.addEventListener('click', () => player.useHotbarSlot(i)); } else { slot.innerHTML = `<div class="action-keybind">${(i+1)%10}</div>`; } bar.appendChild(slot); } if (this.game.isMobile) this.setupMobileActionButtons(player); }
     
