@@ -6,17 +6,18 @@
   "display": "standalone",
   "background_color": "#01040a",
   "theme_color": "#00ffff",
-  "orientation": "any"
-  , "icons": [
+  "orientation": "any",
+  "icons": [
     {
-      "src": "path/to/icon-192x192.png",
+      "src": "/icon-192x192.png",  <!-- Make sure these paths are correct! -->
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "path/to/icon-512x512.png",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
+    // Add other sizes if you have them, e.g., 256x256, 384x384
   ]
 }
