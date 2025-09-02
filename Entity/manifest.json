@@ -1,27 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <title>mini-WoW-2D Adventure RPG</title>
-
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Mini2D">
-    <link rel="apple-touch-icon" href="path/to/your/apple-touch-icon.png">
-
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js') // Ensure path to sw.js is correct
-                    .then(registration => {
-                        console.log('Service Worker registered successfully:', registration);
-                    })
-                    .catch(error => {
-                        console.error('Service Worker registration failed:', error);
-                    });
-            });
-        }
-    </script>
+{
+  "name": "mini-WoW-2D Adventure RPG",
+  "short_name": "Mini2D",
+  "description": "A straight up copy of Wow but in 2D top down style.",
+  "start_url": "./wow.html",
+  "display": "standalone",
+  "background_color": "#01040a",
+  "theme_color": "#00ffff",
+  "orientation": "any"
+  , "icons": [
+    {
+      "src": "path/to/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "path/to/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
