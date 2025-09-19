@@ -104,7 +104,7 @@
 
             <!-- NEW: COLAB URL INPUT -->
             <div class="colab-url-group">
-                <label for="colabUrl"><strong>Step 1:</strong> Active Google Colab (ngrok) URL</label>
+                <label for="colabUrl"><strong>NGROK Server:</strong> Active Google Colab (ngrok) URL</label>
                 <input type="text" id="colabUrl" class="colab-url-input" value="https://fee77ada0e43.ngrok-free.app">
             </div>
 
@@ -126,9 +126,6 @@
             <h2>How to Use This Stem Separator</h2>
             <p>Getting your audio stems is simple:</p>
             <ol>
-                <li><strong>Start the Colab Server:</strong> Open the Google Colab notebook and run the code cells. This will install Demucs and start a temporary web server.</li>
-                <li><strong>Copy the URL:</strong> After a moment, the notebook will output a public URL ending in `.ngrok-free.app` or `.ngrok.io`. Copy this URL.</li>
-                <li><strong>Paste and Verify:</strong> Paste the URL into the "Step 1" input box above. (A sample URL is already there).</li>
                 <li><strong>Choose Audio File:</strong> Click the "Choose Audio File" button and select an audio file from your device. We support common formats like MP3, WAV, FLAC, M4A, AAC, and OGG.</li>
                 <li><strong>Process & Download:</strong> Click the "Separate Stems" button. The file will be uploaded to your Colab notebook for processing. Once finished, a ZIP file containing the stems will automatically download.</li>
             </ol>
@@ -190,7 +187,7 @@
 
         processBtn.addEventListener('click', async () => {
             if (!selectedFile || !colabUrlInput.value) {
-                setStatus('Please provide a valid Colab URL and select a file.', 'error');
+                setStatus('Please select a file.', 'error');
                 return;
             }
             
