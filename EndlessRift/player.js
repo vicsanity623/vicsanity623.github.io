@@ -2,6 +2,39 @@
 
 let player = {};
 
+// --- Safety caps (tweak values as needed) ---
+const CAPS = {
+    PLAYER: {
+        MIN_SPEED: 0.5,    // pixels per 16.67ms frame-equivalent baseline
+        MAX_SPEED: 10,     // don't let speed grow forever
+        MIN_HEALTH: 1,
+        MAX_PICKUP_RADIUS: 400,
+        MAX_MAGNETISM: 5,
+    },
+    WEAPON: {
+        MIN_COOLDOWN: 50,   // ms - don't let it be zero
+        MIN_SPEED: 1,       // bullet speed
+        MAX_COUNT: 12,
+        MAX_PIERCE: 10,
+        MAX_CRIT_CHANCE: 0.95,
+        MAX_CRIT_DAMAGE: 10,
+        MAX_EXPLOSION_RADIUS: 400,
+    },
+    ABILITY: {
+        MAX_ORBIT_SPEED: 20,
+        MAX_ORBIT_RADIUS: 500,
+    },
+    SKILL: {
+        MIN_FIRE_RATE: 10
+    }
+};
+
+// helper to clamp
+function clamp(val, min, max) {
+    if (typeof val !== 'number' || isNaN(val)) return min;
+    return Math.max(min, Math.min(max, val));
+}
+
 function initPlayer(world) {
     player = {
         x: world.width / 2,
@@ -57,14 +90,56 @@ function initPlayer(world) {
             hyperBeam: { isUnlocked: false, damage: 200, width: 100, duration: 800, cooldown: 30000, lastCast: 0, chargingTime: 500, color: '#FF00FF' }
         }
     };
+    enforcePlayerLimits();
+}
+
+/**
+ * Ensure player values are within sane limits. Call after loading a saved player,
+ * after applying upgrades, or every tick if needed.
+ */
+function enforcePlayerLimits() {
+    if (!player) return;
+
+    // Core
+    player.speed = clamp(Number(player.speed) || 0, CAPS.PLAYER.MIN_SPEED, CAPS.PLAYER.MAX_SPEED);
+    player.health = clamp(Number(player.health) || player.maxHealth, 0, Number(player.maxHealth) || 100);
+    player.maxHealth = Math.max(player.maxHealth || 100, CAPS.PLAYER.MIN_HEALTH);
+    player.pickupRadius = clamp(Number(player.pickupRadius) || 0, 0, CAPS.PLAYER.MAX_PICKUP_RADIUS);
+    player.magnetism = clamp(Number(player.magnetism) || 0, 0, CAPS.PLAYER.MAX_MAGNETISM);
+
+    // Weapon
+    if (!player.weapon) player.weapon = {};
+    player.weapon.cooldown = Math.max(Number(player.weapon.cooldown) || CAPS.WEAPON.MIN_COOLDOWN, CAPS.WEAPON.MIN_COOLDOWN);
+    player.weapon.speed = Math.max(Number(player.weapon.speed) || CAPS.WEAPON.MIN_SPEED, CAPS.WEAPON.MIN_SPEED);
+    player.weapon.count = clamp(Number(player.weapon.count) || 1, 1, CAPS.WEAPON.MAX_COUNT);
+    player.weapon.pierce = clamp(Number(player.weapon.pierce) || 0, 0, CAPS.WEAPON.MAX_PIERCE);
+    player.weapon.critChance = clamp(Number(player.weapon.critChance) || 0, 0, CAPS.WEAPON.MAX_CRIT_CHANCE);
+    player.weapon.critDamage = clamp(Number(player.weapon.critDamage) || 1, 1, CAPS.WEAPON.MAX_CRIT_DAMAGE);
+    player.weapon.explosionRadius = clamp(Number(player.weapon.explosionRadius) || 0, 0, CAPS.WEAPON.MAX_EXPLOSION_RADIUS);
+
+    // Abilities (orbiting shield)
+    if (player.abilities && player.abilities.orbitingShield) {
+        const os = player.abilities.orbitingShield;
+        os.speed = clamp(Number(os.speed) || 1, 0, CAPS.ABILITY.MAX_ORBIT_SPEED);
+        os.distance = clamp(Number(os.distance) || 70, 0, CAPS.ABILITY.MAX_ORBIT_RADIUS);
+        os.radius = clamp(Number(os.radius) || 10, 0, CAPS.ABILITY.MAX_ORBIT_RADIUS);
+        os.count = clamp(Number(os.count) || 1, 1, CAPS.WEAPON.MAX_COUNT);
+    }
+
+    // Skills
+    if (player.skills && player.skills.bulletstorm) {
+        const bs = player.skills.bulletstorm;
+        bs.fireRate = Math.max(Number(bs.fireRate) || CAPS.SKILL.MIN_FIRE_RATE, CAPS.SKILL.MIN_FIRE_RATE);
+    }
 }
 
 function loadPlayer(savedPlayer) {
     initPlayer({ width: 3000, height: 2000 });
 
-    Object.assign(player, savedPlayer);
+    // merge saved properties carefully
+    Object.assign(player, savedPlayer || {});
 
-    if (savedPlayer.weapon) {
+    if (savedPlayer && savedPlayer.weapon) {
         player.weapon = { ...player.weapon, ...savedPlayer.weapon };
         if (isNaN(player.weapon.damage)) player.weapon.damage = 10;
         if (isNaN(player.weapon.cooldown)) player.weapon.cooldown = 600;
@@ -86,7 +161,7 @@ function loadPlayer(savedPlayer) {
         player.weapon = { damage: 10, cooldown: 600, speed: 8, size: { w: 4, h: 40 }, count: 1, pierce: 0, critChance: 0.05, critDamage: 2, explodesOnImpact: false, explosionRadius: 60, explosionDamage: 10 };
     }
 
-    if (savedPlayer.abilities) {
+    if (savedPlayer && savedPlayer.abilities) {
         player.abilities = { ...player.abilities, ...savedPlayer.abilities };
         if (savedPlayer.abilities.orbitingShield) {
             player.abilities.orbitingShield = { ...player.abilities.orbitingShield, ...savedPlayer.abilities.orbitingShield };
@@ -95,12 +170,10 @@ function loadPlayer(savedPlayer) {
             if (isNaN(player.abilities.orbitingShield.distance)) player.abilities.orbitingShield.distance = 70;
             if (isNaN(player.abilities.orbitingShield.angle)) player.abilities.orbitingShield.angle = 0;
             if (isNaN(player.abilities.orbitingShield.count)) player.abilities.orbitingShield.count = 1;
-            // ADD THESE TWO LINES:
             if (isNaN(player.abilities.orbitingShield.speed)) player.abilities.orbitingShield.speed = 1;
             if (isNaN(player.abilities.orbitingShield.radius)) player.abilities.orbitingShield.radius = 10;
         }
     } else {
-        // ENSURE ALL PROPERTIES ARE HERE FOR A FRESH ABILITIES OBJECT
         player.abilities = {
             orbitingShield: { enabled: false, angle: 0, distance: 70, damage: 5, cooldown: 500, lastHit: 0, speed: 1, radius: 10, count: 1 },
             backShot: false,
@@ -111,7 +184,7 @@ function loadPlayer(savedPlayer) {
         };
     }
 
-    if (savedPlayer.skills) {
+    if (savedPlayer && savedPlayer.skills) {
         player.skills = { ...player.skills, ...savedPlayer.skills };
         for (const skillName in player.skills) {
             if (savedPlayer.skills[skillName]) {
@@ -143,7 +216,7 @@ function loadPlayer(savedPlayer) {
     }
 
     if (isNaN(player.health) || typeof player.health !== 'number') {
-        player.health = savedPlayer.health || player.maxHealth;
+        player.health = savedPlayer && savedPlayer.health || player.maxHealth;
         if (isNaN(player.health)) player.health = 100;
     }
     if (isNaN(player.maxHealth) || typeof player.maxHealth !== 'number') {
@@ -168,6 +241,9 @@ function loadPlayer(savedPlayer) {
         player.magnetism = 1;
     }
     player.health = Math.min(player.health, player.maxHealth);
+
+    // Final safety clamp after loading everything
+    enforcePlayerLimits();
 }
 
 function takeDamage(amount, gameTime, spawnDamageNumberCallback, screenRedFlashObject, triggerScreenShakeCallback) {
@@ -210,17 +286,31 @@ function takeDamage(amount, gameTime, spawnDamageNumberCallback, screenRedFlashO
 }
 
 function updatePlayer(deltaTime, world, enemies, moveVector) {
+    // Always keep values clamped each tick (prevents other systems from pushing them too far)
+    enforcePlayerLimits();
+
+    // Make movement framerate-independent.
+    // The original code likely used per-frame speed. We'll scale it to a "per 16.6667ms baseline"
+    // so speed behaves similarly across variable deltaTime.
+    const FRAME_MS = 16.6667;
+    const speedThisFrame = player.speed * (deltaTime / FRAME_MS); // preserves baseline feel but scales safely
+
     if (moveVector.dx !== 0 || moveVector.dy !== 0) {
         const mag = Math.hypot(moveVector.dx, moveVector.dy);
-        player.x += (moveVector.dx / mag) * player.speed;
-        player.y += (moveVector.dy / mag) * player.speed;
+        if (mag > 0) {
+            player.x += (moveVector.dx / mag) * speedThisFrame;
+            player.y += (moveVector.dy / mag) * speedThisFrame;
+        }
     }
 
+    // Keep inside world bounds
     player.x = Math.max(0, Math.min(world.width, player.x));
     player.y = Math.max(0, Math.min(world.height, player.y));
 
+    // Health regen (deltaTime is ms)
     player.health = Math.min(player.maxHealth, player.health + player.healthRegen * (deltaTime / 1000));
 
+    // Find closest enemy to set facing angle
     let closestEnemy = null;
     let closestDist = Infinity;
     enemies.forEach(e => {
@@ -265,4 +355,4 @@ function gainXP(amount, showLevelUpOptionsCallback, expandWorldCallback, trigger
     }
 }
 
-export { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage };
+export { player, initPlayer, loadPlayer, updatePlayer, gainXP, takeDamage, enforcePlayerLimits };
