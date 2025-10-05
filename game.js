@@ -7,14 +7,27 @@ const MAX_POOL_SIZE = 200; // The max number of floating text effects we'll ever
 
 function initEffectPool() {
     const container = document.body;
+    // Pool for floating text like "Dash!"
     for (let i = 0; i < MAX_POOL_SIZE; i++) {
         const textEl = document.createElement('div');
         textEl.className = 'floating-text';
-        textEl.style.display = 'none'; // Start hidden
+        textEl.style.display = 'none';
         container.appendChild(textEl);
         effectPool.floatingText.push(textEl);
     }
-    console.log("Effect pool initialized with", effectPool.floatingText.length, "elements.");
+
+    // --- NEW: Pool for damage numbers ---
+    effectPool.damageText = [];
+    for (let i = 0; i < MAX_POOL_SIZE; i++) {
+        const damageEl = document.createElement('div');
+        // Add all possible classes it might need
+        damageEl.className = 'enemy-damage-text'; 
+        damageEl.style.display = 'none';
+        genesisArena.appendChild(damageEl); // Add to the correct container
+        effectPool.damageText.push(damageEl);
+    }
+    
+    console.log("Effect pools initialized.");
 }
 
 function getEffectFromPool(type) {
@@ -3141,82 +3154,93 @@ async function stopDojoSession() {
     }
 }
 function applyDamageToEnemy(enemy, damageAmount, isCrit = false) {
-    if (!enemy || enemy.hp <= 0) return false; // Don't damage already dead enemies
+    if (!enemy || enemy.hp <= 0) return false;
 
     const finalDamage = Math.floor(damageAmount);
     enemy.hp -= finalDamage;
     genesisState.totalDamageDealtThisBattle += finalDamage;
     const now = Date.now();
-    // Initialize the timestamp if it doesn't exist
+    
     if (enemy.lastDamageNumberTime === undefined) {
         enemy.lastDamageNumberTime = 0;
     }
 
-    // Only show a damage number if it's a crit OR 150ms have passed
     if (isCrit || now - enemy.lastDamageNumberTime > 150) {
-        enemy.lastDamageNumberTime = now; // Update the time
+        enemy.lastDamageNumberTime = now;
 
-        const textEl = document.createElement('div'); // Note: For simplicity, we are not pooling these specific numbers yet. Pooling floatingText is the biggest win.
-        textEl.className = 'enemy-damage-text';
-        textEl.textContent = formatNumber(finalDamage);
-        textEl.style.left = `${enemy.x}px`;
-        textEl.style.top = `${enemy.y - 20}px`;
-        textEl.style.color = isCrit ? 'var(--xp-color)' : '#ff4136';
-        if (isCrit) {
-            textEl.style.fontSize = '1.8em';
-            textEl.style.fontWeight = '900';
-        } else {
-            textEl.style.fontSize = '1.2em';
+        // --- PERFORMANCE FIX: Use the object pool ---
+        const textEl = getEffectFromPool('damageText');
+        if (textEl) {
+            textEl.textContent = formatNumber(finalDamage);
+            textEl.style.left = `${enemy.x}px`;
+            textEl.style.top = `${enemy.y - 20}px`;
+            textEl.style.color = isCrit ? 'var(--xp-color)' : '#ff4136';
+            textEl.style.fontSize = isCrit ? '1.8em' : '1.2em';
+            textEl.style.fontWeight = isCrit ? '900' : 'normal';
+            
+            // Reset animation and trigger it
+            textEl.style.animation = 'none';
+            void textEl.offsetWidth; // Trigger reflow
+            textEl.style.animation = 'float-up-fade-out-damage 1.2s ease-out forwards';
+
+            setTimeout(() => {
+                returnEffectToPool('damageText', textEl);
+            }, 1200);
         }
-        genesisArena.appendChild(textEl);
-        setTimeout(() => textEl.remove(), 1200);
+        // --- END OF FIX ---
     }
 
     const hpPercent = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
     if (enemy.healthBarFill) enemy.healthBarFill.style.width = `${hpPercent}%`;
 
-    // --- NEW UNIFIED DEATH LOGIC ---
     if (enemy.hp <= 0) {
-        // --- ADD ORB ACQUISITION HERE ---
-        if (!enemy.isBoss) { // Don't give regular orbs for a boss kill
+        if (!enemy.isBoss) {
              gameState.orbs = (gameState.orbs || 0) + 0.5;
              createFloatingText('+0.5 🔮', enemy.x, enemy.y - 40, { color: '#87CEFA', fontSize: '1.4em' });
         }
-        // --- END OF ORB LOGIC ---
-
-        const xpAmount = 20 * (genesisState.isBattleMode ? (gameState.highestBattleLevelCompleted + 1) : genesisState.difficultyLevel);
-                addXP(gameState, xpAmount);
-        createLootOrb(enemy.x, enemy.y); // This function correctly handles not dropping loot in battle mode
         
-        // Remove the visuals from the game
+        const xpAmount = 20 * (genesisState.isBattleMode ? (gameState.highestBattleLevelCompleted + 1) : genesisState.difficultyLevel);
+        addXP(gameState, xpAmount);
+        createLootOrb(enemy.x, enemy.y);
+        
         if (enemy.element) enemy.element.remove();
         if (enemy.healthBarContainer) enemy.healthBarContainer.remove();
 
-        return true; // The enemy was defeated
+        return true;
     }
     
-    return false; // The enemy survived
+    return false;
 }
 
 function createDojoDamageNumber(amount, isCrit) {
-    const num = document.createElement('div');
+    // --- PERFORMANCE FIX: Use the object pool ---
+    const num = getEffectFromPool('damageText');
+    if (!num) return;
+
     num.textContent = amount.toLocaleString();
-    num.className = 'damage-text player-damage'; // Use existing player damage style
+    num.className = 'damage-text player-damage'; // Reset class names
     if (isCrit) {
         num.classList.add('crit');
     }
-    // Position it over the dummy
     num.style.top = '40%';
     num.style.left = `${45 + Math.random() * 10}%`;
+    num.style.color = ''; // Reset color to use CSS default
+    num.style.fontSize = ''; // Reset font size
+    num.style.fontWeight = ''; // Reset font weight
     
+    // Position inside the dojo arena instead of genesis arena
     document.getElementById('dojo-arena').appendChild(num);
     
     // Animate and remove
+    num.style.animation = 'none';
+    void num.offsetWidth;
+    num.style.animation = `float-up-fade-out-damage 1.2s ease-out forwards`;
+    
     setTimeout(() => {
-        num.style.transform = `translateY(-${80 + Math.random() * 40}px)`; // Vary the float height
-        num.style.opacity = '0';
-    }, 10);
-    setTimeout(() => { num.remove(); }, 800);
+        // Return to pool and move it back to the genesis arena for re-use
+        returnEffectToPool('damageText', num);
+        genesisArena.appendChild(num);
+    }, 1200);
 }
 
 // --- Beam/Lightning Canvas Animation (UPGRADED) ---
@@ -4293,26 +4317,37 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             genesisState.lootOrbs.push(orb);
         }
         function createPvpDamageNumber(amount, isPlayerSource) {
-            const numEl = document.createElement('div');
-            numEl.className = 'enemy-damage-text'; // Reuse the same style
+            // --- PERFORMANCE FIX: Use the object pool ---
+            const numEl = getEffectFromPool('damageText');
+            if (!numEl) return;
+        
+            numEl.className = 'enemy-damage-text'; // Reset class
             numEl.textContent = formatNumber(Math.floor(amount));
-
-            // Position based on who is attacking
+        
             if (isPlayerSource) {
-                // Damage appears over the opponent (on the right)
                 numEl.style.left = '75%';
-                numEl.style.color = 'var(--accent-color)'; // Green for player damage
+                numEl.style.color = 'var(--accent-color)';
             } else {
-                // Damage appears over the player (on the left)
                 numEl.style.left = '25%';
-                numEl.style.color = 'var(--health-color)'; // Red for opponent damage
+                numEl.style.color = 'var(--health-color)';
             }
             
-            // Randomize vertical position for a spray effect
             numEl.style.top = `${40 + Math.random() * 20}%`;
+            numEl.style.fontSize = ''; // Reset font size
+            numEl.style.fontWeight = ''; // Reset font weight
             
+            // Temporarily move to the PvP arena
             pvpArena.appendChild(numEl);
-            setTimeout(() => numEl.remove(), 1200);
+        
+            // Animate and return to pool
+            numEl.style.animation = 'none';
+            void numEl.offsetWidth;
+            numEl.style.animation = 'float-up-fade-out-damage 1.2s ease-out forwards';
+        
+            setTimeout(() => {
+                returnEffectToPool('damageText', numEl);
+                genesisArena.appendChild(numEl); // Move back to the main pool container
+            }, 1200);
         }
         function moveLootOrbs() {
             const player = genesisState.player;
