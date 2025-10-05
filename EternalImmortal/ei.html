@@ -1325,7 +1325,13 @@
         }
     }
     
+    function compactInventory() {
+        if (!player?.inventory?.items) return;
+        player.inventory.items = player.inventory.items.slice(-200); // Keep latest 200
+    }
+    
     function saveGame() {
+        compactInventory();
         try {
             if(player) {
                 player.lastSaveTime = Date.now();
@@ -2227,32 +2233,33 @@
     
     function updateExplorationMode() {
         if (!player) return;
-        
+    
         updateWeaponAnimation();
-        
         enemies = explorationEnemies;
         updateSkills();
         explorationEnemies = enemies;
-
+    
         if (player.weaponVisual.animState === 'idle' && explorationEnemies.length > 0) {
             let target = explorationEnemies[0];
             if (target) playerAttack(target);
         }
-
-        explorationBackgroundStars.forEach(star => { star.x -= star.speed; if (star.x < 0) { star.x = explorationCanvas.width; star.y = Math.random() * explorationCanvas.height; } });
-
+    
+        // Cap explorationDifficulty to avoid exponential overflow
+        explorationDifficulty = Math.min(explorationDifficulty, 500);
         explorationSpawnTimer--;
         if (explorationSpawnTimer <= 0) {
             const enemyHp = Math.floor(50 * explorationDifficulty);
             const enemyAttack = Math.floor(5 * explorationDifficulty);
             explorationEnemies.push({
-                x: explorationCanvas.width + 50, y: Math.random() * (explorationCanvas.height - 200) + 100,
+                x: explorationCanvas.width + 50,
+                y: Math.random() * (explorationCanvas.height - 200) + 100,
                 hp: enemyHp, maxHp: enemyHp, attack: enemyAttack, radius: 25,
-                color: `hsl(${Math.random()*60+200}, 80%, 50%)`,
-                attackCooldown: Math.max(45, 120 - explorationDifficulty), attackTimer: 0,
+                color: `hsl(${Math.random() * 60 + 200}, 80%, 50%)`,
+                attackCooldown: Math.max(45, 120 - explorationDifficulty),
+                attackTimer: 0,
                 xpValue: Math.floor(10 * explorationDifficulty)
             });
-            explorationSpawnTimer = Math.max(30, 180 - explorationDifficulty * 5);
+            explorationSpawnTimer = Math.max(120, 180 - explorationDifficulty * 5);
             explorationDifficulty += 0.1;
         }
         
@@ -2288,7 +2295,13 @@
         skillVisuals = skillVisuals.filter(v => { v.life--; return v.life > 0; });
     }
     
-    function update(){
+    
+    
+    function safeArrayLimit(arr, limit = 500) {
+        if (arr.length > limit) arr.splice(0, arr.length - limit);
+    }
+    
+    function update() {
         updatePlayerXpBar();
         updateUiParticles();
         if (!explorationContainer.classList.contains('hidden')) {
@@ -2304,6 +2317,9 @@
             particles=particles.filter(e=>{e.x+=e.vx;e.y+=e.vy;e.life--;return e.life>0});
             floatingTexts=floatingTexts.filter(e=>{e.y-=1;e.life--;return e.life>0});
         }
+        safeArrayLimit(particles, 400);
+        safeArrayLimit(floatingTexts, 300);
+        safeArrayLimit(uiParticles, 300);
     }
     
     function updateUiParticles() {
@@ -2568,13 +2584,15 @@
     
     function updateWeaponAnimation() {
         if (player.weaponVisual.animState !== 'idle') {
-            const speedMultiplier = 1 / (1 + (player.inventory.weapon.attackSpeedBonus || 0));
+            // Clamp the minimum animation frame time (avoid 0-frame loops)
+            const rawSpeed = 1 + (player.inventory.weapon.attackSpeedBonus || 0);
+            const speedMultiplier = 1 / Math.min(rawSpeed, 5); // Max 5x speed bonus
             player.weaponVisual.animTimer -= 1;
-            
-            if (player.weaponVisual.animTimer <= 0) { 
+    
+            if (player.weaponVisual.animTimer <= 0) {
                 if (player.weaponVisual.animState === 'drawing') {
                     player.weaponVisual.animState = 'firing';
-                    player.weaponVisual.animTimer = 15;
+                    player.weaponVisual.animTimer = Math.max(10, 15 * speedMultiplier);
                     const weapon = player.inventory.weapon;
                     let finalDamage = weapon.power + player.stats.attackPower.current;
                     let isCrit = false;
