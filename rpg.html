@@ -88,18 +88,16 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     align-items: center;
 }
 #player-stat-panel {
-    /* Layout Properties */
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    position: relative; /* This is essential for the dropdown to work */
-    
-    /* Styling Properties */
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2px 10px;
+    align-items: center;
     background-color: rgba(0, 0, 0, 0.4);
     border: 2px solid var(--accent-color);
     border-radius: 8px;
-    padding: 3px 15px;
+    padding: 8px 15px;
     margin-top: 10px;
+    flex-grow: 1;
 }
 #top-hud-container {
     display: flex;
@@ -117,6 +115,7 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
     border-radius: 8px;
     position: relative;
     overflow: hidden; /* Important for containing the fill */
+    margin-top: 10px;
 }
 
 #hunger-bar-fill {
@@ -218,9 +217,6 @@ button:disabled:hover { background-color: var(--secondary-bg); color: #555; tran
 .stat-value {
     text-align: left;
     font-weight: bold;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 .stat-value-gold {
   color: var(--xp-color); 
@@ -905,7 +901,6 @@ input[type="range"] { flex-grow: 1; }
     user-select: none;
     z-index: 100;
     transform: translateX(-50%);
-    animation: float-up-fade-out 2.5s ease-out forwards;
 }
 @keyframes float-up-fade-out {
     from {
@@ -1447,40 +1442,14 @@ input[type="range"] { flex-grow: 1; }
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    
-    /* Make the background transparent */
-    background-color: transparent;
-
-    /* --- FONT & TEXT STYLING --- */
-    font-family: 'Cinzel Decorative', serif; /* Use our new epic font */
-    font-weight: 700;
-    font-size: 2.2em;
-    line-height: 1;
-
-    /* --- The Gradient Fill --- */
-    background: linear-gradient(180deg, #ffde7a 0%, #ff8c00 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-
-    /* --- The 3D / Depth Effect --- */
-    text-shadow: 
-        1px 1px 1px rgba(255, 255, 255, 0.2),
-        0px 4px 8px rgba(0, 0, 0, 0.7);
-
-    /* --- The Sharp Outline --- */
-    -webkit-text-stroke: 1.5px #3c1e00;
-    paint-order: stroke fill;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-weight: bold;
+    font-size: 1.5em;
+    text-shadow: 1px 1px 2px black;
 }
 .immortal-grade-box.s-tier-glow {
-    /* 
-      This creates a layered gold/yellow glow around the text.
-      The first shadow is a tight, bright yellow.
-      The second shadow is a wider, more diffuse gold.
-    */
-    filter: 
-        drop-shadow(0 0 3px #ffee00) 
-        drop-shadow(0 0 8px #ffd700);
+    text-shadow: 0 0 5px gold, 0 0 10px gold;
 }
 
 /* Updated Upgrade Button Style */
@@ -1710,6 +1679,7 @@ input[type="range"] { flex-grow: 1; }
 
 /* Styling for the new toggle button */
 #toggle-modifiers-btn {
+    grid-column: 1 / -1; /* Make it span the full width of the grid */
     width: 100%;
     padding: 5px;
     margin: 8px 0 0 0;
@@ -1746,7 +1716,6 @@ input[type="range"] { flex-grow: 1; }
     left: 0;
     width: 100%;
     height: 100%;
-    /* FIX: Placed at the very bottom of the #rift-screen stacking context */
     z-index: 1; 
 }
 
@@ -1757,7 +1726,6 @@ input[type="range"] { flex-grow: 1; }
     width: 100%;
     height: 100%;
     background-color: transparent; 
-    /* FIX: Placed in front of the background */
     z-index: 2; 
 }
 
@@ -1767,7 +1735,6 @@ input[type="range"] { flex-grow: 1; }
     left: 0;
     width: 50%;
     height: 50%;
-    /* FIX: Placed in front of game, but behind UI */
     z-index: 3;
 }
 
@@ -1780,14 +1747,12 @@ input[type="range"] { flex-grow: 1; }
     justify-content: space-between;
     padding: 0;
     pointer-events: none;
-    /* FIX: Placed at the very top of the stacking context */
     z-index: 5;
 }
 #rift-ui > * {
     pointer-events: auto;
 }
 
-/* --- NEW: Top and Bottom HUD Bar Styling --- */
 #rift-top-hud, #rift-controls {
     background: linear-gradient(to bottom, rgba(10, 10, 10, 0.8), rgba(20, 20, 20, 0.7));
     backdrop-filter: blur(5px);
@@ -1807,37 +1772,26 @@ input[type="range"] { flex-grow: 1; }
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
 }
 
-/* --- NEW: Top Bar content alignment --- */
 #rift-top-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
 }
-#rift-level-display-container {
+#rift-wave-display {
     background-color: rgba(0,0,0,0.4);
     border: 1px solid var(--accent-color);
     padding: 5px 15px;
     border-radius: 8px;
     text-shadow: 0 0 5px var(--accent-color);
-}
-#rift-level-display-container span:first-child {
-    color: var(--text-color);
-    opacity: 0.8;
-    font-size: 0.8em;
-}
-#rift-level-display-container span:last-child {
-    color: var(--accent-color);
-    font-size: 1.4em;
-    font-weight: 700;
-    margin-left: 8px;
+    font-size: 1.2em;
+    font-weight: bold;
 }
 #rift-top-bar > div:last-child {
     display: flex;
     gap: 10px;
 }
 
-/* --- NEW: Enhanced Button Styles --- */
 #rift-exit-btn, #rift-reset-btn, #rift-upgrade-btn {
     font-family: 'Poppins', sans-serif;
     background-color: rgba(40,40,40,0.8);
@@ -1863,13 +1817,11 @@ input[type="range"] { flex-grow: 1; }
     color: var(--primary-bg);
 }
 
-/* --- NEW: Stat Bar Container --- */
 #rift-player-stats {
     width: 100%;
-    margin: 0; /* Remove previous margin */
+    margin: 0;
 }
 
-/* --- NEW: Bottom Controls Bar alignment --- */
 #rift-controls {
     display: flex;
     justify-content: space-between;
@@ -1878,10 +1830,9 @@ input[type="range"] { flex-grow: 1; }
     z-index: 15;
 }
 #rift-upgrade-btn.hidden {
-    visibility: hidden; /* Use visibility to maintain layout */
+    visibility: hidden;
 }
 
-/* --- NEW: Auto Mode Checkbox Styling --- */
 #rift-controls label {
     display: flex;
     align-items: center;
@@ -1893,7 +1844,7 @@ input[type="range"] { flex-grow: 1; }
 #rift-auto-checkbox {
     width: 20px;
     height: 20px;
-    accent-color: var(--accent-color); /* Modern way to color checkboxes */
+    accent-color: var(--accent-color);
 }
 #rift-session-loot {
     display: flex;
@@ -1980,7 +1931,7 @@ input[type="range"] { flex-grow: 1; }
             </div>
         </div>
     
-        <div id="character-area" style="display: none;">
+        <div id="character-area">
             <div id="floating-rewards-container"></div>
             <div id="expedition-timer-display">00:00:00</div>
             <img id="character-sprite" class="sprite" src="player.PNG" alt="Character">
@@ -1991,14 +1942,15 @@ input[type="range"] { flex-grow: 1; }
         </div>
         
         <div id="action-buttons">
-            <!-- The "Grow" button is now first -->
             <div class="action-button-container"><button id="grow-btn">Grow</button></div>
-            <!-- The "Endless" button is second, and now has the unlock text span -->
             <div class="action-button-container">
                 <button id="endless-btn">Endless</button>
                 <span id="endless-unlock-text" class="unlock-text"></span>
             </div>
-            <!-- The "Feed" button is third -->
+            <div class="action-button-container">
+                <button id="battle-btn">Battle</button>
+                <span id="battle-unlock-text" class="unlock-text"></span>
+            </div>
             <div class="action-button-container"><button id="feed-btn">Feed (5k Gold)</button></div>
             <div class="action-button-container"><button id="enter-rift-btn">Rift</button><span id="rift-unlock-text" class="unlock-text"></span></div>
             <div class="action-button-container"><button id="pvp-btn">PvP</button><span id="pvp-unlock-text" class="unlock-text"></span></div>
@@ -2053,7 +2005,7 @@ input[type="range"] { flex-grow: 1; }
         <div id="battle-log"></div>
         <div id="battle-actions">
             <button id="attack-btn">Attack</button>
-            <button id="feed-battle-btn">Feed (Heal)</button>
+            <button id="feed-battle-btn">Potion</button>
             <button id="flee-btn">Flee</button>
             <div id="potion-count-display" style="width: 100%; margin-top: 10px; font-size: 0.9em;"></div>
         </div>
@@ -2217,63 +2169,47 @@ input[type="range"] { flex-grow: 1; }
             <h2>Welcome Back, Guardian!</h2>
             <p class="offline-subtext">You were away for <strong id="offline-time-away">0h 0m</strong>.</p>
             
-            <!-- This is the container for the reward rows -->
             <div id="offline-rewards-list" class="offline-rewards-list">
-                <!-- JavaScript will populate this area -->
             </div>
             
-            <!-- The button now correctly sits outside the list -->
             <button id="close-offline-rewards-btn">Claim</button>
         </div>
     </div>
     <div id="immortal-growth-modal" class="modal">
         <div class="modal-content immortal-growth-modal-content">
-            <!-- Header -->
             <div class="immortal-growth-header">
                 <h2>Immortal Growth</h2>
             </div>
     
-            <!-- Main Body -->
             <div class="immortal-growth-body">
-                <!-- Left-side Tabs -->
                 <div class="immortal-growth-tabs">
                     <button class="immortal-growth-tab-btn">Awakening</button>
                 </div>
     
-                <!-- Content Area for the Tabs -->
                 <div class="immortal-growth-content">
-                    <!-- Potentials Tree (This is what we will build) -->
                     <div id="potentials-tree-container" class="immortal-tab-pane active">
-                        <!-- Stat rows will be dynamically generated by game.js here -->
                         <p class="loading-text">Loading Potentials...</p>
                     </div>
                 </div>
             </div>
             
-            <!-- Footer (e.g., for a reset button) -->
             <div class="immortal-growth-footer">
                 <button id="reset-potentials-btn">Reset Potentials</button>
                 <button id="immortal-growth-close-footer-btn">Close</button>
             </div>
         </div>
     </div>
-    <!-- ============================================= -->
-    <!-- === NEW AWAKENING MODAL STARTS HERE === -->
-    <!-- ============================================= -->
+
     <div id="awakening-modal" class="modal">
         <div class="modal-content awakening-modal-content">
-            <!-- Header -->
             <div class="awakening-header">
                 <h2>Awakening</h2>
             </div>
     
-            <!-- Main Content Body -->
             <div id="awakening-tree-container" class="awakening-body">
-                <!-- Awakening stat rows will be dynamically generated by game.js here -->
                 <p class="loading-text">Loading Awakening Powers...</p>
             </div>
             
-            <!-- Footer with Close button -->
             <div class="awakening-footer">
                 <button id="awakening-close-btn">Close</button>
             </div>
@@ -2300,13 +2236,11 @@ input[type="range"] { flex-grow: 1; }
         <div class="modal-content">
             <h2>Detailed Modifiers</h2>
             <div id="detailed-stats-list" style="margin-top: 20px; max-height: 60vh; overflow-y: auto;">
-                <!-- JavaScript will populate this list -->
             </div>
             <button id="detailed-stats-close-btn" style="margin-top: 20px;">Close</button>
         </div>
     </div>
 
-    <!-- RIFT INTEGRATION: Added the HTML for the new Rift screen -->
     <div id="rift-screen" class="screen">
         <canvas id="rift-background-canvas"></canvas>
         <canvas id="rift-canvas"></canvas>
@@ -2314,19 +2248,14 @@ input[type="range"] { flex-grow: 1; }
         <div id="rift-ui">
             <div id="rift-top-hud">
                 <div id="rift-top-bar">
-                    <!-- NEW: Wrapped the level display for better styling -->
-                    <div id="rift-level-display-container">
-                        <span>Rift Level:</span>
-                        <span id="rift-wave-display">23</span>
-                    </div>
-                    <div> <!-- This div groups the buttons -->
+                    <div id="rift-wave-display">Rift Level: 0</div>
+                    <div>
                         <button id="rift-reset-btn">Reset Rift</button>
                         <button id="rift-exit-btn">Exit Rift</button>
                     </div>
                 </div>
                 
                 <div id="rift-player-stats">
-                <!-- Re-using your existing stat-bar classes for a consistent look -->
                 <div id="rift-player-hp-bar" class="stat-bar health-bar"><div class="stat-bar-fill"></div><div class="stat-bar-label">HP: 100/100</div></div>
                 <div id="rift-player-xp-bar" class="stat-bar xp-bar" style="margin-top: 5px;"><div class="stat-bar-fill"></div><span class="stat-bar-label">XP: 0/100</span></div>
             </div>
@@ -2349,6 +2278,26 @@ input[type="range"] { flex-grow: 1; }
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
+    <script>
+        // --- CRITICAL FIX: FIREBASE INITIALIZATION ---
+        // TODO: Replace the placeholder values below with your actual Firebase project credentials.
+        // You can get these from your Firebase project settings.
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+    
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+    </script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
 
     <script src="game.js" defer></script>
@@ -2364,7 +2313,6 @@ input[type="range"] { flex-grow: 1; }
             });
         });
       }
-    
-</script>
+    </script>
 </body>
 </html>
