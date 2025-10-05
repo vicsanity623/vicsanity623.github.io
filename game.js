@@ -1,20 +1,3 @@
-const firebaseConfig = {
-    apiKey: "AIzaSyAvutjrwWBsZ_5bCPN-nbL3VpP2NQ94EUY",
-    authDomain: "tap-guardian-rpg.firebaseapp.com",
-    projectId: "tap-guardian-rpg",
-    storageBucket: "tap-guardian-rpg.appspot.com",
-    messagingSenderId: "50272459426",
-    appId: "1:50272459426:web:8f67f9126d3bc3a23a15fb",
-    measurementId: "G-XJRE7YNPZR"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-  const auth = firebase.auth();
-  const googleProvider = new firebase.auth.GoogleAuthProvider();
-  const effectPool = {
-    floatingText: [],
-    // We can add pools for other effects like slashes later if needed
-};
 // --- Object pool for managing floating text elements to improve performance ---
 const effectPool = {
     floatingText: []
