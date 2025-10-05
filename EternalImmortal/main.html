@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game</title>
+<style>
+  body, html { margin: 0; padding: 0; overflow: hidden; background: #0c0c14; font-family: sans-serif; }
+  canvas { display: block; }
+  #ult-btn, #auto-btn { position: absolute; top: 10px; left: 10px; z-index: 1000; }
+</style>
+</head>
+<body>
+
+<!-- Game Canvases -->
+<canvas id="game-canvas" width="1280" height="720"></canvas>
+<canvas id="exploration-canvas" width="1280" height="720" style="position:absolute;top:0;left:0;"></canvas>
+<canvas id="ui-canvas" width="1280" height="720" style="position:absolute;top:0;left:0;pointer-events:none;"></canvas>
+<canvas id="map-background-canvas" width="1280" height="720" style="position:absolute;top:0;left:0;pointer-events:none;"></canvas>
+
+<!-- Buttons -->
+<button id="ult-btn">ULT</button>
+<button id="auto-btn">AUTO</button>
+
+<!-- Boot Screen -->
+<div id="boot-screen" style="position:absolute;top:0;left:0;width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:2000;">
+  <div id="boot-progress-bar" style="width:0;height:20px;background:#ffd700;margin-bottom:10px;"></div>
+  <button id="start-game-button" style="opacity:0;transition:0.3s;">Start Game</button>
+</div>
+
+<script>
+/*********************
+ *      GLOBALS      *
+ *********************/
+let player, enemies = [], projectiles = [], particles = [], floatingTexts = [], skillVisuals = [], healthOrbs = [], uiParticles = [];
+let explorationEnemies = [], explorationBackgroundStars = [], explorationDifficulty = 1, explorationSpawnTimer = 120;
+let isAutoBattle = false, shakeDuration = 0, countdownTimer = 0, currentStage = 1, currentDungeon = null;
+let dom = { ultBtn: document.getElementById('ult-btn'), autoBtn: document.getElementById('auto-btn') };
+const canvas = document.getElementById('game-canvas'), ctx = canvas.getContext('2d');
+const explorationCanvas = document.getElementById('exploration-canvas'), expCtx = explorationCanvas.getContext('2d');
+const uiCanvas = document.getElementById('ui-canvas'), uiCtx = uiCanvas.getContext('2d');
+
+/*********************
+ *   EXPLORATION     *
+ *********************/
+const initExplorationMode = () => {
+    explorationEnemies = []; projectiles = []; particles = []; floatingTexts = [];
+    explorationDifficulty = 1; explorationSpawnTimer = 120;
+    if (player) {
+        player.hp = player.stats.maxHp.current; player.rage = 0;
+        player.x = 100; player.y = explorationCanvas.height / 2; player.isAttacking = false;
+    }
+    if (!explorationBackgroundStars.length) {
+        for (let i = 0; i < 150; i++) explorationBackgroundStars.push({
+            x: Math.random() * explorationCanvas.width,
+            y: Math.random() * explorationCanvas.height,
+            radius: Math.random() * 2,
+            speed: 0.5 + Math.random() * 1.5
+        });
+    }
+};
+
+const updateExplorationMode = () => {
+    if (!player) return;
+    updateWeaponAnimation();
+    enemies = explorationEnemies;
+    updateSkills();
+    explorationEnemies = enemies;
+
+    if (player.weaponVisual.animState === 'idle' && explorationEnemies.length) playerAttack(explorationEnemies[0]);
+
+    explorationBackgroundStars.forEach(star => {
+        star.x -= star.speed;
+        if (star.x < 0) { star.x = explorationCanvas.width; star.y = Math.random() * explorationCanvas.height; }
+    });
+
+    if (--explorationSpawnTimer <= 0) {
+        const hp = Math.floor(50 * explorationDifficulty), attack = Math.floor(5 * explorationDifficulty);
+        explorationEnemies.push({
+            x: explorationCanvas.width + 50,
+            y: Math.random() * (explorationCanvas.height - 200) + 100,
+            hp, maxHp: hp, attack, radius: 25,
+            color: `hsl(${Math.random()*60+200}, 80%, 50%)`,
+            attackCooldown: Math.max(45, 120 - explorationDifficulty), attackTimer: 0,
+            xpValue: Math.floor(10 * explorationDifficulty)
+        });
+        explorationSpawnTimer = Math.max(30, 180 - explorationDifficulty * 5);
+        explorationDifficulty += 0.1;
+    }
+
+    const battleLineX = player.x + 80;
+    explorationEnemies.forEach(e => { if (e.x > battleLineX) e.x -= 2; });
+
+    projectiles.forEach((p, i) => {
+        if (!p.target || p.target.hp <= 0) { projectiles.splice(i, 1); return; }
+        const dx = p.target.x - p.x, dy = p.target.y - p.y, dist = Math.hypot(dx, dy);
+        if (dist < p.speed) {
+            p.target.hp -= p.damage;
+            SOUNDS.hit();
+            addFloatingText(p.damage, p.target.x, p.target.y, p.isCrit ? "#ff4d4d" : "#ffd700");
+            createExplosion(p.target.x, p.target.y, 20, '#fff');
+            projectiles.splice(i, 1);
+        } else { p.x += dx / dist * p.speed; p.y += dy / dist * p.speed; }
+    });
+
+    explorationEnemies.filter(e => e.hp <= 0).forEach(e => {
+        createExplosion(e.x, e.y, 50, e.color, 4, 8);
+        SOUNDS.enemyDeath();
+        gainXP(e.xpValue);
+        player.gold += Math.floor((e.xpValue / 2) * (1 + (player.inventory.weapon.goldBonus || 0)));
+        player.souls.current++; checkSoulLevelUp();
+    });
+
+    explorationEnemies = explorationEnemies.filter(e => e.hp > 0 && e.x > -50);
+    particles = particles.filter(p => (p.x += p.vx, p.y += p.vy, --p.life > 0));
+    floatingTexts = floatingTexts.filter(t => (--t.life, t.y -= 1, t.life > 0));
+    skillVisuals = skillVisuals.filter(v => (--v.life, v.life > 0));
+};
+
+const drawExplorationMode = () => {
+    ctx = expCtx; ctx.clearRect(0, 0, explorationCanvas.width, explorationCanvas.height);
+    explorationBackgroundStars.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(255,255,255,${s.speed/3})`; ctx.fill(); });
+    drawPlayer(); drawEnemies(); drawEffects(); drawSkillVisuals();
+    ctx = canvas.getContext('2d');
+};
+
+/*********************
+ *      UPDATE       *
+ *********************/
+const update = () => {
+    updatePlayerXpBar(); updateUiParticles();
+    if (!explorationContainer.classList.contains('hidden')) updateExplorationMode();
+    else if (!gameContainer.classList.contains('hidden')) {
+        if(gameState==='COUNTDOWN') updateCountdown(); 
+        if(gameState==='COMBAT') updateCombat();
+        if(gameState==='ENDING_COMBAT') {
+            if(--endCombatTimer<=0){player.hp=Math.min(player.stats.maxHp.current,player.hp+Math.floor(.2*player.stats.maxHp.current)); changeState('SHOP')}
+        }
+        if(player.hp<player.stats.maxHp.current && player.stats.healthRegen.current>0) player.hp = Math.min(player.stats.maxHp.current, player.hp + player.stats.healthRegen.current/60);
+
+        healthOrbs = healthOrbs.filter(orb => {
+            orb.life--; orb.pulse += 0.1;
+            if (isAutoBattle) {
+                const dx = player.x - orb.x, dy = player.y - orb.y;
+                if (Math.hypot(dx, dy) < player.size) {
+                    const heal = Math.floor(.1 * player.stats.maxHp.current);
+                    player.hp = Math.min(player.stats.maxHp.current, player.hp + heal);
+                    addFloatingText(`+${heal}`, player.x, player.y, "#4caf50");
+                    SOUNDS.heal();
+                    return false;
+                }
+                orb.x += 0.03 * dx; orb.y += 0.03 * dy;
+            }
+            return orb.life > 0;
+        });
+
+        skillVisuals = skillVisuals.filter(v => (--v.life, v.life > 0));
+        if(window.stars) window.stars.forEach(s => { s.y += s.speed; if(s.y>canvas.height){s.y=0;s.x=Math.random()*canvas.width} });
+        particles = particles.filter(p => (p.x+=p.vx,p.y+=p.vy,--p.life>0));
+        floatingTexts = floatingTexts.filter(t => (--t.life, t.y-=1, t.life>0));
+    }
+};
+
+/*********************
+ *      DRAW         *
+ *********************/
+const draw = () => {
+    if(!explorationContainer.classList.contains('hidden')) drawExplorationMode();
+    else if(!gameContainer.classList.contains('hidden')) {
+        drawBackground();
+        ctx.save();
+        if(shakeDuration>0){ ctx.translate(Math.random()*6-3, Math.random()*6-3); shakeDuration--; }
+        if(['COMBAT','ENDING_COMBAT','COUNTDOWN'].includes(gameState)) {
+            drawPlayer(); drawEnemies(); drawHealthOrbs(); drawEffects(); drawSkillVisuals();
+        }
+        if(gameState==='COUNTDOWN') drawCountdown();
+        ctx.restore();
+        drawHud();
+        if(['COMBAT','ENDING_COMBAT','COUNTDOWN'].includes(gameState)) { drawBossHealthBar(); drawPlayerHudBars(); }
+        drawUiParticles();
+    }
+};
+
+/*********************
+ *    GAME LOOP      *
+ *********************/
+const gameLoop = () => { update(); draw(); requestAnimationFrame(gameLoop); };
+
+/*********************
+ *   TOGGLE SWITCH   *
+ *********************/
+const addAutoBattleToggle = () => {
+    const toggle = document.createElement('div');
+    toggle.style.cssText = "position:fixed;top:80px;right:20px;width:60px;height:30px;background:#444;border-radius:15px;cursor:pointer;display:flex;align-items:center;padding:3px;z-index:3000;";
+    const knob = document.createElement('div');
+    knob.style.cssText = "width:24px;height:24px;background:#ffd700;border-radius:50%;transition:0.3s;transform:translateX(0);";
+    toggle.appendChild(knob);
+    toggle.addEventListener('click', () => {
+        isAutoBattle = !isAutoBattle;
+        knob.style.transform = isAutoBattle ? "translateX(30px)" : "translateX(0)";
+    });
+    document.body.appendChild(toggle);
+};
+
+/*********************
+ *   INITIALIZATION  *
+ *********************/
+initGame(false, true);
+initializeBootSequence();
+initMapBackground();
+addAutoBattleToggle();
+setInterval(updateEnergyReplenishment, 1000);
+window.addEventListener('beforeunload', saveGame);
+gameLoop();
+if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').then(() => console.log('SW registered')).catch(e => console.log('SW failed', e)); });
+</script>
+</body>
+</html>
