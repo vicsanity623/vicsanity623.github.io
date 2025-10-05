@@ -7,7 +7,6 @@ const MAX_POOL_SIZE = 200; // The max number of floating text effects we'll ever
 
 function initEffectPool() {
     const container = document.body;
-    // Pool for floating text like "Dash!"
     for (let i = 0; i < MAX_POOL_SIZE; i++) {
         const textEl = document.createElement('div');
         textEl.className = 'floating-text';
@@ -16,14 +15,12 @@ function initEffectPool() {
         effectPool.floatingText.push(textEl);
     }
 
-    // --- NEW: Pool for damage numbers ---
     effectPool.damageText = [];
     for (let i = 0; i < MAX_POOL_SIZE; i++) {
         const damageEl = document.createElement('div');
-        // Add all possible classes it might need
         damageEl.className = 'enemy-damage-text'; 
         damageEl.style.display = 'none';
-        genesisArena.appendChild(damageEl); // Add to the correct container
+        document.body.appendChild(damageEl); // <-- CORRECTED LINE
         effectPool.damageText.push(damageEl);
     }
     
