@@ -15,12 +15,12 @@ const firebaseConfig = {
     floatingText: [],
     // We can add pools for other effects like slashes later if needed
 };
-const MAX_POOL_SIZE = 200; // The max number of floating text effects we'll ever need at once.
-
-// --- NEW: Object pool for managing floating text elements to improve performance ---
+// --- Object pool for managing floating text elements to improve performance ---
 const effectPool = {
     floatingText: []
 };
+
+const MAX_POOL_SIZE = 200; // The max number of floating text effects we'll ever need at once.
 
 function initEffectPool() {
     const container = document.body;
@@ -5183,7 +5183,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             startGameGenesis();
             growBtn.textContent = 'Grow'; // Button now lets you go back to Grow mode
         } else {
-            // On LOSS, return to the GROW (tapping) screen
+            // On LOSS, return to the GROW
             stopGameGenesis(); // Ensure the endless loop is fully stopped
             genesisArena.style.display = 'none';
             characterArea.style.display = 'flex';
@@ -5222,7 +5222,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 lastDashTime: 0,
                 isDashing: false,
                 lastGhostTime: 0,
-                // --- ZOOM DASH: Add a property to track the start of the dash animation ---
                 lastDashStartTime: 0,
                 lastThunderStrikeTime: 0,
                 lastHavocRageTime: 0
@@ -5239,11 +5238,9 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             enemyRadius: 25,
             lootRadius: 10,
             collectionRadius: 40,
-            // --- ATTACK SPEED CAP FIX ---
             playerAttackCooldown: (level) => Math.max(100, 400 * Math.pow(0.98, level)), // Cooldown can't go below 100ms
             enemyAttackCooldown: 1500,
             riftUpgradeCost: (level) => Math.floor(10 * Math.pow(1.5, level)),
-            // --- RIFT ABILITIES: NEW ABILITY CONFIGURATION ---
             dashCooldown: 5000,
             thunderStrikeCooldown: 8000,
             havocRageCooldown: 12000
@@ -5269,8 +5266,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
     
         joystick: null,
 
-        // --- RIFT ABILITIES: NEW CANVAS-BASED VISUAL EFFECTS ---
-        // These functions draw directly onto the Rift's canvas, they do not create DOM elements.
         drawCanvasChainLightning: function(ctx, targets) {
             if (targets.length < 2) return;
             for (let i = 0; i < targets.length - 1; i++) {
@@ -5319,7 +5314,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     x: Math.random() * window.innerWidth,
                     y: Math.random() * window.innerHeight,
                     radius: Math.random() * 1.5,
-                    speed: 0.1 + Math.random() * 0.4 // Slow, subtle movement
+                    speed: 0.1 + Math.random() * 0.4
                 });
             }
         },
@@ -5340,18 +5335,15 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         
-            // Draw solid black as a base
             ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-            // Draw the nebula image if it's loaded
             if (this.state.background.imageLoaded) {
-                ctx.globalAlpha = 0.4; // Make it a subtle background texture
+                ctx.globalAlpha = 0.4;
                 ctx.drawImage(this.state.background.nebulaImage, 0, 0, canvas.width, canvas.height);
                 ctx.globalAlpha = 1.0;
             }
         
-            // Draw the moving stars
             ctx.fillStyle = 'white';
             this.state.background.stars.forEach(star => {
                 ctx.beginPath();
@@ -5360,7 +5352,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             });
         },
         start: function() {
-            // Stop the main game's loop BEFORE starting the Rift
             if (typeof stopGameGenesis === 'function') {
                 stopGameGenesis();
             }
@@ -5378,12 +5369,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             
             this.initializeBackground();
             showScreen('rift-screen');
-            this.resetState(); // This sets enemies to [] and currentWave to 0 (or checkpoint)
+            this.resetState();
             this.setupCanvas();
             this.setupControls();
             this.bindEvents();
             
-            this.gameLoop(); 
+            this.gameLoop();
         },
 
         resetState: function() {
@@ -5486,9 +5477,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.elements.exitBtn.onclick = () => this.exit(false);
             this.elements.autoCheckbox.onchange = (e) => { this.state.isAutoMode = e.target.checked; };
             this.elements.resetBtn.onclick = () => this.resetRiftProgress();
-            this.elements.autoCheckbox.onchange = (e) => {
-                this.state.isAutoMode = e.target.checked;
-            };
             window.onresize = () => this.setupCanvas();
         },
 
@@ -5510,7 +5498,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         handleKeyUp: function(e) { 
             this.state.keys[e.key.toLowerCase()] = false; 
         },
-    
+
         setupControls: function() {
             const options = {
                 zone: this.elements.joystickZone,
@@ -5731,7 +5719,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             const player = this.state.player;
             if (player.isDashing) return;
         
-            // Priority 1: Dash
             if ((gameState.riftProgress.rift_dash > 0) && (timestamp - player.lastDashTime > this.config.dashCooldown)) {
                 let bestTarget = this.findNearest(this.state.enemies);
                 if (bestTarget) {
@@ -5762,7 +5749,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             }
         
-            // Priority 2: Havoc Rage
             if ((gameState.riftProgress.rift_havocRage > 0) && (timestamp - player.lastHavocRageTime > this.config.havocRageCooldown)) {
                 player.lastHavocRageTime = timestamp;
                 playSound('crit', 1, 'sawtooth', 300, 50, 0.5);
@@ -5781,7 +5767,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 return;
             }
         
-            // Priority 3: Thunder Strike
             if ((gameState.riftProgress.rift_thunderStrike > 0) && (timestamp - player.lastThunderStrikeTime > this.config.thunderStrikeCooldown)) {
                 let potentialTargets = [...this.state.enemies];
                 if (potentialTargets.length > 0) {
@@ -5814,7 +5799,6 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                 }
             }
             
-            // Priority 4: Basic Attack
             const currentAttackCooldown = this.config.playerAttackCooldown(gameState.riftProgress.attackSpeed || 0);
             if (timestamp - player.lastAttackTime > currentAttackCooldown) {
                 let attacked = false;
