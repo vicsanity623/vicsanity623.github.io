@@ -5393,10 +5393,11 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         },
 
         resetState: function() {
-            const startLevel = (gameState.riftProgress.highestRiftLevel || 0) >= 10 
-                ? gameState.riftProgress.highestRiftLevel 
-                : 0;
-        
+            // --- FIX: Implement a checkpoint system ---
+            // The player now starts at their highest completed rift level.
+            // The wave is no longer incremented here, preventing the exploit.
+            const startLevel = (gameState.riftProgress.highestRiftLevel || 0);
+
             this.state.currentWave = startLevel;
             this.state.sessionLoot = { gold: 0, orbs: 0, edgestones: 0, items: 0 };
             this.state.enemies = [];
@@ -5442,8 +5443,12 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.destroyControls();
         
             if (isPlayerDefeated) {
-                showNotification("Defeated in the Rift!", `You were overwhelmed at Rift Level ${this.state.currentWave}. You keep all loot found.`);
+                // --- FIX: Handle defeat logic ---
+                showNotification("Defeated in the Rift!", `You were overwhelmed at Rift Level ${this.state.currentWave}.<br>You lose half your gold and your Rift progress has been reset.`);
                 playSound('defeat', 1, 'sine', 440, 110, 0.8);
+                gameState.gold = Math.floor(gameState.gold / 2);
+                gameState.riftProgress.highestRiftLevel = 0; // Reset progress on defeat
+                gameState.resources.hp = 1;
             }
         
             showScreen('game-screen');
@@ -5468,14 +5473,18 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.updateBurnDamage(timestamp);
             this.handleCollisions();
         
+            // --- FIX: Call the new completeWave function on victory ---
             if (this.state.enemies.length === 0 && !this.state.waveTransitionLock) {
                 this.state.waveTransitionLock = true;
                 setTimeout(() => {
                     if (!this.state.isActive) return;
-                    this.nextWave();
+                    
+                    this.completeWave(); // Use the new victory function
+        
                     this.state.waveTransitionLock = false;
-                }, 250);
+                }, 1000); // Increased delay to 1 second to see the victory
             }
+            // --- END OF FIX ---
         
             this.updateRiftUI();
             this.draw(timestamp);
@@ -5908,6 +5917,23 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
                     this.state.sessionLoot.items++;
                     break;
             }
+        },
+        
+        completeWave: function() {
+            // This is now the ONLY place where the rift level is saved and incremented.
+            if (this.state.currentWave > (gameState.riftProgress.highestRiftLevel || 0)) {
+                gameState.riftProgress.highestRiftLevel = this.state.currentWave;
+                showToast(`Rift Level ${this.state.currentWave} completed! Progress saved.`);
+                saveGame();
+            }
+
+            // Grant a small bonus for completing a wave
+            const goldBonus = 100 * this.state.currentWave;
+            gameState.gold += goldBonus;
+            this.state.sessionLoot.gold += goldBonus;
+
+            // Immediately start the next wave
+            this.nextWave();
         },
     
         nextWave: function() {
