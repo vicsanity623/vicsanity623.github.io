@@ -1,5 +1,5 @@
 // A version number for your cache. Change this to a new value every time you update any of the files.
-const CACHE_VERSION = 'v1.0.5.0'; // <-- Increment this number for every update!
+const CACHE_VERSION = 'v1.2.0'; // <-- Increment this number for every update!
 const CACHE_NAME = `tap-guardian-cache-${CACHE_VERSION}`;
 
 // A list of the essential files your game needs to run offline.
