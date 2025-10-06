@@ -5388,7 +5388,7 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
             this.setupCanvas();
             this.setupControls();
             this.bindEvents();
-            
+            this.nextWave();
             this.gameLoop();
         },
 
