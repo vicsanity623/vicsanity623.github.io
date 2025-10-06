@@ -5393,12 +5393,13 @@ function drawLightningSegment(ctx, x1, y1, x2, y2, color, lineWidth, jaggedness)
         },
 
         resetState: function() {
-            // --- FIX: Implement a checkpoint system ---
-            // The player now starts at their highest completed rift level.
-            // The wave is no longer incremented here, preventing the exploit.
+            // --- FIX: Adjust the starting wave to account for the immediate increment in nextWave ---
             const startLevel = (gameState.riftProgress.highestRiftLevel || 0);
-
-            this.state.currentWave = startLevel;
+            
+            // Set the wave to ONE LESS than the target, because nextWave() will immediately add one.
+            // If starting from scratch (level 0), it becomes -1, and nextWave() makes it 0, which is correct.
+            this.state.currentWave = startLevel -1;
+        
             this.state.sessionLoot = { gold: 0, orbs: 0, edgestones: 0, items: 0 };
             this.state.enemies = [];
             this.state.loot = [];
