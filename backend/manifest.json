@@ -2,7 +2,7 @@
     "name": "ZBD Satoshi Tapper",
     "short_name": "Satoshi Tapper",
     "description": "Tap to earn ZBD Satoshis!",
-    "start_url": "./",
+    "start_url": "/backend/",
     "display": "standalone",
     "background_color": "#121212",
     "theme_color": "#f7931a",
