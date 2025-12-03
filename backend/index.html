@@ -7,6 +7,7 @@
     <title>ZBD Satoshi Tapper</title>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
         crossorigin="anonymous"></script>
+    <link rel="manifest" href="/backend/manifest.json">
     <style>
         :root {
             --bg-color: #121212;
@@ -385,6 +386,19 @@
         // Start Game
         init();
 
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/backend/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered! Scope:', registration.scope);
+                    })
+                    .catch(err => {
+                        console.error('Service Worker registration failed:', err);
+                    });
+            });
+        }
     </script>
 </body>
 
