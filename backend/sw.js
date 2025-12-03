@@ -1,8 +1,13 @@
-const CACHE_NAME = 'satoshi-tapper-cache-v0.0.1';
+const CACHE_NAME = 'satoshi-tapper-cache-v2'; // Incremented version to force update
 const urlsToCache = [
-    './',
-    'index.html',
-    'manifest.json',
+    '/backend/',
+    '/backend/index.html',
+    '/backend/manifest.json',
+    // Add your icon files here with the full path
+    '/backend/icon-192x192.png',
+    '/backend/icon-512x512.png',
+    '/backend/icon-maskable-192x192.png',
+    '/backend/icon-maskable-512x512.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -19,10 +24,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(event.request)
             .then((response) => {
-                if (response) {
-                    return response;
-                }
-                return fetch(event.request);
+                return response || fetch(event.request);
             })
     );
 });
