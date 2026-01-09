@@ -1,100 +1,103 @@
-# Advanced Audio Stem Separator
+# 🎵 Advanced Audio Stem Separator
 
 [![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://vicsanity623.github.io)
 [![Discord](https://img.shields.io/badge/Discord-Join_Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/75DwcRM3Y)
 
-<br>
+A professional, **100% free**, web-based tool that separates audio tracks into individual stems  
+(**Vocals, Drums, Bass, Other**) using the state-of-the-art **Demucs** AI engine.
 
-A professional, 100% free web-based tool that separates audio tracks into individual stems (**Vocals, Drums, Bass, Other**) using the state-of-the-art **Demucs** AI engine.
-
-**🔗 Try it now: [vicsanity623.github.io](https://vicsanity623.github.io)**
+🔗 **Try it now:** https://vicsanity623.github.io
 
 ---
 
 ## 🎧 New Features (v2.0)
 
-We have completely overhauled the interface to provide a studio-quality experience:
+We have completely overhauled the interface to provide a **studio-quality experience**:
 
-- **🌊 Visual Waveforms**  
-  Real-time waveform rendering for every separated track using *WaveSurfer.js*.
+- 🌊 **Visual Waveforms**  
+  Real-time waveform rendering for every separated track using **WaveSurfer.js**
 
-- **🎛️ Smart Player**  
-  "Solo Mode" playback — clicking play on one stem automatically mutes the others for critical listening.
+- 🎛️ **Smart Player**  
+  *Solo Mode* playback — clicking play on one stem automatically mutes the others
 
-- **⬇️ Flexible Downloads**  
-  Download individual stems (WAV) or grab everything in a single ZIP file.
+- ⬇️ **Flexible Downloads**  
+  Download individual WAV stems or grab everything in a single ZIP
 
-- **🚀 Real-Time Progress**  
-  Live feedback and percentage tracking during the AI separation process.
+- 🚀 **Real-Time Progress**  
+  Live feedback and percentage tracking during the AI separation process
 
-- **🔓 Seamless Connection**  
-  No configuration required. The frontend automatically connects to backend nodes.
+- 🔓 **Seamless Connection**  
+  No configuration required — frontend automatically connects to backend nodes
 
 ---
 
 ## 🧠 Powered by Demucs
 
-This service utilizes the  
-[**Demucs (Hybrid Transformer)**](https://github.com/facebookresearch/demucs)  
-audio source separation engine developed by Meta AI Research.
+This service utilizes the **Demucs (Hybrid Transformer)** audio source separation engine  
+developed by **Meta AI Research**.
 
-- **Model:** `htdemucs` (High-performance hybrid transformer)
+🔗 https://github.com/facebookresearch/demucs
+
+**Model Details**
+- **Model:** `htdemucs`
 - **Quality:** Professional-grade separation
 - **Architecture:** 4-stem separation  
   *(Vocals, Drums, Bass, Other)*
 
 ---
 
-## ⚠️ Server Status & Performance Note
+## ⚠️ Server Status & Performance Notes
 
-**Please Read:**  
-This service is hosted on volunteer hardware (Intel-based architecture) and runs on **CPU processing**.
+**Please Read Carefully**
 
-- **Processing Time:**  
-  It may take **2–5 minutes** to process a standard song.
+This service runs on **volunteer-hosted hardware** and currently uses **CPU processing**.
 
-- **Availability:**  
-  If the site hangs or does not connect, the host machine may be offline for maintenance or cooling.
+- ⏱️ **Processing Time**  
+  Typical songs take **2–5 minutes**
 
-- **Queue:**  
-  If multiple users attempt to process files simultaneously, you may experience delays.
+- 🖥️ **Availability**  
+  If the site hangs or fails to connect, the host may be offline for cooling or maintenance
+
+- ⏳ **Queue Behavior**  
+  Multiple simultaneous uploads may result in delays
 
 ---
 
 ## 📜 Strict Usage Policy
 
-**⚠️ COPYRIGHT COMPLIANCE REQUIRED**
+⚠️ **COPYRIGHT COMPLIANCE REQUIRED**
 
-This tool is intended for educational, forensic, and production use on content you own or have permission to modify.
+This tool is intended for **educational, forensic, and production use** on content you own or are authorized to modify.
 
-1. ✅ **YOU MUST OWN** rights to the uploaded audio  
-2. ❌ **DO NOT UPLOAD** copyrighted commercial music without authorization  
-3. ✅ **YOU ARE RESPONSIBLE** for your usage of the separated content  
+1. ✅ You **must own** the rights to uploaded audio  
+2. ❌ Do **not upload copyrighted music** without permission  
+3. ✅ You are **fully responsible** for use of separated stems  
 
-> **Legal Note:**  
-> Separation of copyrighted material without permission constitutes copyright infringement.
+> **Legal Notice**  
+> Separating copyrighted material without permission may constitute infringement.
 
 ---
 
 ## 🛠️ Technical Stack
 
-This project represents a custom **headless** implementation of Demucs:
+This project is a **custom headless implementation** of Demucs:
 
 - **Frontend:** HTML5, CSS3, JavaScript (GitHub Pages)
 - **Audio Visualization:** [WaveSurfer.js](https://wavesurfer-js.org/)
 - **Backend API:** Python Flask
-- **Tunneling:** Ngrok (secure public access)
+- **Tunneling:** Ngrok
 - **AI Engine:** PyTorch + Demucs
 
 ---
 
 ## ▶️ How to Use
 
-1. Visit the web app: https://vicsanity623.github.io  
-2. **Drag & Drop** your audio file (MP3, WAV, FLAC, M4A)
+1. Visit: https://vicsanity623.github.io  
+2. **Drag & Drop** your audio file  
+   *(MP3, WAV, FLAC, M4A supported)*
 3. Upload begins automatically
-4. Once complete, the **Interactive Player** appears
-5. Preview tracks and download your stems
+4. Wait for processing to complete
+5. Use the **Interactive Player** to preview and download stems
 
 ---
 
@@ -109,12 +112,3 @@ This project implements the Demucs audio separation system:
   journal={arXiv preprint arXiv:2111.03600},
   year={2021}
 }
-```
-
-## Legal
-* **Demucs:** Licensed under MIT License by Meta/Facebook Research.
-* **Privacy:** Uploaded files are processed in temporary memory and deleted shortly after processing. We do not store your audio.
-
----
-© 2025 Audio Stem Separator | Ethical AI Audio Processing
-```
