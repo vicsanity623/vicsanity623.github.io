@@ -101,10 +101,20 @@ This project represents a custom **headless** implementation of Demucs:
 ## 🙏 Acknowledgments
 
 This project implements the Demucs audio separation system:
-@defossez2021hybrid,
-  title   = {Hybrid Spectrogram and Waveform Source Separation},
-  author  = {Défossez, Alexandre},
-  journal = {arXiv preprint arXiv:2111.03600},
-  year    = {2021}
+
+```bibtex
+@article{defossez2021hybrid,
+  title={Hybrid Spectrogram and Waveform Source Separation},
+  author={Défossez, Alexandre},
+  journal={arXiv preprint arXiv:2111.03600},
+  year={2021}
 }
+```
+
+## Legal
+* **Demucs:** Licensed under MIT License by Meta/Facebook Research.
+* **Privacy:** Uploaded files are processed in temporary memory and deleted shortly after processing. We do not store your audio.
+
+---
+© 2025 Audio Stem Separator | Ethical AI Audio Processing
 ```
