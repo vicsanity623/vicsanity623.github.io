@@ -119,6 +119,14 @@
             overflow: hidden;
         }
         .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-glow); }
+        
+        .upload-zone.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+            border-color: #444;
+        }
+
         .icon-upload { font-size: 3rem; color: var(--text-dim); margin-bottom: 15px; }
         .file-name { color: var(--accent); font-weight: bold; font-size: 1.2rem; margin-top: 15px; }
         
@@ -342,35 +350,74 @@
 
         let selectedFile = null;
         let activeWaveSurfers = [];
+        let isProcessing = false;
 
-        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('click', () => {
+            if (!isProcessing) fileInput.click();
+        });
+
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
         });
-        ['dragenter', 'dragover'].forEach(name => dropZone.classList.add('dragover'));
-        ['dragleave', 'drop'].forEach(name => dropZone.classList.remove('dragover'));
 
-        dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+        dropZone.addEventListener('dragenter', () => { if (!isProcessing) dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragover', () => { if (!isProcessing) dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+        dropZone.addEventListener('drop', (e) => {
+            dropZone.classList.remove('dragover');
+            if (!isProcessing) handleFiles(e.dataTransfer.files);
+        });
+
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
         function handleFiles(files) {
+            if (isProcessing) return;
             if (files.length > 0) {
                 selectedFile = files[0];
                 fileNameDisplay.textContent = selectedFile.name;
                 processBtn.disabled = false;
+                processBtn.innerText = "Separate Stems";
                 resultsArea.style.display = 'none';
                 progressArea.style.display = 'none';
             }
         }
 
+        function resetUI() {
+            selectedFile = null;
+            fileNameDisplay.textContent = "";
+            resultsArea.style.display = 'none';
+            progressArea.style.display = 'none';
+            tracksWrapper.innerHTML = "";
+            
+            processBtn.disabled = true;
+            processBtn.style.display = 'block';
+            processBtn.innerText = "Separate Stems";
+            
+            dropZone.classList.remove('disabled');
+            isProcessing = false;
+            
+            activeWaveSurfers.forEach(ws => ws.destroy());
+            activeWaveSurfers = [];
+            
+            fileInput.value = "";
+        }
+
         processBtn.addEventListener('click', async () => {
+            if (processBtn.innerText === "SEPARATE ANOTHER") {
+                resetUI();
+                return;
+            }
+
             if (!selectedFile) return;
             const baseUrl = getBackendUrl();
-            
             const mode = document.querySelector('input[name="mode"]:checked').value;
 
+            isProcessing = true;
             processBtn.disabled = true;
             processBtn.style.display = 'none';
+            dropZone.classList.add('disabled');
+            
             progressArea.style.display = 'block';
             slowWarning.style.display = 'block';
             progressBar.style.width = '0%';
@@ -398,6 +445,8 @@
                 statusText.textContent = "Error: " + error.message;
                 processBtn.disabled = false;
                 processBtn.style.display = 'block';
+                dropZone.classList.remove('disabled');
+                isProcessing = false;
             }
         });
 
@@ -409,7 +458,7 @@
                     if (res.status !== 200) return;
                     const data = await res.json();
                     
-                    if (data.status === 'processing') {
+                    if (data.status === 'processing' || data.status === 'queued') {
                         progressBar.style.width = `${data.progress}%`;
                         statusText.textContent = data.message || `Processing... ${data.progress}%`;
                     } else if (data.status === 'complete') {
@@ -421,6 +470,8 @@
                             processBtn.style.display = 'block';
                             processBtn.innerText = "SEPARATE ANOTHER";
                             processBtn.disabled = false;
+                            
+                            
                             renderPlayer(data.data, baseUrl);
                         }, 1000);
                     } else if (data.status === 'error') {
