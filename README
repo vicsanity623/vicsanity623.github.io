@@ -1,6 +1,7 @@
 # Advanced Audio Stem Separator
 
-[![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://vicsanity623.github.io)
+[![Website](https://img.shields.io/static/v1?label=Website&message=Live&color=brightgreen)](https://vicsanity623.github.io)
+
 
 A professional, 100% free web-based tool that separates audio tracks into individual stems  
 (**Vocals, Drums, Bass, Other**) using the state-of-the-art **Demucs** AI engine.
