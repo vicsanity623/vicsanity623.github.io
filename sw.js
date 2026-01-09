@@ -38,7 +38,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   
-  if (event.request.url.includes('.ts.net') || event.request.method === 'POST') {
+  const url = new URL(event.request.url);
+
+  if (url.hostname.endsWith('.ts.net') || event.request.method === 'POST') {
       return; 
   }
 
