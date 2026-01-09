@@ -1,20 +1,11 @@
 // A version number for your cache. Change this to a new value every time you update any of the files.
-const CACHE_VERSION = 'v1.2.1'; // <-- Increment this number for every update!
-const CACHE_NAME = `tap-guardian-cache-${CACHE_VERSION}`;
+const CACHE_VERSION = 'v1.2.2'; // <-- Increment this number for every update!
+const CACHE_NAME = `demucsstems-${CACHE_VERSION}`;
 
 // A list of the essential files your game needs to run offline.
 const FILES_TO_CACHE = [
   './', // Caches the root of your site
-  './rpg.html',
-  './pokemon_catch_sim.html',
-  './game.js',
-  // Add other essential files here if you have them
-  './player.PNG',
-  './clouds.PNG',
-  './egg.png',
-  './main.mp3',
-  './battle.mp3',
-  './expedition.mp3'
+  './index.html',
 ];
 
 // The 'install' event is fired when the service worker is first installed.
