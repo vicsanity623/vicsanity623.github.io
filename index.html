@@ -267,10 +267,17 @@
 
         function getBackendUrl() {
             const userInput = document.getElementById('serverUrl').value.trim();
+            
             if (userInput.length > 5) {
                 return userInput.replace(/\/$/, ""); 
             }
-            return atob(_0x4d2a);
+
+            try {
+                return atob(_0x4d2a.trim());
+            } catch (e) {
+                console.error("Decoding error. Defaulting to placeholder.", e);
+                return "";
+            }
         }
 
         const dropZone = document.getElementById('dropZone');
@@ -312,7 +319,7 @@
             }
         }
 
-        processBtn.addEventListener('click', async () => {
+        processBtn.addEventListener('click', async () =>
             if (!selectedFile) return;
             const baseUrl = getBackendUrl();
             
