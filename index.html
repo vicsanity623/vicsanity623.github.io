@@ -51,37 +51,25 @@
             box-sizing: border-box;
         }
 
-        header { text-align: center; margin-bottom: 50px; }
+        header { text-align: center; margin-bottom: 40px; }
         h1 { font-weight: 200; font-size: 3rem; margin: 0; letter-spacing: -1px; text-shadow: 0 0 20px rgba(0, 242, 255, 0.3); }
         h1 span { color: var(--accent); font-weight: 600; }
         .subtitle { color: var(--text-dim); margin-top: 10px; font-size: 1.1rem; }
 
-        .config-panel {
-            background: var(--bg-panel);
+        /* NEW WELCOME PANEL STYLES */
+        .welcome-panel {
+            background: linear-gradient(145deg, #1a1d2d, #131520);
             border: 1px solid var(--border);
+            border-left: 4px solid var(--success);
             border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 30px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            padding: 25px;
+            margin-bottom: 40px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
-        .server-input-group { width: 100%; max-width: 600px; position: relative; }
-        .server-label { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 1px; }
-        .server-input {
-            width: 100%;
-            background: #11131e;
-            border: 1px solid var(--border);
-            color: var(--text-dim);
-            padding: 12px 15px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 1rem;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
-        .server-input:focus { outline: none; border-color: var(--accent); color: var(--accent); }
-        .server-input::placeholder { color: #444; }
+        .welcome-panel h2 { color: var(--text-main); font-size: 1.4rem; margin: 0 0 10px 0; font-weight: 600; }
+        .welcome-panel p { color: var(--text-dim); margin: 0; font-size: 0.95rem; line-height: 1.5; }
+        .welcome-panel .highlight { color: var(--success); font-weight: 600; margin-top: 8px; display: block; }
 
         .upload-zone {
             background: var(--bg-panel);
@@ -210,16 +198,10 @@
             <p class="subtitle">Drag, Drop, Separate. Professional AI separation.</p>
         </header>
 
-        <div class="config-panel">
-            <div class="server-input-group">
-                <label class="server-label">Backend Connection</label>
-                <input type="text" id="serverUrl" class="server-input" 
-                       placeholder="● Default Server Active (vicsanity-backend-v1)" 
-                       autocomplete="off">
-                <div style="margin-top:5px; font-size:0.75rem; color:#555;">
-                    The system uses the optimized default server. Paste a custom Ngrok URL to override.
-                </div>
-            </div>
+        <div class="welcome-panel">
+            <h2>Unlimited & 100% Free</h2>
+            <p>This is a custom open-source frontend powered by <strong>Demucs</strong>.</p>
+            <span class="highlight">No Paywalls • No File Limits • Professional Quality</span>
         </div>
 
         <div class="upload-zone" id="dropZone">
@@ -259,8 +241,6 @@
         const _0x4d2a = "aHR0cHM6Ly8yYjI0ZWEyMjg2ZDgubmdyb2stZnJlZS5hcHA=";
 
         function getBackendUrl() {
-            const userInput = document.getElementById('serverUrl').value.trim();
-            if (userInput.length > 5) return userInput.replace(/\/$/, ""); 
             try { return atob(_0x4d2a.trim()); } catch (e) { return ""; }
         }
 
@@ -372,7 +352,6 @@
             try {
                 const response = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
                 const blob = await response.blob();
-                
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
                 link.download = filename;
@@ -405,7 +384,6 @@
                         <div class="track-title" style="color:${stem.color}">${stem.name}</div>
                         <div id="wave-${index}" class="waveform"></div>
                     </div>
-                    <!-- CHANGED: Button triggers JS download now -->
                     <button class="track-download" id="dl-${index}" title="Download ${stem.name}">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     </button>
