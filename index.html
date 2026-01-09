@@ -120,7 +120,6 @@
         .btn-process:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0, 114, 255, 0.4); }
         .btn-process:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; box-shadow: none; }
 
-        /* PROGRESS BAR STYLES */
         .progress-container {
             display: none;
             width: 100%; max-width: 500px;
@@ -188,7 +187,10 @@
         .track-details { flex-grow: 1; overflow: hidden; }
         .track-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 5px; }
         .waveform { width: 100%; height: 60px; opacity: 0.8; }
-        .track-download { color: var(--text-dim); text-decoration: none; font-size: 1.5rem; padding: 10px; transition: color 0.2s; }
+        .track-download { 
+            color: var(--text-dim); font-size: 1.5rem; padding: 10px; 
+            transition: color 0.2s; cursor: pointer; background: transparent; border: none;
+        }
         .track-download:hover { color: var(--success); }
         .download-all-btn {
             display: block; text-align: center; background: transparent; border: 2px solid var(--success);
@@ -318,13 +320,9 @@
             const headers = { "ngrok-skip-browser-warning": "true" };
 
             try {
-                // 1. START JOB
                 const startResponse = await fetch(`${baseUrl}/separate`, { 
-                    method: 'POST', 
-                    body: formData,
-                    headers: headers
+                    method: 'POST', body: formData, headers: headers
                 });
-                
                 if (!startResponse.ok) throw new Error("Upload Failed: " + startResponse.status);
                 
                 const startData = await startResponse.json();
@@ -346,7 +344,6 @@
                     });
                     
                     if (res.status !== 200) return;
-
                     const data = await res.json();
                     
                     if (data.status === 'processing') {
@@ -371,6 +368,22 @@
             }, 1000);
         }
 
+        async function forceDownload(url, filename) {
+            try {
+                const response = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
+                const blob = await response.blob();
+                
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) {
+                alert("Download failed. The server might be offline.");
+            }
+        }
+
         function renderPlayer(data, baseUrl) {
             resultsArea.style.display = 'block';
             const stems = [
@@ -392,9 +405,10 @@
                         <div class="track-title" style="color:${stem.color}">${stem.name}</div>
                         <div id="wave-${index}" class="waveform"></div>
                     </div>
-                    <a href="${audioUrl}" class="track-download" download title="Download ${stem.name}">
+                    <!-- CHANGED: Button triggers JS download now -->
+                    <button class="track-download" id="dl-${index}" title="Download ${stem.name}">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    </a>
+                    </button>
                 `;
                 tracksWrapper.appendChild(card);
 
@@ -407,7 +421,8 @@
                     barGap: 3,
                     barRadius: 3,
                     height: 50,
-                    url: audioUrl
+                    url: audioUrl,
+                    fetchParams: { headers: { "ngrok-skip-browser-warning": "true" } }
                 });
 
                 const btn = document.getElementById(`btn-${index}`);
@@ -418,6 +433,10 @@
                 });
                 ws.on('pause', () => btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`);
                 activeWaveSurfers.push(ws);
+
+                document.getElementById(`dl-${index}`).addEventListener('click', () => {
+                    forceDownload(audioUrl, `${stem.name}.wav`);
+                });
             });
             downloadZipBtn.href = `${baseUrl}${data.zip}`;
         }
