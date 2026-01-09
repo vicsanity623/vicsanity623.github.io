@@ -56,7 +56,6 @@
         h1 span { color: var(--accent); font-weight: 600; }
         .subtitle { color: var(--text-dim); margin-top: 10px; font-size: 1.1rem; }
 
-        /* NEW WELCOME PANEL STYLES */
         .welcome-panel {
             background: linear-gradient(145deg, #1a1d2d, #131520);
             border: 1px solid var(--border);
@@ -156,6 +155,7 @@
             gap: 20px;
             border: 1px solid var(--border);
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            position: relative;
         }
         
         .track-control {
@@ -170,21 +170,33 @@
             border: 1px solid var(--border);
             transition: all 0.2s;
             color: var(--accent);
+            z-index: 10;
         }
         .track-control:hover { background: var(--accent); color: #000; border-color: var(--accent); }
-        .track-details { flex-grow: 1; overflow: hidden; }
+        .track-details { flex-grow: 1; overflow: hidden; position: relative; }
         .track-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 5px; }
-        .waveform { width: 100%; height: 60px; opacity: 0.8; }
+        .waveform { width: 100%; height: 60px; opacity: 0.8; position: relative; }
+        
+        .wave-loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 0.8rem; color: #555; pointer-events: none;
+        }
+
         .track-download { 
             color: var(--text-dim); font-size: 1.5rem; padding: 10px; 
             transition: color 0.2s; cursor: pointer; background: transparent; border: none;
+            z-index: 10;
         }
         .track-download:hover { color: var(--success); }
+        .track-download:disabled { opacity: 0.5; cursor: wait; }
+
         .download-all-btn {
             display: block; text-align: center; background: transparent; border: 2px solid var(--success);
             color: var(--success); padding: 15px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 30px; transition: all 0.3s;
+            cursor: pointer;
         }
         .download-all-btn:hover { background: var(--success); color: #000; }
+        .download-all-btn:disabled { border-color: #555; color: #555; cursor: wait; background: transparent; }
 
         footer { margin-top: 60px; text-align: center; font-size: 0.8rem; color: #555; padding-bottom: 20px; }
         footer a { color: #777; text-decoration: none; }
@@ -228,7 +240,7 @@
         <div id="results-area">
             <h2 style="font-weight:300; margin-bottom:20px; color:var(--text-main);">Separated Stems</h2>
             <div id="tracks-wrapper"></div>
-            <a id="downloadZipBtn" href="#" class="download-all-btn">Download All Stems (.ZIP)</a>
+            <button id="downloadZipBtn" class="download-all-btn">Download All Stems (.ZIP)</button>
         </div>
         
         <footer>
@@ -296,7 +308,6 @@
 
             const formData = new FormData();
             formData.append('audioFile', selectedFile);
-
             const headers = { "ngrok-skip-browser-warning": "true" };
 
             try {
@@ -348,9 +359,15 @@
             }, 1000);
         }
 
-        async function forceDownload(url, filename) {
+        async function forceDownload(url, filename, btnElement) {
+            const originalContent = btnElement.innerHTML;
+            btnElement.innerHTML = "⏳";
+            btnElement.disabled = true;
+
             try {
                 const response = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
+                if (!response.ok) throw new Error("Network error");
+                
                 const blob = await response.blob();
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
@@ -359,7 +376,10 @@
                 link.click();
                 document.body.removeChild(link);
             } catch (e) {
-                alert("Download failed. The server might be offline.");
+                alert("Download failed. Please check your connection.");
+            } finally {
+                btnElement.innerHTML = originalContent;
+                btnElement.disabled = false;
             }
         }
 
@@ -382,7 +402,9 @@
                     </div>
                     <div class="track-details">
                         <div class="track-title" style="color:${stem.color}">${stem.name}</div>
-                        <div id="wave-${index}" class="waveform"></div>
+                        <div id="wave-${index}" class="waveform">
+                            <div class="wave-loading">Loading Visuals...</div>
+                        </div>
                     </div>
                     <button class="track-download" id="dl-${index}" title="Download ${stem.name}">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -398,9 +420,14 @@
                     barWidth: 2,
                     barGap: 3,
                     barRadius: 3,
-                    height: 50,
+                    height: 60,
                     url: audioUrl,
                     fetchParams: { headers: { "ngrok-skip-browser-warning": "true" } }
+                });
+
+                ws.on('ready', () => {
+                    const loader = document.querySelector(`#wave-${index} .wave-loading`);
+                    if(loader) loader.style.display = 'none';
                 });
 
                 const btn = document.getElementById(`btn-${index}`);
@@ -412,11 +439,14 @@
                 ws.on('pause', () => btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`);
                 activeWaveSurfers.push(ws);
 
-                document.getElementById(`dl-${index}`).addEventListener('click', () => {
-                    forceDownload(audioUrl, `${stem.name}.wav`);
+                document.getElementById(`dl-${index}`).addEventListener('click', function() {
+                    forceDownload(audioUrl, `${stem.name}.wav`, this);
                 });
             });
-            downloadZipBtn.href = `${baseUrl}${data.zip}`;
+            
+            downloadZipBtn.onclick = function() {
+                forceDownload(`${baseUrl}${data.zip}`, "stems.zip", this);
+            };
         }
     </script>
 </body>
