@@ -1,13 +1,12 @@
 # Advanced Audio Stem Separator
 
 [![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://vicsanity623.github.io)
-[![Discord](https://img.shields.io/discord/123456789?label=Discord&logo=discord)](https://discord.gg/qrt3gd8t)
 
 A professional, 100% free web-based tool that separates audio tracks into individual stems  
 (**Vocals, Drums, Bass, Other**) using the state-of-the-art **Demucs** AI engine.
 
 **🔗 Try it now:**  
-👉 https://vicsanity623.github.io
+https://vicsanity623.github.io
 
 ---
 
@@ -19,7 +18,7 @@ We have completely overhauled the interface to provide a studio-quality experien
   Real-time waveform rendering for every separated track using *WaveSurfer.js*.
 
 - **🎛️ Smart Player**  
-  “Solo Mode” playback — clicking play on one stem automatically mutes the others for critical listening.
+  "Solo Mode" playback — clicking play on one stem automatically mutes the others for critical listening.
 
 - **⬇️ Flexible Downloads**  
   Download individual stems (WAV) or grab everything in a single ZIP file.
@@ -65,7 +64,7 @@ This service is hosted on volunteer hardware (Intel-based architecture) and runs
 
 **⚠️ COPYRIGHT COMPLIANCE REQUIRED**
 
-This tool is intended for **educational, forensic, and production use** on content you own or have permission to modify.
+This tool is intended for educational, forensic, and production use on content you own or have permission to modify.
 
 1. ✅ **YOU MUST OWN** rights to the uploaded audio  
 2. ❌ **DO NOT UPLOAD** copyrighted commercial music without authorization  
@@ -101,12 +100,9 @@ This project represents a custom **headless** implementation of Demucs:
 ## 🙏 Acknowledgments
 
 This project implements the Demucs audio separation system:
-
-```bibtex
-@article{defossez2021hybrid,
+@defossez2021hybrid,
   title   = {Hybrid Spectrogram and Waveform Source Separation},
   author  = {Défossez, Alexandre},
   journal = {arXiv preprint arXiv:2111.03600},
   year    = {2021}
 }
-```
