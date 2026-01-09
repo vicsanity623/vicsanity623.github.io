@@ -28,6 +28,7 @@
             --text-dim: #8f9bb3;
             --border: #2e344e;
             --success: #00ff9d;
+            --warning: #ffb700;
         }
 
         body {
@@ -118,17 +119,42 @@
         .btn-process:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0, 114, 255, 0.4); }
         .btn-process:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; box-shadow: none; }
 
-        .loader-container { display: none; text-align: center; margin: 30px 0; }
-        .spinner {
-            width: 50px; height: 50px;
-            border: 5px solid rgba(255,255,255,0.1);
-            border-top: 5px solid var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px auto;
+        /* PROGRESS BAR STYLES */
+        .progress-container {
+            display: none;
+            width: 100%; max-width: 500px;
+            margin: 30px auto;
+            text-align: center;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .status-text { color: var(--text-dim); font-size: 0.9rem; }
+        .progress-bar-bg {
+            background: #222;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            border: 1px solid #444;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px var(--accent);
+        }
+        .status-text { color: var(--text-main); font-weight: bold; margin-bottom: 5px; min-height: 1.5rem; }
+        
+        /* WARNING MESSAGE */
+        .slow-warning {
+            color: var(--warning);
+            font-size: 0.85rem;
+            margin-top: 15px;
+            display: none;
+            background: rgba(255, 183, 0, 0.1);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 183, 0, 0.3);
+            line-height: 1.4;
+        }
 
         #results-area { display: none; margin-top: 50px; animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -207,9 +233,18 @@
 
         <button id="processBtn" class="btn-process" disabled>Separate Stems</button>
 
-        <div class="loader-container" id="loader">
-            <div class="spinner"></div>
-            <div id="statusMsg" class="status-text">Uploading file to server...</div>
+        <!-- PROGRESS AREA -->
+        <div class="progress-container" id="progressArea">
+            <div class="status-text" id="statusText">Preparing...</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+            
+            <!-- WARNING MESSAGE -->
+            <div class="slow-warning" id="slowWarning">
+                ⚠️ <strong>Note:</strong> Processing may take 2-5 minutes depending on file length.
+                The AI is running detailed stem separation. Please do not close this tab.
+            </div>
         </div>
 
         <div id="results-area">
@@ -241,8 +276,10 @@
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const processBtn = document.getElementById('processBtn');
-        const loader = document.getElementById('loader');
-        const statusMsg = document.getElementById('statusMsg');
+        const progressArea = document.getElementById('progressArea');
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('statusText');
+        const slowWarning = document.getElementById('slowWarning');
         const resultsArea = document.getElementById('results-area');
         const tracksWrapper = document.getElementById('tracks-wrapper');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
@@ -271,19 +308,22 @@
                 fileNameDisplay.textContent = selectedFile.name;
                 processBtn.disabled = false;
                 resultsArea.style.display = 'none';
+                progressArea.style.display = 'none';
             }
         }
 
         processBtn.addEventListener('click', async () => {
-            const baseUrl = getBackendUrl(); // Gets the hidden URL
-            
             if (!selectedFile) return;
-
-            processBtn.disabled = true;
-            processBtn.innerHTML = 'PROCESSING...';
-            loader.style.display = 'block';
-            statusMsg.textContent = "Uploading audio... (This depends on your internet speed)";
+            const baseUrl = getBackendUrl();
             
+            // RESET UI FOR PROCESSING
+            processBtn.disabled = true;
+            processBtn.style.display = 'none'; // Hide button during process
+            progressArea.style.display = 'block';
+            slowWarning.style.display = 'block'; // Show warning
+            progressBar.style.width = '0%';
+            statusText.textContent = "Uploading file (0%)...";
+
             activeWaveSurfers.forEach(ws => ws.destroy());
             activeWaveSurfers = [];
             tracksWrapper.innerHTML = '';
@@ -292,35 +332,65 @@
             formData.append('audioFile', selectedFile);
 
             try {
-                statusMsg.textContent = "Server is separating stems... (Please wait)";
-                const response = await fetch(`${baseUrl}/separate`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-
-                const result = await response.json();
-                if (result.error) throw new Error(result.error);
-
-                statusMsg.textContent = "Success! Loading audio players...";
-                renderPlayer(result.data, baseUrl);
+                // 1. START JOB
+                const startResponse = await fetch(`${baseUrl}/separate`, { method: 'POST', body: formData });
+                if (!startResponse.ok) throw new Error("Upload Failed");
                 
-                loader.style.display = 'none';
-                resultsArea.style.display = 'block';
-                processBtn.innerHTML = 'SEPARATE STEMS';
-                processBtn.disabled = false;
+                const startData = await startResponse.json();
+                const taskId = startData.task_id;
+
+                // 2. POLL STATUS
+                pollStatus(baseUrl, taskId);
 
             } catch (error) {
                 console.error(error);
-                statusMsg.textContent = "Error: " + error.message;
-                statusMsg.style.color = "#ff5555";
+                statusText.textContent = "Error: " + error.message;
+                statusText.style.color = "#ff5555";
                 processBtn.disabled = false;
-                processBtn.innerHTML = 'TRY AGAIN';
+                processBtn.style.display = 'block';
             }
         });
 
+        async function pollStatus(baseUrl, taskId) {
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${baseUrl}/status/${taskId}`);
+                    const data = await res.json();
+
+                    if (data.status === 'processing') {
+                        // UPDATE PROGRESS
+                        progressBar.style.width = `${data.progress}%`;
+                        statusText.textContent = data.message || `Processing... ${data.progress}%`;
+                    } else if (data.status === 'complete') {
+                        // DONE
+                        clearInterval(interval);
+                        progressBar.style.width = '100%';
+                        statusText.textContent = "Finalizing...";
+                        
+                        setTimeout(() => {
+                            progressArea.style.display = 'none';
+                            processBtn.style.display = 'block';
+                            processBtn.innerText = "SEPARATE ANOTHER";
+                            processBtn.disabled = false;
+                            
+                            renderPlayer(data.data, baseUrl);
+                        }, 1000);
+                    } else if (data.status === 'error') {
+                        clearInterval(interval);
+                        throw new Error(data.message);
+                    }
+
+                } catch (e) {
+                    clearInterval(interval);
+                    statusText.textContent = "Connection Error: " + e.message;
+                    processBtn.disabled = false;
+                    processBtn.style.display = 'block';
+                }
+            }, 1000); // Check every 1 second
+        }
+
         function renderPlayer(data, baseUrl) {
+            resultsArea.style.display = 'block';
             const stems = [
                 { id: 'vocals', name: 'Vocals', color: '#ff0055', url: data.vocals },
                 { id: 'drums', name: 'Drums', color: '#00f2ff', url: data.drums },
