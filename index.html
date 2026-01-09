@@ -379,6 +379,49 @@
                 Server->>Server: Encode WAV & Zip
                 Server-->>User: Download Final Zip
             </div>
+
+            <h3 style="margin-top: 50px;">Deep Learning Architecture: The U-Net & BiLSTM</h3>
+
+            <p>
+                To achieve such clean separation, Demucs employs a specialized <strong>U-Net topology</strong>. Imagine a "U" shape: on the left side (the Encoder), the audio spectrogram is progressively downsampled, compressing the complex waveform into high-level features. On the right side (the Decoder), it attempts to reconstruct the specific stems from those features. The magic lies in the <strong>Skip Connections</strong> (represented by dotted lines below). These connections pass high-resolution details from the start of the process directly to the end, bypassing the compression bottleneck. This ensures that the output vocals remain crisp and the drums retain their transient punch, rather than sounding "muddy" or over-processed.
+            </p>
+
+            <p>
+                Sandwiched between the encoder and decoder is the <strong>BiLSTM (Bidirectional Long Short-Term Memory)</strong> core. While standard convolutional layers are great at analyzing sound textures (like the timbre of a guitar), they struggle with time and rhythm. The BiLSTM analyzes the song chronologically—scanning both forwards and backwards simultaneously. This allows the AI to understand musical context, keeping the tempo consistent and distinguishing between a rhythmic drum beat and a random noise artifact, effectively "listening" to the song structure before making separation decisions.
+            </p>
+
+            <div class="mermaid">
+                graph TD
+                subgraph Encoder ["📉 Encoder (Compression)"]
+                    I[Input Mix] --> C1[Conv Layer 1]
+                    C1 --> C2[Conv Layer 2]
+                    C2 --> C3[Conv Layer 3]
+                    C3 --> C4[Conv Layer 4]
+                end
+
+                subgraph Bottleneck ["🧠 BiLSTM Core (Time Context)"]
+                    C4 --> B[Forward/Backward Analysis]
+                end
+
+                subgraph Decoder ["📈 Decoder (Reconstruction)"]
+                    B --> U4[UpSample 4]
+                    U4 --> U3[UpSample 3]
+                    U3 --> U2[UpSample 2]
+                    U2 --> U1[Output Stems]
+                end
+
+                %% Skip Connections (The Secret Sauce)
+                C1 -.->|Skip Connection| U1
+                C2 -.->|Skip Connection| U2
+                C3 -.->|Skip Connection| U3
+                C4 -.->|Skip Connection| U4
+
+                style Encoder fill:#1a1d2d,stroke:#ff0055,stroke-width:2px
+                style Decoder fill:#1a1d2d,stroke:#00f2ff,stroke-width:2px
+                style Bottleneck fill:#252a40,stroke:#ffb700,stroke-width:2px
+                style I fill:#fff,color:#000
+                style U1 fill:#fff,color:#000
+            </div>
         </div>
 
         <div style="margin: 40px 0; text-align: center;">
