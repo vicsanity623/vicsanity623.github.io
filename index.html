@@ -246,11 +246,26 @@
         .download-all-btn:hover { background: var(--success); color: #000; }
         .download-all-btn:disabled { border-color: #555; color: #555; cursor: wait; background: transparent; }
 
+        .legal-notice {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px 25px;
+            margin: 60px 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .legal-icon { color: var(--accent); flex-shrink: 0; }
+
         .about-section {
             background: var(--bg-panel);
             border-radius: 12px;
             padding: 40px;
-            margin-top: 60px;
+            margin-top: 20px;
             border: 1px solid var(--border);
             color: var(--text-dim);
             line-height: 1.8;
@@ -321,6 +336,19 @@
 
             <div id="tracks-wrapper"></div>
             <button id="downloadZipBtn" class="download-all-btn">Download All Stems (.ZIP)</button>
+        </div>
+
+        <div class="legal-notice">
+            <div class="legal-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+            </div>
+            <div>
+                <strong>EDUCATIONAL USE ONLY:</strong> This tool is provided for research and educational purposes. 
+                Users must ensure they own the rights or have explicit permission for any audio content uploaded. 
+                We do not support copyright infringement.
+            </div>
         </div>
 
         <div class="about-section">
