@@ -1,8 +1,8 @@
 {
-  "name": "Catch",
-  "short_name": "Catch",
-  "description": "A Pokemon Catch Simulator.",
-  "start_url": "./pokemon_catch_sim.html",
+  "name": "Stemz",
+  "short_name": "Stemz",
+  "description": "Demucs Stem Separation.",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1a1a1a",
   "theme_color": "#00ff7f",
