@@ -7,8 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Professional Audio Stem Separation powered by Demucs. Isolate vocals, drums, and instruments instantly.">
     <title>Pro Audio Stem Separator - Powered by Demucs</title>
-    
-    <!-- FIX: PREVENT 404 FAVICON ERROR -->
     <link rel="icon" href="data:,">
     
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-4686TXHCHN"></script>
@@ -146,7 +144,6 @@
         }
         .status-text { color: var(--text-main); font-weight: bold; margin-bottom: 5px; min-height: 1.5rem; }
         
-        /* WARNING MESSAGE */
         .slow-warning {
             color: var(--warning);
             font-size: 0.85rem;
@@ -188,14 +185,11 @@
             color: var(--accent);
         }
         .track-control:hover { background: var(--accent); color: #000; border-color: var(--accent); }
-        
         .track-details { flex-grow: 1; overflow: hidden; }
         .track-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 5px; }
         .waveform { width: 100%; height: 60px; opacity: 0.8; }
-        
         .track-download { color: var(--text-dim); text-decoration: none; font-size: 1.5rem; padding: 10px; transition: color 0.2s; }
         .track-download:hover { color: var(--success); }
-
         .download-all-btn {
             display: block; text-align: center; background: transparent; border: 2px solid var(--success);
             color: var(--success); padding: 15px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 30px; transition: all 0.3s;
@@ -236,14 +230,11 @@
 
         <button id="processBtn" class="btn-process" disabled>Separate Stems</button>
 
-        <!-- PROGRESS AREA -->
         <div class="progress-container" id="progressArea">
             <div class="status-text" id="statusText">Preparing...</div>
             <div class="progress-bar-bg">
                 <div class="progress-bar-fill" id="progressBar"></div>
             </div>
-            
-            <!-- WARNING MESSAGE -->
             <div class="slow-warning" id="slowWarning">
                 ⚠️ <strong>Note:</strong> Processing may take 2-5 minutes depending on file length.
                 The AI is running detailed stem separation. Please do not close this tab.
@@ -258,29 +249,17 @@
         
         <footer>
             <p>© 2025 Advanced Audio Stem Separator.</p>
-            <p>
-                <a href="https://github.com/vicsanity623">GitHub</a> | 
-                <a href="/privacy.html">Privacy</a>
-            </p>
+            <p><a href="https://github.com/vicsanity623">GitHub</a> | <a href="/privacy.html">Privacy</a></p>
         </footer>
     </div>
 
     <script>
         const _0x4d2a = "aHR0cHM6Ly8yYjI0ZWEyMjg2ZDgubmdyb2stZnJlZS5hcHA=";
-        
+
         function getBackendUrl() {
             const userInput = document.getElementById('serverUrl').value.trim();
-            
-            if (userInput.length > 5) {
-                return userInput.replace(/\/$/, ""); 
-            }
-
-            try {
-                return atob(_0x4d2a.trim());
-            } catch (e) {
-                console.error("Decoding error. Check Base64 string.", e);
-                return "";
-            }
+            if (userInput.length > 5) return userInput.replace(/\/$/, ""); 
+            try { return atob(_0x4d2a.trim()); } catch (e) { return ""; }
         }
 
         const dropZone = document.getElementById('dropZone');
@@ -299,13 +278,9 @@
         let activeWaveSurfers = [];
 
         dropZone.addEventListener('click', () => fileInput.click());
-
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, e => {
-                e.preventDefault(); e.stopPropagation();
-            }, false);
+            dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
         });
-        
         ['dragenter', 'dragover'].forEach(name => dropZone.classList.add('dragover'));
         ['dragleave', 'drop'].forEach(name => dropZone.classList.remove('dragover'));
 
@@ -325,13 +300,11 @@
         processBtn.addEventListener('click', async () => {
             if (!selectedFile) return;
             const baseUrl = getBackendUrl();
-            console.log("Using Backend:", baseUrl); // Debugging Log
             
-            // RESET UI FOR PROCESSING
             processBtn.disabled = true;
-            processBtn.style.display = 'none'; // Hide button during process
+            processBtn.style.display = 'none';
             progressArea.style.display = 'block';
-            slowWarning.style.display = 'block'; // Show warning
+            slowWarning.style.display = 'block';
             progressBar.style.width = '0%';
             statusText.textContent = "Uploading file (0%)...";
 
@@ -342,72 +315,60 @@
             const formData = new FormData();
             formData.append('audioFile', selectedFile);
 
+            const headers = { "ngrok-skip-browser-warning": "true" };
+
             try {
                 // 1. START JOB
-                console.log("Sending upload request...");
-                const startResponse = await fetch(`${baseUrl}/separate`, { method: 'POST', body: formData });
+                const startResponse = await fetch(`${baseUrl}/separate`, { 
+                    method: 'POST', 
+                    body: formData,
+                    headers: headers
+                });
+                
                 if (!startResponse.ok) throw new Error("Upload Failed: " + startResponse.status);
                 
                 const startData = await startResponse.json();
-                const taskId = startData.task_id;
-                console.log("Task ID received:", taskId);
-
-                // 2. POLL STATUS
-                pollStatus(baseUrl, taskId);
+                pollStatus(baseUrl, startData.task_id);
 
             } catch (error) {
                 console.error(error);
                 statusText.textContent = "Error: " + error.message;
-                statusText.style.color = "#ff5555";
                 processBtn.disabled = false;
                 processBtn.style.display = 'block';
             }
         });
 
         async function pollStatus(baseUrl, taskId) {
-            console.log("Starting polling for task:", taskId);
             const interval = setInterval(async () => {
                 try {
-                    const res = await fetch(`${baseUrl}/status/${taskId}`);
+                    const res = await fetch(`${baseUrl}/status/${taskId}`, {
+                        headers: { "ngrok-skip-browser-warning": "true" }
+                    });
                     
-                    if (res.status === 404) {
-                        console.error("Status 404: Job not found in server memory.");
-                        // Don't clear interval immediately, give it a few retries in case of lag
-                    }
+                    if (res.status !== 200) return;
 
                     const data = await res.json();
                     
                     if (data.status === 'processing') {
-                        // UPDATE PROGRESS
                         progressBar.style.width = `${data.progress}%`;
                         statusText.textContent = data.message || `Processing... ${data.progress}%`;
                     } else if (data.status === 'complete') {
-                        // DONE
-                        console.log("Job Complete!");
                         clearInterval(interval);
                         progressBar.style.width = '100%';
                         statusText.textContent = "Finalizing...";
-                        
                         setTimeout(() => {
                             progressArea.style.display = 'none';
                             processBtn.style.display = 'block';
                             processBtn.innerText = "SEPARATE ANOTHER";
                             processBtn.disabled = false;
-                            
                             renderPlayer(data.data, baseUrl);
                         }, 1000);
                     } else if (data.status === 'error') {
                         clearInterval(interval);
                         throw new Error(data.message);
                     }
-
-                } catch (e) {
-                    // Only stop if it's not a temporary network blip
-                    if(e.message !== "Failed to fetch") {
-                         console.error("Polling Error:", e);
-                    }
-                }
-            }, 1000); // Check every 1 second
+                } catch (e) { console.error("Polling Error:", e); }
+            }, 1000);
         }
 
         function renderPlayer(data, baseUrl) {
@@ -451,21 +412,13 @@
 
                 const btn = document.getElementById(`btn-${index}`);
                 btn.addEventListener('click', () => ws.playPause());
-
                 ws.on('play', () => {
                     btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
-                    activeWaveSurfers.forEach((otherWs, otherIdx) => {
-                        if (otherIdx !== index) otherWs.pause();
-                    });
+                    activeWaveSurfers.forEach((otherWs, otherIdx) => { if (otherIdx !== index) otherWs.pause(); });
                 });
-
-                ws.on('pause', () => {
-                    btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
-                });
-
+                ws.on('pause', () => btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`);
                 activeWaveSurfers.push(ws);
             });
-
             downloadZipBtn.href = `${baseUrl}${data.zip}`;
         }
     </script>
