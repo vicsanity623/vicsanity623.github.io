@@ -100,3 +100,15 @@ This project is a **custom headless implementation** of Demucs:
 5. Use the **Interactive Player** to preview and download stems
 
 ---
+## 🙏 Acknowledgments
+
+This project implements the Demucs audio separation system:
+
+```bibtex
+@article{defossez2021hybrid,
+  title={Hybrid Spectrogram and Waveform Source Separation},
+  author={Défossez, Alexandre},
+  journal={arXiv preprint arXiv:2111.03600},
+  year={2021}
+}
+```
