@@ -1,105 +1,84 @@
-this site is currently down because i cant afford maintaing my own server it has caused issues with my CPU temps (mid tier imac) sorry for the inconveneience
+# Advanced Audio Stem Separator
 
-# Professional Audio Stem Separator
+[![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://vicsanity623.github.io)
+[![Discord](https://img.shields.io/discord/123456789?label=Discord&logo=discord)](https://discord.gg/qrt3gd8t)
 
-## Discord community : https://discord.gg/qrt3gd8t
+A professional, 100% free web-based tool that separates audio tracks into individual stems (Vocals, Drums, Bass, Other) using the state-of-the-art **Demucs** AI engine.
 
-A server-based audio processing tool that separates audio tracks into individual stems (vocals, drums, bass, etc.) using the **Demucs** machine learning engine. Ideal for legitimate audio engineering, podcast production, and forensic analysis.
+**🔗 Try it now: [vicsanity623.github.io](https://vicsanity623.github.io)**
 
+---
 
-## Powered by Demucs
-This service utilizes the [**Demucs**](https://github.com/facebookresearch/demucs) audio source separation engine developed by Facebook Research:
-- Licensed under [MIT License](https://github.com/facebookresearch/demucs/blob/main/LICENSE)
-- State-of-the-art deep learning architecture
-- Professional-grade separation quality
-- Supports 4-stem separation (vocals, drums, bass, other)
+## 🎧 New Features (v2.0)
+We have completely overhauled the interface to provide a studio-quality experience:
 
-## Key Features
-- 🚀 **Server-Side Processing** - Heavy computations handled remotely
-- ⏱️ **Fast Results** - Get separated stems in ZIP format
-- 🎚️ **Studio Quality** - Demucs-powered separation algorithms
-- 💾 **No Installations** - Fully web-based (no plugins required)
-- 🆓 **Free to Use** - Open access for legitimate purposes
+*   **🌊 Visual Waveforms:** Real-time waveform rendering for every separated track using *WaveSurfer.js*.
+*   **🎛️ Smart Player:** "Solo Mode" playback—clicking play on one stem automatically mutes the others for critical listening.
+*   **⬇️ Flexible Downloads:** Download individual stems (WAV) or grab everything in a single ZIP file.
+*   **🚀 Real-Time Progress:** Live feedback and percentage tracking during the AI separation process.
+*   **🔓 Seamless Connection:** No configuration required. The frontend automatically connects to our backend nodes.
 
-## Acceptable Use Cases
-- 🎙️ Podcast vocal isolation
-- 🔊 Audio restoration/cleanup
-- 🔍 Forensic audio analysis
-- 🎼 Music education/study
-- 🎧 Audio engineering workflows
+---
 
-## Strict Usage Policy
-⚠️ **WARNING: COPYRIGHT COMPLIANCE REQUIRED**  
-This tool may only be used with **legally owned audio content**. By using this service, you agree:
+## 🧠 Powered by Demucs
+This service utilizes the [**Demucs (Hybrid Transformer)**](https://github.com/facebookresearch/demucs) audio source separation engine developed by Meta AI Research.
+*   **Model:** `htdemucs` (High-performance hybrid transformer)
+*   **Quality:** Professional-grade separation
+*   **Architecture:** 4-stem separation (Vocals, Drums, Bass, Other)
 
-1. ✅ **YOU MUST OWN** all uploaded content OR have explicit rights to modify it
-2. ❌ **NEVER UPLOAD** copyrighted material without authorization
-3. ❌ **DO NOT PROCESS** third-party content (music, films, TV shows)
-4. ✅ **YOU ARE RESPONSIBLE** for ensuring content compliance
+---
 
-> **Legal Note:** Separation of copyrighted material without permission constitutes copyright infringement. Violators may face permanent IP bans and legal consequences.
+## ⚠️ Server Status & Performance Note
+**Please Read:** This service is hosted on volunteer hardware (Intel-based architecture) running on **CPU processing**.
+*   **Processing Time:** It may take **2-5 minutes** to process a standard song.
+*   **Availability:** If the site hangs or does not connect, the host machine may be offline for maintenance or cooling.
+*   **Queue:** If multiple users attempt to process files simultaneously, you may experience delays.
+
+---
+
+## 📜 Strict Usage Policy
+**COPYRIGHT COMPLIANCE REQUIRED**
+This tool is intended for educational, forensic, and production use on content you own or have permission to modify.
+
+1.  ✅ **YOU MUST OWN** rights to the uploaded audio.
+2.  ❌ **DO NOT UPLOAD** copyrighted commercial music without authorization.
+3.  ✅ **YOU ARE RESPONSIBLE** for your usage of the separated content.
+
+> **Legal Note:** Separation of copyrighted material without permission constitutes copyright infringement.
+
+---
+
+## 🛠️ Technical Stack
+This project represents a custom "Headless" implementation of Demucs:
+*   **Frontend:** HTML5, CSS3, JavaScript (hosted on GitHub Pages)
+*   **Audio Visualization:** [WaveSurfer.js](https://wavesurfer-js.org/)
+*   **Backend API:** Python Flask
+*   **Tunneling:** Ngrok (Secure tunneling for public access)
+*   **AI Engine:** PyTorch + Demucs
 
 ## How to Use
-1. Access the web app:(https://vicsanity623.github.io)
-2. Click "Choose File" to select an audio file (MP3/WAV/FLAC)
-3. Select stem separation type (Vocals, Instruments, etc.)
-4. Click "Separate Audio" to upload
-5. Wait for server processing (progress bar will display)
-6. Download ZIP file with separated stems when completed
+1.  Visit the [Web App](https://vicsanity623.github.io).
+2.  **Drag & Drop** your audio file (MP3, WAV, FLAC, M4A).
+3.  The file will upload and processing will begin automatically.
+4.  Once complete, the **Interactive Player** will appear.
+5.  Preview tracks and download your stems.
 
-## Supported Formats
-- Input: MP3, WAV, FLAC (≤100MB)
-- Output: ZIP containing WAV stems (Demucs standard format)
-
-## Technical Architecture
-This server is using CPU only processing, therefore this is going to be very slow to process audio files. Plans on upgrading server for GPU is in the works.
-
-graph LR
-A[User Browser] --> B[Upload Audio]
-B --> C[Demucs Server]
-C --> D[Stem Separation]
-D --> E[ZIP Creation]
-E --> F[Result Download]
-
-## Privacy & Data Handling
-
-Uploaded files are automatically deleted after processing
-No personal data collection
-No long-term storage of audio content
-Processing occurs in temporary memory only
-Limitations
-
-Maximum file size: 100MB
-Maximum duration: 15 minutes per track
-3 simultaneous processes per IP address
-Server availability depends on resource load
-Frequently Asked Questions
-
-Q: Can I use this for commercial purposes?
-A: Yes, provided you own the audio rights and comply with our terms.
-
-Q: Why server-side processing?
-A: Demucs requires significant computational resources for professional-quality results.
-
-Q: What separation models are used?
-A: We use the latest Demucs v4 hybrid transformer model.
+---
 
 ## Acknowledgments
-
 This project implements the Demucs audio separation system:
-
+```bibtex
 @article{defossez2021hybrid,
   title={Hybrid Spectrogram and Waveform Source Separation},
   author={Défossez, Alexandre},
   journal={arXiv preprint arXiv:2111.03600},
   year={2021}
 }
-Legal
+```
 
-MIT License for the Demucs implementation
-Terms of Service
-Privacy Policy
-User Responsibility Notice:
-This service only provides separation technology. Users are solely responsible for copyright compliance and ensuring they have appropriate rights to process uploaded audio content.
-© 2025 Audio Stem Separator | Ethical AI Audio Processing
+## Legal
+*   **Demucs:** Licensed under MIT License by Meta/Facebook Research.
+*   **Privacy:** Uploaded files are processed in temporary memory and deleted shortly after processing. We do not store your audio.
 
+---
+© 2026 Audio Stem Separator | Ethical AI Audio Processing with Demucs
