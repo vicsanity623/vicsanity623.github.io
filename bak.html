@@ -6,9 +6,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Professional Audio Stem Separation powered by Demucs. Isolate vocals, drums, and instruments instantly.">
-    <title>Pro Audio Stem Separator - Powered by Demucs</title>
-    <link rel="icon" href="data:,">
+    <meta name="theme-color" content="#00ff7f">
     
+    <title>Pro Audio Stem Separator - Powered by Demucs</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    
+    <link rel="apple-touch-icon" href="player-192x192.PNG">
+    <link rel="icon" href="player-192x192.PNG" type="image/png">
+
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-4686TXHCHN"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -70,7 +76,6 @@
         .welcome-panel p { color: var(--text-dim); margin: 0; font-size: 0.95rem; line-height: 1.5; }
         .welcome-panel .highlight { color: var(--success); font-weight: 600; margin-top: 8px; display: block; }
 
-        /* QUALITY SELECTOR */
         .quality-selector {
             display: flex;
             justify-content: center;
@@ -114,6 +119,14 @@
             overflow: hidden;
         }
         .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-glow); }
+        
+        .upload-zone.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+            border-color: #444;
+        }
+
         .icon-upload { font-size: 3rem; color: var(--text-dim); margin-bottom: 15px; }
         .file-name { color: var(--accent); font-weight: bold; font-size: 1.2rem; margin-top: 15px; }
         
@@ -246,7 +259,6 @@
             <span class="highlight">No Paywalls • No File Limits • Professional Quality</span>
         </div>
 
-        <!-- NEW QUALITY SELECTOR -->
         <div class="quality-selector">
             <label class="quality-option selected" id="opt-fast">
                 <input type="radio" name="mode" value="fast" checked onchange="updateMode(this)">
@@ -282,21 +294,47 @@
         </div>
 
         <div id="results-area">
-            <h2 style="font-weight:300; margin-bottom:20px; color:var(--text-main);">Separated Stems</h2>
+            <h2 style="font-weight:300; margin-bottom:5px; color:var(--text-main);">Separated Stems</h2>
+            
             <p style="font-weight:300; font-size: 0.9rem; margin-top:0; margin-bottom:20px; color:var(--text-dim);">
                 <span style="color:var(--warning)">⚠️ Note:</span> Please wait 1-2 minutes for waveforms to load before downloading.
             </p>
+
             <div id="tracks-wrapper"></div>
             <button id="downloadZipBtn" class="download-all-btn">Download All Stems (.ZIP)</button>
         </div>
+
+        <div style="margin: 40px 0; text-align: center;">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-5972331036113330"
+                 data-ad-slot="YOUR_NEW_AD_SLOT_ID_HERE"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+        </div>
         
         <footer>
-            <p>© 2025 Advanced Audio Stem Separator.</p>
-            <p><a href="https://github.com/vicsanity623">GitHub</a> | <a href="/privacy.html">Privacy</a></p>
+            <p>© 2026 Advanced Audio Stem Separator.</p>
+            <p><a href="https://github.com/vicsanity623">GitHub</a> | <a href="/privacy-policy.html">Privacy</a></p>
         </footer>
     </div>
 
     <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
         const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
 
         function getBackendUrl() {
@@ -324,36 +362,74 @@
 
         let selectedFile = null;
         let activeWaveSurfers = [];
+        let isProcessing = false;
 
-        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('click', () => {
+            if (!isProcessing) fileInput.click();
+        });
+
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
         });
-        ['dragenter', 'dragover'].forEach(name => dropZone.classList.add('dragover'));
-        ['dragleave', 'drop'].forEach(name => dropZone.classList.remove('dragover'));
 
-        dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+        dropZone.addEventListener('dragenter', () => { if (!isProcessing) dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragover', () => { if (!isProcessing) dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+        dropZone.addEventListener('drop', (e) => {
+            dropZone.classList.remove('dragover');
+            if (!isProcessing) handleFiles(e.dataTransfer.files);
+        });
+
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
         function handleFiles(files) {
+            if (isProcessing) return;
             if (files.length > 0) {
                 selectedFile = files[0];
                 fileNameDisplay.textContent = selectedFile.name;
                 processBtn.disabled = false;
+                processBtn.innerText = "Separate Stems";
                 resultsArea.style.display = 'none';
                 progressArea.style.display = 'none';
             }
         }
 
+        function resetUI() {
+            selectedFile = null;
+            fileNameDisplay.textContent = "";
+            resultsArea.style.display = 'none';
+            progressArea.style.display = 'none';
+            tracksWrapper.innerHTML = "";
+            
+            processBtn.disabled = true;
+            processBtn.style.display = 'block';
+            processBtn.innerText = "Separate Stems";
+            
+            dropZone.classList.remove('disabled');
+            isProcessing = false;
+            
+            activeWaveSurfers.forEach(ws => ws.destroy());
+            activeWaveSurfers = [];
+            
+            fileInput.value = "";
+        }
+
         processBtn.addEventListener('click', async () => {
+            if (processBtn.innerText === "SEPARATE ANOTHER") {
+                resetUI();
+                return;
+            }
+
             if (!selectedFile) return;
             const baseUrl = getBackendUrl();
-            
-            // Get selected quality mode
             const mode = document.querySelector('input[name="mode"]:checked').value;
 
+            isProcessing = true;
             processBtn.disabled = true;
             processBtn.style.display = 'none';
+            dropZone.classList.add('disabled');
+            
             progressArea.style.display = 'block';
             slowWarning.style.display = 'block';
             progressBar.style.width = '0%';
@@ -365,13 +441,11 @@
 
             const formData = new FormData();
             formData.append('audioFile', selectedFile);
-            formData.append('mode', mode); // Send mode to server
-
-            const headers = { "ngrok-skip-browser-warning": "true" };
+            formData.append('mode', mode); 
 
             try {
                 const startResponse = await fetch(`${baseUrl}/separate`, { 
-                    method: 'POST', body: formData, headers: headers
+                    method: 'POST', body: formData
                 });
                 if (!startResponse.ok) throw new Error("Upload Failed: " + startResponse.status);
                 
@@ -383,20 +457,20 @@
                 statusText.textContent = "Error: " + error.message;
                 processBtn.disabled = false;
                 processBtn.style.display = 'block';
+                dropZone.classList.remove('disabled');
+                isProcessing = false;
             }
         });
 
         async function pollStatus(baseUrl, taskId) {
             const interval = setInterval(async () => {
                 try {
-                    const res = await fetch(`${baseUrl}/status/${taskId}`, {
-                        headers: { "ngrok-skip-browser-warning": "true" }
-                    });
+                    const res = await fetch(`${baseUrl}/status/${taskId}`);
                     
                     if (res.status !== 200) return;
                     const data = await res.json();
                     
-                    if (data.status === 'processing') {
+                    if (data.status === 'processing' || data.status === 'queued') {
                         progressBar.style.width = `${data.progress}%`;
                         statusText.textContent = data.message || `Processing... ${data.progress}%`;
                     } else if (data.status === 'complete') {
@@ -408,6 +482,8 @@
                             processBtn.style.display = 'block';
                             processBtn.innerText = "SEPARATE ANOTHER";
                             processBtn.disabled = false;
+                            
+                            
                             renderPlayer(data.data, baseUrl);
                         }, 1000);
                     } else if (data.status === 'error') {
@@ -424,7 +500,7 @@
             btnElement.disabled = true;
 
             try {
-                const response = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
+                const response = await fetch(url);
                 if (!response.ok) throw new Error("Network error");
                 
                 const blob = await response.blob();
@@ -480,8 +556,7 @@
                     barGap: 3,
                     barRadius: 3,
                     height: 60,
-                    url: audioUrl,
-                    fetchParams: { headers: { "ngrok-skip-browser-warning": "true" } }
+                    url: audioUrl
                 });
 
                 ws.on('ready', () => {
