@@ -12,37 +12,40 @@ A professional, 100% free web-based tool that separates audio tracks into indivi
 ## 🎧 New Features (v2.0)
 We have completely overhauled the interface to provide a studio-quality experience:
 
-*   **🌊 Visual Waveforms:** Real-time waveform rendering for every separated track using *WaveSurfer.js*.
-*   **🎛️ Smart Player:** "Solo Mode" playback—clicking play on one stem automatically mutes the others for critical listening.
-*   **⬇️ Flexible Downloads:** Download individual stems (WAV) or grab everything in a single ZIP file.
-*   **🚀 Real-Time Progress:** Live feedback and percentage tracking during the AI separation process.
-*   **🔓 Seamless Connection:** No configuration required. The frontend automatically connects to our backend nodes.
+* **🌊 Visual Waveforms:** Real-time waveform rendering for every separated track using *WaveSurfer.js*.
+* **🎛️ Smart Player:** "Solo Mode" playback—clicking play on one stem automatically mutes the others for critical listening.
+* **⬇️ Flexible Downloads:** Download individual stems (WAV) or grab everything in a single ZIP file.
+* **🚀 Real-Time Progress:** Live feedback and percentage tracking during the AI separation process.
+* **🔓 Seamless Connection:** No configuration required. The frontend automatically connects to our backend nodes.
 
 ---
 
 ## 🧠 Powered by Demucs
 This service utilizes the [**Demucs (Hybrid Transformer)**](https://github.com/facebookresearch/demucs) audio source separation engine developed by Meta AI Research.
-*   **Model:** `htdemucs` (High-performance hybrid transformer)
-*   **Quality:** Professional-grade separation
-*   **Architecture:** 4-stem separation (Vocals, Drums, Bass, Other)
+
+* **Model:** `htdemucs` (High-performance hybrid transformer)
+* **Quality:** Professional-grade separation
+* **Architecture:** 4-stem separation (Vocals, Drums, Bass, Other)
 
 ---
 
 ## ⚠️ Server Status & Performance Note
 **Please Read:** This service is hosted on volunteer hardware (Intel-based architecture) running on **CPU processing**.
-*   **Processing Time:** It may take **2-5 minutes** to process a standard song.
-*   **Availability:** If the site hangs or does not connect, the host machine may be offline for maintenance or cooling.
-*   **Queue:** If multiple users attempt to process files simultaneously, you may experience delays.
+
+* **Processing Time:** It may take **2-5 minutes** to process a standard song.
+* **Availability:** If the site hangs or does not connect, the host machine may be offline for maintenance or cooling.
+* **Queue:** If multiple users attempt to process files simultaneously, you may experience delays.
 
 ---
 
 ## 📜 Strict Usage Policy
 **COPYRIGHT COMPLIANCE REQUIRED**
+
 This tool is intended for educational, forensic, and production use on content you own or have permission to modify.
 
-1.  ✅ **YOU MUST OWN** rights to the uploaded audio.
-2.  ❌ **DO NOT UPLOAD** copyrighted commercial music without authorization.
-3.  ✅ **YOU ARE RESPONSIBLE** for your usage of the separated content.
+1. ✅ **YOU MUST OWN** rights to the uploaded audio.
+2. ❌ **DO NOT UPLOAD** copyrighted commercial music without authorization.
+3. ✅ **YOU ARE RESPONSIBLE** for your usage of the separated content.
 
 > **Legal Note:** Separation of copyrighted material without permission constitutes copyright infringement.
 
@@ -50,23 +53,25 @@ This tool is intended for educational, forensic, and production use on content y
 
 ## 🛠️ Technical Stack
 This project represents a custom "Headless" implementation of Demucs:
-*   **Frontend:** HTML5, CSS3, JavaScript (hosted on GitHub Pages)
-*   **Audio Visualization:** [WaveSurfer.js](https://wavesurfer-js.org/)
-*   **Backend API:** Python Flask
-*   **Tunneling:** Ngrok (Secure tunneling for public access)
-*   **AI Engine:** PyTorch + Demucs
+
+* **Frontend:** HTML5, CSS3, JavaScript (hosted on GitHub Pages)
+* **Audio Visualization:** [WaveSurfer.js](https://wavesurfer-js.org/)
+* **Backend API:** Python Flask
+* **Tunneling:** Ngrok (Secure tunneling for public access)
+* **AI Engine:** PyTorch + Demucs
 
 ## How to Use
-1.  Visit the [Web App](https://vicsanity623.github.io).
-2.  **Drag & Drop** your audio file (MP3, WAV, FLAC, M4A).
-3.  The file will upload and processing will begin automatically.
-4.  Once complete, the **Interactive Player** will appear.
-5.  Preview tracks and download your stems.
+1. Visit the [Web App](https://vicsanity623.github.io).
+2. **Drag & Drop** your audio file (MP3, WAV, FLAC, M4A).
+3. The file will upload and processing will begin automatically.
+4. Once complete, the **Interactive Player** will appear.
+5. Preview tracks and download your stems.
 
 ---
 
 ## Acknowledgments
 This project implements the Demucs audio separation system:
+
 ```bibtex
 @article{defossez2021hybrid,
   title={Hybrid Spectrogram and Waveform Source Separation},
@@ -77,8 +82,8 @@ This project implements the Demucs audio separation system:
 ```
 
 ## Legal
-*   **Demucs:** Licensed under MIT License by Meta/Facebook Research.
-*   **Privacy:** Uploaded files are processed in temporary memory and deleted shortly after processing. We do not store your audio.
+* **Demucs:** Licensed under MIT License by Meta/Facebook Research.
+* **Privacy:** Uploaded files are processed in temporary memory and deleted shortly after processing. We do not store your audio.
 
 ---
-© 2026 Audio Stem Separator | Ethical AI Audio Processing with Demucs
+© 2025 Audio Stem Separator | Ethical AI Audio Processing
