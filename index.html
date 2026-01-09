@@ -62,13 +62,45 @@
             border-left: 4px solid var(--success);
             border-radius: 12px;
             padding: 25px;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             text-align: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         .welcome-panel h2 { color: var(--text-main); font-size: 1.4rem; margin: 0 0 10px 0; font-weight: 600; }
         .welcome-panel p { color: var(--text-dim); margin: 0; font-size: 0.95rem; line-height: 1.5; }
         .welcome-panel .highlight { color: var(--success); font-weight: 600; margin-top: 8px; display: block; }
+
+        /* QUALITY SELECTOR */
+        .quality-selector {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .quality-option {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            padding: 15px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            max-width: 250px;
+            text-align: center;
+            opacity: 0.7;
+        }
+        .quality-option:hover { opacity: 1; border-color: #555; }
+        
+        .quality-option input { display: none; }
+        
+        .quality-option.selected {
+            border-color: var(--accent);
+            background: rgba(0, 242, 255, 0.05);
+            opacity: 1;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
+        }
+        .q-title { display: block; font-weight: bold; color: var(--text-main); margin-bottom: 5px; }
+        .q-desc { font-size: 0.8rem; color: var(--text-dim); }
 
         .upload-zone {
             background: var(--bg-panel);
@@ -176,12 +208,10 @@
         .track-details { flex-grow: 1; overflow: hidden; position: relative; }
         .track-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 5px; }
         .waveform { width: 100%; height: 60px; opacity: 0.8; position: relative; }
-        
         .wave-loading {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             font-size: 0.8rem; color: #555; pointer-events: none;
         }
-
         .track-download { 
             color: var(--text-dim); font-size: 1.5rem; padding: 10px; 
             transition: color 0.2s; cursor: pointer; background: transparent; border: none;
@@ -216,6 +246,20 @@
             <span class="highlight">No Paywalls • No File Limits • Professional Quality</span>
         </div>
 
+        <!-- NEW QUALITY SELECTOR -->
+        <div class="quality-selector">
+            <label class="quality-option selected" id="opt-fast">
+                <input type="radio" name="mode" value="fast" checked onchange="updateMode(this)">
+                <span class="q-title">⚡ Speed Mode</span>
+                <span class="q-desc">Standard Quality (~3m)</span>
+            </label>
+            <label class="quality-option" id="opt-high">
+                <input type="radio" name="mode" value="high" onchange="updateMode(this)">
+                <span class="q-title">💎 Ultra Quality</span>
+                <span class="q-desc">32-bit Float + Fine Tuned (~8m)</span>
+            </label>
+        </div>
+
         <div class="upload-zone" id="dropZone">
             <input type="file" id="fileInput" hidden accept=".mp3,.wav,.flac,.m4a,.ogg">
             <div class="icon-upload">📂</div>
@@ -232,8 +276,8 @@
                 <div class="progress-bar-fill" id="progressBar"></div>
             </div>
             <div class="slow-warning" id="slowWarning">
-                ⚠️ <strong>Note:</strong> Processing may take 2-5 minutes depending on file length.
-                The AI is running detailed stem separation. Please do not close this tab.
+                ⚠️ <strong>Note:</strong> Processing time depends on your quality selection. 
+                Please keep this tab open until download appears.
             </div>
         </div>
 
@@ -244,8 +288,8 @@
         </div>
         
         <footer>
-            <p>© 2026 Advanced Audio Stem Separator.</p>
-            <p><a href="https://github.com/vicsanity623">GitHub</a> | <a href="/privacy-policy.html">Privacy</a></p>
+            <p>© 2025 Advanced Audio Stem Separator.</p>
+            <p><a href="https://github.com/vicsanity623">GitHub</a> | <a href="/privacy.html">Privacy</a></p>
         </footer>
     </div>
 
@@ -254,6 +298,11 @@
 
         function getBackendUrl() {
             try { return atob(_0x4d2a.trim()); } catch (e) { return ""; }
+        }
+
+        function updateMode(radio) {
+            document.querySelectorAll('.quality-option').forEach(el => el.classList.remove('selected'));
+            radio.parentElement.classList.add('selected');
         }
 
         const dropZone = document.getElementById('dropZone');
@@ -295,6 +344,9 @@
             if (!selectedFile) return;
             const baseUrl = getBackendUrl();
             
+            // Get selected quality mode
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+
             processBtn.disabled = true;
             processBtn.style.display = 'none';
             progressArea.style.display = 'block';
@@ -308,6 +360,8 @@
 
             const formData = new FormData();
             formData.append('audioFile', selectedFile);
+            formData.append('mode', mode); // Send mode to server
+
             const headers = { "ngrok-skip-browser-warning": "true" };
 
             try {
