@@ -1,17 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- YOUR GOOGLE ADSENSE SCRIPT - UNCHANGED -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330"
-     crossorigin="anonymous"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330" crossorigin="anonymous"></script>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="description" content="Separate audio files into instrumental stems (vocals, drums, bass, other) using our free online Demucs-powered tool. Upload MP3, WAV, FLAC, and more.">
-    <meta name="keywords" content="audio stem separation, demucs, music separation, isolate vocals, remove drums, instrumental maker, karaoke maker, audio tool, vicsanity">
-    <title>Free Audio Stem Separator - Powered by Demucs</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Professional Audio Stem Separation powered by Demucs. Isolate vocals, drums, and instruments instantly.">
+    <title>Pro Audio Stem Separator - Powered by Demucs</title>
     
-    <!-- GOOGLE ANALYTICS TAG - UNCHANGED -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-4686TXHCHN"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -20,282 +16,367 @@
         gtag('config', 'G-4686TXHCHN');
     </script>
     
-    <!-- ORIGINAL STYLES - UNCHANGED -->
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+
     <style>
         :root {
-            --primary-bg: #1e1e2f;
-            --secondary-bg: #27293d;
-            --accent-color: #00bcd4;
-            --text-color: #f8f8f2;
-            --input-bg: #44475a;
-            --success-color: #50fa7b;
-            --error-color: #ff5555;
-            --border-radius: 8px;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; }
-        body { 
-            font-family: var(--font-family); 
-            background-color: var(--primary-bg); 
-            color: var(--text-color); 
-            overscroll-behavior-y: contain; 
-            line-height: 1.6;
-        }
-        .main-content-wrapper { max-width: 900px; margin: 0 auto; padding: 20px; }
-        .app-container { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; text-align: center; background-color: var(--secondary-bg); border-radius: var(--border-radius); margin-bottom: 40px; }
-        .title { font-size: 2.5em; margin-bottom: 10px; color: var(--accent-color); font-weight: 300; }
-        .subtitle { font-size: 1.1em; margin-bottom: 30px; color: #bd93f9; max-width: 600px; margin-left: auto; margin-right: auto;}
-        
-        /* MODIFIED FOR COLAB */
-        .colab-url-group { width: 100%; max-width: 500px; margin-bottom: 20px; text-align: left; }
-        .colab-url-input {
-            width: 100%;
-            padding: 12px;
-            margin-top: 5px;
-            font-size: 1em;
-            background-color: var(--input-bg);
-            border: 1px solid var(--accent-color);
-            border-radius: var(--border-radius);
-            color: var(--text-color);
-            outline: none;
+            --bg-dark: #0f111a;
+            --bg-panel: #1a1d2d;
+            --accent: #00f2ff;
+            --accent-glow: rgba(0, 242, 255, 0.15);
+            --text-main: #ffffff;
+            --text-dim: #8f9bb3;
+            --border: #2e344e;
+            --success: #00ff9d;
         }
 
-        .upload-group { width: 100%; max-width: 500px; margin-bottom: 25px; display: flex; flex-direction: column; align-items: center; }
-        .file-input-label { display: inline-block; padding: 12px 20px; font-size: 1em; font-weight: bold; color: var(--text-color); background-color: var(--input-bg); border: 1px dashed var(--accent-color); border-radius: var(--border-radius); cursor: pointer; transition: background-color 0.3s ease, border-color 0.3s ease; margin-bottom: 15px; }
-        .file-input-label:hover { background-color: #5a5d74; border-color: #00acc1; }
-        #audioFile { display: none; }
-        #fileNameDisplay { font-size: 0.9em; color: #bd93f9; min-height: 1.2em; margin-bottom: 15px; word-break: break-all; }
-        .filename-tip { font-size: 0.8em; color: #bd93f9; margin-top: 10px; max-width: 480px; line-height: 1.4; }
-        .action-button { padding: 15px 30px; font-size: 1.1em; font-weight: bold; color: var(--text-color); background-color: var(--accent-color); border: none; border-radius: var(--border-radius); cursor: pointer; transition: background-color 0.3s ease, transform 0.1s ease; outline: none; width: 100%; max-width: 500px; }
-        .action-button:hover { background-color: #00acc1; }
-        .action-button:active { transform: scale(0.98); }
-        .action-button:disabled { background-color: #6272a4; cursor: not-allowed; }
-        .status-message { margin-top: 20px; font-size: 1em; min-height: 1.2em; font-weight: 500; white-space: pre-wrap; }
-        .status-message.success { color: var(--success-color); }
-        .status-message.error { color: var(--error-color); }
-        .spinner { display: none; border: 4px solid rgba(248, 248, 242, 0.3); border-radius: 50%; border-top: 4px solid var(--accent-color); width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto 0; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .main-wrapper {
+            width: 100%;
+            max-width: 1000px;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+
+        header { text-align: center; margin-bottom: 50px; }
+        h1 { font-weight: 200; font-size: 3rem; margin: 0; letter-spacing: -1px; text-shadow: 0 0 20px rgba(0, 242, 255, 0.3); }
+        h1 span { color: var(--accent); font-weight: 600; }
+        .subtitle { color: var(--text-dim); margin-top: 10px; font-size: 1.1rem; }
+
+        .config-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .server-input-group { width: 100%; max-width: 600px; position: relative; }
+        .server-label { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 1px; }
+        .server-input {
+            width: 100%;
+            background: #11131e;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .server-input:focus { outline: none; border-color: var(--accent); color: var(--accent); }
+        .server-input::placeholder { color: #444; }
+
+        .upload-zone {
+            background: var(--bg-panel);
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-glow); }
+        .icon-upload { font-size: 3rem; color: var(--text-dim); margin-bottom: 15px; }
+        .file-name { color: var(--accent); font-weight: bold; font-size: 1.2rem; margin-top: 15px; }
         
-        .content-section { text-align: left; margin-bottom: 40px; padding: 20px; background-color: var(--secondary-bg); border-radius: var(--border-radius); }
-        .content-section h2 { color: var(--accent-color); margin-bottom: 15px; font-size: 1.8em; font-weight: 400; border-bottom: 1px solid var(--input-bg); padding-bottom: 10px; }
-        .content-section p, .content-section ul, .content-section ol { margin-bottom: 15px; color: var(--text-color); }
-        .content-section ul, .content-section ol { list-style-position: outside; padding-left: 20px; }
-        .content-section li { margin-bottom: 8px; }
-        .content-section a { color: var(--accent-color); text-decoration: none; }
-        .content-section a:hover { text-decoration: underline; }
-        .image-container { display: flex; justify-content: center; align-items: center; width: 100%; max-width: 500px; min-height: 200px; margin: 20px auto; background-color: var(--input-bg); border-radius: var(--border-radius); overflow: hidden; }
-        .image-container img { max-width: 100%; max-height: 300px; object-fit: contain; border-radius: calc(var(--border-radius) - 4px); }
-        footer { background-color: var(--secondary-bg); padding: 20px; text-align: center; border-top: 1px solid var(--input-bg); margin-top: 40px; font-size: 14px; color: var(--text-color); }
-        footer a { color: var(--accent-color); text-decoration: none; margin: 0 10px; }
-        footer a:hover { text-decoration: underline; }
-        footer div { margin-top: 10px; }
-        footer .copyright-text, footer .disclaimer-text { color: #bd93f9; }
-        footer .disclaimer-text { font-size: 12px; }
-        .visitor-counter-container { margin-bottom: 15px; }
+        .btn-process {
+            background: linear-gradient(135deg, #00c6ff, #0072ff);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 30px;
+            width: 100%;
+            max-width: 400px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn-process:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0, 114, 255, 0.4); }
+        .btn-process:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .loader-container { display: none; text-align: center; margin: 30px 0; }
+        .spinner {
+            width: 50px; height: 50px;
+            border: 5px solid rgba(255,255,255,0.1);
+            border-top: 5px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status-text { color: var(--text-dim); font-size: 0.9rem; }
+
+        #results-area { display: none; margin-top: 50px; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .track-card {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        
+        .track-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+            height: 50px;
+            background: #252a40;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+            color: var(--accent);
+        }
+        .track-control:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        
+        .track-details { flex-grow: 1; overflow: hidden; }
+        .track-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 5px; }
+        .waveform { width: 100%; height: 60px; opacity: 0.8; }
+        
+        .track-download { color: var(--text-dim); text-decoration: none; font-size: 1.5rem; padding: 10px; transition: color 0.2s; }
+        .track-download:hover { color: var(--success); }
+
+        .download-all-btn {
+            display: block; text-align: center; background: transparent; border: 2px solid var(--success);
+            color: var(--success); padding: 15px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 30px; transition: all 0.3s;
+        }
+        .download-all-btn:hover { background: var(--success); color: #000; }
+
+        footer { margin-top: 60px; text-align: center; font-size: 0.8rem; color: #555; padding-bottom: 20px; }
+        footer a { color: #777; text-decoration: none; }
     </style>
-    <meta name="google-site-verification" content="mxPAv2VJ1TR5Heht38zsEerPZyIJltVRLFiN1zyfjJY" />
 </head>
 <body>
-    <div class="main-content-wrapper">
-        <div class="app-container">
-            <h1 class="title">Online Audio Stem Separator</h1>
-            <p class="subtitle">Easily isolate vocals and instruments from your audio tracks using a Demucs model running on Google Colab.</p>
 
-            <!-- NEW: COLAB URL INPUT -->
-            <div class="colab-url-group">
-                <label for="colabUrl"><strong>NGROK Server:</strong> Active Google Colab (ngrok) URL</label>
-                <input type="text" id="colabUrl" class="colab-url-input" value="https://4efd13d97b60.ngrok-free.app">
+    <div class="main-wrapper">
+        <header>
+            <h1>Audio <span>Stem</span> Separator</h1>
+            <p class="subtitle">Drag, Drop, Separate. Professional AI separation.</p>
+        </header>
+
+        <div class="config-panel">
+            <div class="server-input-group">
+                <label class="server-label">Backend Connection</label>
+                <input type="text" id="serverUrl" class="server-input" 
+                       placeholder="● Default Server Active (vicsanity-backend-v1)" 
+                       autocomplete="off">
+                <div style="margin-top:5px; font-size:0.75rem; color:#555;">
+                    The system uses the optimized default server. Paste a custom Ngrok URL to override.
+                </div>
             </div>
+        </div>
 
-            <div class="upload-group">
-                <label for="audioFile" class="file-input-label"><strong>Step 2:</strong> Choose Audio File</label>
-                <input type="file" id="audioFile" name="audioFile" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac">
-                <p id="fileNameDisplay">No file selected</p>
-                <p class="filename-tip"><strong>How it works:</strong> This tool connects directly to A Google Colab session. Processing time depends on the song length and Colab's GPU. A 5-minute song typically takes a few minutes.</p>
-            </div>
+        <div class="upload-zone" id="dropZone">
+            <input type="file" id="fileInput" hidden accept=".mp3,.wav,.flac,.m4a,.ogg">
+            <div class="icon-upload">📂</div>
+            <h3>Drag & Drop Audio File</h3>
+            <p style="color:var(--text-dim);">or click here to browse files</p>
+            <div id="fileNameDisplay" class="file-name"></div>
+        </div>
 
-            <button id="processBtn" class="action-button" disabled>Separate Stems</button>
+        <button id="processBtn" class="btn-process" disabled>Separate Stems</button>
 
-            <div id="spinner" class="spinner"></div>
-            <p id="statusMessage" class="status-message"></p>
+        <div class="loader-container" id="loader">
+            <div class="spinner"></div>
+            <div id="statusMsg" class="status-text">Uploading file to server...</div>
+        </div>
+
+        <div id="results-area">
+            <h2 style="font-weight:300; margin-bottom:20px; color:var(--text-main);">Separated Stems</h2>
+            <div id="tracks-wrapper"></div>
+            <a id="downloadZipBtn" href="#" class="download-all-btn">Download All Stems (.ZIP)</a>
         </div>
         
-        <!-- All original informational sections below are unchanged -->
-        <section class="content-section" id="how-to-use">
-            <h2>How to Use This Stem Separator</h2>
-            <p>Getting your audio stems is simple:</p>
-            <ol>
-                <li><strong>Choose Audio File:</strong> Click the "Choose Audio File" button and select an audio file from your device. We support common formats like MP3, WAV, FLAC, M4A, AAC, and OGG.</li>
-                <li><strong>Process & Download:</strong> Click the "Separate Stems" button. The file will be uploaded to your Colab notebook for processing. Once finished, a ZIP file containing the stems will automatically download.</li>
-            </ol>
-        </section>
-
-        <section class="content-section" id="what-is-stem-separation">
-            <h2>Unlock Your Audio: What is Stem Separation?</h2>
-            <p>Stem separation is the process of isolating individual instrumental and vocal tracks (called "stems") from a mixed audio recording. Imagine having a finished song and being able to extract just the vocals, or only the drum track – that's the magic of stem separation!</p>
-            <div class="image-container">
-                <img src="https://raw.githubusercontent.com/vicsanity623/vicsanity623.github.io/refs/heads/main/Audio%20MIX%20Source.png" alt="Diagram illustrating audio stem separation from a mixed track into vocals, drums, bass, and other instruments.">
-            </div>
-        </section>
-
-        <section class="content-section" id="about-demucs">
-            <h2>Powered by Demucs: State-of-the-Art AI</h2>
-            <p>This online tool utilizes <strong>Demucs</strong>, a cutting-edge deep learning model for music source separation developed by Meta AI. Demucs is renowned for its high-quality separation capabilities, leveraging advanced neural network architectures.</p>
-        </section>
-
-        <section class="content-section" id="use-cases">
-            <h2>Creative Possibilities: What Can You Do With Stems?</h2>
-            <p>Audio stems open up a vast array of creative and practical applications for DJs, producers, and musicians, including remixing, creating karaoke tracks, and learning instrument parts.</p>
-        </section>
-        
-        <section class="content-section" id="legal-and-ethical-use">
-            <h2>Important: Legal & Ethical Considerations</h2>
-            <p>While stem separation technology is powerful, it's crucial to use it responsibly. You should only process audio files for which you own the copyright or have explicit permission from the copyright holders. The responsibility for ensuring copyright compliance rests entirely with you, the user.</p>
-        </section>
+        <footer>
+            <p>© 2025 Advanced Audio Stem Separator.</p>
+            <p>
+                <a href="https://github.com/vicsanity623">GitHub</a> | 
+                <a href="/privacy.html">Privacy</a>
+            </p>
+        </footer>
     </div>
 
-    <!-- REWRITTEN SCRIPT FOR COLAB WORKFLOW -->
     <script>
-        const colabUrlInput = document.getElementById('colabUrl');
-        const audioFileInput = document.getElementById('audioFile');
-        const processBtn = document.getElementById('processBtn');
-        const statusMessage = document.getElementById('statusMessage');
-        const spinner = document.getElementById('spinner');
-        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const _0x4d2a = "aHR0cHM6Ly8yNzE4ZTJhZjM5Mjkubmdyb2stZnJlZS5hcHA=";
 
-        let selectedFile = null;
-
-        function updateButtonState() {
-            const url = colabUrlInput.value.trim();
-            const isValidUrl = url.startsWith('https://') && (url.includes('ngrok-free.app') || url.includes('ngrok.io'));
-            processBtn.disabled = !selectedFile || !isValidUrl;
+        function getBackendUrl() {
+            const userInput = document.getElementById('serverUrl').value.trim();
+            if (userInput.length > 5) {
+                return userInput.replace(/\/$/, ""); 
+            }
+            return atob(_0x4d2a);
         }
 
-        colabUrlInput.addEventListener('input', updateButtonState);
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const loader = document.getElementById('loader');
+        const statusMsg = document.getElementById('statusMsg');
+        const resultsArea = document.getElementById('results-area');
+        const tracksWrapper = document.getElementById('tracks-wrapper');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const downloadZipBtn = document.getElementById('downloadZipBtn');
 
-        audioFileInput.addEventListener('change', (event) => {
-            selectedFile = event.target.files[0];
-            if (selectedFile) {
-                fileNameDisplay.textContent = `Selected: ${selectedFile.name}`;
-            } else {
-                fileNameDisplay.textContent = 'No file selected';
-            }
-            setStatus(''); // Clear any previous status messages
-            updateButtonState();
+        let selectedFile = null;
+        let activeWaveSurfers = [];
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, e => {
+                e.preventDefault(); e.stopPropagation();
+            }, false);
         });
+        
+        ['dragenter', 'dragover'].forEach(name => dropZone.classList.add('dragover'));
+        ['dragleave', 'drop'].forEach(name => dropZone.classList.remove('dragover'));
+
+        dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                selectedFile = files[0];
+                fileNameDisplay.textContent = selectedFile.name;
+                processBtn.disabled = false;
+                resultsArea.style.display = 'none';
+            }
+        }
 
         processBtn.addEventListener('click', async () => {
-            if (!selectedFile || !colabUrlInput.value) {
-                setStatus('Please select a file.', 'error');
-                return;
-            }
+            const baseUrl = getBackendUrl(); // Gets the hidden URL
             
-            // --- UI Reset and Setup ---
+            if (!selectedFile) return;
+
             processBtn.disabled = true;
-            processBtn.textContent = 'Processing...';
-            spinner.style.display = 'block';
-            setStatus('Uploading file to Colab. This may take a moment...', '');
+            processBtn.innerHTML = 'PROCESSING...';
+            loader.style.display = 'block';
+            statusMsg.textContent = "Uploading audio... (This depends on your internet speed)";
+            
+            activeWaveSurfers.forEach(ws => ws.destroy());
+            activeWaveSurfers = [];
+            tracksWrapper.innerHTML = '';
 
             const formData = new FormData();
             formData.append('audioFile', selectedFile);
 
-            // Construct the final endpoint URL
-            const serverEndpoint = `${colabUrlInput.value.trim()}/separate`;
-
             try {
-                // --- Fetch API Call to Colab ---
-                const response = await fetch(serverEndpoint, {
+                statusMsg.textContent = "Server is separating stems... (Please wait)";
+                const response = await fetch(`${baseUrl}/separate`, {
                     method: 'POST',
                     body: formData
                 });
 
-                if (!response.ok) {
-                    let errorMsg = `Server error: ${response.status}. See Colab for details.`;
-                    try {
-                        const errorData = await response.json();
-                        if (errorData && errorData.error) {
-                            errorMsg = errorData.error;
-                        }
-                    } catch (e) {
-                        // The response might not be JSON, just use the status text
-                        errorMsg = `Server error: ${response.status} ${response.statusText}`;
-                    }
-                    throw new Error(errorMsg);
-                }
-                
-                setStatus('Processing complete! Downloading your stems...', 'success');
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
 
-                // --- Handle the File Download ---
-                const blob = await response.blob();
-                const downloadUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = downloadUrl;
+                const result = await response.json();
+                if (result.error) throw new Error(result.error);
+
+                statusMsg.textContent = "Success! Loading audio players...";
+                renderPlayer(result.data, baseUrl);
                 
-                // Create a default filename
-                const originalFilenameBase = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || 'audio';
-                a.download = `${originalFilenameBase}_stems.zip`;
-                
-                document.body.appendChild(a);
-                a.click();
-                
-                // Clean up the created URL object after download
-                window.URL.revokeObjectURL(downloadUrl);
-                a.remove();
+                loader.style.display = 'none';
+                resultsArea.style.display = 'block';
+                processBtn.innerHTML = 'SEPARATE STEMS';
+                processBtn.disabled = false;
 
             } catch (error) {
-                console.error('Error during separation:', error);
-                setStatus(`An error occurred: ${error.message}`, 'error');
-            } finally {
-                // --- Reset UI after a short delay to allow user to see the success message ---
-                setTimeout(() => {
-                    processBtn.textContent = 'Separate Stems';
-                    spinner.style.display = 'none';
-                    audioFileInput.value = null; // Clear the file input
-                    fileNameDisplay.textContent = 'No file selected';
-                    selectedFile = null;
-                    updateButtonState(); // This will disable the button
-                    if (!statusMessage.classList.contains('error')) {
-                       setStatus('');
-                    }
-                }, 4000);
+                console.error(error);
+                statusMsg.textContent = "Error: " + error.message;
+                statusMsg.style.color = "#ff5555";
+                processBtn.disabled = false;
+                processBtn.innerHTML = 'TRY AGAIN';
             }
         });
 
-        function setStatus(message, type = '') {
-            statusMessage.textContent = message;
-            statusMessage.className = 'status-message'; // Reset classes
-            if (type) {
-                statusMessage.classList.add(type);
-            }
+        function renderPlayer(data, baseUrl) {
+            const stems = [
+                { id: 'vocals', name: 'Vocals', color: '#ff0055', url: data.vocals },
+                { id: 'drums', name: 'Drums', color: '#00f2ff', url: data.drums },
+                { id: 'bass', name: 'Bass', color: '#ffcc00', url: data.bass },
+                { id: 'other', name: 'Other', color: '#aa00ff', url: data.other },
+            ];
+
+            stems.forEach((stem, index) => {
+                const audioUrl = `${baseUrl}${stem.url}`;
+                const card = document.createElement('div');
+                card.className = 'track-card';
+                card.innerHTML = `
+                    <div class="track-control" id="btn-${index}">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                    <div class="track-details">
+                        <div class="track-title" style="color:${stem.color}">${stem.name}</div>
+                        <div id="wave-${index}" class="waveform"></div>
+                    </div>
+                    <a href="${audioUrl}" class="track-download" download title="Download ${stem.name}">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    </a>
+                `;
+                tracksWrapper.appendChild(card);
+
+                const ws = WaveSurfer.create({
+                    container: `#wave-${index}`,
+                    waveColor: '#4a4a4a',
+                    progressColor: stem.color,
+                    cursorColor: '#ffffff',
+                    barWidth: 2,
+                    barGap: 3,
+                    barRadius: 3,
+                    height: 50,
+                    url: audioUrl
+                });
+
+                const btn = document.getElementById(`btn-${index}`);
+                btn.addEventListener('click', () => ws.playPause());
+
+                ws.on('play', () => {
+                    btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+                    activeWaveSurfers.forEach((otherWs, otherIdx) => {
+                        if (otherIdx !== index) otherWs.pause();
+                    });
+                });
+
+                ws.on('pause', () => {
+                    btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+                });
+
+                activeWaveSurfers.push(ws);
+            });
+
+            downloadZipBtn.href = `${baseUrl}${data.zip}`;
         }
-        
-        // Initial check in case the URL is pre-filled
-        document.addEventListener('DOMContentLoaded', updateButtonState);
     </script>
-    
-    <!-- ORIGINAL FOOTER - UNCHANGED -->
-    <footer>
-        <div>
-            <a href="/privacy-policy.html">Privacy Policy</a> |
-            <a href="/terms-of-service.html">Terms of Service</a> |
-            <a href="https://github.com/vicsanity623/vicsanity623.github.io">GitHub Repository</a> |
-            <a href="rpg.html">Play Tap Guardian RPG</a> |
-            <a href="EndlessRift/index.html">Play Survive It</a> |
-            <a href="backend/index.html">Play Satoshi</a> |
-            <a href="pokemon_catch_sim.html">Play Catch Sim</a> 
-        </div>
-        <div class="visitor-counter-container">
-            <a href="https://www.hitwebcounter.com" target="_blank">
-            <img src="https://hitwebcounter.com/counter/counter.php?page=20795911&style=0009&nbdigits=6&type=ip&initCount=109" title="Counter Widget" Alt="Visit counter For Websites"   border="0" /></a>
-        </div>
-        <div class="copyright-text">
-            © 2025 Audio Stem Separator. This service uses <a href="https://github.com/facebookresearch/demucs" target="_blank" rel="noopener noreferrer">Demucs</a>, an open-source project by Meta AI, under the MIT License.
-        </div>
-        <div class="disclaimer-text">
-            Please do not upload copyrighted material unless you own the rights or have explicit permission. Users are solely responsible for the content they process.
-        </div>
-    </footer>
 </body>
 </html>
