@@ -275,6 +275,27 @@
         .about-section strong { color: var(--accent); font-weight: 600; }
         .mermaid { margin: 40px 0; text-align: center; background: #131520; padding: 20px; border-radius: 10px; border: 1px solid #333; }
 
+        /* COUNTER STYLE */
+        .visitor-counter {
+            margin-top: 20px;
+            display: inline-block;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 5px 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+        .visitor-counter span.count {
+            color: var(--accent);
+            font-weight: bold;
+            letter-spacing: 3px;
+            margin-left: 5px;
+            text-shadow: 0 0 5px rgba(0, 242, 255, 0.4);
+        }
+
         footer { margin-top: 60px; text-align: center; font-size: 0.8rem; color: #555; padding-bottom: 20px; }
         footer a { color: #777; text-decoration: none; }
     </style>
@@ -465,7 +486,10 @@
         </div>
         
         <footer>
-            <p>© 2026 Advanced Audio Stem Separator.</p>
+            <div class="visitor-counter">
+                Visits: <span id="visit-count" class="count">00000000</span>
+            </div>
+            <p style="margin-top:10px;">© 2026 Advanced Audio Stem Separator.</p>
             <p><a href="https://github.com/vicsanity623">GitHub</a> | <a href="/privacy-policy.html">Privacy</a></p>
         </footer>
     </div>
@@ -482,6 +506,25 @@
                     });
             });
         }
+
+        /* 
+           VISITOR COUNTER LOGIC 
+           Uses api.countapi.xyz/hit so it counts every reload, not just unique IPs.
+           Change 'vics-demucs-app-1' to a unique string if you clone this project.
+        */
+        const counterElement = document.getElementById('visit-count');
+        const counterNamespace = 'vics-demucs-app-1'; // Unique key for your app
+        const counterKey = 'visits';
+
+        fetch(`https://api.countapi.xyz/hit/${counterNamespace}/${counterKey}`)
+            .then(res => res.json())
+            .then(data => {
+                // Pad with zeros to length 8
+                counterElement.innerText = data.value.toString().padStart(8, '0');
+            })
+            .catch(err => {
+                console.log('Counter API unavailable');
+            });
 
         const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
 
