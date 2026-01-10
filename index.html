@@ -275,7 +275,6 @@
         .about-section strong { color: var(--accent); font-weight: 600; }
         .mermaid { margin: 40px 0; text-align: center; background: #131520; padding: 20px; border-radius: 10px; border: 1px solid #333; }
 
-        /* COUNTER STYLE */
         .visitor-counter {
             margin-top: 20px;
             display: inline-block;
@@ -507,23 +506,23 @@
             });
         }
 
-        /* 
-           VISITOR COUNTER LOGIC 
-           Uses api.countapi.xyz/hit so it counts every reload, not just unique IPs.
-           Change 'vics-demucs-app-1' to a unique string if you clone this project.
-        */
         const counterElement = document.getElementById('visit-count');
-        const counterNamespace = 'vics-demucs-app-1'; // Unique key for your app
-        const counterKey = 'visits';
+        
+        const counterNamespace = 'audio-stem-separator-vics-unique-id'; 
+        const counterKey = 'main_visits';
 
-        fetch(`https://api.countapi.xyz/hit/${counterNamespace}/${counterKey}`)
+        fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`)
             .then(res => res.json())
             .then(data => {
-                // Pad with zeros to length 8
-                counterElement.innerText = data.value.toString().padStart(8, '0');
+
+                if (data.count !== undefined) {
+                    counterElement.innerText = data.count.toString().padStart(8, '0');
+                } else {
+                    console.log('Counter response invalid', data);
+                }
             })
             .catch(err => {
-                console.log('Counter API unavailable');
+                console.log('Counter API unavailable or blocked by browser privacy settings');
             });
 
         const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
