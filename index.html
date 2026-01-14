@@ -63,8 +63,22 @@
         }
 
         header { text-align: center; margin-bottom: 40px; }
+        
+        /* MODIFIED H1 and Added Version Tag Style */
         h1 { font-weight: 200; font-size: 3rem; margin: 0; letter-spacing: -1px; text-shadow: 0 0 20px rgba(0, 242, 255, 0.3); }
-        h1 span { color: var(--accent); font-weight: 600; }
+        h1 span.highlight-text { color: var(--accent); font-weight: 600; }
+        
+        .version-tag {
+            font-size: 1.2rem;
+            color: #ff4444; /* Red color per your request */
+            font-weight: bold;
+            font-family: 'Courier New', monospace; /* Monospace for technical look */
+            vertical-align: super; /* Raises it up */
+            margin-left: 10px;
+            text-shadow: none; /* Removes the glow from the main title */
+            opacity: 0.9;
+        }
+
         .subtitle { color: var(--text-dim); margin-top: 10px; font-size: 1.1rem; }
 
         .welcome-panel {
@@ -303,7 +317,7 @@
 
     <div class="main-wrapper">
         <header>
-            <h1>Audio <span>Stem</span> Separator</h1>
+            <h1>Audio <span class="highlight-text">Stem</span> Separator <span class="version-tag">V 1.2</span></h1>
             <p class="subtitle">Drag, Drop, Separate. Professional AI separation.</p>
         </header>
 
