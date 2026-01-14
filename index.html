@@ -662,6 +662,8 @@
                     displayError = "Authentication Failed. Please check API Key.";
                 } else if (displayError.includes("Server is busy")) {
                     displayError = "Server Busy. Please wait 10 mins and try again.";
+                } else if (displayError.includes("processing")) {
+                    displayError = "⚠️ You already have a file running. Please wait.";
                 }
 
                 statusText.textContent = "Error: " + displayError;
