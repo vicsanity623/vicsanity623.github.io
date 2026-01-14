@@ -496,6 +496,9 @@
     </div>
 
     <script>
+        const API_KEY = "jshdgcjhBSDCHLAsrdhvsdvhjasbdvlha34hbvb234kjv"; 
+        const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
@@ -526,8 +529,6 @@
             .catch(err => {
                 console.log('Counter API unavailable or blocked by browser privacy settings');
             });
-
-        const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
 
         function getBackendUrl() {
             try { 
@@ -636,17 +637,35 @@
             formData.append('mode', mode); 
 
             try {
+                // SECURITY UPDATE: Sending API Key in headers
                 const startResponse = await fetch(`${baseUrl}/separate`, { 
-                    method: 'POST', body: formData
+                    method: 'POST', 
+                    headers: {
+                        'X-API-Key': API_KEY 
+                    },
+                    body: formData
                 });
-                if (!startResponse.ok) throw new Error("Upload Failed: " + startResponse.status);
+
+                if (!startResponse.ok) {
+                    const errData = await startResponse.json();
+                    throw new Error(errData.error || "Upload Failed: " + startResponse.status);
+                }
                 
                 const startData = await startResponse.json();
                 pollStatus(baseUrl, startData.task_id);
 
             } catch (error) {
                 console.error(error);
-                statusText.textContent = "Error: " + error.message;
+                let displayError = error.message;
+                
+                if (displayError.includes("Unauthorized")) {
+                    displayError = "Authentication Failed. Please check API Key.";
+                } else if (displayError.includes("Server is busy")) {
+                    displayError = "Server Busy. Please wait 10 mins and try again.";
+                }
+
+                statusText.textContent = "Error: " + displayError;
+                statusText.style.color = "#ff4444";
                 processBtn.disabled = false;
                 processBtn.style.display = 'block';
                 dropZone.classList.remove('disabled');
@@ -657,6 +676,7 @@
         async function pollStatus(baseUrl, taskId) {
             const interval = setInterval(async () => {
                 try {
+                    // Status check does not require API key (per python script logic)
                     const res = await fetch(`${baseUrl}/status/${taskId}`);
                     
                     if (res.status !== 200) return;
@@ -665,6 +685,7 @@
                     if (data.status === 'processing' || data.status === 'queued') {
                         progressBar.style.width = `${data.progress}%`;
                         statusText.textContent = data.message || `Processing... ${data.progress}%`;
+                        statusText.style.color = "#ffffff";
                     } else if (data.status === 'complete') {
                         clearInterval(interval);
                         progressBar.style.width = '100%';
@@ -682,7 +703,11 @@
                         clearInterval(interval);
                         throw new Error(data.message);
                     }
-                } catch (e) { console.error("Polling Error:", e); }
+                } catch (e) { 
+                    console.error("Polling Error:", e);
+                    statusText.textContent = "Error: " + e.message;
+                    statusText.style.color = "#ff4444";
+                }
             }, 1000);
         }
 
