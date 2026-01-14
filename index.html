@@ -641,6 +641,7 @@
             slowWarning.style.display = 'block';
             progressBar.style.width = '0%';
             statusText.textContent = "Uploading file (0%)...";
+            statusText.style.color = "var(--text-main)"; // Reset color
 
             activeWaveSurfers.forEach(ws => ws.destroy());
             activeWaveSurfers = [];
@@ -651,7 +652,6 @@
             formData.append('mode', mode); 
 
             try {
-                // SECURITY UPDATE: Sending API Key in headers
                 const startResponse = await fetch(`${baseUrl}/separate`, { 
                     method: 'POST', 
                     headers: {
@@ -659,6 +659,19 @@
                     },
                     body: formData
                 });
+
+                // --- NEW: SPECIFIC CHECK FOR LIMITS ---
+                if (startResponse.status === 429) {
+                    throw new Error("LIMIT_REACHED");
+                }
+                
+                if (startResponse.status === 503) {
+                    throw new Error("SERVER_BUSY");
+                }
+                
+                if (startResponse.status === 401) {
+                    throw new Error("UNAUTHORIZED");
+                }
 
                 if (!startResponse.ok) {
                     const errData = await startResponse.json();
@@ -672,16 +685,19 @@
                 console.error(error);
                 let displayError = error.message;
                 
-                if (displayError.includes("Unauthorized")) {
-                    displayError = "Authentication Failed. Please check API Key.";
-                } else if (displayError.includes("Server is busy")) {
-                    displayError = "Server Busy. Please wait 10 mins and try again.";
-                } else if (displayError.includes("processing")) {
-                    displayError = "⚠️ You already have a file running. Please wait.";
+                // --- CUSTOM FRIENDLY MESSAGES ---
+                if (displayError === "LIMIT_REACHED") {
+                    displayError = "✋ Please wait for your current audio to finish before starting a new one.";
+                } else if (displayError === "SERVER_BUSY") {
+                    displayError = "⚠️ Server is at full capacity. Please try again in 5 minutes.";
+                } else if (displayError === "UNAUTHORIZED") {
+                    displayError = "🔒 Authentication Failed. Please check API Key.";
                 }
 
-                statusText.textContent = "Error: " + displayError;
-                statusText.style.color = "#ff4444";
+                statusText.textContent = displayError;
+                statusText.style.color = "#ff4444"; // Red color for error
+                
+                // Reset buttons so they can try again
                 processBtn.disabled = false;
                 processBtn.style.display = 'block';
                 dropZone.classList.remove('disabled');
