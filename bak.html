@@ -24,6 +24,11 @@
     </script>
     
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'dark', securityLevel: 'loose' });
+    </script>
 
     <style>
         :root {
@@ -58,8 +63,22 @@
         }
 
         header { text-align: center; margin-bottom: 40px; }
+        
+        /* MODIFIED H1 and Added Version Tag Style */
         h1 { font-weight: 200; font-size: 3rem; margin: 0; letter-spacing: -1px; text-shadow: 0 0 20px rgba(0, 242, 255, 0.3); }
-        h1 span { color: var(--accent); font-weight: 600; }
+        h1 span.highlight-text { color: var(--accent); font-weight: 600; }
+        
+        .version-tag {
+            font-size: 1.2rem;
+            color: #ff4444; /* Red color per your request */
+            font-weight: bold;
+            font-family: 'Courier New', monospace; /* Monospace for technical look */
+            vertical-align: super; /* Raises it up */
+            margin-left: 10px;
+            text-shadow: none; /* Removes the glow from the main title */
+            opacity: 0.9;
+        }
+
         .subtitle { color: var(--text-dim); margin-top: 10px; font-size: 1.1rem; }
 
         .welcome-panel {
@@ -241,6 +260,55 @@
         .download-all-btn:hover { background: var(--success); color: #000; }
         .download-all-btn:disabled { border-color: #555; color: #555; cursor: wait; background: transparent; }
 
+        .legal-notice {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px 25px;
+            margin: 60px 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .legal-icon { color: var(--accent); flex-shrink: 0; }
+
+        .about-section {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 40px;
+            margin-top: 20px;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            line-height: 1.8;
+        }
+        .about-section h3 { color: var(--text-main); font-weight: 300; font-size: 1.8rem; margin-bottom: 20px; }
+        .about-section p { margin-bottom: 20px; font-size: 1rem; }
+        .about-section strong { color: var(--accent); font-weight: 600; }
+        .mermaid { margin: 40px 0; text-align: center; background: #131520; padding: 20px; border-radius: 10px; border: 1px solid #333; }
+
+        .visitor-counter {
+            margin-top: 20px;
+            display: inline-block;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 5px 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+        .visitor-counter span.count {
+            color: var(--accent);
+            font-weight: bold;
+            letter-spacing: 3px;
+            margin-left: 5px;
+            text-shadow: 0 0 5px rgba(0, 242, 255, 0.4);
+        }
+
         footer { margin-top: 60px; text-align: center; font-size: 0.8rem; color: #555; padding-bottom: 20px; }
         footer a { color: #777; text-decoration: none; }
     </style>
@@ -249,7 +317,7 @@
 
     <div class="main-wrapper">
         <header>
-            <h1>Audio <span>Stem</span> Separator</h1>
+            <h1>Audio <span class="highlight-text">Stem</span> Separator <span class="version-tag">V 1.2</span></h1>
             <p class="subtitle">Drag, Drop, Separate. Professional AI separation.</p>
         </header>
 
@@ -304,6 +372,122 @@
             <button id="downloadZipBtn" class="download-all-btn">Download All Stems (.ZIP)</button>
         </div>
 
+        <div class="legal-notice">
+            <div class="legal-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+            </div>
+            <div>
+                <strong>EDUCATIONAL USE ONLY:</strong> This tool is provided for research and educational purposes. 
+                Users must ensure they own the rights or have explicit permission for any audio content uploaded. 
+                We do not support copyright infringement.
+                <br><br>
+                <strong style="color: var(--accent);">TIP:</strong> (Add to Homescreen to install app)
+            </div>
+        </div>
+
+        <div class="about-section">
+            <h3>Behind the Technology</h3>
+            
+            <p>
+                The journey to build this tool started out of frustration with existing services. Most free stem separators put limits on file size, force you to pay for high-quality downloads, or throttle your speed. I wanted to democratize access to SOTA (State of the Art) audio separation by leveraging open-source technology and running it on my own hardware—an <strong>Intel iMac</strong> acting as a personal server.
+            </p>
+
+            <p>
+                At the core of this platform is <strong>Demucs</strong>, a deep learning architecture developed by Meta Research. Unlike traditional EQ-based isolation, Demucs doesn't just cut frequencies; it "dreams" the missing parts of the waveform. It uses a <strong>U-Net architecture</strong> combined with BiLSTM (Bidirectional Long Short-Term Memory) layers. The AI has been trained on terabytes of studio-quality stems, allowing it to understand the sonic texture of a voice versus a violin, even when they occupy the same frequency range.
+            </p>
+
+            <div class="mermaid">
+                graph LR
+                A[Input Audio Mix] -->|Encoder| B(Spectral Analysis)
+                B --> C{U-Net Core}
+                C -->|BiLSTM Layers| D[Pattern Recognition]
+                D -->|Decoder| E[Waveform Synthesis]
+                E --> F((Vocals))
+                E --> G((Drums))
+                E --> H((Bass))
+                E --> I((Other))
+                style A fill:#252a40,stroke:#00f2ff,color:#fff
+                style C fill:#0f111a,stroke:#ff0055,color:#fff
+                style F fill:#252a40,stroke:#00ff9d,color:#fff
+                style G fill:#252a40,stroke:#00ff9d,color:#fff
+                style H fill:#252a40,stroke:#00ff9d,color:#fff
+                style I fill:#252a40,stroke:#00ff9d,color:#fff
+            </div>
+
+            <p>
+                We offer two distinct models. The "Speed Mode" uses the standard <strong>htdemucs</strong> (Hybrid Transformer) model. It balances speed and accuracy by using a transformer attention mechanism to handle long-range dependencies in the music, like a consistent drum beat or a repetitive bassline. However, for the audiophiles, we implemented the <strong>htdemucs_ft</strong> (Fine-Tuned) model.
+            </p>
+
+            <p>
+                The <strong>Fine-Tuned</strong> model is significantly heavier computationally. It takes the base knowledge of the standard model and refines it with an extended training dataset focused on minimizing "bleed" (e.g., hearing the hi-hats in the vocal track). When you select "Ultra Quality," the backend switches to this heavier neural network, utilizing <strong>32-bit floating point</strong> precision internally before encoding down to CD-quality 16-bit WAV files for your download.
+            </p>
+
+            <p>
+                To make this available securely over the public internet without expensive cloud GPU costs, I utilized <strong>Tailscale Funnel</strong>. This creates an encrypted tunnel from your device directly to my local Python Flask server. Your audio travels through this secure pipeline, gets processed in RAM to protect your privacy (no files are permanently stored), and the separated stems are zipped and sent back to you instantly.
+            </p>
+
+            <div class="mermaid">
+                sequenceDiagram
+                participant User as User Device
+                participant Cloud as Tailscale Tunnel
+                participant Server as iMac Backend
+                participant AI as Demucs Engine
+                
+                User->>Cloud: Upload Audio (Encrypted)
+                Cloud->>Server: Route to Flask
+                Server->>AI: Load Audio to RAM
+                AI->>AI: Inference (htdemucs_ft)
+                AI-->>Server: 4 Raw Stem Streams
+                Server->>Server: Encode WAV & Zip
+                Server-->>User: Download Final Zip
+            </div>
+
+            <h3 style="margin-top: 50px;">Deep Learning Architecture: The U-Net & BiLSTM</h3>
+
+            <p>
+                To achieve such clean separation, Demucs employs a specialized <strong>U-Net topology</strong>. Imagine a "U" shape: on the left side (the Encoder), the audio spectrogram is progressively downsampled, compressing the complex waveform into high-level features. On the right side (the Decoder), it attempts to reconstruct the specific stems from those features. The magic lies in the <strong>Skip Connections</strong> (represented by dotted lines below). These connections pass high-resolution details from the start of the process directly to the end, bypassing the compression bottleneck. This ensures that the output vocals remain crisp and the drums retain their transient punch, rather than sounding "muddy" or over-processed.
+            </p>
+
+            <p>
+                Sandwiched between the encoder and decoder is the <strong>BiLSTM (Bidirectional Long Short-Term Memory)</strong> core. While standard convolutional layers are great at analyzing sound textures (like the timbre of a guitar), they struggle with time and rhythm. The BiLSTM analyzes the song chronologically—scanning both forwards and backwards simultaneously. This allows the AI to understand musical context, keeping the tempo consistent and distinguishing between a rhythmic drum beat and a random noise artifact, effectively "listening" to the song structure before making separation decisions.
+            </p>
+
+            <div class="mermaid">
+                graph TD
+                subgraph Encoder ["📉 Encoder (Compression)"]
+                    I[Input Mix] --> C1[Conv Layer 1]
+                    C1 --> C2[Conv Layer 2]
+                    C2 --> C3[Conv Layer 3]
+                    C3 --> C4[Conv Layer 4]
+                end
+
+                subgraph Bottleneck ["🧠 BiLSTM Core (Time Context)"]
+                    C4 --> B[Forward/Backward Analysis]
+                end
+
+                subgraph Decoder ["📈 Decoder (Reconstruction)"]
+                    B --> U4[UpSample 4]
+                    U4 --> U3[UpSample 3]
+                    U3 --> U2[UpSample 2]
+                    U2 --> U1[Output Stems]
+                end
+
+                %% Skip Connections (The Secret Sauce)
+                C1 -.->|Skip Connection| U1
+                C2 -.->|Skip Connection| U2
+                C3 -.->|Skip Connection| U3
+                C4 -.->|Skip Connection| U4
+
+                style Encoder fill:#1a1d2d,stroke:#ff0055,stroke-width:2px
+                style Decoder fill:#1a1d2d,stroke:#00f2ff,stroke-width:2px
+                style Bottleneck fill:#252a40,stroke:#ffb700,stroke-width:2px
+                style I fill:#fff,color:#000
+                style U1 fill:#fff,color:#000
+            </div>
+        </div>
+
         <div style="margin: 40px 0; text-align: center;">
             <ins class="adsbygoogle"
                  style="display:block"
@@ -317,12 +501,18 @@
         </div>
         
         <footer>
-            <p>© 2026 Advanced Audio Stem Separator.</p>
+            <div class="visitor-counter">
+                Visits: <span id="visit-count" class="count">00000000</span>
+            </div>
+            <p style="margin-top:10px;">© 2026 Advanced Audio Stem Separator.</p>
             <p><a href="https://github.com/vicsanity623">GitHub</a> | <a href="/privacy-policy.html">Privacy</a></p>
         </footer>
     </div>
 
     <script>
+        const API_KEY = "jshdgcjhBSDCHLAsrdhvsdvhjasbdvlha34hbvb234kjv"; 
+        const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
@@ -335,7 +525,24 @@
             });
         }
 
-        const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
+        const counterElement = document.getElementById('visit-count');
+        
+        const counterNamespace = 'audio-stem-separator-vics-unique-id'; 
+        const counterKey = 'main_visits';
+
+        fetch(`https://api.counterapi.dev/v1/${counterNamespace}/${counterKey}/up`)
+            .then(res => res.json())
+            .then(data => {
+
+                if (data.count !== undefined) {
+                    counterElement.innerText = data.count.toString().padStart(8, '0');
+                } else {
+                    console.log('Counter response invalid', data);
+                }
+            })
+            .catch(err => {
+                console.log('Counter API unavailable or blocked by browser privacy settings');
+            });
 
         function getBackendUrl() {
             try { 
@@ -434,6 +641,7 @@
             slowWarning.style.display = 'block';
             progressBar.style.width = '0%';
             statusText.textContent = "Uploading file (0%)...";
+            statusText.style.color = "var(--text-main)"; // Reset color
 
             activeWaveSurfers.forEach(ws => ws.destroy());
             activeWaveSurfers = [];
@@ -445,16 +653,51 @@
 
             try {
                 const startResponse = await fetch(`${baseUrl}/separate`, { 
-                    method: 'POST', body: formData
+                    method: 'POST', 
+                    headers: {
+                        'X-API-Key': API_KEY 
+                    },
+                    body: formData
                 });
-                if (!startResponse.ok) throw new Error("Upload Failed: " + startResponse.status);
+
+                // --- NEW: SPECIFIC CHECK FOR LIMITS ---
+                if (startResponse.status === 429) {
+                    throw new Error("LIMIT_REACHED");
+                }
+                
+                if (startResponse.status === 503) {
+                    throw new Error("SERVER_BUSY");
+                }
+                
+                if (startResponse.status === 401) {
+                    throw new Error("UNAUTHORIZED");
+                }
+
+                if (!startResponse.ok) {
+                    const errData = await startResponse.json();
+                    throw new Error(errData.error || "Upload Failed: " + startResponse.status);
+                }
                 
                 const startData = await startResponse.json();
                 pollStatus(baseUrl, startData.task_id);
 
             } catch (error) {
                 console.error(error);
-                statusText.textContent = "Error: " + error.message;
+                let displayError = error.message;
+                
+                // --- CUSTOM FRIENDLY MESSAGES ---
+                if (displayError === "LIMIT_REACHED") {
+                    displayError = "✋ Please wait for your current audio to finish before starting a new one.";
+                } else if (displayError === "SERVER_BUSY") {
+                    displayError = "⚠️ Server is at full capacity. Please try again in 5 minutes.";
+                } else if (displayError === "UNAUTHORIZED") {
+                    displayError = "🔒 Authentication Failed. Please check API Key.";
+                }
+
+                statusText.textContent = displayError;
+                statusText.style.color = "#ff4444"; // Red color for error
+                
+                // Reset buttons so they can try again
                 processBtn.disabled = false;
                 processBtn.style.display = 'block';
                 dropZone.classList.remove('disabled');
@@ -465,6 +708,7 @@
         async function pollStatus(baseUrl, taskId) {
             const interval = setInterval(async () => {
                 try {
+                    // Status check does not require API key (per python script logic)
                     const res = await fetch(`${baseUrl}/status/${taskId}`);
                     
                     if (res.status !== 200) return;
@@ -473,6 +717,7 @@
                     if (data.status === 'processing' || data.status === 'queued') {
                         progressBar.style.width = `${data.progress}%`;
                         statusText.textContent = data.message || `Processing... ${data.progress}%`;
+                        statusText.style.color = "#ffffff";
                     } else if (data.status === 'complete') {
                         clearInterval(interval);
                         progressBar.style.width = '100%';
@@ -490,7 +735,11 @@
                         clearInterval(interval);
                         throw new Error(data.message);
                     }
-                } catch (e) { console.error("Polling Error:", e); }
+                } catch (e) { 
+                    console.error("Polling Error:", e);
+                    statusText.textContent = "Error: " + e.message;
+                    statusText.style.color = "#ff4444";
+                }
             }, 1000);
         }
 
