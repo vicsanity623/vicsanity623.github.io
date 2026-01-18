@@ -41,6 +41,7 @@
             --border: #2e344e;
             --success: #00ff9d;
             --warning: #ffb700;
+            --danger: #ff4444;
         }
 
         body {
@@ -55,56 +56,53 @@
             align-items: center;
         }
 
-        /* --- AD BLOCKER WALL STYLES --- */
+        /* --- STRICT AD BLOCKER WALL STYLES --- */
         
-        /* The "Bait" - AdBlockers will hide anything with these classes */
+        /* Updated Bait Style: Standard Ad Size to trigger detection */
         .ad-banner-header, .adsbox, .doubleclick, .ad-placement {
-            height: 1px;
-            width: 1px;
-            position: absolute;
-            top: -1000px;
-            left: -1000px;
+            width: 300px; height: 250px; position: absolute; left: -10000px; top: 0;
         }
 
-        /* The Wall - Covers the whole screen */
         #adblock-wall {
-            display: none; /* Hidden by default */
+            display: none; 
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 17, 26, 0.98);
+            background: rgba(40, 0, 0, 0.98); 
             z-index: 99999;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
         }
 
         .wall-content {
-            background: var(--bg-panel);
-            border: 1px solid var(--accent);
+            background: #1a0505;
+            border: 2px solid var(--danger);
             padding: 40px;
             border-radius: 20px;
             max-width: 500px;
-            box-shadow: 0 0 50px rgba(0, 242, 255, 0.2);
+            box-shadow: 0 0 60px rgba(255, 68, 68, 0.3);
         }
 
         .wall-icon { font-size: 4rem; margin-bottom: 20px; }
-        .wall-title { color: var(--accent); font-size: 1.8rem; margin-bottom: 15px; }
-        .wall-text { color: var(--text-dim); line-height: 1.6; margin-bottom: 30px; }
+        .wall-title { color: var(--danger); font-size: 2rem; margin-bottom: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .wall-text { color: #ccc; line-height: 1.6; margin-bottom: 30px; font-size: 1rem; }
         
         .btn-refresh {
-            background: var(--accent);
-            color: #000;
+            background: var(--danger);
+            color: white;
             border: none;
-            padding: 12px 30px;
+            padding: 15px 35px;
             font-weight: bold;
             border-radius: 50px;
             cursor: pointer;
             font-size: 1rem;
             transition: all 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 5px 15px rgba(255, 68, 68, 0.4);
         }
-        .btn-refresh:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--accent); }
+        .btn-refresh:hover { transform: scale(1.05); background: #ff6666; }
         /* --- END AD BLOCKER STYLES --- */
 
         .main-wrapper {
@@ -116,18 +114,17 @@
 
         header { text-align: center; margin-bottom: 40px; }
         
-        /* MODIFIED H1 and Added Version Tag Style */
         h1 { font-weight: 200; font-size: 3rem; margin: 0; letter-spacing: -1px; text-shadow: 0 0 20px rgba(0, 242, 255, 0.3); }
         h1 span.highlight-text { color: var(--accent); font-weight: 600; }
         
         .version-tag {
             font-size: 1.2rem;
-            color: #ff4444; /* Red color per your request */
+            color: #ff4444; 
             font-weight: bold;
-            font-family: 'Courier New', monospace; /* Monospace for technical look */
-            vertical-align: super; /* Raises it up */
+            font-family: 'Courier New', monospace; 
+            vertical-align: super; 
             margin-left: 10px;
-            text-shadow: none; /* Removes the glow from the main title */
+            text-shadow: none; 
             opacity: 0.9;
         }
 
@@ -370,17 +367,18 @@
     <!-- 1. The Bait (Invisible to humans, visible to AdBlockers) -->
     <div id="ad-detection-bait" class="adsbox ad-placement doubleclick"></div>
 
-    <!-- 2. The Wall (Locks the screen) -->
+    <!-- 2. The Wall (Locks the screen with STRICT messaging) -->
     <div id="adblock-wall">
         <div class="wall-content">
-            <div class="wall-icon">🛡️</div>
-            <div class="wall-title">Ad Blocker Detected</div>
+            <div class="wall-icon">🚫</div>
+            <div class="wall-title">Access Denied</div>
             <p class="wall-text">
-                This AI tool runs on a private, expensive server that we pay for out of pocket. 
+                <strong>Ad Blocker or Brave Browser Detected.</strong>
                 <br><br>
-                <strong>We cannot provide this professional GPU service for free without ads.</strong>
+                This tool runs on a private GPU server costing real money.
+                <strong>Hiding ads is considered abuse of this free service.</strong>
                 <br><br>
-                Please disable your ad blocker or whitelist this site to continue using the Stem Separator.
+                You must disable your Ad Blocker or Brave Shields to proceed.
             </p>
             <button class="btn-refresh" onclick="location.reload()">I've Disabled It - Refresh</button>
         </div>
@@ -522,7 +520,7 @@
             </p>
 
             <p>
-                Sandwiched between the encoder and decoder is the <strong>BiLSTM (Bidirectional Long Short-Term Memory)</strong> core. While standard convolutional layers are great at analyzing sound textures (like the timbre of a guitar), they struggle with time and rhythm. The BiLSTM analyzes the song chronologically—scanning both forwards and backwards simultaneously. This allows the AI to understand musical context, keeping the tempo consistent and distinguishing between a rhythmic drum beat and a random noise artifact, effectively "listening" to the song structure before making separation decisions.
+                Sandwiched between the encoder and decoder is the <strong>BiLSTM (Bidirectional Long Short-Term Memory)</strong> core. While standard convolutional layers are great at analyzing sound textures (like the timbre of a guitar), they struggle with time and rhythm. The BiLSTM analyzes the song chronologically—scanning both forwards and backwards simultaneously. This allows the AI to understand musical context, keeping the tempo consistent and distinguishing between a rhythmic drum beat and a random noise artifact, effectively "listening" to the song structure before making separation decisions. To use this service phrase disable ad-blockers, future updates will restrict use for any browsers using ad blockers.
             </p>
 
             <div class="mermaid">
@@ -584,44 +582,52 @@
         const API_KEY = "jshdgcjhBSDCHLAsrdhvsdvhjasbdvlha34hbvb234kjv"; 
         const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
 
-        // --- AD BLOCKER DETECTION SYSTEM ---
-        window.onload = function() {
-            setTimeout(checkAdBlock, 2000); // Check after 2 seconds
-        };
-
-        function checkAdBlock() {
-            const bait = document.getElementById('ad-detection-bait');
-            const wall = document.getElementById('adblock-wall');
-            const uploadZone = document.getElementById('dropZone');
-            const processBtn = document.getElementById('processBtn');
-
+        
+        async function checkAdBlock() {
             let adBlockEnabled = false;
 
-            // CHECK 1: Is the "Bait" div hidden?
-            if (bait) {
-                const style = window.getComputedStyle(bait);
-                if (style.display === 'none' || style.visibility === 'hidden' || bait.offsetHeight === 0) {
-                    adBlockEnabled = true;
-                }
+            try {
+                await fetch('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js', {
+                    method: 'HEAD', 
+                    mode: 'no-cors' 
+                });
+            } catch (e) {
+                adBlockEnabled = true;
+                console.log("AdBlock Detected: Network Request Blocked");
             }
 
-            // CHECK 2: Did the AdSense script fail to load?
-            if (typeof window.google_ad_client === 'undefined' && typeof window.adsbygoogle === 'undefined') {
-                adBlockEnabled = true; // <--- FIX APPLIED HERE
+            const bait = document.getElementById('ad-detection-bait');
+            if (!bait) {
+                 adBlockEnabled = true;
+            } else {
+                 if (bait.offsetParent === null || bait.offsetHeight === 0 || bait.offsetLeft === 0) {
+                     adBlockEnabled = true;
+                 }
+                 const style = window.getComputedStyle(bait);
+                 if (style.display === 'none' || style.visibility === 'hidden') {
+                     adBlockEnabled = true;
+                 }
             }
 
             if (adBlockEnabled) {
-                console.log("AdBlocker Detected: Locking UI");
+                const wall = document.getElementById('adblock-wall');
+                const mainWrapper = document.querySelector('.main-wrapper');
+                
                 wall.style.display = 'flex';
                 
-                // Disable the App (Double Security)
-                uploadZone.style.pointerEvents = 'none'; // Stop clicks
-                uploadZone.style.filter = 'blur(5px)';   // Blur the UI
-                processBtn.disabled = true;              // Kill the button
-            } else {
-                console.log("No AdBlocker detected. Access granted.");
+                if(mainWrapper) mainWrapper.style.display = 'none';
+                
+                const uploadZone = document.getElementById('dropZone');
+                const processBtn = document.getElementById('processBtn');
+                if(uploadZone) uploadZone.style.pointerEvents = 'none';
+                if(processBtn) processBtn.disabled = true;
             }
         }
+
+        window.onload = function() {
+            checkAdBlock();
+            setTimeout(checkAdBlock, 2000); 
+        };
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
