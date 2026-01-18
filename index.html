@@ -55,6 +55,58 @@
             align-items: center;
         }
 
+        /* --- AD BLOCKER WALL STYLES --- */
+        
+        /* The "Bait" - AdBlockers will hide anything with these classes */
+        .ad-banner-header, .adsbox, .doubleclick, .ad-placement {
+            height: 1px;
+            width: 1px;
+            position: absolute;
+            top: -1000px;
+            left: -1000px;
+        }
+
+        /* The Wall - Covers the whole screen */
+        #adblock-wall {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 17, 26, 0.98);
+            z-index: 99999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .wall-content {
+            background: var(--bg-panel);
+            border: 1px solid var(--accent);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 500px;
+            box-shadow: 0 0 50px rgba(0, 242, 255, 0.2);
+        }
+
+        .wall-icon { font-size: 4rem; margin-bottom: 20px; }
+        .wall-title { color: var(--accent); font-size: 1.8rem; margin-bottom: 15px; }
+        .wall-text { color: var(--text-dim); line-height: 1.6; margin-bottom: 30px; }
+        
+        .btn-refresh {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 12px 30px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        .btn-refresh:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--accent); }
+        /* --- END AD BLOCKER STYLES --- */
+
         .main-wrapper {
             width: 100%;
             max-width: 1000px;
@@ -315,6 +367,25 @@
 </head>
 <body>
 
+    <!-- 1. The Bait (Invisible to humans, visible to AdBlockers) -->
+    <div id="ad-detection-bait" class="adsbox ad-placement doubleclick"></div>
+
+    <!-- 2. The Wall (Locks the screen) -->
+    <div id="adblock-wall">
+        <div class="wall-content">
+            <div class="wall-icon">🛡️</div>
+            <div class="wall-title">Ad Blocker Detected</div>
+            <p class="wall-text">
+                This AI tool runs on a private, expensive server that we pay for out of pocket. 
+                <br><br>
+                <strong>We cannot provide this professional GPU service for free without ads.</strong>
+                <br><br>
+                Please disable your ad blocker or whitelist this site to continue using the Stem Separator.
+            </p>
+            <button class="btn-refresh" onclick="location.reload()">I've Disabled It - Refresh</button>
+        </div>
+    </div>
+
     <div class="main-wrapper">
         <header>
             <h1>Audio <span class="highlight-text">Stem</span> Separator <span class="version-tag">V 1.2</span></h1>
@@ -512,6 +583,45 @@
     <script>
         const API_KEY = "jshdgcjhBSDCHLAsrdhvsdvhjasbdvlha34hbvb234kjv"; 
         const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
+
+        // --- AD BLOCKER DETECTION SYSTEM ---
+        window.onload = function() {
+            setTimeout(checkAdBlock, 2000); // Check after 2 seconds
+        };
+
+        function checkAdBlock() {
+            const bait = document.getElementById('ad-detection-bait');
+            const wall = document.getElementById('adblock-wall');
+            const uploadZone = document.getElementById('dropZone');
+            const processBtn = document.getElementById('processBtn');
+
+            let adBlockEnabled = false;
+
+            // CHECK 1: Is the "Bait" div hidden?
+            if (bait) {
+                const style = window.getComputedStyle(bait);
+                if (style.display === 'none' || style.visibility === 'hidden' || bait.offsetHeight === 0) {
+                    adBlockEnabled = true;
+                }
+            }
+
+            // CHECK 2: Did the AdSense script fail to load?
+            if (typeof window.google_ad_client === 'undefined' && typeof window.adsbygoogle === 'undefined') {
+                // If AdSense globals are missing, likely blocked
+            }
+
+            if (adBlockEnabled) {
+                console.log("AdBlocker Detected: Locking UI");
+                wall.style.display = 'flex';
+                
+                // Disable the App (Double Security)
+                uploadZone.style.pointerEvents = 'none'; // Stop clicks
+                uploadZone.style.filter = 'blur(5px)';   // Blur the UI
+                processBtn.disabled = true;              // Kill the button
+            } else {
+                console.log("No AdBlocker detected. Access granted.");
+            }
+        }
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
