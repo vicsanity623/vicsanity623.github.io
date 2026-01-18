@@ -388,7 +388,7 @@
 
     <div class="main-wrapper">
         <header>
-            <h1>Audio <span class="highlight-text">Stem</span> Separator <span class="version-tag">V 1.2</span></h1>
+            <h1>Audio <span class="highlight-text">Stem</span> Separator <span class="version-tag">V 1.3</span></h1>
             <p class="subtitle">Drag, Drop, Separate. Professional AI separation.</p>
         </header>
 
@@ -607,7 +607,7 @@
 
             // CHECK 2: Did the AdSense script fail to load?
             if (typeof window.google_ad_client === 'undefined' && typeof window.adsbygoogle === 'undefined') {
-                // If AdSense globals are missing, likely blocked
+                adBlockEnabled = true; // <--- FIX APPLIED HERE
             }
 
             if (adBlockEnabled) {
