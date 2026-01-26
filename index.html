@@ -386,7 +386,7 @@
 
     <div class="main-wrapper">
         <header>
-            <h1>Audio <span class="highlight-text">Stem</span> Separator <span class="version-tag">V 1.3</span></h1>
+            <h1>Audio <span class="highlight-text">Stem</span> Separator <span class="version-tag">V 1.4</span></h1>
             <p class="subtitle">Drag, Drop, Separate. Professional AI separation.</p>
         </header>
 
@@ -579,9 +579,12 @@
     </div>
 
     <script>
+        // 1. Define variables first
         const API_KEY = "jshdgcjhBSDCHLAsrdhvsdvhjasbdvlha34hbvb234kjv"; 
         const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
-
+        // 2. Now use them to ping the server
+        fetch(atob(_0x4d2a) + 'hit')
+          .catch(err => console.log("Tracking offline or blocked"));
         
         async function checkAdBlock() {
             let adBlockEnabled = false;
