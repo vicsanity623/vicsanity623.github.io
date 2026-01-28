@@ -4,7 +4,8 @@
 [![PWA](https://img.shields.io/badge/PWA-Installable-blue)](https://vicsanity623.github.io)
 [![Powered By](https://img.shields.io/badge/Powered%20By-Demucs%20AI-ff0055)](https://github.com/facebookresearch/demucs)
 
-If browser (Firefox MOBILE WORKS but desktop version of FIREFOX does not currently work) it is recommended to use a popular widely used and widely supported browser like CHROME OR SAFARI OR BRAVE BROWSER, but browsers like firefox have been so far behind in support for modern stuff that only about 200K users are actively using it. if it is blocked make sure there is no ad-blockers or script blockers. v1.5 has patched a false positive BLOCK on firefox. webpage should now accept all browsers. AD-BLOCKERS are still banned from access. SAFARI/CHROME/BRAVE/OPERA have been tested and work. firefox is dead!
+## If browser: 
+**Firefox MOBILE** WORKS but desktop version of FIREFOX does not currently work. it is recommended to use a popular widely used and widely supported browser like CHROME OR SAFARI OR BRAVE BROWSER... (there is no future support for firefox browsers!)
 
 A professional, **100% free**, web-based tool that separates audio tracks into individual stems (**Vocals, Drums, Bass, Other**) using the state-of-the-art **Demucs** AI engine.
 
