@@ -5,7 +5,9 @@
 [![Powered By](https://img.shields.io/badge/Powered%20By-Demucs%20AI-ff0055)](https://github.com/facebookresearch/demucs)
 
 ## If browser: 
-**Firefox MOBILE** WORKS but desktop version of FIREFOX does not currently work. it is recommended to use a popular widely used and widely supported browser like CHROME OR SAFARI OR BRAVE BROWSER... (there is no future support for firefox browsers!)
+**Firefox** FIXED! This was due to Firefox's legacy handling of certain browser features and networking protocols, which triggered false positives and connection errors during development.
+
+While the site is fully functional on Firefox, its architecture is more prone to these networking "false flags" compared to modern Chromium-based browsers. If you experience connection issues, please check your local network settings, otherwise, the tool works as intended! (there is no future support for firefox browsers as more modern chromium-based browsers are preferred here)
 
 A professional, **100% free**, web-based tool that separates audio tracks into individual stems (**Vocals, Drums, Bass, Other**) using the state-of-the-art **Demucs** AI engine.
 
