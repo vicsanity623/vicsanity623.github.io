@@ -589,23 +589,19 @@
         async function checkAdBlock() {
             let adBlockEnabled = false;
 
-            try {
-                await fetch('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js', {
-                    method: 'HEAD', 
-                    mode: 'no-cors' 
-                });
-            } catch (e) {
-                adBlockEnabled = true;
-                console.log("AdBlock Detected: Network Request Blocked");
-            }
+            // REMOVED: Network request to PageAd2 (Causes Firefox False Positive)
 
             const bait = document.getElementById('ad-detection-bait');
+            
+            // Check 1: Does the bait exist?
             if (!bait) {
                  adBlockEnabled = true;
             } else {
+                 // Check 2: Did the browser squash the bait's height/width?
                  if (bait.offsetParent === null || bait.offsetHeight === 0 || bait.offsetLeft === 0) {
                      adBlockEnabled = true;
                  }
+                 // Check 3: Is it hidden via CSS?
                  const style = window.getComputedStyle(bait);
                  if (style.display === 'none' || style.visibility === 'hidden') {
                      adBlockEnabled = true;
