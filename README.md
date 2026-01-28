@@ -1,12 +1,10 @@
 # 🎵 Advanced Audio Stem Separator
 
-If the browser is BLOCKED simply use another browser that is not altering or modifying the HTML to disable ads/scripts from running. this service is only free to use if ads are visible on your browser.
-
-Don't create issues calling me a LOSER because it blocked you!
-
 [![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://vicsanity623.github.io)
 [![PWA](https://img.shields.io/badge/PWA-Installable-blue)](https://vicsanity623.github.io)
 [![Powered By](https://img.shields.io/badge/Powered%20By-Demucs%20AI-ff0055)](https://github.com/facebookresearch/demucs)
+
+If browser is blocked make sure there is no ad-blockers or script blockers. v1.5 has patched a false positive BLOCK on firefox. webpage should now accept all browsers. AD-BLOCKERS are still banned from access.
 
 A professional, **100% free**, web-based tool that separates audio tracks into individual stems (**Vocals, Drums, Bass, Other**) using the state-of-the-art **Demucs** AI engine.
 
