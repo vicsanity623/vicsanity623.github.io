@@ -852,8 +852,8 @@
     <script>
         const API_KEY = "jshdgcjhBSDCHLAsrdhvsdvhjasbdvlha34hbvb234kjv";
         const _0x4d2a = "aHR0cHM6Ly92aWNzLWltYWMudGFpbDM3YjRmMi50cy5uZXQv";
-        fetch(atob(_0x4d2a) + 'hit')
-            .catch(err => console.log("Tracking offline or blocked"));
+        fetch(getBackendUrl() + 'hit')
+            .catch(err => console.log("Backend offline or connection blocked."));
 
         async function checkAdBlock() {
             let adBlockEnabled = false;
