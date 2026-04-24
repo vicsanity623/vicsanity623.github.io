@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VicHub | Master Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .project-card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid rgba(255,255,255,0.05); }
+        .project-card:hover { transform: scale(1.05); z-index: 10; border-color: #00f2ff; background: rgba(255,255,255,0.05); }
+        
+        body { background-color: #050505; color: white; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        
+        .nav-link.active { color: #00f2ff; background: rgba(0, 242, 255, 0.05); border-radius: 12px; }
+        
+        .group:hover i {
+            filter: drop-shadow(0 0 8px rgba(0, 242, 255, 0.8));
+            transform: scale(1.1);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-72 bg-black border-r border-white/10 flex flex-col p-6 hidden lg:flex">
+        <div class="mb-12 flex items-center gap-3 px-4">
+            <div class="w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center font-black text-black italic text-xl shadow-[0_0_20px_rgba(0,242,255,0.2)]">V</div>
+            <h1 class="text-xl font-black tracking-tighter uppercase">VicHub</h1>
+        </div>
+        
+        <nav class="space-y-2 text-sm font-medium text-gray-500">
+            <a href="#" onclick="render('All', this)" class="nav-link active flex items-center gap-3 px-4 py-3 hover:text-white transition group">
+                <i data-lucide="home" class="w-5 h-5"></i> Home
+            </a>
+            <a href="#" onclick="render('AI Tools', this)" class="nav-link flex items-center gap-3 px-4 py-3 hover:text-white transition group">
+                <i data-lucide="cpu" class="w-5 h-5"></i> AI Studio
+            </a>
+            <a href="#" onclick="render('Frontend', this)" class="nav-link flex items-center gap-3 px-4 py-3 hover:text-white transition group">
+                <i data-lucide="layout" class="w-5 h-5"></i> Web Apps
+            </a>
+            <a href="#" onclick="render('Internal', this)" class="nav-link flex items-center gap-3 px-4 py-3 hover:text-white transition group">
+                <i data-lucide="terminal" class="w-5 h-5"></i> Internal
+            </a>
+            
+            <div class="pt-10">
+                <p class="px-4 text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-4 font-black">Infrastructure</p>
+                <a href="#" onclick="render('Settings', this)" class="nav-link flex items-center gap-3 px-4 py-3 hover:text-white transition group">
+                    <i data-lucide="settings" class="w-5 h-5"></i> Cluster Settings
+                </a>
+            </div>
+        </nav>
+
+        <div class="mt-auto p-4 bg-white/5 rounded-2xl border border-white/5">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span class="text-[10px] font-black uppercase tracking-widest text-emerald-500">iMac Node Online</span>
+            </div>
+            <p class="text-[10px] text-gray-500 leading-relaxed font-medium">Intel Core i7 // 32GB RAM // Radeon Pro GPU</p>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 overflow-y-auto no-scrollbar relative">
+        
+        <!-- TOP BAR -->
+        <header class="sticky top-0 z-50 w-full px-12 py-6 flex justify-between items-center glass">
+            <div class="flex items-center gap-4 bg-white/5 px-6 py-3 rounded-full border border-white/10 w-[450px]">
+                <i data-lucide="search" class="w-4 h-4 text-gray-500"></i>
+                <input type="text" placeholder="Search infrastructure..." class="bg-transparent border-none outline-none text-sm text-gray-300 w-full font-medium">
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="hidden sm:block">
+                    <span id="server-stats" class="text-[10px] font-black text-cyan-400 uppercase tracking-widest bg-cyan-400/10 px-3 py-1 rounded-full">Primary Cluster: Active</span>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 border border-white/20 p-0.5">
+                    <div class="w-full h-full rounded-full bg-black flex items-center justify-center text-[10px] font-bold italic">VIC</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- HERO -->
+        <section id="hero" class="relative h-[60vh] flex items-end p-12 bg-cover bg-center" style="background-image: linear-gradient(to top, #050505 5%, transparent 90%), url('https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=2070&auto=format&fit=crop');">
+            <div class="max-w-3xl relative z-10">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="bg-cyan-500 text-black text-[10px] font-black px-3 py-1 rounded-md uppercase tracking-widest shadow-lg shadow-cyan-500/20">Featured Tool</span>
+                    <div class="h-[1px] w-12 bg-white/20"></div>
+                    <span class="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Hardware Accelerated</span>
+                </div>
+                <h2 class="text-[8rem] font-black mb-4 tracking-tighter uppercase leading-[0.8] text-white">STEM<br><span class="text-transparent" style="-webkit-text-stroke: 1px white;">STUDIO</span></h2>
+                <p class="text-gray-400 text-xl mb-10 leading-relaxed font-light max-w-xl">World-class AI audio separation powered by your local iMac GPU. Zero cloud latency, zero cost.</p>
+                <div class="flex gap-4">
+                    <a href="https://vicsanity623.github.io/" target="_blank" class="bg-white text-black font-black py-5 px-12 rounded-full hover:bg-cyan-400 transition-all uppercase tracking-widest text-xs">Open Studio</a>
+                    <a href="https://github.com/vicsanity623" target="_blank" class="bg-white/5 backdrop-blur-md text-white font-bold py-5 px-12 rounded-full hover:bg-white/10 border border-white/10 transition text-xs uppercase tracking-widest">Repository</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- PROJECT ROWS -->
+        <div id="project-container" class="p-12 space-y-20 -mt-20 relative z-20">
+            <!-- JavaScript builds this -->
+        </div>
+
+        <footer class="p-12 border-t border-white/5 mt-20 flex justify-between items-center">
+            <div class="text-gray-600 text-[10px] uppercase tracking-[0.3em] font-black">
+                &copy; 2026 Vicsanity Cluster // macOS Darwin x64
+            </div>
+            <div class="flex gap-8">
+                <i data-lucide="github" class="w-4 h-4 text-gray-600 hover:text-white cursor-pointer transition"></i>
+                <i data-lucide="database" class="w-4 h-4 text-gray-600 hover:text-white cursor-pointer transition"></i>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        const projects = [
+            {
+                title: "Stem Separator",
+                category: "AI Tools",
+                url: "https://vicsanity623.github.io/audioStems",
+                image: "images/stemseparator.jpeg", 
+                desc: "GPU-Accelerated AI Studio"
+            },
+            {
+                title: "GitHub Portfolio",
+                category: "Frontend",
+                url: "https://github.com/vicsanity623",
+                image: "images/audiostems.png",
+                desc: "Public Codebase Repository"
+            },
+            {
+                title: "Internal Metrics",
+                category: "Internal",
+                url: "https://vics-imac-1.tail37b4f2.ts.net/stats",
+                image: "https://images.unsplash.com/photo-1551288049-bbda38a594a0?q=80&w=800",
+                desc: "Hardware Health & API Load"
+            }
+        ];
+
+        function render(filter = 'All', element = null) {
+            if (element) {
+                document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+                element.classList.add('active');
+            }
+
+            const container = document.getElementById('project-container');
+            container.innerHTML = '';
+            const cats = filter === 'All' ? [...new Set(projects.map(p => p.category))] : [filter];
+
+            cats.forEach(cat => {
+                const items = projects.filter(p => p.category === cat);
+                if (items.length === 0) return;
+
+                const row = document.createElement('div');
+                row.innerHTML = `
+                    <h3 class="text-[10px] font-black mb-8 text-gray-500 tracking-[0.4em] uppercase border-l-4 border-cyan-500 pl-6">${cat}</h3>
+                    <div class="flex gap-8 overflow-x-auto no-scrollbar pb-8">
+                        ${items.map(p => `
+                            <a href="${p.url}" target="_blank" class="project-card flex-none w-80 glass rounded-3xl overflow-hidden group">
+                                <div class="h-44 bg-cover bg-center grayscale group-hover:grayscale-0 transition-all duration-700" style="background-image: url('${p.image}')"></div>
+                                <div class="p-6">
+                                    <h4 class="font-bold text-white mb-2 text-lg tracking-tight">${p.title}</h4>
+                                    <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest">${p.desc}</p>
+                                </div>
+                            </a>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+            lucide.createIcons();
+        }
+
+        render('All');
+    </script>
+</body>
+</html>
