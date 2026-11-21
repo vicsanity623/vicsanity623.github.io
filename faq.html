@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090d">
+  <meta name="description" content="Answers about PRISM Audio Studio, AI model downloads, privacy, browser support and exports.">
+  <link rel="canonical" href="https://vicsanity623.github.io/faq.html">
+  <link rel="stylesheet" href="site.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330" crossorigin="anonymous"></script>
+  <title>FAQ — PRISM Audio Studio</title>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="./"><span class="brand-mark">∿</span><span>PRISM<span class="brand-sub">AUDIO STUDIO</span></span></a><button class="menu-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button><nav id="site-nav" class="site-nav" aria-label="Main navigation"><a href="./#features">Features</a><a href="how-to.html">How to</a><a href="faq.html">FAQ</a><a href="privacy.html">Privacy</a><span class="auth-control"><button class="auth-button" type="button" data-auth-button>Sign in with Google</button><span class="auth-status" data-auth-status role="status" aria-live="polite"></span></span><a class="nav-cta" href="studio/">Open studio <span>↗</span></a></nav></header>
+  <main class="article-wrap">
+    <div class="article-eyebrow">HELP / FREQUENTLY ASKED QUESTIONS</div>
+    <h1>Good questions.<br><em>Clear answers.</em></h1>
+    <p class="article-intro">The essentials on using the browser studio, models, privacy and exports.</p>
+    <div class="ad-break" aria-label="Advertisement"><span>ADVERTISEMENT</span><ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5972331036113330" data-ad-slot="4287691766" data-ad-format="auto" data-full-width-responsive="true"></ins><script>(adsbygoogle = window.adsbygoogle || []).push({});</script></div>
+    <div class="article-body faq-list">
+      <details open><summary>Is PRISM free to use?</summary><p>Yes. The browser editor is free to use and supported by advertising on informational pages. You do not need an account to open the editor. Your internet provider may charge for data; the AI model download is approximately 166 MB.</p></details>
+      <details><summary>Does my audio get uploaded?</summary><p>The editor processes imported audio locally in your browser. It does not send the audio file to a PRISM server. If you use AI separation, the model weights are fetched from Hugging Face. Normal web hosting, advertising and network providers may process standard request data; see the <a href="privacy.html">Privacy Policy</a>.</p></details>
+      <details><summary>Which AI models work in the website?</summary><p>The current hosted browser build includes HTDemucs-FT and HTDemucs ONNX models, loaded on-device through ONNX Runtime Web. MDX-Net is not enabled in this browser build; the MDX mode in the desktop source requires a separate local Python service.</p></details>
+      <details><summary>Why does the model take a while to download?</summary><p>The HTDemucs-FT model is about 166 MB. It is downloaded only when you select AI separation, and the browser tries to cache it for future use on the same device and browser. Clearing site storage may remove the cached model.</p></details>
+      <details><summary>Does it run on a phone?</summary><p>Some recent phones support WebGPU, but AI separation is memory intensive and mobile browsers can close large tasks. A desktop or laptop with a recent browser and several gigabytes of available memory is recommended. DSP modes are lighter.</p></details>
+      <details><summary>Why are the separated stems imperfect?</summary><p>Source separation estimates instruments from a finished mix. Reverb, doubled vocals, distortion, overlapping instruments and mastering can create bleed or artifacts. Results vary by song and are not a substitute for original multitrack recordings.</p></details>
+      <details><summary>Can I export the stems?</summary><p>Yes. Use Export to create a mix, individual track or all-stems export, and to save a project bundle. Browser support and available memory can affect file formats and maximum project size.</p></details>
+      <details><summary>Are my sessions saved online?</summary><p>No account-based cloud sync is provided by this static site. Export your project bundle or session file if you want to keep it or move it to another device.</p></details>
+      <details><summary>Why is there a Google sign-in button?</summary><p>Google sign-in is optional and preserved from the previous site. It is not required to use the editor and does not enable cloud audio processing or project storage in this version.</p></details>
+      <details><summary>Can I use separated audio commercially?</summary><p>PRISM cannot grant rights to the source recording or composition. You are responsible for having permission to use, process and publish the audio and for complying with the licenses and rights that apply to it.</p></details>
+      <div class="article-cta"><a class="button button-bright" href="studio/">Try the studio <span>↗</span></a></div>
+    </div>
+  </main>
+  <footer class="site-footer"><a class="brand" href="./"><span class="brand-mark">∿</span><span>PRISM<span class="brand-sub">AUDIO STUDIO</span></span></a><span class="footer-note">A free audio workspace for curious ears.</span><nav aria-label="Footer navigation"><a href="how-to.html">How to</a><a href="faq.html">FAQ</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav><span class="copyright">© 2026 PRISM Audio Studio</span></footer>
+  <script src="site.js"></script><script type="module" src="auth.js"></script>
+</body></html>

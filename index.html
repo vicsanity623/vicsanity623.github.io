@@ -1,182 +1,139 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VicHub | Master Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
-        
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .project-card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid rgba(255,255,255,0.05); }
-        .project-card:hover { transform: scale(1.05); z-index: 10; border-color: #00f2ff; background: rgba(255,255,255,0.05); }
-        
-        body { background-color: #050505; color: white; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        
-        .nav-link.active { color: #00f2ff; background: rgba(0, 242, 255, 0.05); border-radius: 12px; }
-        
-        .group:hover i {
-            filter: drop-shadow(0 0 8px rgba(0, 242, 255, 0.8));
-            transform: scale(1.1);
-            transition: all 0.3s ease;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090d">
+  <meta name="description" content="A free browser-based AI stem splitter and multitrack audio editor. Separate vocals, drums, bass and other, then edit and export — your audio stays on your device.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="PRISM — Free AI Stem Splitter & Audio Studio">
+  <meta property="og:description" content="Separate a song into stems and edit them in a complete browser-based audio studio.">
+  <meta property="og:image" content="https://vicsanity623.github.io/images/stemseparator.jpeg">
+  <link rel="canonical" href="https://vicsanity623.github.io/">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330" crossorigin="anonymous"></script>
+  <title>PRISM — Free AI Stem Splitter & Audio Studio</title>
 </head>
-<body class="flex h-screen overflow-hidden">
+<body>
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="PRISM home">
+      <span class="brand-mark" aria-hidden="true">∿</span>
+      <span>PRISM<span class="brand-sub">AUDIO STUDIO</span></span>
+    </a>
+    <button class="menu-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav" class="site-nav" aria-label="Main navigation">
+      <a href="./#features">Features</a>
+      <a href="how-to.html">How to</a>
+      <a href="faq.html">FAQ</a>
+      <a href="privacy.html">Privacy</a>
+      <span class="auth-control"><button class="auth-button" type="button" data-auth-button>Sign in with Google</button><span class="auth-status" data-auth-status role="status" aria-live="polite"></span></span>
+      <a class="nav-cta" href="studio/">Open studio <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
 
-    <!-- SIDEBAR -->
-    <aside class="w-72 bg-black border-r border-white/10 flex flex-col p-6 hidden lg:flex">
-        <div class="mb-12 flex items-center gap-3 px-4">
-            <div class="w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center font-black text-black italic text-xl shadow-[0_0_20px_rgba(0,242,255,0.2)]">V</div>
-            <h1 class="text-xl font-black tracking-tighter uppercase">VicHub</h1>
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="live-dot"></span> FREE BROWSER AUDIO WORKSTATION</div>
+        <h1>Make space<br>for every <em>sound.</em></h1>
+        <p class="hero-lede">Separate songs into stems, shape the mix, and build something new — in a full multitrack studio that runs on your device.</p>
+        <div class="hero-actions">
+          <a class="button button-bright" href="studio/">Launch the studio <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="how-to.html">See how it works <span aria-hidden="true">→</span></a>
         </div>
-        
-        <nav class="space-y-2 text-sm font-medium text-gray-500">
-            <a href="#" onclick="render('All', this)" class="nav-link active flex items-center gap-3 px-4 py-3 hover:text-white transition group">
-                <i data-lucide="home" class="w-5 h-5"></i> Home
-            </a>
-            <a href="#" onclick="render('AI Tools', this)" class="nav-link flex items-center gap-3 px-4 py-3 hover:text-white transition group">
-                <i data-lucide="cpu" class="w-5 h-5"></i> AI Studio
-            </a>
-            <a href="#" onclick="render('Frontend', this)" class="nav-link flex items-center gap-3 px-4 py-3 hover:text-white transition group">
-                <i data-lucide="layout" class="w-5 h-5"></i> Web Apps
-            </a>
-            <a href="#" onclick="render('Internal', this)" class="nav-link flex items-center gap-3 px-4 py-3 hover:text-white transition group">
-                <i data-lucide="terminal" class="w-5 h-5"></i> Internal
-            </a>
-            
-            <div class="pt-10">
-                <p class="px-4 text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-4 font-black">Infrastructure</p>
-                <a href="#" onclick="render('Settings', this)" class="nav-link flex items-center gap-3 px-4 py-3 hover:text-white transition group">
-                    <i data-lucide="settings" class="w-5 h-5"></i> Cluster Settings
-                </a>
-            </div>
-        </nav>
+        <div class="trust-row"><span>NO UPLOADS</span><i></i><span>NO ACCOUNT REQUIRED</span><i></i><span>FREE TO USE</span></div>
+      </div>
+      <div class="hero-art" role="img" aria-label="Audio mixer illuminated in violet light">
+        <div class="art-overlay"></div>
+        <div class="art-caption"><span>01 / YOUR AUDIO, YOUR DEVICE</span><b>Listen closer.</b></div>
+        <div class="waveform" aria-hidden="true"></div>
+      </div>
+      <div class="hero-index"><span>01</span><span class="index-line"></span><span>STEM STUDIO</span></div>
+    </section>
 
-        <div class="mt-auto p-4 bg-white/5 rounded-2xl border border-white/5">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                <span class="text-[10px] font-black uppercase tracking-widest text-emerald-500">iMac Node Online</span>
-            </div>
-            <p class="text-[10px] text-gray-500 leading-relaxed font-medium">Intel Core i7 // 32GB RAM // Radeon Pro GPU</p>
+    <div class="ad-break" aria-label="Advertisement">
+      <span>ADVERTISEMENT</span>
+      <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5972331036113330" data-ad-slot="4287691766" data-ad-format="auto" data-full-width-responsive="true"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </div>
+
+    <section class="intro-section" id="features">
+      <div class="section-kicker">A STUDIO IN YOUR BROWSER <span>— NO INSTALL NEEDED</span></div>
+      <div class="intro-grid">
+        <h2>From one mix<br>to <span>your own sound.</span></h2>
+        <p>PRISM brings AI-powered stem separation and hands-on audio editing together. Start with a song, get separate vocal, drum, bass and other tracks, then arrange and export your mix — all without sending your audio to a server.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card feature-large">
+          <div class="feature-icon">✳</div>
+          <span class="card-label">01 / SEPARATE</span>
+          <h3>Four stems.<br>One source.</h3>
+          <p>Run the HTDemucs-FT AI model on your device to split a stereo song into vocals, drums, bass and other. The model is a one-time download, then cached in your browser.</p>
+          <span class="card-foot">WEBGPU + CPU FALLBACK</span>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">⌁</div>
+          <span class="card-label">02 / EDIT</span>
+          <h3>A real multitrack timeline.</h3>
+          <p>Trim, split, move and layer audio. Shape tracks with effects, frequency bands and a live analyzer.</p>
+          <span class="card-foot">UNDO · EFFECTS · SPECTROGRAM</span>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">⇩</div>
+          <span class="card-label">03 / EXPORT</span>
+          <h3>Keep what you make.</h3>
+          <p>Export a finished mix or individual stems as WAV or MP3, or save a project bundle to continue later.</p>
+          <span class="card-foot">WAV · MP3 · STEMS · PROJECT</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="how-section">
+      <div class="how-visual">
+        <div class="mini-window">
+          <div class="mini-top"><span>PRISM / SESSION 001</span><span>LOCAL PROCESSING ●</span></div>
+          <div class="mini-track"><span>VOCALS</span><div class="track-wave wave-a"></div></div>
+          <div class="mini-track"><span>DRUMS</span><div class="track-wave wave-b"></div></div>
+          <div class="mini-track"><span>BASS</span><div class="track-wave wave-c"></div></div>
+          <div class="mini-track"><span>OTHER</span><div class="track-wave wave-d"></div></div>
+          <div class="mini-playhead"></div>
         </div>
-    </aside>
+      </div>
+      <div class="how-copy">
+        <div class="section-kicker">YOUR WORKFLOW, SIMPLIFIED</div>
+        <h2>Drop in a track.<br><em>Take it apart.</em></h2>
+        <ol class="steps">
+          <li><span>01</span><div><b>Open the studio</b><p>Works best in a recent desktop browser. No sign-up required to use the editor.</p></div></li>
+          <li><span>02</span><div><b>Load your audio</b><p>Choose a local audio file. Playback, editing and separation stay on your device.</p></div></li>
+          <li><span>03</span><div><b>Separate, edit, export</b><p>Choose AI separation or lighter DSP tools, refine your tracks, then export.</p></div></li>
+        </ol>
+        <a class="button button-outline" href="how-to.html">Read the getting-started guide <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
 
-    <!-- MAIN CONTENT -->
-    <main class="flex-1 overflow-y-auto no-scrollbar relative">
-        
-        <!-- TOP BAR -->
-        <header class="sticky top-0 z-50 w-full px-12 py-6 flex justify-between items-center glass">
-            <div class="flex items-center gap-4 bg-white/5 px-6 py-3 rounded-full border border-white/10 w-[450px]">
-                <i data-lucide="search" class="w-4 h-4 text-gray-500"></i>
-                <input type="text" placeholder="Search infrastructure..." class="bg-transparent border-none outline-none text-sm text-gray-300 w-full font-medium">
-            </div>
-            <div class="flex items-center gap-6">
-                <div class="hidden sm:block">
-                    <span id="server-stats" class="text-[10px] font-black text-cyan-400 uppercase tracking-widest bg-cyan-400/10 px-3 py-1 rounded-full">Primary Cluster: Active</span>
-                </div>
-                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 border border-white/20 p-0.5">
-                    <div class="w-full h-full rounded-full bg-black flex items-center justify-center text-[10px] font-bold italic">VIC</div>
-                </div>
-            </div>
-        </header>
+    <section class="privacy-band">
+      <div class="privacy-symbol">◎</div>
+      <div><div class="section-kicker">PRIVATE BY DESIGN</div><h2>Your tracks stay yours.</h2><p>Audio files are processed locally in your browser and are not uploaded by the editor. The AI model is fetched from Hugging Face when you choose to use it; ordinary site analytics and advertising may be handled by Google.</p></div>
+      <a href="privacy.html" class="text-link">Privacy details <span aria-hidden="true">→</span></a>
+    </section>
 
-        <!-- HERO -->
-        <section id="hero" class="relative h-[60vh] flex items-end p-12 bg-cover bg-center" style="background-image: linear-gradient(to top, #050505 5%, transparent 90%), url('https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=2070&auto=format&fit=crop');">
-            <div class="max-w-3xl relative z-10">
-                <div class="flex items-center gap-3 mb-6">
-                    <span class="bg-cyan-500 text-black text-[10px] font-black px-3 py-1 rounded-md uppercase tracking-widest shadow-lg shadow-cyan-500/20">Featured Tool</span>
-                    <div class="h-[1px] w-12 bg-white/20"></div>
-                    <span class="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Hardware Accelerated</span>
-                </div>
-                <h2 class="text-[8rem] font-black mb-4 tracking-tighter uppercase leading-[0.8] text-white">STEM<br><span class="text-transparent" style="-webkit-text-stroke: 1px white;">STUDIO</span></h2>
-                <p class="text-gray-400 text-xl mb-10 leading-relaxed font-light max-w-xl">World-class AI audio separation powered by your local iMac GPU. Zero cloud latency, zero cost.</p>
-                <div class="flex gap-4">
-                    <a href="https://vicsanity623.github.io/" target="_blank" class="bg-white text-black font-black py-5 px-12 rounded-full hover:bg-cyan-400 transition-all uppercase tracking-widest text-xs">Open Studio</a>
-                    <a href="https://github.com/vicsanity623" target="_blank" class="bg-white/5 backdrop-blur-md text-white font-bold py-5 px-12 rounded-full hover:bg-white/10 border border-white/10 transition text-xs uppercase tracking-widest">Repository</a>
-                </div>
-            </div>
-        </section>
+    <section class="faq-teaser">
+      <div><div class="section-kicker">GOOD TO KNOW</div><h2>Questions before<br>you press play?</h2></div>
+      <div class="faq-teaser-right"><p>Learn about model downloads, supported browsers, local processing and what happens to your files.</p><a class="button button-bright" href="faq.html">Visit the FAQ <span aria-hidden="true">→</span></a></div>
+    </section>
+  </main>
 
-        <!-- PROJECT ROWS -->
-        <div id="project-container" class="p-12 space-y-20 -mt-20 relative z-20">
-            <!-- JavaScript builds this -->
-        </div>
-
-        <footer class="p-12 border-t border-white/5 mt-20 flex justify-between items-center">
-            <div class="text-gray-600 text-[10px] uppercase tracking-[0.3em] font-black">
-                &copy; 2026 Vicsanity Cluster // macOS Darwin x64
-            </div>
-            <div class="flex gap-8">
-                <i data-lucide="github" class="w-4 h-4 text-gray-600 hover:text-white cursor-pointer transition"></i>
-                <i data-lucide="database" class="w-4 h-4 text-gray-600 hover:text-white cursor-pointer transition"></i>
-            </div>
-        </footer>
-    </main>
-
-    <script>
-        const projects = [
-            {
-                title: "Stem Separator",
-                category: "AI Tools",
-                url: "https://vicsanity623.github.io/audioStems",
-                image: "images/stemseparator.jpeg", 
-                desc: "GPU-Accelerated AI Studio"
-            },
-            {
-                title: "GitHub Portfolio",
-                category: "Frontend",
-                url: "https://github.com/vicsanity623",
-                image: "images/audiostems.png",
-                desc: "Public Codebase Repository"
-            },
-            {
-                title: "Internal Metrics",
-                category: "Internal",
-                url: "https://vics-imac-1.tail37b4f2.ts.net/stats",
-                image: "https://images.unsplash.com/photo-1551288049-bbda38a594a0?q=80&w=800",
-                desc: "Hardware Health & API Load"
-            }
-        ];
-
-        function render(filter = 'All', element = null) {
-            if (element) {
-                document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-                element.classList.add('active');
-            }
-
-            const container = document.getElementById('project-container');
-            container.innerHTML = '';
-            const cats = filter === 'All' ? [...new Set(projects.map(p => p.category))] : [filter];
-
-            cats.forEach(cat => {
-                const items = projects.filter(p => p.category === cat);
-                if (items.length === 0) return;
-
-                const row = document.createElement('div');
-                row.innerHTML = `
-                    <h3 class="text-[10px] font-black mb-8 text-gray-500 tracking-[0.4em] uppercase border-l-4 border-cyan-500 pl-6">${cat}</h3>
-                    <div class="flex gap-8 overflow-x-auto no-scrollbar pb-8">
-                        ${items.map(p => `
-                            <a href="${p.url}" target="_blank" class="project-card flex-none w-80 glass rounded-3xl overflow-hidden group">
-                                <div class="h-44 bg-cover bg-center grayscale group-hover:grayscale-0 transition-all duration-700" style="background-image: url('${p.image}')"></div>
-                                <div class="p-6">
-                                    <h4 class="font-bold text-white mb-2 text-lg tracking-tight">${p.title}</h4>
-                                    <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest">${p.desc}</p>
-                                </div>
-                            </a>
-                        `).join('')}
-                    </div>
-                `;
-                container.appendChild(row);
-            });
-            lucide.createIcons();
-        }
-
-        render('All');
-    </script>
+  <footer class="site-footer">
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">∿</span><span>PRISM<span class="brand-sub">AUDIO STUDIO</span></span></a>
+    <span class="footer-note">A free audio workspace for curious ears.</span>
+    <nav aria-label="Footer navigation"><a href="how-to.html">How to</a><a href="faq.html">FAQ</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="https://github.com/vicsanity623/vicsanity623.github.io">Source</a></nav>
+    <span class="copyright">© 2026 PRISM Audio Studio</span>
+  </footer>
+  <script src="site.js"></script>
+  <script type="module" src="auth.js"></script>
 </body>
 </html>

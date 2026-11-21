@@ -1,0 +1,27 @@
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Local tools and deploy state
+node_modules/
+.firebase/
+firebase-debug.log*
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Local environment files and private credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Downloaded AI weights/checkpoints (the site fetches models on demand)
+*.onnx
+*.safetensors
+*.pth
+*.pt
+*.ckpt
+*.th

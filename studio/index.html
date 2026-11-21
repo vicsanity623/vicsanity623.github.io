@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob: data:; worker-src 'self' blob:; connect-src 'self' blob: data: https://huggingface.co https://*.hf.co https://*.cdn.hf.co https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com http://127.0.0.1:* http://localhost:*; frame-src https://stemsstats.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'self';">
+<meta name="theme-color" content="#070912">
+<meta name="description" content="PRISM — browser-native spectral stem studio. Split any song into vocals, drums, bass & more, isolate frequency bands, edit on a multitrack timeline and export.">
+<title>PRISM · Free Browser Stem Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c5cff'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%23070912'/%3E%3Cpath d='M5 16h3l2-7 3 14 3-11 2.5 8 2.5-5 2 1h4' fill='none' stroke='url(%23g)' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css?v=11">
+</head>
+<body>
+<div class="bg-aurora" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
+
+<div id="app" class="app">
+
+  <!-- ═══════════ TOP BAR ═══════════ -->
+  <header id="topbar" class="topbar glass">
+      <a class="brand" href="../" title="Back to PRISM home">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b7cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs><path d="M3 16h3.5L9 8l3.5 17L16 11l3 11 3-8 2.5 4H29" fill="none" stroke="url(#lg)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="brand-text">
+          <strong>PRISM</strong>
+          <span>Spectral Stem Studio</span>
+        </div>
+      </a>
+
+    <div class="project-name">
+      <input id="projectName" class="ghost-input" value="Untitled Session" spellcheck="false" aria-label="Project name">
+    </div>
+
+    <div class="transport">
+      <button id="btnToStart" class="tbtn" title="Return to start (⌃←)"><svg viewBox="0 0 24 24"><path d="M6 5v14M19 5l-11 7 11 7z"/></svg></button>
+      <button id="btnStop" class="tbtn" title="Stop (.)"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+      <button id="btnPlay" class="tbtn play" title="Play / Pause (Space)"><svg class="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+      <button id="btnLoop" class="tbtn" title="Loop selection (L)"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
+      <div class="timecode" id="timeDisplay" title="Playhead position">00:00.000</div>
+      <div class="timecode dim" id="timeTotal">/ 00:00.000</div>
+    </div>
+
+    <div class="view-tabs" role="tablist">
+      <button class="vtab active" data-view="lanes" role="tab">Timeline</button>
+      <button class="vtab" data-view="spectro" role="tab">Spectrogram</button>
+      <button class="vtab" data-view="spectrum" role="tab">Analyzer</button>
+    </div>
+
+    <div class="top-actions">
+      <div class="zoom-ctl" title="Horizontal zoom (⌘ + scroll)">
+        <button id="zoomOut" class="mini">−</button>
+        <input id="zoomRange" type="range" min="0" max="100" value="40" aria-label="Zoom">
+        <button id="zoomIn" class="mini">+</button>
+      </div>
+      <button id="btnUndo" class="ghost-btn" title="Undo (⌘Z)"><svg viewBox="0 0 24 24"><path d="M3 10h11a5 5 0 010 10h-3"/><path d="M3 10l5-5M3 10l5 5"/></svg></button>
+      <button id="btnRedo" class="ghost-btn" title="Redo (⌘⇧Z)"><svg viewBox="0 0 24 24"><path d="M21 10H10a5 5 0 000 10h3"/><path d="M21 10l-5-5M21 10l-5 5"/></svg></button>
+      <button id="btnSave" class="ghost-btn" title="Save session (⌘S)"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg></button>
+      <button id="btnSettings" class="ghost-btn" title="Engine settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.6 1.6 0 008 19.4a1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H3a2 2 0 110-4h.1A1.6 1.6 0 004.6 8a1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H9a1.6 1.6 0 001-1.5V3a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V9a1.6 1.6 0 001.5 1H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/></svg></button>
+      <button id="btnExport" class="primary-btn"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg> Export</button>
+    </div>
+    <div class="studio-auth">
+      <button class="studio-auth-button" type="button" data-auth-button>Sign in with Google</button>
+      <span class="studio-auth-status" data-auth-status role="status" aria-live="polite"></span>
+    </div>
+  </header>
+
+  <!-- ═══════════ WORKSPACE ═══════════ -->
+  <div class="workspace">
+
+    <!-- LEFT: sources / stems / bands -->
+    <aside id="leftPanel" class="panel left glass">
+      <section class="psec">
+        <h3 class="psec-title">Source <span class="hint">mp3 · wav · m4a · flac · ogg</span></h3>
+        <div id="dropZone" class="dropzone" tabindex="0" role="button" aria-label="Drop audio file or click to browse">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+          <div class="dz-title">Drop audio, or <u>browse</u></div>
+          <div class="dz-sub">Everything runs on-device. Nothing is uploaded.</div>
+          <input id="fileInput" type="file" accept="audio/*,.wav,.mp3,.m4a,.flac,.ogg,.aac,.opus,.aiff" hidden multiple>
+        </div>
+        <div class="row-btns">
+          <button id="btnDemo" class="soft-btn small">Load demo session</button>
+          <button id="btnMidSide" class="soft-btn small" disabled title="Split into Mid / Side components">Mid / Side split</button>
+        </div>
+      </section>
+
+      <section class="psec">
+        <h3 class="psec-title">Stems <span class="hint" id="stemStatus">no source</span></h3>
+        <div id="stemList" class="stem-list">
+          <div class="empty-note">Import a track, then run <b>Separate</b> to decompose it into stems.</div>
+        </div>
+        <div class="sep-controls">
+          <div class="sep-modes" id="sepModes">
+            <button class="mode active" data-mode="fast">Fast</button>
+            <button class="mode" data-mode="studio">Studio</button>
+            <button class="mode" data-mode="deep">Deep</button>
+            <button class="mode ai" data-mode="ai">AI</button>
+          </div>
+          <div id="aiPanel" class="ai-panel" hidden>
+            <div class="ai-engine-row">
+              <span class="ai-spark" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2l2.1 6.2 6.6 2.2-4.9 4.5 1.6 6.4-5.4-3.6L5 21.3l1.6-6.4-4.9-4.5 6.6-2.2z"/></svg>
+              </span>
+              <select id="aiModelSel" class="mini-select wide" aria-label="AI engine">
+                <optgroup label="In-browser (WebGPU / WASM)">
+                  <option value="htdemucs_ft" selected>HTDemucs-FT — fine-tuned (best in-browser)</option>
+                  <option value="htdemucs">HTDemucs — Meta v4 baseline</option>
+                </optgroup>
+                <optgroup label="Local server — full quality" id="aiLocalGroup">
+                  <option value="local-htdemucs_ft" id="aiLocalOption" disabled>Desktop local server — not available on this hosted site</option>
+                  <option value="local-htdemucs_6s" id="aiLocal6sOption" disabled>Desktop local server — not available on this hosted site</option>
+                  <option value="local-mdxnet_voc_ft" id="aiLocalMdxOption" disabled>MDX-Net — desktop local server only</option>
+                </optgroup>
+              </select>
+            </div>
+            <div id="aiModelDesc" class="ai-model-desc">HTDemucs-FT runs locally in your browser using WebGPU or a CPU fallback.</div>
+            <div class="ai-local-row" id="aiLocalRow" hidden>
+              <span class="ai-local-badge">★ LOCAL</span>
+              <span class="ai-local-text" id="aiLocalText">detecting local HTDemucs-FT server…</span>
+            </div>
+            <div class="ai-meta" id="aiMetaBrowser"><span id="aiModelSize">166 MB</span> · <span id="aiBackend">WebGPU</span> · cached on-device</div>
+            <button id="btnAiModel" class="soft-btn small wide">Download AI model (one-time)</button>
+            <div id="aiStatus" class="ai-status"><span class="ai-dot idle"></span><span id="aiStatusText">not downloaded</span></div>
+            <div class="note">The selected audio is processed <b>on your device</b>. The first AI run downloads the model from Hugging Face (about 166 MB), then the browser caches it. WebGPU is used when available; otherwise inference falls back to CPU. MDX-Net currently requires the separate desktop server and is not available on this hosted site.</div>
+          </div>
+          <button id="btnSeparate" class="primary-btn wide" disabled>
+            <svg viewBox="0 0 24 24"><path d="M4 12h3l2-6 3 12 2.5-9 2 6 1.5-3H20"/></svg>
+            <span id="btnSeparateLabel">Separate into stems</span>
+          </button>
+          <details class="adv" id="sepAdvanced">
+            <summary>Advanced parameters</summary>
+            <div class="adv-body">
+              <label>FFT size <output id="oFft">2048</output>
+                <input id="pFft" type="range" min="0" max="2" step="1" value="1"></label>
+              <label>Center focus <output id="oCenter">0.65</output>
+                <input id="pCenter" type="range" min="0" max="1" step="0.01" value="0.65"></label>
+              <label>Harmonic weight <output id="oHarm">0.80</output>
+                <input id="pHarm" type="range" min="0" max="2" step="0.01" value="0.8"></label>
+              <label>Transient focus <output id="oTrans">0.80</output>
+                <input id="pTrans" type="range" min="0" max="2" step="0.01" value="0.8"></label>
+              <label>Mask sharpness <output id="oSharp">1.80</output>
+                <input id="pSharp" type="range" min="1" max="4" step="0.05" value="1.8"></label>
+              <label>De-bleed <output id="oBleed">0.35</output>
+                <input id="pBleed" type="range" min="0" max="1" step="0.01" value="0.35"></label>
+              <label>Resolution
+                <select id="pRes">
+                  <option value="0">Full (source rate)</option>
+                  <option value="1" selected>Balanced (≈32 kHz)</option>
+                  <option value="2">Draft (≈22 kHz)</option>
+                </select></label>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="psec">
+        <h3 class="psec-title">Frequency Lab <span class="hint">8-band crossover</span></h3>
+        <div id="bandList" class="band-list"></div>
+        <div class="row-btns">
+          <button id="btnExtractBand" class="soft-btn small" disabled>Extract soloed band</button>
+          <button id="btnResetBands" class="soft-btn small">Reset</button>
+        </div>
+      </section>
+
+      <section class="psec">
+        <h3 class="psec-title">Utilities</h3>
+        <div class="util-grid">
+          <button id="utilMid" class="util" disabled><b>Mid</b><span>center channel</span></button>
+          <button id="utilSide" class="util" disabled><b>Side</b><span>stereo width</span></button>
+          <button id="utilCenterCancel" class="util" disabled><b>Cancel</b><span>center-cancel mix</span></button>
+          <button id="utilNormalize" class="util" disabled><b>Normalize</b><span>peak −1 dBFS</span></button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- CENTER: editor -->
+    <main id="editor" class="editor glass">
+      <div class="editor-toolbar">
+        <div class="toolgroup" id="editTools">
+          <button class="tool active" data-tool="select" title="Select / move (V)"><svg viewBox="0 0 24 24"><path d="M4 3l7 17 2.5-6.5L20 11z"/></svg></button>
+          <button class="tool" data-tool="razor" title="Razor — split clips (R)"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M8 7.5L20 18M8 16.5L20 6"/></svg></button>
+          <button class="tool" data-tool="range" title="Time selection (T)"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 6v12M16 6v12"/></svg></button>
+          <button class="tool" data-tool="fades" title="Fade handles"><svg viewBox="0 0 24 24"><path d="M3 20L21 4"/><path d="M3 20h18V4"/></svg></button>
+          <button class="tool" data-tool="marker" title="Marker — click to place / remove vertical guide lines"><svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M12 7l5-2.5v5L12 12"/></svg></button>
+        </div>
+        <div class="toolgroup" id="markerActions" title="Marker actions">
+          <button id="btnToggleMarkers" class="ghost-btn" title="Show / hide all markers">
+            <svg class="i-on" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="i-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.4 10.4 0 0 1 12 19c-6.5 0-10-7-10-7a18.6 18.6 0 0 1 4.06-5.06M9.9 4.24A9.5 9.5 0 0 1 12 4c6.5 0 10 7 10 7a18.6 18.6 0 0 1-3.22 5.36M3 3l18 18"/></svg>
+          </button>
+          <button id="btnClearMarkers" class="ghost-btn" title="Delete all markers">
+            <svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M21 6H3M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+        <div class="toolgroup" id="snapCtl">
+          <span class="tlabel">Snap</span>
+          <select id="snapSelect" class="mini-select">
+            <option value="0">off</option>
+            <option value="0.01">10 ms</option>
+            <option value="0.1" selected>100 ms</option>
+            <option value="0.5">0.5 s</option>
+            <option value="1">1 s</option>
+            <option value="-1">beat</option>
+          </select>
+          <span class="tlabel">BPM</span>
+          <input id="bpmInput" class="mini-num" type="number" min="40" max="300" value="120">
+        </div>
+        <div class="spacer"></div>
+        <div class="toolgroup" id="editActions">
+          <button id="btnSplit" class="soft-btn small" title="Split at playhead (S)">Split</button>
+          <button id="btnTrim" class="soft-btn small" title="Trim clip to selection (⇧T)">Trim</button>
+          <button id="btnDelete" class="soft-btn small danger" title="Delete (Del)">Delete</button>
+          <button id="btnDuplicate" class="soft-btn small" title="Duplicate (⌘D)">Duplicate</button>
+          <button id="btnSilence" class="soft-btn small" title="Silence selection">Silence</button>
+        </div>
+        <div class="toolgroup" id="spectTools" hidden>
+          <button class="tool active" data-specttool="select" title="Marquee a region to isolate"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="3 3"/></svg></button>
+          <button id="btnIsolateSel" class="soft-btn small">Isolate selection</button>
+          <label class="chk"><input type="checkbox" id="spectLog" checked> log freq</label>
+          <select id="spectMap" class="mini-select">
+            <option value="magma">magma</option>
+            <option value="viridis">viridis</option>
+            <option value="ice">ice</option>
+            <option value="mono">mono</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="editor-body">
+        <div class="ruler-row"><canvas id="rulerCanvas">Timeline time ruler</canvas></div>
+
+        <div id="lanesWrap" class="lanes-row">
+          <canvas id="lanesCanvas">Multitrack audio waveform lanes</canvas>
+          <canvas id="overlayCanvas" aria-hidden="true"></canvas>
+          <div id="playhead" class="playhead" hidden><span class="ph-flag"></span></div>
+          <div id="lanesEmpty" class="lanes-empty">
+            <div class="le-inner">
+              <svg viewBox="0 0 24 24"><path d="M4 12h3l2-6 3 12 2.5-9 2 6 1.5-3H20"/></svg>
+              <p>Drop an audio file to open a session</p>
+              <span>Stems · frequency bands · multitrack editing · export</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="spectroWrap" class="spectro-row" hidden>
+          <canvas id="spectroCanvas">Audio frequency spectrogram display</canvas>
+          <canvas id="spectroOverlay" aria-hidden="true"></canvas>
+          <div id="spectroBusy" class="spectro-busy" hidden><span class="spin"></span> analysing…</div>
+        </div>
+
+        <div id="spectrumWrap" class="spectrum-row" hidden>
+          <canvas id="spectrumCanvas">Real-time frequency spectrum analyzer</canvas>
+        </div>
+      </div>
+
+      <div class="editor-status">
+        <span id="statusMsg">Ready</span>
+        <span class="spacer"></span>
+        <span id="statusSel" class="mono">sel —</span>
+        <span id="statusZoom" class="mono">1 px = 10 ms</span>
+        <span id="statusSr" class="mono">— kHz</span>
+      </div>
+    </main>
+
+    <!-- RIGHT: inspector -->
+    <aside id="rightPanel" class="panel right glass">
+      <div class="insp-tabs">
+        <button class="itab active" data-itab="track">Track</button>
+        <button class="itab" data-itab="fx">Effects</button>
+        <button class="itab" data-itab="analysis">Analysis</button>
+      </div>
+
+      <!-- track -->
+      <div id="tabTrack" class="itab-body">
+        <div class="empty-note" id="trackEmpty">Select a track in the timeline.</div>
+        <div id="trackBody" hidden>
+          <div class="track-head-row">
+            <input id="tName" class="ghost-input strong" aria-label="Track name">
+            <span class="chip" id="tKind">stem</span>
+          </div>
+          <div class="fader-row">
+            <label>Gain <output id="tGainV">0.0 dB</output>
+            <input id="tGain" type="range" min="-40" max="12" step="0.1" value="0"></label>
+            <label>Pan <output id="tPanV">C</output>
+            <input id="tPan" type="range" min="-1" max="1" step="0.01" value="0"></label>
+            <label>Width <output id="tWidthV">100%</output>
+            <input id="tWidth" type="range" min="0" max="2" step="0.01" value="1"></label>
+          </div>
+          <div class="btn-row">
+            <button id="tMute" class="tog">M</button>
+            <button id="tSolo" class="tog">S</button>
+            <button id="tArm" class="tog dim">FX</button>
+            <button id="tColor" class="swatch" title="Track colour"></button>
+          </div>
+          <div class="clip-inspect" id="clipInspect" hidden>
+            <h4>Clip</h4>
+            <div class="kv"><span>Start</span><b id="cStart">—</b></div>
+            <div class="kv"><span>Length</span><b id="cLen">—</b></div>
+            <div class="kv"><span>Gain</span><b id="cGainV">0.0 dB</b></div>
+            <label>Fade in <output id="cFiV">0 ms</output><input id="cFi" type="range" min="0" max="2" step="0.01" value="0"></label>
+            <label>Fade out <output id="cFoV">0 ms</output><input id="cFo" type="range" min="0" max="2" step="0.01" value="0"></label>
+            <div class="btn-row">
+              <button id="cNormalize" class="soft-btn small">Normalize</button>
+              <button id="cReverse" class="soft-btn small">Reverse</button>
+            </div>
+          </div>
+          <div class="freq-lab-inline" id="freqLabInline">
+            <h4>Band filter <label class="chk right"><input type="checkbox" id="bandEnable"> enable</label></h4>
+            <div class="band-mini" id="bandMini"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- fx -->
+      <div id="tabFx" class="itab-body" hidden>
+        <div class="empty-note" id="fxEmpty">Select a track to edit its chain.</div>
+        <div id="fxBody" hidden>
+          <div class="fx-presets">
+            <select id="fxPreset" class="mini-select wide">
+              <option value="">— preset —</option>
+              <option value="vocal">Vocal polish</option>
+              <option value="drums">Punchy drums</option>
+              <option value="bass">Sub control</option>
+              <option value="air">Air / brightness</option>
+              <option value="clean">Bypass all</option>
+            </select>
+          </div>
+
+          <div class="fxmod" data-fx="invert">
+            <header><label class="switch"><input type="checkbox" data-on><span></span></label><b>Invert Phase</b><em>off</em></header>
+            <div class="fxmod-body">
+              <div class="fx-blurb">Flips the polarity of every sample (value × −1).<br>
+                Duplicate a track, enable Invert on one copy, and the two summed together cancel to silence.<br>
+                Meters still show signal — the cancellation happens at the mix bus.</div>
+            </div>
+          </div>
+
+          <div class="fxmod" data-fx="eq">
+            <header><label class="switch"><input type="checkbox" data-on><span></span></label><b>Parametric EQ</b><em id="eqSummary">off</em></header>
+            <div class="fxmod-body">
+              <label>Low shelf <output>—</output><input data-p="lowG" type="range" min="-18" max="18" step="0.5" value="0"></label>
+              <label>Low-mid f <output>—</output><input data-p="lmF" type="range" min="120" max="1200" step="1" value="300"></label>
+              <label>Low-mid g <output>—</output><input data-p="lmG" type="range" min="-18" max="18" step="0.5" value="0"></label>
+              <label>Hi-mid f <output>—</output><input data-p="hmF" type="range" min="1500" max="9000" step="1" value="4000"></label>
+              <label>Hi-mid g <output>—</output><input data-p="hmG" type="range" min="-18" max="18" step="0.5" value="0"></label>
+              <label>High shelf <output>—</output><input data-p="highG" type="range" min="-18" max="18" step="0.5" value="0"></label>
+            </div>
+          </div>
+
+          <div class="fxmod" data-fx="comp">
+            <header><label class="switch"><input type="checkbox" data-on><span></span></label><b>Compressor</b><em>—</em></header>
+            <div class="fxmod-body">
+              <label>Threshold <output>—</output><input data-p="thr" type="range" min="-60" max="0" step="0.5" value="-18"></label>
+              <label>Ratio <output>—</output><input data-p="ratio" type="range" min="1" max="20" step="0.5" value="3"></label>
+              <label>Attack <output>—</output><input data-p="atk" type="range" min="0" max="200" step="1" value="10"></label>
+              <label>Release <output>—</output><input data-p="rel" type="range" min="5" max="1000" step="5" value="180"></label>
+              <label>Knee <output>—</output><input data-p="knee" type="range" min="0" max="40" step="1" value="18"></label>
+            </div>
+          </div>
+
+          <div class="fxmod" data-fx="sat">
+            <header><label class="switch"><input type="checkbox" data-on><span></span></label><b>Saturator</b><em>—</em></header>
+            <div class="fxmod-body">
+              <label>Drive <output>—</output><input data-p="drive" type="range" min="0" max="100" step="1" value="30"></label>
+              <label>Mix <output>—</output><input data-p="mix" type="range" min="0" max="100" step="1" value="100"></label>
+              <label>Tone <output>—</output><input data-p="tone" type="range" min="200" max="16000" step="10" value="8000"></label>
+            </div>
+          </div>
+
+          <div class="fxmod" data-fx="delay">
+            <header><label class="switch"><input type="checkbox" data-on><span></span></label><b>Delay</b><em>—</em></header>
+            <div class="fxmod-body">
+              <label>Time <output>—</output><input data-p="time" type="range" min="10" max="1500" step="1" value="280"></label>
+              <label>Feedback <output>—</output><input data-p="fb" type="range" min="0" max="90" step="1" value="35"></label>
+              <label>Mix <output>—</output><input data-p="mix" type="range" min="0" max="100" step="1" value="25"></label>
+            </div>
+          </div>
+
+          <div class="fxmod" data-fx="reverb">
+            <header><label class="switch"><input type="checkbox" data-on><span></span></label><b>Reverb</b><em>—</em></header>
+            <div class="fxmod-body">
+              <label>Size <output>—</output><input data-p="size" type="range" min="10" max="100" step="1" value="55"></label>
+              <label>Decay <output>—</output><input data-p="decay" type="range" min="0.2" max="6" step="0.1" value="1.8"></label>
+              <label>Mix <output>—</output><input data-p="mix" type="range" min="0" max="100" step="1" value="20"></label>
+            </div>
+          </div>
+
+          <div class="fxmod" data-fx="limiter">
+            <header><label class="switch"><input type="checkbox" data-on><span></span></label><b>Limiter</b><em>—</em></header>
+            <div class="fxmod-body">
+              <label>Ceiling <output>—</output><input data-p="ceil" type="range" min="-12" max="0" step="0.1" value="-1"></label>
+              <label>Release <output>—</output><input data-p="rel" type="range" min="10" max="500" step="5" value="60"></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- analysis -->
+      <div id="tabAnalysis" class="itab-body" hidden>
+        <div class="meter-cards">
+          <div class="mcard"><span>Peak</span><b id="aPeak">−∞</b><div class="mbar"><i id="aPeakBar"></i></div></div>
+          <div class="mcard"><span>RMS</span><b id="aRms">−∞</b><div class="mbar"><i id="aRmsBar"></i></div></div>
+          <div class="mcard"><span>Loudness</span><b id="aLufs">—</b><div class="mbar"><i id="aLufsBar"></i></div></div>
+          <div class="mcard"><span>Correlation</span><b id="aCorr">—</b><div class="mbar corr"><i id="aCorrBar"></i></div></div>
+        </div>
+        <div class="an-canvas-wrap"><canvas id="analyzerCanvas">Master audio spectrum and phase analyzer</canvas></div>
+        <div class="psec-title" style="margin-top:10px">Band energy</div>
+        <div id="bandEnergy" class="band-energy"></div>
+        <div class="psec-title" style="margin-top:10px">Stem statistics</div>
+        <div id="stemStats" class="stem-stats"><div class="empty-note">Run separation to compare stems.</div></div>
+        <div class="btn-row">
+          <button id="btnAnalyze" class="soft-btn small">Re-analyze mix</button>
+          <button id="btnStats" class="soft-btn small">Stem stats</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ═══════════ MIXER ═══════════ -->
+  <footer id="mixer" class="mixer glass">
+    <div class="mixer-scroll" id="mixerStrips"></div>
+    <div class="master-strip" id="masterStrip">
+      <div class="ms-label">MASTER</div>
+      <div class="ms-meter"><canvas id="masterMeter">Master output level meter</canvas></div>
+      <div class="ms-fader">
+        <input id="masterGain" type="range" min="-60" max="6" step="0.1" value="0" aria-orientation="vertical" aria-label="Master gain">
+        <span id="masterGainV" class="mono">0.0</span>
+      </div>
+      <div class="ms-actions">
+        <button id="btnMasterLimiter" class="tog active" title="Master limiter">LIM</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- mobile nav -->
+  <nav id="mobileTabs" class="mobile-tabs">
+    <button data-m="left">Banks</button>
+    <button data-m="editor" class="active">Edit</button>
+    <button data-m="right">Insp</button>
+    <button data-m="mix">Mix</button>
+  </nav>
+</div>
+
+<!-- overlays -->
+<div id="progressOverlay" class="progress-overlay" hidden>
+  <div class="prog-card glass">
+    <div class="prog-head"><span class="spin"></span><b id="progTitle">Analysing</b></div>
+    <div class="prog-track"><i id="progBar"></i></div>
+    <div class="prog-sub" id="progSub">preparing…</div>
+    <div class="prog-detail mono" id="progDetail"></div>
+    <button id="progCancel" class="soft-btn small">Cancel</button>
+  </div>
+</div>
+
+<div id="modalRoot" class="modal-root" hidden>
+  <div class="modal-backdrop"></div>
+  <div class="modal-card glass" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <header><b id="modalTitle">Dialog</b><button id="modalClose" class="ghost-btn" aria-label="Close dialog">✕</button></header>
+    <div id="modalBody" class="modal-body"></div>
+    <footer id="modalFoot"></footer>
+  </div>
+</div>
+
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+<script src="vendor/lamejs.min.js?v=11"></script>
+<script type="module" src="js/main.js?v=11"></script>
+<script type="module" src="../auth.js"></script>
+</body>
+</html>

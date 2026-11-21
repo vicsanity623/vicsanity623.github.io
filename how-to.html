@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090d">
+  <meta name="description" content="Learn how to separate a song into stems, edit a multitrack session and export audio with PRISM Audio Studio.">
+  <link rel="canonical" href="https://vicsanity623.github.io/how-to.html">
+  <link rel="stylesheet" href="site.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5972331036113330" crossorigin="anonymous"></script>
+  <title>How to use PRISM Audio Studio</title>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="./"><span class="brand-mark">∿</span><span>PRISM<span class="brand-sub">AUDIO STUDIO</span></span></a><button class="menu-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button><nav id="site-nav" class="site-nav" aria-label="Main navigation"><a href="./#features">Features</a><a href="how-to.html">How to</a><a href="faq.html">FAQ</a><a href="privacy.html">Privacy</a><span class="auth-control"><button class="auth-button" type="button" data-auth-button>Sign in with Google</button><span class="auth-status" data-auth-status role="status" aria-live="polite"></span></span><a class="nav-cta" href="studio/">Open studio <span>↗</span></a></nav></header>
+  <main class="article-wrap">
+    <div class="article-eyebrow">FIELD GUIDE / GETTING STARTED</div>
+    <h1>Make your first<br><em>stem session.</em></h1>
+    <p class="article-intro">PRISM runs in a modern browser. Load a track, choose a separation method, then edit the resulting stems in the built-in multitrack workspace.</p>
+    <div class="ad-break" aria-label="Advertisement"><span>ADVERTISEMENT</span><ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5972331036113330" data-ad-slot="4287691766" data-ad-format="auto" data-full-width-responsive="true"></ins><script>(adsbygoogle = window.adsbygoogle || []).push({});</script></div>
+    <div class="article-body">
+      <p class="article-meta">ABOUT 5 MINUTES · NO ACCOUNT REQUIRED</p>
+      <h2>1. Open the studio and load audio</h2>
+      <p>Go to the <a href="studio/">PRISM studio</a> in a recent desktop version of Chrome, Edge or Safari. Drag an audio file into the Source panel or use Browse. Audio is decoded locally in your browser. Use audio you own or have permission to process.</p>
+      <p>Supported formats depend on the browser's audio decoder; WAV and MP3 are the safest choices. Very long or high-resolution files can use substantial memory, especially on phones.</p>
+      <h2>2. Choose how to separate</h2>
+      <p>For AI separation, choose <b>AI</b> and use <b>HTDemucs-FT</b>. The first run fetches an approximately 166 MB ONNX model from Hugging Face. It is cached on your device for later sessions. AI separation uses significant memory and may take longer than the track itself on some computers.</p>
+      <div class="callout">The app supports HTDemucs models in the browser. MDX-Net is not currently available in this hosted browser build; the MDX option in the desktop source relies on a separately run local server.</div>
+      <p>For lighter processing without a model download, try the Fast, Studio or Deep DSP modes. These use signal-processing techniques rather than the AI model, and their results differ from neural source separation.</p>
+      <h2>3. Edit your stems</h2>
+      <p>After separation, the stems appear as tracks in the timeline. Use the transport controls to play and stop, adjust track levels in the right panel, and use the editing tools to split, trim, move or duplicate clips. The Spectrogram and Analyzer tabs help inspect the sound. Effects and Frequency Lab controls are available for additional shaping.</p>
+      <h2>4. Export or save your session</h2>
+      <p>Use Export to render a mix, an individual track, all stems or a project bundle. Formats include WAV and MP3 where supported. Keep your exported files somewhere safe: the editor works locally and does not sync projects to an account or cloud drive.</p>
+      <h2>Privacy and performance notes</h2>
+      <ul><li>Your selected audio is processed on your device by the editor; it is not uploaded to PRISM.</li><li>The AI model is downloaded from Hugging Face only when you choose AI separation.</li><li>Allow enough free memory; close other demanding tabs if the browser struggles.</li><li>AI results are estimates, not isolated studio recordings. Some bleed and artifacts are normal.</li></ul>
+      <div class="article-cta"><a class="button button-bright" href="studio/">Open the studio <span>↗</span></a></div>
+      <div class="article-footer"><a class="text-link" href="faq.html">Read the FAQ →</a></div>
+    </div>
+  </main>
+  <footer class="site-footer"><a class="brand" href="./"><span class="brand-mark">∿</span><span>PRISM<span class="brand-sub">AUDIO STUDIO</span></span></a><span class="footer-note">A free audio workspace for curious ears.</span><nav aria-label="Footer navigation"><a href="how-to.html">How to</a><a href="faq.html">FAQ</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav><span class="copyright">© 2026 PRISM Audio Studio</span></footer>
+  <script src="site.js"></script><script type="module" src="auth.js"></script>
+</body></html>
