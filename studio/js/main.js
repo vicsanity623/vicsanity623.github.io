@@ -2,7 +2,7 @@
 
 import { $, toast } from './utils.js?v=11';
 import { session } from './session.js?v=11';
-import { initUI, loadSessionJson } from './ui.js?v=11';
+import { initUI, loadSessionJson } from './ui.js?v=12';
 import { redraw, resize, view } from './views.js?v=11';
 import { engine, renderSession } from './audio-engine.js?v=11';
 

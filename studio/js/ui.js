@@ -22,6 +22,15 @@ import { bandEnergies, integratedLoudness, peakOf, rmsOf, correlation, BAND_RANG
 
 import { probeLocalServer, probeAllLocalServers, separateWithLocalServer, audioBufferToWav16, pcmWavToFloat } from './ai-local.js?v=11';
 
+function isMobileBrowser() {
+  const n = navigator;
+  const ua = n.userAgent || '';
+  return n.userAgentData?.mobile === true ||
+    /Android|iPhone|iPad|iPod|Mobile/i.test(ua) ||
+    (n.platform === 'MacIntel' && n.maxTouchPoints > 1);
+}
+const MOBILE_AI_BLOCKED = isMobileBrowser();
+
 const ui = {
   sourceId: null,
   sepMode: 'fast',
@@ -159,10 +168,11 @@ function setSource(id) {
   view.spectroSourceId = id;
   const meta = getBufferMeta(id);
   $('#stemStatus').textContent = meta ? `${meta.duration.toFixed(0)}s · ${(meta.sr / 1000).toFixed(1)}k` : '';
-  $('#btnSeparate').disabled = false;
+  $('#btnSeparate').disabled = MOBILE_AI_BLOCKED && ui.sepMode === 'ai';
   $('#btnMidSide').disabled = false;
   for (const b of ['#utilMid', '#utilSide', '#utilCenterCancel', '#utilNormalize', '#btnExtractBand']) $(b).disabled = false;
   renderStemList();
+  updateSeparateLabel();
 }
 
 function addBufferToTimeline(bufferId, name) {
@@ -450,6 +460,9 @@ function applyAiEngineVisibility() {
   $('#aiStatus').hidden = local;
   $('#aiMetaBrowser').hidden = local;
   $('#aiLocalRow').hidden = true;
+  const mobileWarning = $('#aiMobileWarning');
+  if (mobileWarning) mobileWarning.hidden = !(MOBILE_AI_BLOCKED && ui.sepMode === 'ai');
+  if (MOBILE_AI_BLOCKED) $('#btnAiModel').disabled = true;
 }
 
 async function refreshLocalServer() {
@@ -467,7 +480,17 @@ async function refreshLocalServer() {
 
 async function updateSeparateLabel() {
   const btn = $('#btnSeparateLabel');
-  if (ui.sepMode !== 'ai') { btn.textContent = 'Separate into stems'; return; }
+  const separateButton = $('#btnSeparate');
+  if (ui.sepMode !== 'ai') {
+    btn.textContent = 'Separate into stems';
+    separateButton.disabled = !separationSourceId();
+    return;
+  }
+  if (MOBILE_AI_BLOCKED) {
+    btn.textContent = 'AI separation needs a desktop';
+    separateButton.disabled = true;
+    return;
+  }
   if (isLocalModelSelected()) {
     if ($('#aiModelSel').value === 'local-mdxnet_voc_ft') {
       btn.textContent = ui.localMdxServer ? 'Separate with MDX-Net Voc-FT' : 'MDX-Net server not running';
@@ -531,6 +554,14 @@ async function refreshAiStatus() {
   $('#aiModelDesc').textContent = def.desc;
   $('#aiModelSize').textContent = (def.size / 1048576).toFixed(0) + ' MB';
   const available = await cacheModelAvailable(def.url);
+  if (MOBILE_AI_BLOCKED) {
+    $('#aiBackend').textContent = 'Desktop only';
+    $('#aiStatus .ai-dot').className = 'ai-dot idle';
+    $('#aiStatusText').textContent = 'AI disabled on phones to prevent memory reloads';
+    $('#btnAiModel').disabled = true;
+    $('#btnAiModel').textContent = 'Use a desktop browser for AI';
+    return;
+  }
   let backend = 'WASM (CPU)';
   try {
     const cap = await aiProbe();
@@ -546,6 +577,10 @@ async function refreshAiStatus() {
 }
 
 async function downloadAiModel(only) {
+  if (MOBILE_AI_BLOCKED) {
+    toast('AI separation is disabled on phones to prevent browser memory crashes. Use Fast, Studio or Deep instead.', 'err');
+    return;
+  }
   const def = aiModelDef();
   if (ui.aiDownloading) return;
   ui.aiDownloading = true;
@@ -591,6 +626,10 @@ async function resampleStereoForAI(ab) {
 }
 
 async function runAISeparation() {
+  if (MOBILE_AI_BLOCKED) {
+    toast('AI separation is disabled on phones to prevent browser memory crashes. Use Fast, Studio or Deep instead.', 'err');
+    return;
+  }
   const srcId = separationSourceId();
   if (!srcId) { toast('Import audio first', 'err'); return; }
   const ab = getAudioBuffer(srcId);
@@ -1831,6 +1870,10 @@ function restorePrefs() {
     if (p.mode) {
       ui.sepMode = p.mode === 'ai' ? 'ai' : p.mode;
       $$('#sepModes .mode').forEach(x => x.classList.toggle('active', x.dataset.mode === ui.sepMode));
+    }
+    if (MOBILE_AI_BLOCKED && ui.sepMode === 'ai') {
+      ui.sepMode = 'fast';
+      $$('#sepModes .mode').forEach(x => x.classList.toggle('active', x.dataset.mode === 'fast'));
     }
     if (p.aiModel && $('#aiModelSel')) $('#aiModelSel').value = p.aiModel;
     const map = { fft: 'pFft', center: 'pCenter', harm: 'pHarm', trans: 'pTrans', sharp: 'pSharp', bleed: 'pBleed', res: 'pRes' };

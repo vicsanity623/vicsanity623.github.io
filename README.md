@@ -6,6 +6,7 @@ PRISM is a static, browser-based stem splitter and multitrack editor, with a sma
 
 - **HTDemucs-FT** and **HTDemucs**: ONNX models loaded by ONNX Runtime Web. A visitor downloads the selected model from Hugging Face on first use (about 166 MB for HTDemucs-FT); the browser caches it locally when possible.
 - **Fast / Studio / Deep**: DSP-based separation modes that do not require the AI model download.
+- **Mobile safeguard**: AI inference is disabled on phones and tablets because the 166 MB model and inference memory can cause mobile browsers to kill and reload the tab. The DSP modes remain available on mobile.
 - **Editor**: multitrack timeline, effects, frequency tools, analysis and WAV/MP3/project export.
 - **MDX-Net is not enabled on this hosted app.** The MDX implementation in the source editor expects a separate local Python server. Do not advertise MDX as an in-browser feature until a browser inference implementation is added and tested.
 
@@ -46,6 +47,10 @@ The previous Firebase project's Google Authentication config is retained as an *
 ## Legal and attribution
 
 See `privacy.html`, `terms.html` and `studio/NOTICE.md`. The policy pages should be reviewed for the actual AdSense consent setup, hosting configuration and applicable law before publication. The editor and third-party components retain their respective notices and licenses.
+
+## itch.io launch kit
+
+`promo/itch/PAGE-COPY.md` contains ready-to-paste project copy and setup details; `promo/itch/UPLOAD-CHECKLIST.md` has the publishing checklist. The cover, four real editor screenshots and short workflow GIF are in `promo/itch/assets/`. The itch page should link to the approved site rather than embed a second copy of the app.
 
 ## Local development
 

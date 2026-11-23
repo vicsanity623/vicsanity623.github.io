@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="400" viewBox="0 0 1600 400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#090a12"/><stop offset=".55" stop-color="#101022"/><stop offset="1" stop-color="#080910"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#7562ff" stop-opacity=".15"/><stop offset=".35" stop-color="#9b82ff"/>
+      <stop offset=".7" stop-color="#45d9e6"/><stop offset="1" stop-color="#e26cbd" stop-opacity=".75"/>
+    </linearGradient>
+    <linearGradient id="bars" x1="0" y1="1" x2="0" y2="0">
+      <stop stop-color="#6656e8" stop-opacity=".2"/><stop offset=".55" stop-color="#927aff"/><stop offset="1" stop-color="#58ddeb"/>
+    </linearGradient>
+    <radialGradient id="glowA"><stop stop-color="#694cff" stop-opacity=".32"/><stop offset="1" stop-color="#694cff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glowB"><stop stop-color="#21c8df" stop-opacity=".2"/><stop offset="1" stop-color="#21c8df" stop-opacity="0"/></radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="22"/></filter>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#c5c8ff" stroke-opacity=".06" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="400" fill="url(#bg)"/>
+  <ellipse cx="1120" cy="190" rx="470" ry="210" fill="url(#glowA)" filter="url(#blur)"/>
+  <ellipse cx="1510" cy="140" rx="230" ry="180" fill="url(#glowB)" filter="url(#blur)"/>
+  <rect width="1600" height="400" fill="url(#grid)"/>
+  <path d="M0 320H1600M0 80H1600" stroke="#a9a4ff" stroke-opacity=".08"/>
+  <g opacity=".7">
+    <path d="M0 245 C160 245 180 241 270 245 S385 256 470 245 S560 224 645 245 S735 274 820 245 S910 200 995 245 S1080 286 1165 245 S1260 205 1340 245 S1450 269 1600 245" fill="none" stroke="url(#wave)" stroke-width="2"/>
+    <path d="M0 252 C170 252 185 248 270 252 S390 263 470 252 S560 231 645 252 S735 281 820 252 S910 207 995 252 S1080 293 1165 252 S1260 212 1340 252 S1450 276 1600 252" fill="none" stroke="url(#wave)" stroke-opacity=".38" stroke-width="1"/>
+  </g>
+  <g fill="url(#bars)">
+    <rect x="600" y="206" width="7" height="78" rx="3"/><rect x="618" y="188" width="7" height="112" rx="3"/>
+    <rect x="636" y="221" width="7" height="52" rx="3"/><rect x="654" y="168" width="7" height="150" rx="3"/>
+    <rect x="672" y="198" width="7" height="91" rx="3"/><rect x="690" y="142" width="7" height="201" rx="3"/>
+    <rect x="708" y="178" width="7" height="130" rx="3"/><rect x="726" y="219" width="7" height="57" rx="3"/>
+    <rect x="744" y="155" width="7" height="177" rx="3"/><rect x="762" y="191" width="7" height="105" rx="3"/>
+    <rect x="780" y="126" width="7" height="231" rx="3"/><rect x="798" y="173" width="7" height="141" rx="3"/>
+    <rect x="816" y="211" width="7" height="69" rx="3"/><rect x="834" y="151" width="7" height="184" rx="3"/>
+    <rect x="852" y="185" width="7" height="116" rx="3"/><rect x="870" y="133" width="7" height="220" rx="3"/>
+    <rect x="888" y="171" width="7" height="145" rx="3"/><rect x="906" y="220" width="7" height="55" rx="3"/>
+    <rect x="924" y="158" width="7" height="170" rx="3"/><rect x="942" y="187" width="7" height="110" rx="3"/>
+    <rect x="960" y="139" width="7" height="209" rx="3"/><rect x="978" y="175" width="7" height="139" rx="3"/>
+    <rect x="996" y="214" width="7" height="65" rx="3"/><rect x="1014" y="161" width="7" height="165" rx="3"/>
+    <rect x="1032" y="189" width="7" height="105" rx="3"/><rect x="1050" y="146" width="7" height="193" rx="3"/>
+    <rect x="1068" y="180" width="7" height="125" rx="3"/><rect x="1086" y="216" width="7" height="60" rx="3"/>
+    <rect x="1104" y="168" width="7" height="151" rx="3"/><rect x="1122" y="192" width="7" height="99" rx="3"/>
+    <rect x="1140" y="155" width="7" height="177" rx="3"/><rect x="1158" y="184" width="7" height="119" rx="3"/>
+    <rect x="1176" y="211" width="7" height="68" rx="3"/><rect x="1194" y="172" width="7" height="143" rx="3"/>
+    <rect x="1212" y="198" width="7" height="88" rx="3"/><rect x="1230" y="178" width="7" height="130" rx="3"/>
+    <rect x="1248" y="207" width="7" height="72" rx="3"/><rect x="1266" y="187" width="7" height="108" rx="3"/>
+    <rect x="1284" y="216" width="7" height="58" rx="3"/><rect x="1302" y="193" width="7" height="96" rx="3"/>
+  </g>
+  <g transform="translate(80 112)">
+    <rect width="58" height="58" rx="17" fill="#131626" stroke="#8173ff" stroke-opacity=".7"/>
+    <path d="M8 29h7l5-12 8 27 7-21 6 15 5-10 4 4h5" fill="none" stroke="url(#wave)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="80" y="27" fill="#f4f3fa" font-family="Arial,Helvetica,sans-serif" font-size="28" font-weight="700" letter-spacing="6">PRISM</text>
+    <text x="82" y="53" fill="#a5a7bd" font-family="monospace" font-size="11" letter-spacing="3">SPECTRAL STEM STUDIO</text>
+    <text x="82" y="91" fill="#67dbe8" font-family="monospace" font-size="10" letter-spacing="2">AI SEPARATION · MULTITRACK EDITOR</text>
+  </g>
+  <text x="80" y="356" fill="#82869a" font-family="monospace" font-size="9" letter-spacing="2">AUDIO STAYS ON YOUR DEVICE</text>
+</svg>

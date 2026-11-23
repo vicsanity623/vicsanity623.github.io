@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c5cff'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%23070912'/%3E%3Cpath d='M5 16h3l2-7 3 14 3-11 2.5 8 2.5-5 2 1h4' fill='none' stroke='url(%23g)' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body>
 <div class="bg-aurora" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
@@ -121,6 +121,10 @@
               <span class="ai-local-text" id="aiLocalText">detecting local HTDemucs-FT server…</span>
             </div>
             <div class="ai-meta" id="aiMetaBrowser"><span id="aiModelSize">166 MB</span> · <span id="aiBackend">WebGPU</span> · cached on-device</div>
+            <div id="aiMobileWarning" class="ai-mobile-warning" role="status" hidden>
+              <b>AI separation is desktop-only on phones and tablets.</b>
+              The 166 MB model plus inference can exceed mobile browser memory and force a tab reload. Use Fast, Studio or Deep on this device. To use AI, open PRISM on a desktop browser.
+            </div>
             <button id="btnAiModel" class="soft-btn small wide">Download AI model (one-time)</button>
             <div id="aiStatus" class="ai-status"><span class="ai-dot idle"></span><span id="aiStatusText">not downloaded</span></div>
             <div class="note">The selected audio is processed <b>on your device</b>. The first AI run downloads the model from Hugging Face (about 166 MB), then the browser caches it. WebGPU is used when available; otherwise inference falls back to CPU. MDX-Net currently requires the separate desktop server and is not available on this hosted site.</div>
@@ -466,7 +470,7 @@
 <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
 <script src="vendor/lamejs.min.js?v=11"></script>
-<script type="module" src="js/main.js?v=11"></script>
+<script type="module" src="js/main.js?v=12"></script>
 <script type="module" src="../auth.js"></script>
 </body>
 </html>

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#08090f"/><stop offset=".52" stop-color="#0b0b14"/><stop offset="1" stop-color="#090a11"/>
+    </linearGradient>
+    <radialGradient id="violet"><stop stop-color="#41317c" stop-opacity=".2"/><stop offset="1" stop-color="#211743" stop-opacity="0"/></radialGradient>
+    <radialGradient id="cyan"><stop stop-color="#14515b" stop-opacity=".12"/><stop offset="1" stop-color="#14515b" stop-opacity="0"/></radialGradient>
+    <linearGradient id="trace" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#8b77ff" stop-opacity="0"/><stop offset=".35" stop-color="#8b77ff" stop-opacity=".17"/>
+      <stop offset=".7" stop-color="#4dd7e3" stop-opacity=".15"/><stop offset="1" stop-color="#4dd7e3" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" fill="none" stroke="#bfc2ee" stroke-opacity=".025" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#base)"/>
+  <ellipse cx="100" cy="100" rx="620" ry="470" fill="url(#violet)"/>
+  <ellipse cx="1550" cy="870" rx="650" ry="460" fill="url(#cyan)"/>
+  <rect width="1600" height="1000" fill="url(#grid)"/>
+  <path d="M0 710 C190 706 240 701 330 710 S460 725 550 710 S670 685 760 710 S890 740 980 710 S1100 680 1190 710 S1320 731 1410 710 S1530 699 1600 710" fill="none" stroke="url(#trace)" stroke-width="2"/>
+  <path d="M0 720 C190 716 240 711 330 720 S460 735 550 720 S670 695 760 720 S890 750 980 720 S1100 690 1190 720 S1320 741 1410 720 S1530 709 1600 720" fill="none" stroke="url(#trace)" stroke-opacity=".55" stroke-width="1"/>
+  <g fill="#8d7cff" opacity=".18">
+    <circle cx="108" cy="252" r="2"/><circle cx="242" cy="194" r="1.5"/><circle cx="1380" cy="162" r="2"/>
+    <circle cx="1504" cy="286" r="1.5"/><circle cx="1312" cy="805" r="2"/><circle cx="260" cy="846" r="1.5"/>
+  </g>
+  <g stroke="#7770b8" stroke-opacity=".07">
+    <path d="M0 170H1600"/><path d="M0 500H1600"/><path d="M0 900H1600"/>
+    <path d="M330 0V1000"/><path d="M1270 0V1000"/>
+  </g>
+</svg>

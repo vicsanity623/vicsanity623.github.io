@@ -20,7 +20,7 @@
       <p class="article-meta">ABOUT 5 MINUTES · NO ACCOUNT REQUIRED</p>
       <h2>1. Open the studio and load audio</h2>
       <p>Go to the <a href="studio/">PRISM studio</a> in a recent desktop version of Chrome, Edge or Safari. Drag an audio file into the Source panel or use Browse. Audio is decoded locally in your browser. Use audio you own or have permission to process.</p>
-      <p>Supported formats depend on the browser's audio decoder; WAV and MP3 are the safest choices. Very long or high-resolution files can use substantial memory, especially on phones.</p>
+      <p>Supported formats depend on the browser's audio decoder; WAV and MP3 are the safest choices. Very long or high-resolution files can use substantial memory, especially on phones. To prevent mobile tabs from being killed during AI inference, HTDemucs AI is disabled on phones and tablets; Fast, Studio and Deep DSP modes remain available there. Use a desktop browser for AI separation.</p>
       <h2>2. Choose how to separate</h2>
       <p>For AI separation, choose <b>AI</b> and use <b>HTDemucs-FT</b>. The first run fetches an approximately 166 MB ONNX model from Hugging Face. It is cached on your device for later sessions. AI separation uses significant memory and may take longer than the track itself on some computers.</p>
       <div class="callout">The app supports HTDemucs models in the browser. MDX-Net is not currently available in this hosted browser build; the MDX option in the desktop source relies on a separately run local server.</div>
