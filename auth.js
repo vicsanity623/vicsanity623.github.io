@@ -105,7 +105,7 @@ if (counterEl && app) {
   (async () => {
     try {
       const db = getFirestore(app);
-      const statsRef = doc(db, "stats", "site");
+      const statsRef = doc(db, "metrics", "visitors");
       const hasVisited = localStorage.getItem(STORAGE_KEY) === "1";
 
       if (!hasVisited) {
